@@ -59,6 +59,8 @@ export interface ResourceConfig {
   idKey?: string
   createEndpoint?: string
   createLabel?: string
+  createBody?: (payload: AnyRecord) => unknown
+  afterCreate?: (createdRecord: AnyRecord, payload: AnyRecord) => Promise<unknown>
   readOnly?: boolean
   columns: ColumnConfig[]
   filters?: FieldConfig[]

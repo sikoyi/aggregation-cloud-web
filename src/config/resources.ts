@@ -1,3 +1,5 @@
+import { http } from '@/api/http'
+import type { AnyRecord } from '@/types/api'
 import type { ResourceConfig } from '@/types/crud'
 
 import {
@@ -15,6 +17,33 @@ import {
 } from './options'
 
 const jsonPlaceholder = '{}'
+
+const scriptCreateKeys = [
+  'script_key',
+  'name',
+  'description',
+  'engine_type',
+  'supported_runtime_platforms',
+  'supported_providers',
+  'supported_business_platforms',
+  'default_timeout_seconds',
+  'max_timeout_seconds',
+  'max_concurrency',
+  'status',
+]
+
+function pickPayload(payload: AnyRecord, keys: string[]) {
+  return keys.reduce<AnyRecord>((result, key) => {
+    if (payload[key] !== undefined) result[key] = payload[key]
+    return result
+  }, {})
+}
+
+async function createScriptParams(createdScript: AnyRecord, payload: AnyRecord) {
+  const items = Array.isArray(payload.params) ? payload.params : []
+  if (!items.length) return undefined
+  return http.put(`/api/scripts/${createdScript.id}/params`, { items })
+}
 
 export const resources: Record<string, ResourceConfig> = {
   accounts: {
@@ -361,7 +390,18 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'max_timeout_seconds', label: '最大超时秒', type: 'number', defaultValue: 3600 },
       { key: 'max_concurrency', label: '最大并发', type: 'number', defaultValue: 1 },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
+      {
+        key: 'params',
+        label: '脚本参数定义',
+        type: 'json',
+        defaultValue: [],
+        span: 2,
+        placeholder:
+          '[{"param_key":"content","name":"内容","param_type":"textarea","required":true,"sort_order":10}]',
+      },
     ],
+    createBody: (payload) => pickPayload(payload, scriptCreateKeys),
+    afterCreate: createScriptParams,
     updateFields: [
       { key: 'name', label: '脚本名称' },
       { key: 'engine_type', label: '执行引擎' },

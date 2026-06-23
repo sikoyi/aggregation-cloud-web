@@ -169,8 +169,11 @@ async function submitEntity() {
   try {
     if (modal.type === 'create') {
       const payload = buildPayload(props.config.createFields || [], formState.value, 'create')
-      const data = await http.post<AnyRecord>(props.config.createEndpoint || props.config.endpoint, payload)
-      lastResult.value = data
+      // 有些资源创建时需要把表单拆成主表与子资源两次请求，例如脚本和脚本参数。
+      const body = props.config.createBody ? props.config.createBody(payload) : payload
+      const data = await http.post<AnyRecord>(props.config.createEndpoint || props.config.endpoint, body)
+      const followup = props.config.afterCreate ? await props.config.afterCreate(data, payload) : undefined
+      lastResult.value = followup === undefined ? data : { entity: data, followup }
     }
     if (modal.type === 'edit' && modal.record) {
       const payload = buildPayload(props.config.updateFields || [], formState.value, 'update')
