@@ -17,65 +17,74 @@ function updateValue(key: string, value: unknown) {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-    <label
-      v-for="field in fields"
-      :key="field.key"
-      class="space-y-1.5"
-      :class="field.span === 2 ? 'md:col-span-2' : ''"
-    >
-      <span class="label">
-        {{ field.label }}
-        <span v-if="field.required" class="text-red-500">*</span>
-      </span>
-
-      <textarea
-        v-if="field.type === 'textarea' || field.type === 'json'"
-        class="textarea"
-        :class="field.type === 'json' ? 'font-mono text-xs' : ''"
-        :rows="field.type === 'json' ? 8 : 4"
-        :placeholder="field.placeholder"
-        :readonly="field.readonly"
-        :value="String(modelValue[field.key] ?? '')"
-        @input="updateValue(field.key, ($event.target as HTMLTextAreaElement).value)"
-      />
-
-      <select
-        v-else-if="field.type === 'select'"
-        class="input"
-        :value="String(modelValue[field.key] ?? '')"
-        :disabled="field.readonly"
-        @change="updateValue(field.key, ($event.target as HTMLSelectElement).value)"
+  <el-form label-position="top" class="dynamic-form">
+    <el-row :gutter="16">
+      <el-col
+        v-for="field in fields"
+        :key="field.key"
+        :xs="24"
+        :md="field.span === 2 ? 24 : 12"
       >
-        <option value="">请选择</option>
-        <option v-for="option in field.options || []" :key="String(option.value)" :value="String(option.value)">
-          {{ option.label }}
-        </option>
-      </select>
+        <el-form-item :required="field.required" :label="field.label">
+          <el-input
+            v-if="field.type === 'textarea' || field.type === 'json'"
+            :model-value="String(modelValue[field.key] ?? '')"
+            :type="field.type === 'json' ? 'textarea' : 'textarea'"
+            :rows="field.type === 'json' ? 8 : 4"
+            :placeholder="field.placeholder"
+            :readonly="field.readonly"
+            :class="field.type === 'json' ? 'font-mono text-xs' : ''"
+            resize="vertical"
+            @update:model-value="updateValue(field.key, $event)"
+          />
 
-      <label
-        v-else-if="field.type === 'boolean'"
-        class="flex h-9 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm text-slate-700"
-      >
-        <input
-          type="checkbox"
-          class="h-4 w-4 rounded border-line text-brand-600 focus:ring-brand-500"
-          :checked="Boolean(modelValue[field.key])"
-          :disabled="field.readonly"
-          @change="updateValue(field.key, ($event.target as HTMLInputElement).checked)"
-        />
-        <span>{{ field.placeholder || field.label }}</span>
-      </label>
+          <el-select
+            v-else-if="field.type === 'select'"
+            :model-value="String(modelValue[field.key] ?? '')"
+            :disabled="field.readonly"
+            clearable
+            filterable
+            class="w-full"
+            placeholder="请选择"
+            @update:model-value="updateValue(field.key, $event)"
+          >
+            <el-option
+              v-for="option in field.options || []"
+              :key="String(option.value)"
+              :label="option.label"
+              :value="String(option.value)"
+            />
+          </el-select>
 
-      <input
-        v-else
-        class="input"
-        :type="field.type === 'number' ? 'number' : field.type === 'datetime' ? 'datetime-local' : 'text'"
-        :placeholder="field.placeholder"
-        :readonly="field.readonly"
-        :value="String(modelValue[field.key] ?? '')"
-        @input="updateValue(field.key, ($event.target as HTMLInputElement).value)"
-      />
-    </label>
-  </div>
+          <el-switch
+            v-else-if="field.type === 'boolean'"
+            :model-value="Boolean(modelValue[field.key])"
+            :disabled="field.readonly"
+            active-text="是"
+            inactive-text="否"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <el-input-number
+            v-else-if="field.type === 'number'"
+            :model-value="Number(modelValue[field.key] || 0)"
+            :disabled="field.readonly"
+            class="w-full"
+            controls-position="right"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <el-input
+            v-else
+            :model-value="String(modelValue[field.key] ?? '')"
+            :type="field.type === 'datetime' ? 'datetime-local' : 'text'"
+            :placeholder="field.placeholder"
+            :readonly="field.readonly"
+            clearable
+            @update:model-value="updateValue(field.key, $event)"
+          />
+        </el-form-item>
+      </el-col>
+    </el-row>
+  </el-form>
 </template>

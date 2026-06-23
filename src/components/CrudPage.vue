@@ -15,8 +15,8 @@ import {
   Trash2,
   Unlink,
   Users,
-  X,
 } from 'lucide-vue-next'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
@@ -68,7 +68,6 @@ const modal = reactive<{
 
 const formState = ref<AnyRecord>({})
 
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const idKey = computed(() => props.config.idKey || 'id')
 const modalFields = computed<FieldConfig[]>(() => {
   if (modal.type === 'create') return props.config.createFields || []
@@ -114,6 +113,12 @@ async function loadRows() {
   }
 }
 
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  page.value = 1
+  loadRows()
+}
+
 function resetFilters() {
   Object.keys(filters).forEach((key) => {
     filters[key] = ''
@@ -144,6 +149,20 @@ function closeModal() {
   submitting.value = false
 }
 
+async function confirmAction(message?: string) {
+  if (!message) return true
+  try {
+    await ElMessageBox.confirm(message, '确认操作', {
+      type: 'warning',
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function submitEntity() {
   submitting.value = true
   error.value = ''
@@ -159,6 +178,7 @@ async function submitEntity() {
       lastResult.value = data
     }
     closeModal()
+    ElMessage.success('保存成功')
     await loadRows()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '提交失败'
@@ -169,7 +189,7 @@ async function submitEntity() {
 
 async function archiveRow(record: AnyRecord) {
   const message = props.config.archiveConfirm || `确认归档 ${rowId(record)}？`
-  if (!window.confirm(message)) return
+  if (!(await confirmAction(message))) return
   await executeRequest(
     {
       key: 'archive',
@@ -207,7 +227,7 @@ async function submitAction() {
 
 async function executeRequest(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
   const message = typeof action.confirm === 'function' ? action.confirm(record) : action.confirm
-  if (message && !window.confirm(message)) return
+  if (!(await confirmAction(message))) return
 
   submitting.value = true
   error.value = ''
@@ -228,12 +248,22 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
     if (action.method === 'PUT') lastResult.value = await http.put(path, body)
     if (action.method === 'DELETE') lastResult.value = await http.delete(path)
 
+    ElMessage.success(action.method === 'GET' ? '查询完成' : '操作完成')
     if (action.refresh !== false) await loadRows()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '操作失败'
   } finally {
     submitting.value = false
   }
+}
+
+function handleDropdown(command: string, row: AnyRecord) {
+  if (command === '__archive') {
+    archiveRow(row)
+    return
+  }
+  const action = props.config.rowActions?.find((item) => item.key === command)
+  if (action) runAction(action, row)
 }
 
 function initFilters() {
@@ -260,185 +290,177 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="space-y-4">
+  <section class="resource-page space-y-4">
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
         <h1 class="text-xl font-semibold text-ink">{{ config.title }}</h1>
       </div>
-      <div class="flex items-center gap-2">
-        <button class="btn btn-secondary" type="button" title="刷新" :disabled="loading" @click="loadRows">
-          <RefreshCw class="h-4 w-4" />
-        </button>
-        <button
+      <el-space wrap>
+        <el-tooltip content="刷新" placement="bottom">
+          <el-button :icon="RefreshCw" circle :loading="loading" @click="loadRows" />
+        </el-tooltip>
+        <el-button
           v-if="!config.readOnly"
-          class="btn btn-primary"
-          type="button"
+          type="primary"
+          :icon="Plus"
           :disabled="loading"
           @click="openCreate"
         >
-          <Plus class="h-4 w-4" />
           {{ config.createLabel || '新增' }}
-        </button>
-      </div>
+        </el-button>
+      </el-space>
     </div>
 
-    <div v-if="config.filters?.length" class="panel px-4 py-3">
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <label v-for="filter in config.filters" :key="filter.key" class="space-y-1.5">
-          <span class="label">{{ filter.label }}</span>
-          <select
-            v-if="filter.type === 'select'"
-            v-model="filters[filter.key]"
-            class="input"
-            @change="page = 1; loadRows()"
-          >
-            <option value="">全部</option>
-            <option v-for="option in filter.options || []" :key="String(option.value)" :value="String(option.value)">
-              {{ option.label }}
-            </option>
-          </select>
-          <input
-            v-else
-            v-model="filters[filter.key]"
-            class="input"
-            :placeholder="filter.placeholder"
-            @keydown.enter="page = 1; loadRows()"
-          />
-        </label>
-      </div>
-      <div class="mt-3 flex justify-end gap-2">
-        <button class="btn btn-secondary" type="button" @click="resetFilters">清空</button>
-        <button class="btn btn-primary" type="button" @click="page = 1; loadRows()">查询</button>
-      </div>
-    </div>
-
-    <div v-if="error" class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ error }}
-    </div>
-
-    <div class="overflow-hidden border-y border-line bg-white">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-line text-left text-sm">
-          <thead class="bg-slate-50 text-xs uppercase text-slate-500">
-            <tr>
-              <th v-for="column in config.columns" :key="column.key" class="px-4 py-3 font-semibold">
-                {{ column.label }}
-              </th>
-              <th class="w-28 px-4 py-3 text-right font-semibold">操作</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-line">
-            <tr v-if="loading">
-              <td :colspan="config.columns.length + 1" class="px-4 py-10 text-center text-slate-500">加载中</td>
-            </tr>
-            <tr v-else-if="!rows.length">
-              <td :colspan="config.columns.length + 1" class="px-4 py-10 text-center text-slate-500">暂无数据</td>
-            </tr>
-            <tr v-for="row in rows" v-else :key="rowId(row)" class="hover:bg-slate-50">
-              <td
-                v-for="column in config.columns"
-                :key="column.key"
-                class="max-w-72 px-4 py-3 align-top text-slate-700"
-                :class="column.className"
+    <el-card v-if="config.filters?.length" shadow="never" class="filter-card">
+      <el-form label-position="top">
+        <el-row :gutter="16">
+          <el-col v-for="filter in config.filters" :key="filter.key" :xs="24" :sm="12" :lg="6">
+            <el-form-item :label="filter.label">
+              <el-select
+                v-if="filter.type === 'select'"
+                :model-value="String(filters[filter.key] ?? '')"
+                clearable
+                filterable
+                class="w-full"
+                placeholder="全部"
+                @update:model-value="filters[filter.key] = $event"
+                @change="page = 1; loadRows()"
               >
-                <StatusBadge v-if="column.type === 'status'" :value="row[column.key]" />
-                <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
-                  {{ truncateId(row[column.key]) }}
-                </span>
-                <span v-else class="line-clamp-2 break-words">{{ formatCell(row, column) }}</span>
-              </td>
-              <td class="px-4 py-3 text-right align-top">
-                <div class="flex items-center justify-end gap-1">
-                  <button class="btn btn-ghost h-8 w-8 px-0" type="button" title="详情" @click="lastResult = row">
-                    <Eye class="h-4 w-4" />
-                  </button>
-                  <button
-                    v-if="!config.readOnly && config.updateFields?.length"
-                    class="btn btn-ghost h-8 w-8 px-0"
-                    type="button"
-                    title="编辑"
-                    @click="openEdit(row)"
-                  >
-                    <Edit3 class="h-4 w-4" />
-                  </button>
-                  <details v-if="config.rowActions?.length || (!config.readOnly && config.archiveLabel !== '')" class="relative">
-                    <summary class="btn btn-ghost h-8 w-8 cursor-pointer list-none px-0" title="更多">
-                      <MoreHorizontal class="h-4 w-4" />
-                    </summary>
-                    <div class="absolute right-0 z-20 mt-1 w-44 rounded-md border border-line bg-white p-1 text-left shadow-lg">
-                      <button
-                        v-for="action in config.rowActions || []"
-                        :key="action.key"
-                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-slate-50"
-                        :class="action.variant === 'danger' ? 'text-red-600' : 'text-slate-700'"
-                        type="button"
-                        @click="runAction(action, row)"
-                      >
-                        <component :is="actionIcon(action)" class="h-4 w-4" />
-                        <span>{{ action.label }}</span>
-                      </button>
-                      <button
-                        v-if="!config.readOnly && config.archiveLabel !== ''"
-                        class="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                        type="button"
-                        @click="archiveRow(row)"
-                      >
-                        <Archive class="h-4 w-4" />
-                        <span>{{ config.archiveLabel || '归档' }}</span>
-                      </button>
-                    </div>
-                  </details>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="flex flex-col gap-3 border-t border-line px-4 py-3 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
-        <span>共 {{ total }} 条，第 {{ page }} / {{ totalPages }} 页</span>
-        <div class="flex items-center gap-2">
-          <button class="btn btn-secondary" type="button" :disabled="page <= 1" @click="page--; loadRows()">上一页</button>
-          <button class="btn btn-secondary" type="button" :disabled="page >= totalPages" @click="page++; loadRows()">下一页</button>
+                <el-option
+                  v-for="option in filter.options || []"
+                  :key="String(option.value)"
+                  :label="option.label"
+                  :value="String(option.value)"
+                />
+              </el-select>
+              <el-input
+                v-else
+                :model-value="String(filters[filter.key] ?? '')"
+                clearable
+                :placeholder="filter.placeholder"
+                @update:model-value="filters[filter.key] = $event"
+                @keydown.enter="page = 1; loadRows()"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <div class="flex justify-end gap-2">
+          <el-button @click="resetFilters">清空</el-button>
+          <el-button type="primary" @click="page = 1; loadRows()">查询</el-button>
         </div>
-      </div>
-    </div>
+      </el-form>
+    </el-card>
 
-    <div v-if="lastResult" class="space-y-2">
-      <div class="flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-slate-700">响应数据</h2>
-        <button class="btn btn-ghost h-8 px-2" type="button" title="关闭" @click="lastResult = null">
-          <X class="h-4 w-4" />
-        </button>
+    <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+
+    <el-card shadow="never" class="table-card">
+      <el-table
+        v-loading="loading"
+        :data="rows"
+        stripe
+        border
+        table-layout="auto"
+        empty-text="暂无数据"
+      >
+        <el-table-column
+          v-for="column in config.columns"
+          :key="column.key"
+          :prop="column.key"
+          :label="column.label"
+          min-width="150"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            <StatusBadge v-if="column.type === 'status'" :value="row[column.key]" />
+            <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
+              {{ truncateId(row[column.key]) }}
+            </span>
+            <span v-else>{{ formatCell(row, column) }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="150" fixed="right" align="right">
+          <template #default="{ row }">
+            <el-space :size="2">
+              <el-tooltip content="详情" placement="top">
+                <el-button text circle :icon="Eye" @click="lastResult = row" />
+              </el-tooltip>
+              <el-tooltip v-if="!config.readOnly && config.updateFields?.length" content="编辑" placement="top">
+                <el-button text circle :icon="Edit3" @click="openEdit(row)" />
+              </el-tooltip>
+              <el-dropdown
+                v-if="config.rowActions?.length || (!config.readOnly && config.archiveLabel !== '')"
+                trigger="click"
+                @command="(command) => handleDropdown(String(command), row)"
+              >
+                <el-button text circle :icon="MoreHorizontal" />
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="action in config.rowActions || []"
+                      :key="action.key"
+                      :command="action.key"
+                      :class="action.variant === 'danger' ? 'text-red-600' : ''"
+                    >
+                      <component :is="actionIcon(action)" class="mr-2 h-4 w-4" />
+                      {{ action.label }}
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="!config.readOnly && config.archiveLabel !== ''"
+                      command="__archive"
+                      class="text-red-600"
+                    >
+                      <Archive class="mr-2 h-4 w-4" />
+                      {{ config.archiveLabel || '归档' }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </el-space>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="mt-4 flex justify-end">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          background
+          layout="total, sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          @current-change="loadRows"
+          @size-change="handleSizeChange"
+        />
       </div>
+    </el-card>
+
+    <el-card v-if="lastResult" shadow="never" class="result-card">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-slate-700">响应数据</span>
+          <el-button text @click="lastResult = null">关闭</el-button>
+        </div>
+      </template>
       <JsonPreview :value="lastResult" />
-    </div>
+    </el-card>
 
-    <div v-if="modal.type" class="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 p-4">
-      <div class="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-md bg-white shadow-xl">
-        <div class="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 class="text-base font-semibold text-ink">{{ modalTitle }}</h2>
-          <button class="btn btn-ghost h-8 w-8 px-0" type="button" title="关闭" @click="closeModal">
-            <X class="h-4 w-4" />
-          </button>
-        </div>
-        <div class="space-y-4 px-5 py-4">
-          <DynamicForm v-model="formState" :fields="modalFields" />
-          <div v-if="error" class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {{ error }}
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 border-t border-line px-5 py-4">
-          <button class="btn btn-secondary" type="button" @click="closeModal">取消</button>
-          <button
-            class="btn btn-primary"
-            type="button"
-            :disabled="submitting"
-            @click="modal.type === 'action' ? submitAction() : submitEntity()"
-          >
-            保存
-          </button>
-        </div>
-      </div>
-    </div>
+    <el-dialog
+      :model-value="Boolean(modal.type)"
+      :title="modalTitle"
+      width="760px"
+      destroy-on-close
+      append-to-body
+      @close="closeModal"
+    >
+      <DynamicForm v-model="formState" :fields="modalFields" />
+      <el-alert v-if="error" class="mt-3" :title="error" type="error" show-icon :closable="false" />
+      <template #footer>
+        <el-button @click="closeModal">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="modal.type === 'action' ? submitAction() : submitEntity()">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>

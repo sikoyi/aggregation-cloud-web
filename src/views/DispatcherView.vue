@@ -30,82 +30,82 @@ async function run(key: string, request: () => Promise<unknown>) {
       <h1 class="text-xl font-semibold text-ink">任务分发</h1>
     </div>
 
-    <div v-if="error" class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-      {{ error }}
-    </div>
+    <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <div class="rounded-md border border-line bg-white p-4 shadow-panel">
-        <h2 class="text-sm font-semibold text-ink">分发控制</h2>
-        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label class="space-y-1.5">
-            <span class="label">任务 ID</span>
-            <input v-model="taskId" class="input" placeholder="指定任务 ID" />
-          </label>
-          <label class="space-y-1.5">
-            <span class="label">扫描数量</span>
-            <input v-model.number="limit" class="input" type="number" min="1" max="100" />
-          </label>
-        </div>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <button
-            class="btn btn-primary"
-            type="button"
-            :disabled="!taskId || loading === 'task'"
+      <el-card shadow="never" class="tool-card">
+        <template #header>
+          <span class="text-sm font-semibold text-ink">分发控制</span>
+        </template>
+        <el-form label-position="top">
+          <el-row :gutter="16">
+            <el-col :xs="24" :md="12">
+              <el-form-item label="任务 ID">
+                <el-input v-model="taskId" clearable placeholder="指定任务 ID" />
+              </el-form-item>
+            </el-col>
+            <el-col :xs="24" :md="12">
+              <el-form-item label="扫描数量">
+                <el-input-number v-model="limit" :min="1" :max="100" class="w-full" controls-position="right" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-form>
+        <el-space wrap>
+          <el-button
+            type="primary"
+            :icon="Play"
+            :disabled="!taskId"
+            :loading="loading === 'task'"
             @click="run('task', () => http.post(`/api/dispatcher/tasks/${taskId}/dispatch`))"
           >
-            <Play class="h-4 w-4" />
             指定分发
-          </button>
-          <button
-            class="btn btn-secondary"
-            type="button"
-            :disabled="loading === 'next'"
+          </el-button>
+          <el-button
+            :icon="SearchCheck"
+            :loading="loading === 'next'"
             @click="run('next', () => http.post('/api/dispatcher/dispatch-next'))"
           >
-            <SearchCheck class="h-4 w-4" />
             下一条
-          </button>
-          <button
-            class="btn btn-secondary"
-            type="button"
-            :disabled="loading === 'scan'"
+          </el-button>
+          <el-button
+            :icon="RefreshCw"
+            :loading="loading === 'scan'"
             @click="run('scan', () => http.post('/api/dispatcher/dispatch-scan', undefined, { limit }))"
           >
-            <RefreshCw class="h-4 w-4" />
             扫描分发
-          </button>
-        </div>
-      </div>
+          </el-button>
+        </el-space>
+      </el-card>
 
-      <div class="rounded-md border border-line bg-white p-4 shadow-panel">
-        <h2 class="text-sm font-semibold text-ink">超时扫描</h2>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <button
-            class="btn btn-secondary"
-            type="button"
-            :disabled="loading === 'task-timeouts'"
+      <el-card shadow="never" class="tool-card">
+        <template #header>
+          <span class="text-sm font-semibold text-ink">超时扫描</span>
+        </template>
+        <el-space wrap>
+          <el-button
+            :icon="TimerReset"
+            :loading="loading === 'task-timeouts'"
             @click="run('task-timeouts', () => http.post('/api/tasks/scan-timeouts'))"
           >
-            <TimerReset class="h-4 w-4" />
             任务超时
-          </button>
-          <button
-            class="btn btn-secondary"
-            type="button"
-            :disabled="loading === 'runtime-timeouts'"
+          </el-button>
+          <el-button
+            :icon="TimerReset"
+            :loading="loading === 'runtime-timeouts'"
             @click="run('runtime-timeouts', () => http.post('/api/runtimes/scan-timeouts'))"
           >
-            <TimerReset class="h-4 w-4" />
             Runtime 超时
-          </button>
-        </div>
-      </div>
+          </el-button>
+        </el-space>
+      </el-card>
     </div>
 
-    <div v-if="result" class="space-y-2">
-      <h2 class="text-sm font-semibold text-slate-700">响应数据</h2>
+    <el-card v-if="result" shadow="never" class="result-card">
+      <template #header>
+        <span class="text-sm font-semibold text-slate-700">响应数据</span>
+      </template>
       <JsonPreview :value="result" />
-    </div>
+    </el-card>
   </section>
 </template>
