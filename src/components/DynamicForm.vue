@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
+import TemplateParamsEditor from '@/components/TemplateParamsEditor.vue'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
 
@@ -15,6 +16,10 @@ const emit = defineEmits<{
 function updateValue(key: string, value: unknown) {
   emit('update:modelValue', { ...props.modelValue, [key]: value })
 }
+
+function dependencyValue(field: FieldConfig) {
+  return String(props.modelValue[field.dependencyKey || 'script_key'] || '')
+}
 </script>
 
 <template>
@@ -24,13 +29,20 @@ function updateValue(key: string, value: unknown) {
         v-for="field in fields"
         :key="field.key"
         :xs="24"
-        :md="field.span === 2 || field.type === 'scriptParams' ? 24 : 12"
+        :md="field.span === 2 || ['scriptParams', 'templateParams'].includes(field.type || '') ? 24 : 12"
       >
         <el-form-item :required="field.required" :label="field.label">
           <ScriptParamEditor
             v-if="field.type === 'scriptParams'"
             :model-value="modelValue[field.key]"
             :options="field.options"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <TemplateParamsEditor
+            v-else-if="field.type === 'templateParams'"
+            :script-key="dependencyValue(field)"
+            :model-value="modelValue[field.key]"
             @update:model-value="updateValue(field.key, $event)"
           />
 

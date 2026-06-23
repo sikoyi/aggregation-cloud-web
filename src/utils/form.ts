@@ -8,11 +8,16 @@ function cloneDefault(value: unknown) {
   return value
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
 function defaultValueFor(field: FieldConfig) {
   if (field.defaultValue !== undefined) return cloneDefault(field.defaultValue)
   if (field.type === 'boolean') return false
   if (field.type === 'json') return '{}'
   if (field.type === 'scriptParams') return []
+  if (field.type === 'templateParams') return {}
   if (field.type === 'tags') return ''
   return ''
 }
@@ -33,6 +38,10 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
     }
     if (field.type === 'scriptParams') {
       state[field.key] = Array.isArray(sourceValue) ? cloneDefault(sourceValue) : []
+      return state
+    }
+    if (field.type === 'templateParams') {
+      state[field.key] = isPlainObject(sourceValue) ? cloneDefault(sourceValue) : {}
       return state
     }
     if (field.type === 'datetime' && typeof sourceValue === 'string') {
@@ -64,14 +73,14 @@ function parseJsonField(field: FieldConfig, value: unknown, mode: 'create' | 'up
 }
 
 function normalizeObject(value: unknown) {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  return isPlainObject(value) ? value : {}
 }
 
 export function normalizeScriptParams(value: unknown) {
   if (!Array.isArray(value)) return []
   return value
     .map((item, index) => {
-      const record = normalizeObject(item) as Record<string, unknown>
+      const record = normalizeObject(item)
       const paramKey = String(record.param_key || '').trim()
       const name = String(record.name || '').trim()
       return {
@@ -119,6 +128,10 @@ export function buildPayload(
     }
     if (field.type === 'scriptParams') {
       payload[field.key] = normalizeScriptParams(rawValue)
+      return payload
+    }
+    if (field.type === 'templateParams') {
+      payload[field.key] = normalizeObject(rawValue)
       return payload
     }
     if (field.type === 'json') {

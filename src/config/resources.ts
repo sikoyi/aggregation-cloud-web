@@ -459,7 +459,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'slot_group_id', label: '默认 Slot 组 ID' },
       { key: 'account_ids', label: '账号 ID 列表', type: 'tags', defaultValue: [], span: 2 },
       { key: 'account_group_ids', label: '账号组 ID 列表', type: 'tags', defaultValue: [], span: 2 },
-      { key: 'default_params', label: '默认参数', type: 'json', defaultValue: {}, span: 2 },
+      { key: 'default_params', label: '默认参数', type: 'templateParams', defaultValue: {}, span: 2, dependencyKey: 'script_key' },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
     ],
     updateFields: [
@@ -477,7 +477,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'slot_group_id', label: '默认 Slot 组 ID' },
       { key: 'account_ids', label: '账号 ID 列表', type: 'tags', span: 2 },
       { key: 'account_group_ids', label: '账号组 ID 列表', type: 'tags', span: 2 },
-      { key: 'default_params', label: '默认参数', type: 'json', span: 2 },
+      { key: 'default_params', label: '默认参数', type: 'templateParams', span: 2, dependencyKey: 'script_key' },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
     ],
     rowActions: [

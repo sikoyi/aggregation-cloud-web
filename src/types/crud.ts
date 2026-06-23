@@ -12,6 +12,7 @@ export type FieldType =
   | 'boolean'
   | 'datetime'
   | 'scriptParams'
+  | 'templateParams'
 
 export type ColumnType = 'text' | 'status' | 'datetime' | 'json' | 'list' | 'id' | 'boolean'
 
@@ -30,6 +31,7 @@ export interface FieldConfig {
   defaultValue?: unknown
   span?: 1 | 2
   readonly?: boolean
+  dependencyKey?: string
 }
 
 export interface ColumnConfig {
