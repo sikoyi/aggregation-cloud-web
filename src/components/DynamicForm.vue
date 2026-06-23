@@ -94,10 +94,23 @@ function dependencyValue(field: FieldConfig) {
             @update:model-value="updateValue(field.key, $event)"
           />
 
+          <el-date-picker
+            v-else-if="field.type === 'datetime'"
+            :model-value="String(modelValue[field.key] ?? '')"
+            :disabled="field.readonly"
+            class="w-full"
+            type="datetime"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            placeholder="选择日期时间"
+            clearable
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
           <el-input
             v-else
             :model-value="String(modelValue[field.key] ?? '')"
-            :type="field.type === 'datetime' ? 'datetime-local' : 'text'"
+            type="text"
             :placeholder="field.placeholder"
             :readonly="field.readonly"
             clearable

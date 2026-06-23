@@ -199,10 +199,21 @@ watch(
           resize="vertical"
           @update:model-value="updateJsonValue(param, $event)"
         />
+        <el-date-picker
+          v-else-if="param.param_type === 'datetime'"
+          :model-value="String(values[param.param_key] ?? '')"
+          class="w-full"
+          type="datetime"
+          format="YYYY-MM-DD HH:mm:ss"
+          value-format="YYYY-MM-DDTHH:mm:ss"
+          placeholder="选择日期时间"
+          clearable
+          @update:model-value="updateValue(param, $event)"
+        />
         <el-input
           v-else
           :model-value="String(values[param.param_key] ?? '')"
-          :type="param.param_type === 'datetime' ? 'datetime-local' : 'text'"
+          type="text"
           clearable
           @update:model-value="updateValue(param, $event)"
         />

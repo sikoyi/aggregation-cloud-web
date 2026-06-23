@@ -45,7 +45,7 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
       return state
     }
     if (field.type === 'datetime' && typeof sourceValue === 'string') {
-      state[field.key] = sourceValue.slice(0, 16)
+      state[field.key] = sourceValue.slice(0, 19)
       return state
     }
     state[field.key] = sourceValue ?? ''
