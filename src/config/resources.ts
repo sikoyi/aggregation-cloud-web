@@ -18,6 +18,16 @@ import {
 
 const jsonPlaceholder = '{}'
 
+const scriptRemoteSelect = {
+  endpoint: '/api/scripts',
+  labelKey: 'name',
+  valueKey: 'script_key',
+  secondaryKey: 'script_key',
+  searchParam: 'keyword',
+  params: { status: 'enabled' },
+  pageSize: 50,
+}
+
 const scriptCreateKeys = [
   'script_key',
   'name',
@@ -446,7 +456,14 @@ export const resources: Record<string, ResourceConfig> = {
     createFields: [
       { key: 'template_key', label: '模板 Key', required: true },
       { key: 'name', label: '模板名称', required: true },
-      { key: 'script_key', label: '脚本 Key', required: true },
+      {
+        key: 'script_key',
+        label: '脚本',
+        type: 'remoteSelect',
+        required: true,
+        remote: scriptRemoteSelect,
+        placeholder: '请选择脚本',
+      },
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions, defaultValue: 'threads' },
       { key: 'engine_type', label: '执行引擎', defaultValue: 'browser_runtime' },
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions, defaultValue: 'fingerprint_browser' },
@@ -464,7 +481,13 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     updateFields: [
       { key: 'name', label: '模板名称' },
-      { key: 'script_key', label: '脚本 Key' },
+      {
+        key: 'script_key',
+        label: '脚本',
+        type: 'remoteSelect',
+        remote: scriptRemoteSelect,
+        placeholder: '请选择脚本',
+      },
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions },
       { key: 'engine_type', label: '执行引擎' },
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions },

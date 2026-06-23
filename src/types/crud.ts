@@ -13,12 +13,23 @@ export type FieldType =
   | 'datetime'
   | 'scriptParams'
   | 'templateParams'
+  | 'remoteSelect'
 
 export type ColumnType = 'text' | 'status' | 'datetime' | 'json' | 'list' | 'id' | 'boolean'
 
 export interface SelectOption {
   label: string
   value: string | number | boolean
+}
+
+export interface RemoteSelectConfig {
+  endpoint: string
+  labelKey: string
+  valueKey: string
+  searchParam?: string
+  secondaryKey?: string
+  params?: AnyRecord
+  pageSize?: number
 }
 
 export interface FieldConfig {
@@ -28,6 +39,7 @@ export interface FieldConfig {
   required?: boolean
   placeholder?: string
   options?: SelectOption[]
+  remote?: RemoteSelectConfig
   defaultValue?: unknown
   span?: 1 | 2
   readonly?: boolean

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
 import TemplateParamsEditor from '@/components/TemplateParamsEditor.vue'
+import RemoteSelect from '@/components/RemoteSelect.vue'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
 
@@ -43,6 +44,15 @@ function dependencyValue(field: FieldConfig) {
             v-else-if="field.type === 'templateParams'"
             :script-key="dependencyValue(field)"
             :model-value="modelValue[field.key]"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <RemoteSelect
+            v-else-if="field.type === 'remoteSelect' && field.remote"
+            :model-value="modelValue[field.key]"
+            :config="field.remote"
+            :disabled="field.readonly"
+            :placeholder="field.placeholder"
             @update:model-value="updateValue(field.key, $event)"
           />
 
