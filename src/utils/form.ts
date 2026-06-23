@@ -12,6 +12,7 @@ function defaultValueFor(field: FieldConfig) {
   if (field.defaultValue !== undefined) return cloneDefault(field.defaultValue)
   if (field.type === 'boolean') return false
   if (field.type === 'json') return '{}'
+  if (field.type === 'scriptParams') return []
   if (field.type === 'tags') return ''
   return ''
 }
@@ -28,6 +29,10 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
     }
     if (field.type === 'tags') {
       state[field.key] = Array.isArray(sourceValue) ? sourceValue.join(', ') : sourceValue || ''
+      return state
+    }
+    if (field.type === 'scriptParams') {
+      state[field.key] = Array.isArray(sourceValue) ? cloneDefault(sourceValue) : []
       return state
     }
     if (field.type === 'datetime' && typeof sourceValue === 'string') {
@@ -58,7 +63,35 @@ function parseJsonField(field: FieldConfig, value: unknown, mode: 'create' | 'up
   }
 }
 
-// 根据字段类型把表单字符串还原成后端需要的结构，避免每个页面重复写解析逻辑。
+function normalizeObject(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+}
+
+export function normalizeScriptParams(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item, index) => {
+      const record = normalizeObject(item) as Record<string, unknown>
+      const paramKey = String(record.param_key || '').trim()
+      const name = String(record.name || '').trim()
+      return {
+        param_key: paramKey,
+        name,
+        param_type: String(record.param_type || 'string'),
+        description: record.description ? String(record.description) : null,
+        required: Boolean(record.required),
+        default_value: record.default_value ?? null,
+        options: Array.isArray(record.options) ? record.options : [],
+        validation: normalizeObject(record.validation),
+        resource_selector: normalizeObject(record.resource_selector),
+        sort_order: Number(record.sort_order ?? (index + 1) * 10),
+        metadata: normalizeObject(record.metadata),
+      }
+    })
+    .filter((item) => item.param_key && item.name)
+}
+
+// 根据字段类型把表单值整理成后端需要的结构，避免每个页面重复写解析逻辑。
 export function buildPayload(
   fields: FieldConfig[],
   state: AnyRecord,
@@ -82,6 +115,10 @@ export function buildPayload(
     }
     if (field.type === 'tags') {
       payload[field.key] = parseTags(rawValue)
+      return payload
+    }
+    if (field.type === 'scriptParams') {
+      payload[field.key] = normalizeScriptParams(rawValue)
       return payload
     }
     if (field.type === 'json') {

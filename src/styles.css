@@ -135,6 +135,20 @@
     margin-bottom: 16px;
   }
 
+  .script-param-card {
+    border-radius: 8px;
+    border-color: #d9e2ec;
+  }
+
+  .script-param-card .el-card__header {
+    padding: 10px 14px;
+    background: #f8fafc;
+  }
+
+  .script-param-card .el-card__body {
+    padding: 14px;
+  }
+
   .el-button {
     letter-spacing: 0;
   }

@@ -11,6 +11,7 @@ export type FieldType =
   | 'tags'
   | 'boolean'
   | 'datetime'
+  | 'scriptParams'
 
 export type ColumnType = 'text' | 'status' | 'datetime' | 'json' | 'list' | 'id' | 'boolean'
 

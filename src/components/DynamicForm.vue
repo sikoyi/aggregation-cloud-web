@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
 
@@ -23,13 +24,20 @@ function updateValue(key: string, value: unknown) {
         v-for="field in fields"
         :key="field.key"
         :xs="24"
-        :md="field.span === 2 ? 24 : 12"
+        :md="field.span === 2 || field.type === 'scriptParams' ? 24 : 12"
       >
         <el-form-item :required="field.required" :label="field.label">
+          <ScriptParamEditor
+            v-if="field.type === 'scriptParams'"
+            :model-value="modelValue[field.key]"
+            :options="field.options"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
           <el-input
-            v-if="field.type === 'textarea' || field.type === 'json'"
+            v-else-if="field.type === 'textarea' || field.type === 'json'"
             :model-value="String(modelValue[field.key] ?? '')"
-            :type="field.type === 'json' ? 'textarea' : 'textarea'"
+            type="textarea"
             :rows="field.type === 'json' ? 8 : 4"
             :placeholder="field.placeholder"
             :readonly="field.readonly"
