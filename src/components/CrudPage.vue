@@ -22,6 +22,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import DynamicForm from '@/components/DynamicForm.vue'
 import JsonPreview from '@/components/JsonPreview.vue'
+import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
@@ -319,8 +320,15 @@ onMounted(() => {
         <el-row :gutter="16">
           <el-col v-for="filter in config.filters" :key="filter.key" :xs="24" :sm="12" :lg="6">
             <el-form-item :label="filter.label">
+              <RemoteSelect
+                v-if="filter.type === 'remoteSelect' && filter.remote"
+                :model-value="filters[filter.key]"
+                :config="filter.remote"
+                :placeholder="filter.placeholder || '全部'"
+                @update:model-value="filters[filter.key] = $event; page = 1; loadRows()"
+              />
               <el-select
-                v-if="filter.type === 'select'"
+                v-else-if="filter.type === 'select'"
                 :model-value="String(filters[filter.key] ?? '')"
                 clearable
                 filterable

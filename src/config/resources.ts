@@ -449,7 +449,13 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     filters: [
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions },
-      { key: 'script_key', label: '脚本 Key' },
+      {
+        key: 'script_key',
+        label: '脚本',
+        type: 'remoteSelect',
+        remote: scriptRemoteSelect,
+        placeholder: '全部脚本',
+      },
       { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
       { key: 'keyword', label: '关键词', placeholder: 'Key / 名称 / 描述' },
     ],
@@ -529,13 +535,26 @@ export const resources: Record<string, ResourceConfig> = {
     filters: [
       { key: 'status', label: '状态', type: 'select', options: taskStatusOptions },
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions },
-      { key: 'script_key', label: '脚本 Key' },
+      {
+        key: 'script_key',
+        label: '脚本',
+        type: 'remoteSelect',
+        remote: scriptRemoteSelect,
+        placeholder: '全部脚本',
+      },
       { key: 'account_id', label: '账号 ID' },
     ],
     createFields: [
       { key: 'title', label: '任务标题' },
       { key: 'task_type', label: '任务类型', defaultValue: 'manual' },
-      { key: 'script_key', label: '脚本 Key', required: true },
+      {
+        key: 'script_key',
+        label: '脚本',
+        type: 'remoteSelect',
+        required: true,
+        remote: scriptRemoteSelect,
+        placeholder: '请选择脚本',
+      },
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions, defaultValue: 'threads' },
       { key: 'engine_type', label: '执行引擎', defaultValue: 'browser_runtime' },
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions, defaultValue: 'fingerprint_browser' },
@@ -544,7 +563,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'slot_id', label: 'Slot ID' },
       { key: 'timeout_seconds', label: '超时秒', type: 'number', defaultValue: 3600 },
       { key: 'scheduled_at', label: '计划时间', type: 'datetime' },
-      { key: 'params', label: '任务参数', type: 'json', defaultValue: {}, span: 2 },
+      { key: 'params', label: '任务参数', type: 'templateParams', defaultValue: {}, span: 2, dependencyKey: 'script_key' },
     ],
     updateFields: [],
     rowActions: [
