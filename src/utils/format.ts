@@ -43,6 +43,16 @@ const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown']
 const DANGER_STATUSES = ['failed', 'error', 'expired', 'lost', 'restricted']
 
+export function getCellValue(row: AnyRecord, key: string) {
+  if (!key.includes('.')) return row[key]
+  return key.split('.').reduce<unknown>((value, part) => {
+    if (value && typeof value === 'object' && part in value) {
+      return (value as Record<string, unknown>)[part]
+    }
+    return undefined
+  }, row)
+}
+
 export function formatDate(value: unknown) {
   if (!value) return '-'
   const date = new Date(String(value))
@@ -65,7 +75,7 @@ export function statusTagType(status: unknown) {
 }
 
 export function formatCell(row: AnyRecord, column: ColumnConfig) {
-  const value = row[column.key]
+  const value = getCellValue(row, column.key)
   if (value === undefined || value === null || value === '') return '-'
   if (column.type === 'status') return statusLabel(value)
   if (column.type === 'datetime') return formatDate(value)

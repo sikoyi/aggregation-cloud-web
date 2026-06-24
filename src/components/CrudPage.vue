@@ -225,7 +225,8 @@ function openAction(action: RowActionConfig, record: AnyRecord) {
   modal.type = 'action'
   modal.record = record
   modal.action = action
-  formState.value = buildFormState(action.fields || [])
+  // 行级操作常需要复用当前行的默认值，例如基于模板创建任务时带出模板参数。
+  formState.value = buildFormState(action.fields || [], record)
 }
 
 async function runAction(action: RowActionConfig, record: AnyRecord) {

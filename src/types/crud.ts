@@ -44,9 +44,11 @@ export interface FieldConfig {
   placeholder?: string
   options?: SelectOption[]
   remote?: RemoteSelectConfig
-  defaultValue?: unknown
+  defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   span?: 1 | 2
   readonly?: boolean
+  hidden?: boolean
+  sourceKey?: string
   dependencyKey?: string
   allowEmpty?: boolean
 }

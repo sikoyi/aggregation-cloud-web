@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
 import TemplateParamsEditor from '@/components/TemplateParamsEditor.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -21,13 +23,15 @@ function updateValue(key: string, value: unknown) {
 function dependencyValue(field: FieldConfig) {
   return String(props.modelValue[field.dependencyKey || 'script_key'] || '')
 }
+
+const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
 </script>
 
 <template>
   <el-form label-position="top" class="dynamic-form">
     <el-row :gutter="16">
       <el-col
-        v-for="field in fields"
+        v-for="field in visibleFields"
         :key="field.key"
         :xs="24"
         :md="field.span === 2 || ['scriptParams', 'templateParams'].includes(field.type || '') ? 24 : 12"

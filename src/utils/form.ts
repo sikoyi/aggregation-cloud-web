@@ -12,8 +12,11 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
-function defaultValueFor(field: FieldConfig) {
-  if (field.defaultValue !== undefined) return cloneDefault(field.defaultValue)
+function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
+  if (field.defaultValue !== undefined) {
+    const value = typeof field.defaultValue === 'function' ? field.defaultValue(record) : field.defaultValue
+    return cloneDefault(value)
+  }
   if (field.type === 'boolean') return false
   if (field.type === 'json') return '{}'
   if (field.type === 'scriptParams') return []
@@ -25,7 +28,8 @@ function defaultValueFor(field: FieldConfig) {
 
 export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
   return fields.reduce<AnyRecord>((state, field) => {
-    const sourceValue = record && record[field.key] !== undefined ? record[field.key] : defaultValueFor(field)
+    const sourceKey = field.sourceKey || field.key
+    const sourceValue = record && record[sourceKey] !== undefined ? record[sourceKey] : defaultValueFor(field, record)
     if (field.type === 'json') {
       state[field.key] =
         typeof sourceValue === 'string'
@@ -117,7 +121,7 @@ export function buildPayload(
 ) {
   return fields.reduce<AnyRecord>((payload, field) => {
     const rawValue = state[field.key]
-    if (field.readonly) return payload
+    if (field.readonly || field.hidden) return payload
     if ((rawValue === '' || rawValue === undefined || rawValue === null) && !field.required) {
       if (field.allowEmpty) payload[field.key] = rawValue === undefined || rawValue === null ? '' : rawValue
       if (mode === 'create' && field.type === 'json') payload[field.key] = {}
