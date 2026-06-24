@@ -25,7 +25,7 @@ import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
-import type { FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
+import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
 import { formatCell, truncateId } from '@/utils/format'
 
@@ -83,6 +83,19 @@ const modalTitle = computed(() => {
   if (modal.type === 'edit') return `编辑${props.config.title}`
   return modal.action?.label || '执行操作'
 })
+// 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
+function isInlineStatusAction(action: RowActionConfig) {
+  return ['enable', 'disable'].includes(action.key) && !action.fields?.length
+}
+
+function findInlineStatusAction(key: 'enable' | 'disable') {
+  return [...(props.config.rowActions || []), ...(props.config.batchActions || [])].find(
+    (action) => action.key === key && !action.fields?.length,
+  )
+}
+
+const hasInlineStatusSwitch = computed(() => Boolean(findInlineStatusAction('enable') && findInlineStatusAction('disable')))
+const rowActionsForMenu = computed(() => (props.config.rowActions || []).filter((action) => !isInlineStatusAction(action)))
 const batchActions = computed<RowActionConfig[]>(() => {
   const actions: RowActionConfig[] = []
   const seen = new Set<string>()
@@ -93,7 +106,7 @@ const batchActions = computed<RowActionConfig[]>(() => {
   })
 
   ;(props.config.rowActions || [])
-    .filter((action) => ['enable', 'disable'].includes(action.key) && !action.fields?.length)
+    .filter(isInlineStatusAction)
     .forEach((action) => {
       if (seen.has(action.key)) return
       actions.push({
@@ -132,17 +145,30 @@ function actionIcon(action: RowActionConfig) {
 }
 
 function isEnabledStatus(value: unknown) {
-  return String(value || '') === 'enabled'
+  const status = String(value || '')
+  return status !== '' && status !== 'disabled'
+}
+
+function isSwitchableStatusColumn(column: ColumnConfig) {
+  return column.type === 'statusSwitch' || (column.key === 'status' && hasInlineStatusSwitch.value)
+}
+
+function shouldShowStatusBadgeWithSwitch(value: unknown) {
+  return !['', 'enabled', 'disabled'].includes(String(value || ''))
 }
 
 async function toggleEnabledStatus(row: AnyRecord, nextValue: boolean) {
-  const action: RowActionConfig = {
-    key: nextValue ? 'enable' : 'disable',
-    label: nextValue ? '启用' : '禁用',
-    method: 'POST',
-    path: () => `${props.config.endpoint}/${rowId(row)}/${nextValue ? 'enable' : 'disable'}`,
-    refresh: true,
-  }
+  const key = nextValue ? 'enable' : 'disable'
+  const configuredAction = findInlineStatusAction(key)
+  const action: RowActionConfig = configuredAction
+    ? { ...configuredAction, confirm: undefined, refresh: true }
+    : {
+        key,
+        label: nextValue ? '启用' : '禁用',
+        method: 'POST',
+        path: () => `${props.config.endpoint}/${rowId(row)}/${key}`,
+        refresh: true,
+      }
   await executeRequest(action, row)
 }
 
@@ -387,7 +413,7 @@ function handleDropdown(command: string, row: AnyRecord) {
     deleteRow(row)
     return
   }
-  const action = props.config.rowActions?.find((item) => item.key === command)
+  const action = rowActionsForMenu.value.find((item) => item.key === command)
   if (action) runAction(action, row)
 }
 
@@ -527,16 +553,18 @@ onMounted(() => {
           show-overflow-tooltip
         >
           <template #default="{ row }">
-            <StatusBadge v-if="column.type === 'status'" :value="row[column.key]" />
-            <el-switch
-              v-else-if="column.type === 'statusSwitch'"
-              :model-value="isEnabledStatus(row[column.key])"
-              active-text="启用"
-              inactive-text="禁用"
-              inline-prompt
-              :loading="submitting"
-              @change="(value) => toggleEnabledStatus(row, Boolean(value))"
-            />
+            <div v-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
+              <el-switch
+                :model-value="isEnabledStatus(row[column.key])"
+                active-text="启用"
+                inactive-text="禁用"
+                inline-prompt
+                :loading="submitting"
+                @change="(value) => toggleEnabledStatus(row, Boolean(value))"
+              />
+              <StatusBadge v-if="shouldShowStatusBadgeWithSwitch(row[column.key])" :value="row[column.key]" />
+            </div>
+            <StatusBadge v-else-if="column.type === 'status'" :value="row[column.key]" />
             <RelationCell
               v-else-if="column.type === 'relation' && column.relation"
               :value="row[column.key]"
@@ -557,14 +585,14 @@ onMounted(() => {
                 <el-button text circle :icon="Edit3" @click="openEdit(row)" />
               </el-tooltip>
               <el-tooltip
-                v-if="!config.rowActions?.length && !config.readOnly && config.deleteLabel"
+                v-if="!rowActionsForMenu.length && !config.readOnly && config.deleteLabel"
                 :content="config.deleteLabel"
                 placement="top"
               >
                 <el-button text circle type="danger" :icon="Trash2" @click="deleteRow(row)" />
               </el-tooltip>
               <el-dropdown
-                v-if="config.rowActions?.length"
+                v-if="rowActionsForMenu.length"
                 trigger="click"
                 @command="(command) => handleDropdown(String(command), row)"
               >
@@ -572,7 +600,7 @@ onMounted(() => {
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
-                      v-for="action in config.rowActions || []"
+                      v-for="action in rowActionsForMenu"
                       :key="action.key"
                       :command="action.key"
                       :class="action.variant === 'danger' ? 'text-red-600' : ''"
