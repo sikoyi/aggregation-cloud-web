@@ -404,7 +404,7 @@ onMounted(() => {
               />
           </el-form-item>
         </div>
-        <div class="mt-2 flex justify-end gap-2">
+        <div class="mt-2 flex justify-start gap-2">
           <el-button @click="resetFilters">清空</el-button>
           <el-button type="primary" @click="page = 1; loadRows()">查询</el-button>
         </div>
