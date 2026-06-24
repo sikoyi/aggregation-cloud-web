@@ -511,7 +511,6 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: '新增模板',
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
-      { key: 'template_key', label: '模板 Key' },
       { key: 'name', label: '名称' },
       { key: 'script_key', label: '脚本', type: 'relation', relation: scriptRemoteSelect },
       { key: 'business_platform', label: '平台' },
@@ -528,10 +527,9 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: '全部脚本',
       },
       { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
-      { key: 'keyword', label: '关键词', placeholder: 'Key / 名称 / 描述' },
+      { key: 'keyword', label: '关键词', placeholder: '名称 / 描述' },
     ],
     createFields: [
-      { key: 'template_key', label: '模板 Key', required: true },
       { key: 'name', label: '模板名称', required: true },
       {
         key: 'script_key',
@@ -581,7 +579,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
     ],
     rowActions: [
-      { key: 'clone', label: '克隆模板', method: 'POST', icon: 'copy', path: (record) => `/api/task-templates/${record.id}/clone`, fields: [{ key: 'template_key', label: '新模板 Key', required: true }, { key: 'name', label: '新模板名称' }] },
+      { key: 'clone', label: '克隆模板', method: 'POST', icon: 'copy', path: (record) => `/api/task-templates/${record.id}/clone`, fields: [{ key: 'name', label: '新模板名称' }] },
       { key: 'create-task', label: '创建任务', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-task`, fields: [{ key: 'title', label: '任务标题' }, { key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, placeholder: '请选择账号' }, { key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择 Slot' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
       { key: 'create-tasks', label: '批量创建', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-tasks`, fields: [{ key: 'title_prefix', label: '标题前缀' }, { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号' }, { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号组' }, { key: 'slot_ids', label: 'Slot 列表', type: 'remoteSelect', remote: slotMultiSelect, defaultValue: [], span: 2, placeholder: '请选择 Slot' }, { key: 'slot_group_id', label: 'Slot 组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择 Slot 组' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
     ],
