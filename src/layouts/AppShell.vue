@@ -23,20 +23,54 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const navItems = [
-  { label: '总览', to: '/', icon: LayoutDashboard },
-  { label: '账号', to: '/accounts', icon: Users },
-  { label: '账号组', to: '/account-groups', icon: Layers3 },
-  { label: '设备', to: '/slots', icon: Boxes },
-  { label: '设备组', to: '/slot-groups', icon: Network },
-  { label: '代理', to: '/proxies', icon: ShieldCheck },
-  { label: '脚本', to: '/scripts', icon: ScrollText },
-  { label: '模板', to: '/task-templates', icon: ClipboardList },
-  { label: '任务', to: '/tasks', icon: PlaySquare },
-  { label: 'Runtime', to: '/runtimes', icon: Server },
-  { label: '分发', to: '/dispatcher', icon: Bot },
+const navGroups = [
+  {
+    label: '工作台',
+    index: 'workspace',
+    icon: LayoutDashboard,
+    children: [{ label: '总览', to: '/', icon: LayoutDashboard }],
+  },
+  {
+    label: '账号中心',
+    index: 'account',
+    icon: Users,
+    children: [
+      { label: '账号管理', to: '/accounts', icon: Users },
+      { label: '账号分组', to: '/account-groups', icon: Layers3 },
+    ],
+  },
+  {
+    label: '资源中心',
+    index: 'resource',
+    icon: Boxes,
+    children: [
+      { label: '设备管理', to: '/slots', icon: Boxes },
+      { label: '设备分组', to: '/slot-groups', icon: Network },
+      { label: '代理资源', to: '/proxies', icon: ShieldCheck },
+    ],
+  },
+  {
+    label: '任务中心',
+    index: 'task',
+    icon: ClipboardList,
+    children: [
+      { label: '脚本管理', to: '/scripts', icon: ScrollText },
+      { label: '任务模板', to: '/task-templates', icon: ClipboardList },
+      { label: '任务管理', to: '/tasks', icon: PlaySquare },
+      { label: '任务分发', to: '/dispatcher', icon: Bot },
+    ],
+  },
+  {
+    label: '运行监控',
+    index: 'runtime',
+    icon: Server,
+    children: [{ label: 'Runtime 状态', to: '/runtimes', icon: Server }],
+  },
 ]
 
+// 移动端横向导航空间有限，仍然展开成扁平入口便于快速切换。
+const mobileNavItems = computed(() => navGroups.flatMap((group) => group.children))
+const defaultOpeneds = navGroups.map((group) => group.index)
 const userInitial = computed(() => auth.displayName.slice(0, 1).toUpperCase())
 
 async function logout() {
@@ -56,11 +90,17 @@ async function logout() {
         </div>
       </div>
       <el-scrollbar class="flex-1">
-        <el-menu router :default-active="route.path" class="app-menu">
-          <el-menu-item v-for="item in navItems" :key="item.to" :index="item.to">
-            <component :is="item.icon" class="mr-3 h-4 w-4" />
-            <span>{{ item.label }}</span>
-          </el-menu-item>
+        <el-menu router :default-active="route.path" :default-openeds="defaultOpeneds" class="app-menu">
+          <el-sub-menu v-for="group in navGroups" :key="group.index" :index="group.index">
+            <template #title>
+              <component :is="group.icon" class="mr-3 h-4 w-4" />
+              <span>{{ group.label }}</span>
+            </template>
+            <el-menu-item v-for="item in group.children" :key="item.to" :index="item.to">
+              <component :is="item.icon" class="mr-3 h-4 w-4" />
+              <span>{{ item.label }}</span>
+            </el-menu-item>
+          </el-sub-menu>
         </el-menu>
       </el-scrollbar>
     </aside>
@@ -84,7 +124,7 @@ async function logout() {
         <el-scrollbar class="border-t border-line px-3 py-2 lg:hidden">
           <div class="flex gap-1">
             <RouterLink
-              v-for="item in navItems"
+              v-for="item in mobileNavItems"
               :key="`mobile-${item.to}`"
               :to="item.to"
               class="flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-slate-600"
