@@ -511,14 +511,20 @@ onMounted(() => {
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
-    <el-card shadow="never" class="table-card">
-      <div v-if="batchActions.length" class="mb-3 flex flex-wrap items-center gap-2">
-        <span class="text-sm text-slate-600">已选 {{ selectedRows.length }} 条</span>
+    <div v-if="batchActions.length" class="batch-toolbar">
+      <div class="batch-toolbar__summary">
+        <ListChecks class="h-4 w-4 text-slate-500" />
+        <span>已选</span>
+        <strong>{{ selectedRows.length }}</strong>
+        <span>条</span>
+      </div>
+      <div class="batch-toolbar__actions">
         <el-button
           v-for="action in batchActions"
           :key="action.key"
           size="small"
           :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
+          plain
           :icon="actionIcon(action)"
           :disabled="!selectedRows.length || submitting"
           :loading="submitting"
@@ -526,11 +532,13 @@ onMounted(() => {
         >
           {{ action.label }}
         </el-button>
-        <el-button size="small" :disabled="!selectedRows.length || submitting" @click="clearSelection">
+        <el-button size="small" text :disabled="!selectedRows.length || submitting" @click="clearSelection">
           取消选择
         </el-button>
       </div>
+    </div>
 
+    <el-card shadow="never" class="table-card">
       <el-table
         ref="tableRef"
         v-loading="loading"
@@ -669,3 +677,54 @@ onMounted(() => {
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
   </section>
 </template>
+
+<style scoped>
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.batch-toolbar__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 92px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.batch-toolbar__summary strong {
+  color: #1e3a5f;
+  font-weight: 700;
+}
+
+.batch-toolbar__actions {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-toolbar :deep(.el-button) {
+  margin-left: 0;
+}
+
+@media (max-width: 768px) {
+  .batch-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .batch-toolbar__actions {
+    width: 100%;
+  }
+}
+</style>
