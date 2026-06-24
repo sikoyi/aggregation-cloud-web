@@ -23,6 +23,7 @@ import { http } from '@/api/http'
 import DynamicForm from '@/components/DynamicForm.vue'
 import JsonPreview from '@/components/JsonPreview.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
+import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
@@ -383,6 +384,12 @@ onMounted(() => {
         >
           <template #default="{ row }">
             <StatusBadge v-if="column.type === 'status'" :value="row[column.key]" />
+            <RelationCell
+              v-else-if="column.type === 'relation' && column.relation"
+              :value="row[column.key]"
+              :config="column.relation"
+              :row="row"
+            />
             <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
               {{ truncateId(row[column.key]) }}
             </span>

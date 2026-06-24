@@ -15,7 +15,7 @@ export type FieldType =
   | 'templateParams'
   | 'remoteSelect'
 
-export type ColumnType = 'text' | 'status' | 'datetime' | 'json' | 'list' | 'id' | 'boolean'
+export type ColumnType = 'text' | 'status' | 'datetime' | 'json' | 'list' | 'id' | 'boolean' | 'relation'
 
 export interface SelectOption {
   label: string
@@ -27,6 +27,7 @@ export interface RemoteSelectConfig {
   labelKey?: string
   labelKeys?: string[]
   valueKey: string
+  detailPath?: (value: string, row?: AnyRecord) => string
   searchParam?: string
   secondaryKey?: string
   secondaryKeys?: string[]
@@ -53,6 +54,7 @@ export interface ColumnConfig {
   key: string
   label: string
   type?: ColumnType
+  relation?: RemoteSelectConfig
   className?: string
 }
 
