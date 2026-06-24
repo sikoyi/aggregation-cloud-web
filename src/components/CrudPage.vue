@@ -215,15 +215,13 @@ async function submitEntity() {
       // 有些资源创建时需要把表单拆成主表与子资源两次请求，例如脚本和脚本参数。
       const body = props.config.createBody ? props.config.createBody(payload) : payload
       const data = await http.post<AnyRecord>(props.config.createEndpoint || props.config.endpoint, body)
-      const followup = props.config.afterCreate ? await props.config.afterCreate(data, payload) : undefined
-      lastResult.value = followup === undefined ? data : { entity: data, followup }
+      if (props.config.afterCreate) await props.config.afterCreate(data, payload)
     }
     if (modal.type === 'edit' && modal.record) {
       const payload = buildPayload(props.config.updateFields || [], formState.value, 'update')
       const body = props.config.updateBody ? props.config.updateBody(payload, modal.record) : payload
       const data = await http.put<AnyRecord>(`${props.config.endpoint}/${rowId(modal.record)}`, body)
-      const followup = props.config.afterUpdate ? await props.config.afterUpdate(data, payload, modal.record) : undefined
-      lastResult.value = followup === undefined ? data : { entity: data, followup }
+      if (props.config.afterUpdate) await props.config.afterUpdate(data, payload, modal.record)
     }
     closeModal()
     ElMessage.success('保存成功')
@@ -297,9 +295,9 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
             : undefined
 
     if (action.method === 'GET') lastResult.value = await http.get(path, params)
-    if (action.method === 'POST') lastResult.value = await http.post(path, body, params)
-    if (action.method === 'PUT') lastResult.value = await http.put(path, body)
-    if (action.method === 'DELETE') lastResult.value = await http.delete(path)
+    if (action.method === 'POST') await http.post(path, body, params)
+    if (action.method === 'PUT') await http.put(path, body)
+    if (action.method === 'DELETE') await http.delete(path)
 
     ElMessage.success(action.method === 'GET' ? '查询完成' : '操作完成')
     if (action.refresh !== false) await loadRows()
