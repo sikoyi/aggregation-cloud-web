@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  Archive,
   Copy,
   Edit3,
   Eye,
@@ -35,7 +34,6 @@ const props = defineProps<{
 }>()
 
 const iconMap: IconMap = {
-  archive: Archive,
   copy: Copy,
   edit: Edit3,
   link: Link2,
@@ -206,18 +204,18 @@ async function submitEntity() {
   }
 }
 
-async function archiveRow(record: AnyRecord) {
-  const message = props.config.archiveConfirm || `确认归档 ${rowId(record)}？`
+async function deleteRow(record: AnyRecord) {
+  const message = props.config.deleteConfirm || `确认删除 ${rowId(record)}？`
   if (!(await confirmAction(message))) return
   await executeRequest(
     {
-      key: 'archive',
-      label: props.config.archiveLabel || '归档',
+      key: 'delete',
+      label: props.config.deleteLabel || '删除',
       method: 'DELETE',
       path: () => `${props.config.endpoint}/${rowId(record)}`,
       refresh: true,
       variant: 'danger',
-      icon: 'archive',
+      icon: 'trash',
     },
     record,
   )
@@ -277,8 +275,8 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
 }
 
 function handleDropdown(command: string, row: AnyRecord) {
-  if (command === '__archive') {
-    archiveRow(row)
+  if (command === '__delete') {
+    deleteRow(row)
     return
   }
   const action = props.config.rowActions?.find((item) => item.key === command)
@@ -421,7 +419,7 @@ onMounted(() => {
                 <el-button text circle :icon="Edit3" @click="openEdit(row)" />
               </el-tooltip>
               <el-dropdown
-                v-if="config.rowActions?.length || (!config.readOnly && config.archiveLabel !== '')"
+                v-if="config.rowActions?.length || (!config.readOnly && config.deleteLabel)"
                 trigger="click"
                 @command="(command) => handleDropdown(String(command), row)"
               >
@@ -438,12 +436,12 @@ onMounted(() => {
                       {{ action.label }}
                     </el-dropdown-item>
                     <el-dropdown-item
-                      v-if="!config.readOnly && config.archiveLabel !== ''"
-                      command="__archive"
+                      v-if="!config.readOnly && config.deleteLabel"
+                      command="__delete"
                       class="text-red-600"
                     >
-                      <Archive class="mr-2 h-4 w-4" />
-                      {{ config.archiveLabel || '归档' }}
+                      <Trash2 class="mr-2 h-4 w-4" />
+                      {{ config.deleteLabel }}
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>

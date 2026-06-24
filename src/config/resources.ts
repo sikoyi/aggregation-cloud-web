@@ -252,7 +252,6 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: 'metrics', label: '指标快照', method: 'GET', icon: 'list', path: (record) => `/api/accounts/${record.id}/metrics`, refresh: false },
     ],
-    archiveLabel: '',
   },
 
   accountGroups: {
@@ -311,8 +310,9 @@ export const resources: Record<string, ResourceConfig> = {
         fields: [{ key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, required: true, placeholder: '请选择账号' }],
         confirm: '确认从账号组移除该账号？',
       },
+      { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/account-groups/${record.id}/enable`, variant: 'success' },
+      { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/account-groups/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该账号组？禁用后不能再调整成员。' },
     ],
-    archiveLabel: '归档',
   },
 
   slots: {
@@ -364,7 +364,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/execution-slots/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该设备？' },
       { key: 'runtime', label: '关联 Runtime', method: 'GET', icon: 'list', path: (record) => `/api/execution-slots/${record.id}/runtime`, refresh: false },
     ],
-    archiveLabel: '',
   },
 
   slotGroups: {
@@ -408,8 +407,9 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'add-slot', label: '添加设备', method: 'POST', icon: 'link', path: (record) => `/api/slot-groups/${record.id}/slots`, fields: [{ key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择设备' }, { key: 'sort_order', label: '排序', type: 'number' }, { key: 'remark', label: '备注' }, { key: 'metadata', label: '扩展数据', type: 'json', defaultValue: {}, span: 2 }] },
       { key: 'list-slots', label: '查看成员', method: 'GET', icon: 'list', path: (record) => `/api/slot-groups/${record.id}/slots`, params: { page: 1, page_size: 100 }, refresh: false },
       { key: 'remove-slot', label: '移除设备', method: 'DELETE', icon: 'trash', variant: 'danger', path: (record, payload) => `/api/slot-groups/${record.id}/slots/${payload?.slot_id}`, fields: [{ key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择设备' }], confirm: '确认从设备组移除该设备？' },
+      { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/slot-groups/${record.id}/enable`, variant: 'success' },
+      { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/slot-groups/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该设备组？禁用后不能再调整成员。' },
     ],
-    archiveLabel: '归档',
   },
 
   proxies: {
@@ -422,6 +422,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'id', label: 'ID', type: 'id' },
       { key: 'name', label: '名称' },
       { key: 'proxy_type', label: '类型' },
+      { key: 'source_proxy_url', label: 'Socks5 链接' },
       { key: 'host', label: 'Host' },
       { key: 'port', label: '端口' },
       { key: 'username', label: '用户' },
@@ -433,23 +434,24 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'keyword', label: '关键词', placeholder: '名称 / Host / 用户名 / 备注' },
     ],
     createFields: [
-      { key: 'name', label: '代理名称', required: true },
-      { key: 'proxy_url', label: 'Socks5 地址', required: true, placeholder: 'socks5://user:pass@127.0.0.1:1080' },
+      { key: 'name', label: '代理名称 / 批量前缀', required: true },
+      { key: 'proxy_urls', label: 'Socks5 地址', type: 'textarea', required: true, span: 2, placeholder: 'socks5://user:pass@127.0.0.1:1080\nsocks5://user:pass@127.0.0.2:1080' },
       { key: 'remark', label: '备注', span: 2 },
-      { key: 'metadata', label: '扩展数据', type: 'json', defaultValue: {}, span: 2 },
     ],
     updateFields: [
       { key: 'name', label: '代理名称' },
+      { key: 'host', label: 'Host', required: true },
+      { key: 'port', label: '端口', type: 'number', required: true },
+      { key: 'username', label: '用户名', allowEmpty: true },
+      { key: 'password', label: '密码', allowEmpty: true },
       { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
-      { key: 'remark', label: '备注', span: 2 },
-      { key: 'metadata', label: '扩展数据', type: 'json', span: 2 },
+      { key: 'remark', label: '备注', span: 2, allowEmpty: true },
     ],
     rowActions: [
       { key: 'bindings', label: '绑定关系', method: 'GET', icon: 'list', path: (record) => `/api/resource-center/proxies/${record.id}/bindings`, refresh: false },
       { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/resource-center/proxies/${record.id}/enable`, variant: 'success' },
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/resource-center/proxies/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该代理？' },
     ],
-    archiveLabel: '归档',
   },
 
   scripts: {
@@ -528,7 +530,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/scripts/${record.id}/enable`, variant: 'success' },
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/scripts/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该脚本？' },
     ],
-    archiveLabel: '',
   },
 
   taskTemplates: {
@@ -612,8 +613,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'create-task', label: '创建任务', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-task`, fields: [{ key: 'title', label: '任务标题' }, { key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, placeholder: '请选择账号' }, { key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择设备' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
       { key: 'create-tasks', label: '批量创建', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-tasks`, fields: [{ key: 'title_prefix', label: '标题前缀' }, { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号' }, { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号组' }, { key: 'slot_ids', label: '设备列表', type: 'remoteSelect', remote: slotMultiSelect, defaultValue: [], span: 2, placeholder: '请选择设备' }, { key: 'slot_group_id', label: '设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择设备组' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
     ],
-    archiveLabel: '删除',
-    archiveConfirm: '确认删除该任务模板？删除后不可恢复，但已创建任务会保留参数快照。',
+    deleteLabel: '删除',
+    deleteConfirm: '确认删除该任务模板？删除后不可恢复，但已创建任务会保留参数快照。',
   },
 
   tasks: {
@@ -670,7 +671,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'assignments', label: '分配记录', method: 'GET', icon: 'list', path: (record) => `/api/tasks/${record.id}/assignments`, refresh: false },
       { key: 'events', label: '事件日志', method: 'GET', icon: 'list', path: (record) => `/api/tasks/${record.id}/events`, refresh: false },
     ],
-    archiveLabel: '',
   },
 
   runtimes: {
@@ -697,6 +697,5 @@ export const resources: Record<string, ResourceConfig> = {
     rowActions: [
       { key: 'slots', label: '查看设备', method: 'GET', icon: 'list', path: (record) => `/api/runtimes/${record.id}/slots`, refresh: false },
     ],
-    archiveLabel: '',
   },
 }

@@ -48,6 +48,7 @@ export interface FieldConfig {
   span?: 1 | 2
   readonly?: boolean
   dependencyKey?: string
+  allowEmpty?: boolean
 }
 
 export interface ColumnConfig {
@@ -90,8 +91,8 @@ export interface ResourceConfig {
   createFields?: FieldConfig[]
   updateFields?: FieldConfig[]
   rowActions?: RowActionConfig[]
-  archiveLabel?: string
-  archiveConfirm?: string
+  deleteLabel?: string
+  deleteConfirm?: string
 }
 
 export type IconMap = Record<string, Component>

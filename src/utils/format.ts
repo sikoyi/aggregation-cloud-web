@@ -4,7 +4,6 @@ import type { ColumnConfig } from '@/types/crud'
 const STATUS_LABELS: Record<string, string> = {
   active: '生效',
   acknowledged: '已确认',
-  archived: '已归档',
   assigned: '已分配',
   canceled: '已取消',
   challenge: '验证挑战',
@@ -41,7 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'logged_in', 'active']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting']
-const INFO_STATUSES = ['disabled', 'offline', 'archived', 'canceled', 'unbound', 'pending', 'unknown']
+const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown']
 const DANGER_STATUSES = ['failed', 'error', 'expired', 'lost', 'restricted']
 
 export function formatDate(value: unknown) {

@@ -13,7 +13,6 @@ export const businessPlatformOptions: SelectOption[] = [
 export const accountStatusOptions: SelectOption[] = [
   { label: '正常', value: 'normal' },
   { label: '禁用', value: 'disabled' },
-  { label: '归档', value: 'archived' },
 ]
 
 export const loginStatusOptions: SelectOption[] = [
@@ -29,7 +28,6 @@ export const loginStatusOptions: SelectOption[] = [
 export const enabledStatusOptions: SelectOption[] = [
   { label: '启用', value: 'enabled' },
   { label: '禁用', value: 'disabled' },
-  { label: '归档', value: 'archived' },
 ]
 
 export const templateStatusOptions: SelectOption[] = [
@@ -50,7 +48,6 @@ export const slotStatusOptions: SelectOption[] = [
   { label: '异常', value: 'error' },
   { label: '离线', value: 'offline' },
   { label: '禁用', value: 'disabled' },
-  { label: '归档', value: 'archived' },
 ]
 
 export const runtimeStatusOptions: SelectOption[] = [

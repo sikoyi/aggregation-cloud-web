@@ -119,6 +119,7 @@ export function buildPayload(
     const rawValue = state[field.key]
     if (field.readonly) return payload
     if ((rawValue === '' || rawValue === undefined || rawValue === null) && !field.required) {
+      if (field.allowEmpty) payload[field.key] = rawValue === undefined || rawValue === null ? '' : rawValue
       if (mode === 'create' && field.type === 'json') payload[field.key] = {}
       return payload
     }
