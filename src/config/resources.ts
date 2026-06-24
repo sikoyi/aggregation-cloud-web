@@ -463,6 +463,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/resource-center/proxies/${record.id}/enable`, variant: 'success' },
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/resource-center/proxies/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该代理？' },
     ],
+    deleteLabel: '删除',
+    deleteConfirm: '确认删除该代理？删除前请确认它没有关联账号或设备。',
   },
 
   scripts: {
@@ -541,6 +543,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/scripts/${record.id}/enable`, variant: 'success' },
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/scripts/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该脚本？' },
     ],
+    deleteLabel: '删除',
+    deleteConfirm: '确认删除该脚本？删除会同步清理参数定义，已被模板或任务引用的脚本不会被删除。',
   },
 
   taskTemplates: {
