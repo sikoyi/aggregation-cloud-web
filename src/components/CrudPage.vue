@@ -104,6 +104,21 @@ function actionIcon(action: RowActionConfig) {
   return action.icon ? iconMap[action.icon] || MoreHorizontal : MoreHorizontal
 }
 
+function isEnabledStatus(value: unknown) {
+  return String(value || '') === 'enabled'
+}
+
+async function toggleEnabledStatus(row: AnyRecord, nextValue: boolean) {
+  const action: RowActionConfig = {
+    key: nextValue ? 'enable' : 'disable',
+    label: nextValue ? '启用' : '禁用',
+    method: 'POST',
+    path: () => `${props.config.endpoint}/${rowId(row)}/${nextValue ? 'enable' : 'disable'}`,
+    refresh: true,
+  }
+  await executeRequest(action, row)
+}
+
 function buildListParams() {
   const params: AnyRecord = {
     page: page.value,
@@ -419,6 +434,15 @@ onMounted(() => {
         >
           <template #default="{ row }">
             <StatusBadge v-if="column.type === 'status'" :value="row[column.key]" />
+            <el-switch
+              v-else-if="column.type === 'statusSwitch'"
+              :model-value="isEnabledStatus(row[column.key])"
+              active-text="启用"
+              inactive-text="禁用"
+              inline-prompt
+              :loading="submitting"
+              @change="(value) => toggleEnabledStatus(row, Boolean(value))"
+            />
             <RelationCell
               v-else-if="column.type === 'relation' && column.relation"
               :value="row[column.key]"
@@ -441,8 +465,15 @@ onMounted(() => {
               <el-tooltip v-if="!config.readOnly && config.updateFields?.length" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" @click="openEdit(row)" />
               </el-tooltip>
+              <el-tooltip
+                v-if="!config.rowActions?.length && !config.readOnly && config.deleteLabel"
+                :content="config.deleteLabel"
+                placement="top"
+              >
+                <el-button text circle type="danger" :icon="Trash2" @click="deleteRow(row)" />
+              </el-tooltip>
               <el-dropdown
-                v-if="config.rowActions?.length || (!config.readOnly && config.deleteLabel)"
+                v-if="config.rowActions?.length"
                 trigger="click"
                 @command="(command) => handleDropdown(String(command), row)"
               >

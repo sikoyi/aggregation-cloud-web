@@ -15,7 +15,16 @@ export type FieldType =
   | 'templateParams'
   | 'remoteSelect'
 
-export type ColumnType = 'text' | 'status' | 'datetime' | 'json' | 'list' | 'id' | 'boolean' | 'relation'
+export type ColumnType =
+  | 'text'
+  | 'status'
+  | 'statusSwitch'
+  | 'datetime'
+  | 'json'
+  | 'list'
+  | 'id'
+  | 'boolean'
+  | 'relation'
 
 export interface SelectOption {
   label: string

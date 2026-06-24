@@ -432,12 +432,8 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
       { key: 'name', label: '名称' },
-      { key: 'proxy_type', label: '类型' },
       { key: 'source_proxy_url', label: 'Socks5 链接' },
-      { key: 'host', label: 'Host' },
-      { key: 'port', label: '端口' },
-      { key: 'username', label: '用户' },
-      { key: 'status', label: '状态', type: 'status' },
+      { key: 'status', label: '状态', type: 'statusSwitch' },
       { key: 'updated_at', label: '更新时间', type: 'datetime' },
     ],
     filters: [
@@ -457,11 +453,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'password', label: '密码', allowEmpty: true },
       { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
       { key: 'remark', label: '备注', span: 2, allowEmpty: true },
-    ],
-    rowActions: [
-      { key: 'bindings', label: '绑定关系', method: 'GET', icon: 'list', path: (record) => `/api/resource-center/proxies/${record.id}/bindings`, refresh: false },
-      { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/resource-center/proxies/${record.id}/enable`, variant: 'success' },
-      { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/resource-center/proxies/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该代理？' },
     ],
     deleteLabel: '删除',
     deleteConfirm: '确认删除该代理？删除前请确认它没有关联账号或设备。',
