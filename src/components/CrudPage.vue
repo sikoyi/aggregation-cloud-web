@@ -10,6 +10,8 @@ import {
   Power,
   PowerOff,
   RefreshCw,
+  RotateCcw,
+  Search,
   Trash2,
   Unlink,
   Users,
@@ -100,6 +102,20 @@ const rowActionsForMenu = computed(() => (props.config.rowActions || []).filter(
 const inlineActionKeys = computed(() => new Set(props.config.inlineActionKeys || []))
 const inlineRowActions = computed(() => rowActionsForMenu.value.filter((action) => inlineActionKeys.value.has(action.key)))
 const dropdownRowActions = computed(() => rowActionsForMenu.value.filter((action) => !inlineActionKeys.value.has(action.key)))
+const canEditRow = computed(() => !props.config.readOnly && Boolean(props.config.updateFields?.length))
+const canDeleteRow = computed(() => !props.config.readOnly && Boolean(props.config.deleteLabel))
+const showDirectDelete = computed(() => canDeleteRow.value && !dropdownRowActions.value.length)
+const showOperationColumn = computed(
+  () => canEditRow.value || Boolean(inlineRowActions.value.length || dropdownRowActions.value.length || showDirectDelete.value),
+)
+const operationColumnWidth = computed(() => {
+  const actionCount =
+    (canEditRow.value ? 1 : 0) +
+    inlineRowActions.value.length +
+    (showDirectDelete.value ? 1 : 0) +
+    (dropdownRowActions.value.length ? 1 : 0)
+  return Math.max(104, Math.min(220, 52 + actionCount * 36))
+})
 const batchActions = computed<RowActionConfig[]>(() => {
   const actions: RowActionConfig[] = []
   const seen = new Set<string>()
@@ -134,9 +150,22 @@ const batchActions = computed<RowActionConfig[]>(() => {
 
   return actions
 })
+const selectedCount = computed(() => selectedRows.value.length)
+const hasSelectedRows = computed(() => selectedCount.value > 0)
+const activeFilterCount = computed(
+  () => Object.values(filters).filter((value) => hasFilterValue(value)).length,
+)
+const hasActiveFilters = computed(() => activeFilterCount.value > 0)
+const emptyDescription = computed(() => (hasActiveFilters.value ? '没有符合筛选条件的数据' : '暂无数据'))
 
 function rowId(row: AnyRecord) {
   return String(row[idKey.value])
+}
+
+function hasFilterValue(value: unknown) {
+  if (Array.isArray(value)) return value.length > 0
+  if (value && typeof value === 'object') return Object.keys(value).length > 0
+  return value !== '' && value !== undefined && value !== null
 }
 
 function openTaskDetail(record: AnyRecord) {
@@ -250,11 +279,11 @@ function closeModal() {
   submitting.value = false
 }
 
-async function confirmAction(message?: string) {
+async function confirmAction(message?: string, type: 'warning' | 'error' = 'warning') {
   if (!message) return true
   try {
     await ElMessageBox.confirm(message, '确认操作', {
-      type: 'warning',
+      type,
       confirmButtonText: '确认',
       cancelButtonText: '取消',
     })
@@ -293,7 +322,7 @@ async function submitEntity() {
 
 async function deleteRow(record: AnyRecord) {
   const message = props.config.deleteConfirm || `确认删除 ${rowId(record)}？`
-  if (!(await confirmAction(message))) return
+  if (!(await confirmAction(message, 'error'))) return
   await executeRequest(
     {
       key: 'delete',
@@ -338,8 +367,12 @@ async function requestAction(action: RowActionConfig, record: AnyRecord, payload
 async function runBatchAction(action: RowActionConfig) {
   if (!selectedRows.value.length) return
   const actionName = action.label.replace(/^批量/, '')
-  const message = `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`
-  if (!(await confirmAction(message))) return
+  const isDanger = action.variant === 'danger' || action.method === 'DELETE'
+  const message =
+    action.key === '__delete'
+      ? `确认删除已选 ${selectedRows.value.length} 条数据？此操作不可恢复。`
+      : `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`
+  if (!(await confirmAction(message, isDanger ? 'error' : 'warning'))) return
 
   submitting.value = true
   error.value = ''
@@ -395,7 +428,8 @@ async function submitAction() {
 
 async function executeRequest(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
   const message = typeof action.confirm === 'function' ? action.confirm(record) : action.confirm
-  if (!(await confirmAction(message))) return
+  const isDanger = action.variant === 'danger' || action.method === 'DELETE'
+  if (!(await confirmAction(message, isDanger ? 'error' : 'warning'))) return
 
   submitting.value = true
   error.value = ''
@@ -469,8 +503,17 @@ onMounted(() => {
     </div>
 
     <el-card v-if="config.filters?.length" shadow="never" class="filter-card">
+      <div class="filter-card__header">
+        <div class="filter-card__title">
+          <Search class="h-4 w-4 text-brand-600" />
+          <span>筛选条件</span>
+          <el-tag v-if="hasActiveFilters" size="small" type="info" effect="plain">
+            {{ activeFilterCount }} 项已生效
+          </el-tag>
+        </div>
+      </div>
       <el-form inline label-position="left" class="compact-filter-form">
-        <div class="flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div class="filter-grid">
           <el-form-item v-for="filter in config.filters" :key="filter.key" :label="filter.label">
               <RemoteSelect
                 v-if="filter.type === 'remoteSelect' && filter.remote"
@@ -506,20 +549,20 @@ onMounted(() => {
               />
           </el-form-item>
         </div>
-        <div class="mt-2 flex justify-start gap-2">
-          <el-button @click="resetFilters">清空</el-button>
-          <el-button type="primary" @click="page = 1; loadRows()">查询</el-button>
+        <div class="filter-actions">
+          <el-button :icon="RotateCcw" :disabled="!hasActiveFilters || loading" @click="resetFilters">清空</el-button>
+          <el-button type="primary" :icon="Search" :loading="loading" @click="page = 1; loadRows()">查询</el-button>
         </div>
       </el-form>
     </el-card>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
-    <div v-if="batchActions.length" class="batch-toolbar">
+    <div v-if="batchActions.length && hasSelectedRows" class="batch-toolbar">
       <div class="batch-toolbar__summary">
         <ListChecks class="h-4 w-4 text-slate-500" />
         <span>已选</span>
-        <strong>{{ selectedRows.length }}</strong>
+        <strong>{{ selectedCount }}</strong>
         <span>条</span>
       </div>
       <div class="batch-toolbar__actions">
@@ -547,10 +590,13 @@ onMounted(() => {
         ref="tableRef"
         v-loading="loading"
         :data="rows"
+        :row-key="rowId"
         stripe
         border
+        highlight-current-row
+        scrollbar-always-on
+        class="resource-table"
         table-layout="auto"
-        empty-text="暂无数据"
         @selection-change="handleSelectionChange"
       >
         <el-table-column v-if="batchActions.length" type="selection" width="48" />
@@ -590,11 +636,11 @@ onMounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="150" fixed="right" align="right">
+        <el-table-column v-if="showOperationColumn" label="操作" :width="operationColumnWidth" fixed="right" align="right">
           <template #default="{ row }">
             <el-space :size="2">
-              <el-tooltip v-if="!config.readOnly && config.updateFields?.length" content="编辑" placement="top">
-                <el-button text circle :icon="Edit3" @click="openEdit(row)" />
+              <el-tooltip v-if="canEditRow" content="编辑" placement="top">
+                <el-button text circle :icon="Edit3" :disabled="submitting" @click="openEdit(row)" />
               </el-tooltip>
               <el-tooltip v-for="action in inlineRowActions" :key="action.key" :content="action.label" placement="top">
                 <el-button
@@ -602,19 +648,21 @@ onMounted(() => {
                   circle
                   :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
                   :icon="actionIcon(action)"
+                  :disabled="submitting"
                   @click="runAction(action, row)"
                 />
               </el-tooltip>
               <el-tooltip
-                v-if="!dropdownRowActions.length && !config.readOnly && config.deleteLabel"
+                v-if="showDirectDelete"
                 :content="config.deleteLabel"
                 placement="top"
               >
-                <el-button text circle type="danger" :icon="Trash2" @click="deleteRow(row)" />
+                <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="deleteRow(row)" />
               </el-tooltip>
               <el-dropdown
                 v-if="dropdownRowActions.length"
                 trigger="click"
+                :disabled="submitting"
                 @command="(command) => handleDropdown(String(command), row)"
               >
                 <el-button text circle :icon="MoreHorizontal" />
@@ -643,9 +691,17 @@ onMounted(() => {
             </el-space>
           </template>
         </el-table-column>
+
+        <template #empty>
+          <el-empty :description="emptyDescription" :image-size="72">
+            <el-button v-if="hasActiveFilters" size="small" :icon="RotateCcw" @click="resetFilters">
+              清空筛选
+            </el-button>
+          </el-empty>
+        </template>
       </el-table>
 
-      <div class="mt-4 flex justify-end">
+      <div class="table-pagination">
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -692,6 +748,52 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.filter-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.filter-card__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1f2933;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 14px;
+}
+
+.filter-grid :deep(.el-form-item) {
+  margin-right: 0;
+  margin-bottom: 0;
+}
+
+.filter-grid :deep(.el-form-item__label) {
+  min-width: 72px;
+  color: #52606d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.filter-grid :deep(.el-select),
+.filter-grid :deep(.el-input) {
+  width: 100%;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .batch-toolbar {
   display: flex;
   align-items: center;
@@ -730,7 +832,35 @@ onMounted(() => {
   margin-left: 0;
 }
 
+.resource-table :deep(.el-table__cell) {
+  padding: 9px 0;
+}
+
+.resource-table :deep(th.el-table__cell) {
+  padding: 8px 0;
+}
+
+.resource-table :deep(.el-table__empty-block) {
+  min-height: 220px;
+}
+
+.resource-table :deep(.el-button.is-circle) {
+  width: 30px;
+  height: 30px;
+}
+
+.table-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 16px;
+  border-top: 1px solid #e6edf3;
+}
+
 @media (max-width: 768px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
   .batch-toolbar {
     align-items: flex-start;
     flex-direction: column;
@@ -738,6 +868,11 @@ onMounted(() => {
 
   .batch-toolbar__actions {
     width: 100%;
+  }
+
+  .table-pagination {
+    justify-content: flex-start;
+    overflow-x: auto;
   }
 }
 </style>

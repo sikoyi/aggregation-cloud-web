@@ -128,7 +128,7 @@
   }
 
   .table-card .el-pagination {
-    padding: 0 16px 16px;
+    padding: 0;
   }
 
   .dynamic-form .el-form-item {
