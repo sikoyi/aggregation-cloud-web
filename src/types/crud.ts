@@ -81,6 +81,9 @@ export interface ResourceConfig {
   createLabel?: string
   createBody?: (payload: AnyRecord) => unknown
   afterCreate?: (createdRecord: AnyRecord, payload: AnyRecord) => Promise<unknown>
+  loadEditRecord?: (record: AnyRecord) => Promise<AnyRecord>
+  updateBody?: (payload: AnyRecord, record: AnyRecord) => unknown
+  afterUpdate?: (updatedRecord: AnyRecord, payload: AnyRecord, record: AnyRecord) => Promise<unknown>
   readOnly?: boolean
   columns: ColumnConfig[]
   filters?: FieldConfig[]

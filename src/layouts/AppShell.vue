@@ -40,12 +40,19 @@ const navGroups = [
     ],
   },
   {
-    label: '资源中心',
-    index: 'resource',
+    label: '设备管理',
+    index: 'device',
     icon: Boxes,
     children: [
-      { label: '设备管理', to: '/slots', icon: Boxes },
+      { label: '设备列表', to: '/slots', icon: Boxes },
       { label: '设备分组', to: '/slot-groups', icon: Network },
+    ],
+  },
+  {
+    label: '资源中心',
+    index: 'resource',
+    icon: ShieldCheck,
+    children: [
       { label: '代理资源', to: '/proxies', icon: ShieldCheck },
     ],
   },

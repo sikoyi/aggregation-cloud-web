@@ -37,6 +37,11 @@ export const templateStatusOptions: SelectOption[] = [
   { label: '禁用', value: 'disabled' },
 ]
 
+export const scriptStatusOptions: SelectOption[] = [
+  { label: '启用', value: 'enabled' },
+  { label: '禁用', value: 'disabled' },
+]
+
 export const slotStatusOptions: SelectOption[] = [
   { label: '空闲', value: 'idle' },
   { label: '启动中', value: 'starting' },

@@ -136,11 +136,23 @@ function openCreate() {
   formState.value = buildFormState(props.config.createFields || [])
 }
 
-function openEdit(record: AnyRecord) {
-  modal.type = 'edit'
-  modal.record = record
-  modal.action = null
-  formState.value = buildFormState(props.config.updateFields || [], record)
+async function openEdit(record: AnyRecord) {
+  loading.value = true
+  error.value = ''
+  try {
+    // 部分资源的编辑表单需要额外子资源，例如脚本参数，需要先加载详情再打开弹窗。
+    const editRecord = props.config.loadEditRecord ? await props.config.loadEditRecord(record) : record
+    modal.type = 'edit'
+    modal.record = editRecord
+    modal.action = null
+    formState.value = buildFormState(props.config.updateFields || [], editRecord)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '加载编辑数据失败'
+    error.value = message
+    ElMessage.error(message)
+  } finally {
+    loading.value = false
+  }
 }
 
 function closeModal() {
@@ -179,8 +191,10 @@ async function submitEntity() {
     }
     if (modal.type === 'edit' && modal.record) {
       const payload = buildPayload(props.config.updateFields || [], formState.value, 'update')
-      const data = await http.put<AnyRecord>(`${props.config.endpoint}/${rowId(modal.record)}`, payload)
-      lastResult.value = data
+      const body = props.config.updateBody ? props.config.updateBody(payload, modal.record) : payload
+      const data = await http.put<AnyRecord>(`${props.config.endpoint}/${rowId(modal.record)}`, body)
+      const followup = props.config.afterUpdate ? await props.config.afterUpdate(data, payload, modal.record) : undefined
+      lastResult.value = followup === undefined ? data : { entity: data, followup }
     }
     closeModal()
     ElMessage.success('保存成功')

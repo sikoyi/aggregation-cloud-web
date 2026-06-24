@@ -10,6 +10,7 @@ import {
   runtimePlatformOptions,
   runtimeStatusOptions,
   scriptParamTypeOptions,
+  scriptStatusOptions,
   slotStatusOptions,
   slotTypeOptions,
   templateStatusOptions,
@@ -115,6 +116,8 @@ const scriptCreateKeys = [
   'status',
 ]
 
+const scriptUpdateKeys = scriptCreateKeys.filter((key) => key !== 'script_key')
+
 function pickPayload(payload: AnyRecord, keys: string[]) {
   return keys.reduce<AnyRecord>((result, key) => {
     if (payload[key] !== undefined) result[key] = payload[key]
@@ -126,6 +129,17 @@ async function createScriptParams(createdScript: AnyRecord, payload: AnyRecord) 
   const items = Array.isArray(payload.params) ? payload.params : []
   if (!items.length) return undefined
   return http.put(`/api/scripts/${createdScript.id}/params`, { items })
+}
+
+async function loadScriptForEdit(record: AnyRecord) {
+  const detail = await http.get<{ script: AnyRecord; params: AnyRecord[] }>(`/api/scripts/${record.id}/detail`)
+  return { ...detail.script, params: detail.params || [] }
+}
+
+async function updateScriptParams(updatedScript: AnyRecord, payload: AnyRecord, record: AnyRecord) {
+  const items = Array.isArray(payload.params) ? payload.params : []
+  const scriptId = updatedScript.id || record.id
+  return http.put(`/api/scripts/${scriptId}/params`, { items })
 }
 
 export const resources: Record<string, ResourceConfig> = {
@@ -455,7 +469,7 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     filters: [
       { key: 'engine_type', label: '执行引擎', placeholder: 'browser_runtime' },
-      { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+      { key: 'status', label: '状态', type: 'select', options: scriptStatusOptions },
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions },
       { key: 'provider', label: '供应商', placeholder: 'adspower' },
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions },
@@ -465,7 +479,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'script_key', label: '脚本 Key', required: true },
       { key: 'name', label: '脚本名称', required: true },
       { key: 'engine_type', label: '执行引擎', defaultValue: 'browser_runtime' },
-      { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions, defaultValue: 'enabled' },
+      { key: 'status', label: '状态', type: 'select', options: scriptStatusOptions, defaultValue: 'enabled' },
       { key: 'supported_runtime_platforms', label: '执行平台范围', type: 'tags', defaultValue: ['fingerprint_browser'] },
       { key: 'supported_providers', label: '供应商范围', type: 'tags', defaultValue: ['adspower'] },
       { key: 'supported_business_platforms', label: '业务平台范围', type: 'tags', defaultValue: ['threads'] },
@@ -484,10 +498,13 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     createBody: (payload) => pickPayload(payload, scriptCreateKeys),
     afterCreate: createScriptParams,
+    loadEditRecord: loadScriptForEdit,
+    updateBody: (payload) => pickPayload(payload, scriptUpdateKeys),
+    afterUpdate: updateScriptParams,
     updateFields: [
       { key: 'name', label: '脚本名称' },
       { key: 'engine_type', label: '执行引擎' },
-      { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
+      { key: 'status', label: '状态', type: 'select', options: scriptStatusOptions },
       { key: 'supported_runtime_platforms', label: '执行平台范围', type: 'tags' },
       { key: 'supported_providers', label: '供应商范围', type: 'tags' },
       { key: 'supported_business_platforms', label: '业务平台范围', type: 'tags' },
@@ -495,6 +512,14 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'max_timeout_seconds', label: '最大超时秒', type: 'number' },
       { key: 'max_concurrency', label: '最大并发', type: 'number' },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
+      {
+        key: 'params',
+        label: '脚本参数定义',
+        type: 'scriptParams',
+        options: scriptParamTypeOptions,
+        defaultValue: [],
+        span: 2,
+      },
     ],
     rowActions: [
       { key: 'detail', label: '详情与参数', method: 'GET', icon: 'list', path: (record) => `/api/scripts/${record.id}/detail`, refresh: false },
@@ -503,7 +528,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/scripts/${record.id}/enable`, variant: 'success' },
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/scripts/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该脚本？' },
     ],
-    archiveLabel: '归档',
+    archiveLabel: '',
   },
 
   taskTemplates: {
