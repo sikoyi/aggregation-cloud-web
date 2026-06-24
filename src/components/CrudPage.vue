@@ -96,6 +96,10 @@ function findInlineStatusAction(key: 'enable' | 'disable') {
 
 const hasInlineStatusSwitch = computed(() => Boolean(findInlineStatusAction('enable') && findInlineStatusAction('disable')))
 const rowActionsForMenu = computed(() => (props.config.rowActions || []).filter((action) => !isInlineStatusAction(action)))
+// 高频行操作可以配置为直接按钮，减少用户反复展开下拉菜单的成本。
+const inlineActionKeys = computed(() => new Set(props.config.inlineActionKeys || []))
+const inlineRowActions = computed(() => rowActionsForMenu.value.filter((action) => inlineActionKeys.value.has(action.key)))
+const dropdownRowActions = computed(() => rowActionsForMenu.value.filter((action) => !inlineActionKeys.value.has(action.key)))
 const batchActions = computed<RowActionConfig[]>(() => {
   const actions: RowActionConfig[] = []
   const seen = new Set<string>()
@@ -413,7 +417,7 @@ function handleDropdown(command: string, row: AnyRecord) {
     deleteRow(row)
     return
   }
-  const action = rowActionsForMenu.value.find((item) => item.key === command)
+  const action = dropdownRowActions.value.find((item) => item.key === command)
   if (action) runAction(action, row)
 }
 
@@ -592,15 +596,24 @@ onMounted(() => {
               <el-tooltip v-if="!config.readOnly && config.updateFields?.length" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" @click="openEdit(row)" />
               </el-tooltip>
+              <el-tooltip v-for="action in inlineRowActions" :key="action.key" :content="action.label" placement="top">
+                <el-button
+                  text
+                  circle
+                  :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
+                  :icon="actionIcon(action)"
+                  @click="runAction(action, row)"
+                />
+              </el-tooltip>
               <el-tooltip
-                v-if="!rowActionsForMenu.length && !config.readOnly && config.deleteLabel"
+                v-if="!dropdownRowActions.length && !config.readOnly && config.deleteLabel"
                 :content="config.deleteLabel"
                 placement="top"
               >
                 <el-button text circle type="danger" :icon="Trash2" @click="deleteRow(row)" />
               </el-tooltip>
               <el-dropdown
-                v-if="rowActionsForMenu.length"
+                v-if="dropdownRowActions.length"
                 trigger="click"
                 @command="(command) => handleDropdown(String(command), row)"
               >
@@ -608,7 +621,7 @@ onMounted(() => {
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
-                      v-for="action in rowActionsForMenu"
+                      v-for="action in dropdownRowActions"
                       :key="action.key"
                       :command="action.key"
                       :class="action.variant === 'danger' ? 'text-red-600' : ''"

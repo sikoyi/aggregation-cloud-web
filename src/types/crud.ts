@@ -104,6 +104,7 @@ export interface ResourceConfig {
   createFields?: FieldConfig[]
   updateFields?: FieldConfig[]
   rowActions?: RowActionConfig[]
+  inlineActionKeys?: string[]
   batchActions?: RowActionConfig[]
   deleteLabel?: string
   deleteConfirm?: string

@@ -716,6 +716,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'params', label: '任务参数', type: 'templateParams', defaultValue: {}, span: 2, dependencyKey: 'script_key' },
     ],
     updateFields: [],
+    inlineActionKeys: ['detail'],
     rowActions: [
       { key: 'detail', label: '任务详情', method: 'GET', icon: 'list', path: (record) => `/api/tasks/${record.id}`, refresh: false },
       { key: 'cancel', label: '取消任务', method: 'POST', icon: 'powerOff', variant: 'danger', path: (record) => `/api/tasks/${record.id}/cancel`, confirm: '确认取消该任务？' },
