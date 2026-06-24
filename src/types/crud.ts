@@ -68,6 +68,8 @@ export interface ColumnConfig {
   type?: ColumnType
   relation?: RemoteSelectConfig
   className?: string
+  minWidth?: number | string
+  width?: number | string
 }
 
 export interface RowActionConfig {
@@ -97,6 +99,7 @@ export interface ResourceConfig {
   updateBody?: (payload: AnyRecord, record: AnyRecord) => unknown
   afterUpdate?: (updatedRecord: AnyRecord, payload: AnyRecord, record: AnyRecord) => Promise<unknown>
   readOnly?: boolean
+  hideDetailAction?: boolean
   columns: ColumnConfig[]
   filters?: FieldConfig[]
   createFields?: FieldConfig[]

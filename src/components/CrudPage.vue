@@ -367,10 +367,9 @@ onMounted(() => {
     </div>
 
     <el-card v-if="config.filters?.length" shadow="never" class="filter-card">
-      <el-form label-position="top">
-        <el-row :gutter="16">
-          <el-col v-for="filter in config.filters" :key="filter.key" :xs="24" :sm="12" :lg="6">
-            <el-form-item :label="filter.label">
+      <el-form inline label-position="left" class="compact-filter-form">
+        <div class="flex flex-wrap items-end gap-x-4 gap-y-2">
+          <el-form-item v-for="filter in config.filters" :key="filter.key" :label="filter.label">
               <RemoteSelect
                 v-if="filter.type === 'remoteSelect' && filter.remote"
                 :model-value="filters[filter.key]"
@@ -403,12 +402,11 @@ onMounted(() => {
                 @update:model-value="filters[filter.key] = $event"
                 @keydown.enter="page = 1; loadRows()"
               />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <div class="flex justify-end gap-2">
-          <el-button @click="resetFilters">清空</el-button>
-          <el-button type="primary" @click="page = 1; loadRows()">查询</el-button>
+          </el-form-item>
+          <el-form-item>
+            <el-button @click="resetFilters">清空</el-button>
+            <el-button type="primary" @click="page = 1; loadRows()">查询</el-button>
+          </el-form-item>
         </div>
       </el-form>
     </el-card>
@@ -429,7 +427,8 @@ onMounted(() => {
           :key="column.key"
           :prop="column.key"
           :label="column.label"
-          min-width="150"
+          :min-width="column.minWidth || 150"
+          :width="column.width"
           show-overflow-tooltip
         >
           <template #default="{ row }">
@@ -459,7 +458,7 @@ onMounted(() => {
         <el-table-column label="操作" width="150" fixed="right" align="right">
           <template #default="{ row }">
             <el-space :size="2">
-              <el-tooltip content="详情" placement="top">
+              <el-tooltip v-if="!config.hideDetailAction" content="详情" placement="top">
                 <el-button text circle :icon="Eye" @click="openRowDetail(row)" />
               </el-tooltip>
               <el-tooltip v-if="!config.readOnly && config.updateFields?.length" content="编辑" placement="top">

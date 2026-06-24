@@ -429,10 +429,11 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: '/api/resource-center/proxies',
     createEndpoint: '/api/resource-center/proxies/import',
     createLabel: '导入代理',
+    hideDetailAction: true,
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
       { key: 'name', label: '名称' },
-      { key: 'source_proxy_url', label: 'Socks5 链接' },
+      { key: 'source_proxy_url', label: 'Socks5 链接', minWidth: 360 },
       { key: 'status', label: '状态', type: 'statusSwitch' },
       { key: 'updated_at', label: '更新时间', type: 'datetime' },
     ],
