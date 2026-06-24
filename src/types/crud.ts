@@ -24,12 +24,15 @@ export interface SelectOption {
 
 export interface RemoteSelectConfig {
   endpoint: string
-  labelKey: string
+  labelKey?: string
+  labelKeys?: string[]
   valueKey: string
   searchParam?: string
   secondaryKey?: string
+  secondaryKeys?: string[]
   params?: AnyRecord
   pageSize?: number
+  multiple?: boolean
 }
 
 export interface FieldConfig {

@@ -18,6 +18,7 @@ function defaultValueFor(field: FieldConfig) {
   if (field.type === 'json') return '{}'
   if (field.type === 'scriptParams') return []
   if (field.type === 'templateParams') return {}
+  if (field.type === 'remoteSelect' && field.remote?.multiple) return []
   if (field.type === 'tags') return ''
   return ''
 }
@@ -42,6 +43,14 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
     }
     if (field.type === 'templateParams') {
       state[field.key] = isPlainObject(sourceValue) ? cloneDefault(sourceValue) : {}
+      return state
+    }
+    if (field.type === 'remoteSelect' && field.remote?.multiple) {
+      state[field.key] = Array.isArray(sourceValue)
+        ? cloneDefault(sourceValue)
+        : sourceValue
+          ? [sourceValue]
+          : []
       return state
     }
     if (field.type === 'datetime' && typeof sourceValue === 'string') {

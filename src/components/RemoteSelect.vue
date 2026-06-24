@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
@@ -13,14 +13,27 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: string | string[]]
 }>()
 
 const loading = ref(false)
 const options = ref<AnyRecord[]>([])
 
+const selectValue = computed(() => {
+  if (props.config.multiple) {
+    return Array.isArray(props.modelValue) ? props.modelValue.map(String) : []
+  }
+  return String(props.modelValue || '')
+})
+
+function fieldValue(option: AnyRecord, keys: string[]) {
+  const key = keys.find((item) => option[item] !== undefined && option[item] !== null && option[item] !== '')
+  return key ? String(option[key]) : ''
+}
+
 function optionLabel(option: AnyRecord) {
-  return String(option[props.config.labelKey] ?? option[props.config.valueKey] ?? '')
+  const labelKeys = props.config.labelKeys || (props.config.labelKey ? [props.config.labelKey] : [])
+  return fieldValue(option, [...labelKeys, props.config.valueKey])
 }
 
 function optionValue(option: AnyRecord) {
@@ -28,15 +41,24 @@ function optionValue(option: AnyRecord) {
 }
 
 function optionSecondary(option: AnyRecord) {
-  if (!props.config.secondaryKey) return ''
-  return String(option[props.config.secondaryKey] ?? '')
+  const keys = props.config.secondaryKeys || (props.config.secondaryKey ? [props.config.secondaryKey] : [])
+  return fieldValue(option, keys)
+}
+
+function selectedValues() {
+  return Array.isArray(selectValue.value)
+    ? selectValue.value
+    : selectValue.value
+      ? [selectValue.value]
+      : []
 }
 
 function mergeSelected(items: AnyRecord[]) {
-  const selectedValue = String(props.modelValue || '')
-  if (!selectedValue || items.some((item) => optionValue(item) === selectedValue)) return items
-  const existing = options.value.find((item) => optionValue(item) === selectedValue)
-  return existing ? [existing, ...items] : items
+  const selected = selectedValues()
+  if (!selected.length) return items
+  const missing = selected.filter((value) => !items.some((item) => optionValue(item) === value))
+  const existing = options.value.filter((item) => missing.includes(optionValue(item)))
+  return existing.length ? [...existing, ...items] : items
 }
 
 async function loadOptions(keyword = '') {
@@ -60,33 +82,46 @@ function handleVisibleChange(visible: boolean) {
 }
 
 onMounted(() => {
-  loadOptions(String(props.modelValue || ''))
+  loadOptions()
 })
 
 watch(
   () => props.modelValue,
-  (value) => {
-    if (value && !options.value.some((item) => optionValue(item) === String(value))) {
-      loadOptions(String(value))
+  () => {
+    const missing = selectedValues().some((value) => !options.value.some((item) => optionValue(item) === value))
+    if (missing) {
+      loadOptions()
     }
   },
 )
+
+function updateSelected(value: string | string[]) {
+  emit(
+    'update:modelValue',
+    props.config.multiple
+      ? (Array.isArray(value) ? value : [value]).filter(Boolean).map(String)
+      : String(value || ''),
+  )
+}
 </script>
 
 <template>
   <el-select
-    :model-value="String(modelValue || '')"
+    :model-value="selectValue"
     :disabled="disabled"
     class="w-full"
     clearable
+    collapse-tags
+    collapse-tags-tooltip
     filterable
+    :multiple="Boolean(config.multiple)"
     remote
     reserve-keyword
     :loading="loading"
     :placeholder="placeholder || '请选择'"
     :remote-method="loadOptions"
     @visible-change="handleVisibleChange"
-    @update:model-value="emit('update:modelValue', String($event || ''))"
+    @update:model-value="updateSelected"
   >
     <el-option
       v-for="option in options"
