@@ -429,7 +429,6 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: '/api/resource-center/proxies',
     createEndpoint: '/api/resource-center/proxies/import',
     createLabel: '导入代理',
-    hideDetailAction: true,
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
       { key: 'name', label: '名称' },
@@ -454,6 +453,10 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'password', label: '密码', allowEmpty: true },
       { key: 'status', label: '状态', type: 'select', options: enabledStatusOptions },
       { key: 'remark', label: '备注', span: 2, allowEmpty: true },
+    ],
+    batchActions: [
+      { key: 'enable', label: '批量启用', method: 'POST', icon: 'power', path: (record) => `/api/resource-center/proxies/${record.id}/enable`, variant: 'success' },
+      { key: 'disable', label: '批量禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/resource-center/proxies/${record.id}/disable`, variant: 'danger' },
     ],
     deleteLabel: '删除',
     deleteConfirm: '确认删除该代理？删除前请确认它没有关联账号或设备。',

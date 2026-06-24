@@ -2,7 +2,6 @@
 import {
   Copy,
   Edit3,
-  Eye,
   Link2,
   ListChecks,
   MoreHorizontal,
@@ -54,10 +53,12 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const rows = ref<AnyRecord[]>([])
+const selectedRows = ref<AnyRecord[]>([])
 const filters = reactive<AnyRecord>({})
 const lastResult = ref<unknown>(null)
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
+const tableRef = ref()
 
 const modal = reactive<{
   type: 'create' | 'edit' | 'action' | null
@@ -82,6 +83,40 @@ const modalTitle = computed(() => {
   if (modal.type === 'edit') return `编辑${props.config.title}`
   return modal.action?.label || '执行操作'
 })
+const batchActions = computed<RowActionConfig[]>(() => {
+  const actions: RowActionConfig[] = []
+  const seen = new Set<string>()
+
+  ;(props.config.batchActions || []).forEach((action) => {
+    actions.push(action)
+    seen.add(action.key)
+  })
+
+  ;(props.config.rowActions || [])
+    .filter((action) => ['enable', 'disable'].includes(action.key) && !action.fields?.length)
+    .forEach((action) => {
+      if (seen.has(action.key)) return
+      actions.push({
+        ...action,
+        label: action.label.startsWith('批量') ? action.label : `批量${action.label}`,
+        confirm: undefined,
+      })
+      seen.add(action.key)
+    })
+
+  if (!props.config.readOnly && props.config.deleteLabel && !seen.has('__delete')) {
+    actions.push({
+      key: '__delete',
+      label: `批量${props.config.deleteLabel}`,
+      method: 'DELETE',
+      path: (record) => `${props.config.endpoint}/${rowId(record)}`,
+      variant: 'danger',
+      icon: 'trash',
+    })
+  }
+
+  return actions
+})
 
 function rowId(row: AnyRecord) {
   return String(row[idKey.value])
@@ -90,14 +125,6 @@ function rowId(row: AnyRecord) {
 function openTaskDetail(record: AnyRecord) {
   taskDetailId.value = rowId(record)
   taskDetailVisible.value = true
-}
-
-function openRowDetail(record: AnyRecord) {
-  if (props.config.key === 'tasks') {
-    openTaskDetail(record)
-    return
-  }
-  lastResult.value = record
 }
 
 function actionIcon(action: RowActionConfig) {
@@ -137,6 +164,7 @@ async function loadRows() {
     const data = await http.get<PageResult<AnyRecord>>(props.config.endpoint, buildListParams())
     rows.value = data.items
     total.value = data.total
+    selectedRows.value = []
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
@@ -250,6 +278,65 @@ async function deleteRow(record: AnyRecord) {
   )
 }
 
+function handleSelectionChange(selection: AnyRecord[]) {
+  selectedRows.value = selection
+}
+
+function clearSelection() {
+  tableRef.value?.clearSelection?.()
+  selectedRows.value = []
+}
+
+async function requestAction(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
+  const path = action.path(record, payload)
+  const params = typeof action.params === 'function' ? action.params(payload, record) : action.params
+  const body =
+    typeof action.body === 'function'
+      ? action.body(payload, record)
+      : action.body !== undefined
+        ? action.body
+        : action.fields?.length
+          ? payload
+          : undefined
+
+  if (action.method === 'GET') return http.get(path, params)
+  if (action.method === 'POST') return http.post(path, body, params)
+  if (action.method === 'PUT') return http.put(path, body)
+  return http.delete(path)
+}
+
+async function runBatchAction(action: RowActionConfig) {
+  if (!selectedRows.value.length) return
+  const actionName = action.label.replace(/^批量/, '')
+  const message = `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`
+  if (!(await confirmAction(message))) return
+
+  submitting.value = true
+  error.value = ''
+  const failures: string[] = []
+  try {
+    for (const row of selectedRows.value) {
+      try {
+        await requestAction(action, row)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '操作失败'
+        failures.push(`${rowId(row)}：${message}`)
+      }
+    }
+    if (failures.length) {
+      throw new Error(`部分数据处理失败：${failures.slice(0, 3).join('；')}`)
+    }
+    ElMessage.success(`已处理 ${selectedRows.value.length} 条`)
+    clearSelection()
+    await loadRows()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '批量操作失败'
+    ElMessage.error(error.value)
+  } finally {
+    submitting.value = false
+  }
+}
+
 function openAction(action: RowActionConfig, record: AnyRecord) {
   modal.type = 'action'
   modal.record = record
@@ -283,21 +370,8 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
   submitting.value = true
   error.value = ''
   try {
-    const path = action.path(record, payload)
-    const params = typeof action.params === 'function' ? action.params(payload, record) : action.params
-    const body =
-      typeof action.body === 'function'
-        ? action.body(payload, record)
-        : action.body !== undefined
-          ? action.body
-          : action.fields?.length
-            ? payload
-            : undefined
-
-    if (action.method === 'GET') lastResult.value = await http.get(path, params)
-    if (action.method === 'POST') await http.post(path, body, params)
-    if (action.method === 'PUT') await http.put(path, body)
-    if (action.method === 'DELETE') await http.delete(path)
+    const data = await requestAction(action, record, payload)
+    if (action.method === 'GET') lastResult.value = data
 
     ElMessage.success(action.method === 'GET' ? '查询完成' : '操作完成')
     if (action.refresh !== false) await loadRows()
@@ -412,14 +486,37 @@ onMounted(() => {
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
     <el-card shadow="never" class="table-card">
+      <div v-if="batchActions.length" class="mb-3 flex flex-wrap items-center gap-2">
+        <span class="text-sm text-slate-600">已选 {{ selectedRows.length }} 条</span>
+        <el-button
+          v-for="action in batchActions"
+          :key="action.key"
+          size="small"
+          :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
+          :icon="actionIcon(action)"
+          :disabled="!selectedRows.length || submitting"
+          :loading="submitting"
+          @click="runBatchAction(action)"
+        >
+          {{ action.label }}
+        </el-button>
+        <el-button size="small" :disabled="!selectedRows.length || submitting" @click="clearSelection">
+          取消选择
+        </el-button>
+      </div>
+
       <el-table
+        ref="tableRef"
         v-loading="loading"
         :data="rows"
         stripe
         border
         table-layout="auto"
         empty-text="暂无数据"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column v-if="batchActions.length" type="selection" width="48" />
+
         <el-table-column
           v-for="column in config.columns"
           :key="column.key"
@@ -456,9 +553,6 @@ onMounted(() => {
         <el-table-column label="操作" width="150" fixed="right" align="right">
           <template #default="{ row }">
             <el-space :size="2">
-              <el-tooltip v-if="!config.hideDetailAction" content="详情" placement="top">
-                <el-button text circle :icon="Eye" @click="openRowDetail(row)" />
-              </el-tooltip>
               <el-tooltip v-if="!config.readOnly && config.updateFields?.length" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" @click="openEdit(row)" />
               </el-tooltip>

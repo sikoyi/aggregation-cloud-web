@@ -99,12 +99,12 @@ export interface ResourceConfig {
   updateBody?: (payload: AnyRecord, record: AnyRecord) => unknown
   afterUpdate?: (updatedRecord: AnyRecord, payload: AnyRecord, record: AnyRecord) => Promise<unknown>
   readOnly?: boolean
-  hideDetailAction?: boolean
   columns: ColumnConfig[]
   filters?: FieldConfig[]
   createFields?: FieldConfig[]
   updateFields?: FieldConfig[]
   rowActions?: RowActionConfig[]
+  batchActions?: RowActionConfig[]
   deleteLabel?: string
   deleteConfirm?: string
 }
