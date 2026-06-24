@@ -60,6 +60,18 @@ export const runtimePlatformOptions: SelectOption[] = [
   { label: '云手机', value: 'cloud_phone' },
 ]
 
+export const executionModeOptions: SelectOption[] = [
+  { label: '立即执行', value: 'immediate' },
+  { label: '计划执行', value: 'scheduled' },
+  { label: '事件触发', value: 'event_triggered' },
+]
+
+export const accountScopeTypeOptions: SelectOption[] = [
+  { label: '单个账号', value: 'single_account' },
+  { label: '多个账号', value: 'account_list' },
+  { label: '账号分组', value: 'account_group' },
+]
+
 export const slotTypeOptions: SelectOption[] = [
   { label: '指纹 Profile', value: 'fingerprint_profile' },
   { label: '云手机设备', value: 'cloud_phone_device' },

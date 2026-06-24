@@ -104,7 +104,7 @@ const inlineRowActions = computed(() => rowActionsForMenu.value.filter((action) 
 const dropdownRowActions = computed(() => rowActionsForMenu.value.filter((action) => !inlineActionKeys.value.has(action.key)))
 const canEditRow = computed(() => !props.config.readOnly && Boolean(props.config.updateFields?.length))
 const canDeleteRow = computed(() => !props.config.readOnly && Boolean(props.config.deleteLabel))
-const showDirectDelete = computed(() => canDeleteRow.value && !dropdownRowActions.value.length)
+const showDirectDelete = computed(() => canDeleteRow.value && (props.config.directDelete || !dropdownRowActions.value.length))
 const showOperationColumn = computed(
   () => canEditRow.value || Boolean(inlineRowActions.value.length || dropdownRowActions.value.length || showDirectDelete.value),
 )
@@ -632,6 +632,9 @@ onMounted(() => {
             <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
               {{ truncateId(row[column.key]) }}
             </span>
+            <el-tag v-else-if="column.type === 'tag'" effect="plain" round>
+              {{ formatCell(row, column) }}
+            </el-tag>
             <span v-else>{{ formatCell(row, column) }}</span>
           </template>
         </el-table-column>
@@ -678,7 +681,7 @@ onMounted(() => {
                       {{ action.label }}
                     </el-dropdown-item>
                     <el-dropdown-item
-                      v-if="!config.readOnly && config.deleteLabel"
+                      v-if="!showDirectDelete && !config.readOnly && config.deleteLabel"
                       command="__delete"
                       class="text-red-600"
                     >

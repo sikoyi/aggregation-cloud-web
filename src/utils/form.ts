@@ -22,6 +22,7 @@ function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
   if (field.type === 'scriptParams') return []
   if (field.type === 'templateParams') return {}
   if (field.type === 'remoteSelect' && field.remote?.multiple) return []
+  if (field.type === 'timeRange') return []
   if (field.type === 'tags') return ''
   return ''
 }
@@ -59,6 +60,10 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
     }
     if (field.type === 'datetime' && typeof sourceValue === 'string') {
       state[field.key] = sourceValue.slice(0, 19)
+      return state
+    }
+    if (field.type === 'timeRange') {
+      state[field.key] = Array.isArray(sourceValue) ? cloneDefault(sourceValue) : []
       return state
     }
     state[field.key] = sourceValue ?? ''
@@ -155,6 +160,10 @@ export function buildPayload(
     }
     if (field.type === 'datetime') {
       payload[field.key] = rawValue ? new Date(String(rawValue)).toISOString() : undefined
+      return payload
+    }
+    if (field.type === 'timeRange') {
+      payload[field.key] = Array.isArray(rawValue) ? rawValue.filter(Boolean).map(String) : []
       return payload
     }
     payload[field.key] = rawValue

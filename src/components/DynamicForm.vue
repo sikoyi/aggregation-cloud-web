@@ -24,6 +24,10 @@ function dependencyValue(field: FieldConfig) {
   return String(props.modelValue[field.dependencyKey || 'script_key'] || '')
 }
 
+function timeRangeValue(value: unknown) {
+  return Array.isArray(value) ? value.map(String) : []
+}
+
 const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
 </script>
 
@@ -119,6 +123,21 @@ const visibleFields = computed(() => props.fields.filter((field) => !field.hidde
             placeholder="选择日期时间"
             clearable
             @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <el-time-picker
+            v-else-if="field.type === 'timeRange'"
+            :model-value="timeRangeValue(modelValue[field.key])"
+            :disabled="field.readonly"
+            class="w-full"
+            is-range
+            format="HH:mm"
+            value-format="HH:mm"
+            range-separator="至"
+            start-placeholder="开始时间"
+            end-placeholder="结束时间"
+            clearable
+            @update:model-value="updateValue(field.key, $event || [])"
           />
 
           <el-input

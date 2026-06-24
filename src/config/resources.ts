@@ -6,6 +6,8 @@ import {
   accountStatusOptions,
   businessPlatformOptions,
   enabledStatusOptions,
+  accountScopeTypeOptions,
+  executionModeOptions,
   loginStatusOptions,
   runtimePlatformOptions,
   runtimeStatusOptions,
@@ -151,6 +153,40 @@ async function updateScriptParams(updatedScript: AnyRecord, payload: AnyRecord, 
   const items = Array.isArray(payload.params) ? payload.params : []
   const scriptId = updatedScript.id || record.id
   return http.put(`/api/scripts/${scriptId}/params`, { items })
+}
+
+const taskTemplatePayloadKeys = [
+  'name',
+  'script_key',
+  'business_platform',
+  'engine_type',
+  'runtime_platform',
+  'provider',
+  'default_timeout_seconds',
+  'account_scope_type',
+  'execution_mode',
+  'status',
+  'slot_id',
+  'slot_group_id',
+  'account_ids',
+  'account_group_ids',
+  'default_params',
+  'description',
+]
+
+function buildExecutionWindow(record: AnyRecord) {
+  return record.execution_window_start && record.execution_window_end
+    ? [record.execution_window_start, record.execution_window_end]
+    : []
+}
+
+function buildTaskTemplateBody(payload: AnyRecord, record?: AnyRecord) {
+  const body = pickPayload(payload, taskTemplatePayloadKeys)
+  const windowValue = Array.isArray(payload.execution_window) ? payload.execution_window : []
+  body.execution_window_start = windowValue[0] || null
+  body.execution_window_end = windowValue[1] || null
+  body.execution_timezone = String(record?.execution_timezone || payload.execution_timezone || 'Asia/Shanghai')
+  return body
 }
 
 export const resources: Record<string, ResourceConfig> = {
@@ -469,7 +505,7 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: '新增脚本',
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
-      { key: 'script_key', label: '脚本 Key' },
+      { key: 'script_key', label: '脚本 Key', type: 'tag', minWidth: 180 },
       { key: 'name', label: '名称' },
       { key: 'engine_type', label: '引擎' },
       { key: 'supported_business_platforms', label: '平台', type: 'list' },
@@ -539,6 +575,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/scripts/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该脚本？' },
     ],
     deleteLabel: '删除',
+    directDelete: true,
     deleteConfirm: '确认删除该脚本？删除会同步清理参数定义，已被模板或任务引用的脚本不会被删除。',
   },
 
@@ -547,6 +584,9 @@ export const resources: Record<string, ResourceConfig> = {
     title: '任务模板',
     endpoint: '/api/task-templates',
     createLabel: '新增模板',
+    createBody: (payload) => buildTaskTemplateBody(payload),
+    loadEditRecord: async (record) => ({ ...record, execution_window: buildExecutionWindow(record) }),
+    updateBody: (payload, record) => buildTaskTemplateBody(payload, record),
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
       { key: 'name', label: '名称' },
@@ -582,8 +622,9 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions, defaultValue: 'fingerprint_browser' },
       { key: 'provider', label: '供应商', defaultValue: 'adspower' },
       { key: 'default_timeout_seconds', label: '默认超时秒', type: 'number', defaultValue: 3600 },
-      { key: 'account_scope_type', label: '账号范围', defaultValue: 'single_account' },
-      { key: 'execution_mode', label: '执行模式', defaultValue: 'immediate' },
+      { key: 'account_scope_type', label: '账号范围', type: 'select', options: accountScopeTypeOptions, defaultValue: 'single_account' },
+      { key: 'execution_mode', label: '执行模式', type: 'select', options: executionModeOptions, defaultValue: 'immediate' },
+      { key: 'execution_window', label: '允许执行时段', type: 'timeRange', defaultValue: [], span: 2, placeholder: '不选择表示不限时段' },
       { key: 'status', label: '状态', type: 'select', options: templateStatusOptions, defaultValue: 'enabled' },
       { key: 'slot_id', label: '默认设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认设备' },
       { key: 'slot_group_id', label: '默认设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认设备组' },
@@ -606,8 +647,9 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions },
       { key: 'provider', label: '供应商' },
       { key: 'default_timeout_seconds', label: '默认超时秒', type: 'number' },
-      { key: 'account_scope_type', label: '账号范围' },
-      { key: 'execution_mode', label: '执行模式' },
+      { key: 'account_scope_type', label: '账号范围', type: 'select', options: accountScopeTypeOptions },
+      { key: 'execution_mode', label: '执行模式', type: 'select', options: executionModeOptions },
+      { key: 'execution_window', label: '允许执行时段', type: 'timeRange', defaultValue: [], span: 2, placeholder: '不选择表示不限时段' },
       { key: 'status', label: '状态', type: 'select', options: templateStatusOptions },
       { key: 'slot_id', label: '默认设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认设备' },
       { key: 'slot_group_id', label: '默认设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认设备组' },

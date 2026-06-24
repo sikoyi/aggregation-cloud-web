@@ -11,6 +11,7 @@ export type FieldType =
   | 'tags'
   | 'boolean'
   | 'datetime'
+  | 'timeRange'
   | 'scriptParams'
   | 'templateParams'
   | 'remoteSelect'
@@ -22,6 +23,7 @@ export type ColumnType =
   | 'datetime'
   | 'json'
   | 'list'
+  | 'tag'
   | 'id'
   | 'boolean'
   | 'relation'
@@ -105,6 +107,7 @@ export interface ResourceConfig {
   updateFields?: FieldConfig[]
   rowActions?: RowActionConfig[]
   inlineActionKeys?: string[]
+  directDelete?: boolean
   batchActions?: RowActionConfig[]
   deleteLabel?: string
   deleteConfirm?: string
