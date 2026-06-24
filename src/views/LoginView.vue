@@ -37,7 +37,7 @@ async function submit() {
       </div>
       <div class="max-w-lg space-y-4">
         <h1 class="text-3xl font-semibold leading-tight text-ink">云控任务管理后台</h1>
-        <p class="text-base leading-7 text-slate-600">账号、Slot、代理、脚本、任务模板和分发状态集中管理。</p>
+        <p class="text-base leading-7 text-slate-600">账号、设备、代理、脚本、任务模板和分发状态集中管理。</p>
       </div>
       <div class="h-1 w-32 rounded-full bg-accent-500" />
     </section>

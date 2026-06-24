@@ -36,7 +36,7 @@ const STATUS_LABELS: Record<string, string> = {
   unbound: '已解绑',
   unknown: '未知',
   waiting_runtime: '等待 Runtime',
-  waiting_slot: '等待 Slot',
+  waiting_slot: '等待设备',
 }
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'logged_in', 'active']

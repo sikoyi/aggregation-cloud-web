@@ -12,7 +12,7 @@ const error = ref('')
 const recentTasks = ref<AnyRecord[]>([])
 const stats = ref([
   { label: '账号', endpoint: '/api/accounts', total: 0, icon: Users },
-  { label: 'Slot', endpoint: '/api/execution-slots', total: 0, icon: Boxes },
+  { label: '设备', endpoint: '/api/execution-slots', total: 0, icon: Boxes },
   { label: '代理', endpoint: '/api/resource-center/proxies', total: 0, icon: ShieldCheck },
   { label: '脚本', endpoint: '/api/scripts', total: 0, icon: ScrollText },
   { label: '任务', endpoint: '/api/tasks', total: 0, icon: PlaySquare },

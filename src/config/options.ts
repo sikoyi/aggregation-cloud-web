@@ -75,7 +75,7 @@ export const twoFaOptions: SelectOption[] = [
 export const taskStatusOptions: SelectOption[] = [
   { label: '草稿', value: 'draft' },
   { label: '排队中', value: 'queued' },
-  { label: '等待 Slot', value: 'waiting_slot' },
+  { label: '等待设备', value: 'waiting_slot' },
   { label: '等待 Runtime', value: 'waiting_runtime' },
   { label: '下发中', value: 'dispatching' },
   { label: '运行中', value: 'running' },
@@ -101,6 +101,6 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '账号组', value: 'account_group' },
   { label: '内容', value: 'content' },
   { label: '媒体资源', value: 'media_asset' },
-  { label: 'Execution Slot', value: 'execution_slot' },
+  { label: '设备', value: 'execution_slot' },
   { label: '密钥', value: 'secret' },
 ]

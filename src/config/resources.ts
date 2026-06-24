@@ -47,6 +47,7 @@ const accountMultiSelect = {
   multiple: true,
 }
 
+// 后端模型仍然使用 Execution Slot；前端面向运营统一展示为“设备”。
 const slotRemoteSelect = {
   endpoint: '/api/execution-slots',
   labelKeys: ['display_name', 'provider_slot_id', 'slot_key', 'provider_slot_no'],
@@ -140,7 +141,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'business_platform', label: '平台' },
       { key: 'status', label: '状态', type: 'status' },
       { key: 'login_status', label: '登录状态', type: 'status' },
-      { key: 'bound_slot_id', label: 'Slot', type: 'relation', relation: slotRemoteSelect },
+      { key: 'bound_slot_id', label: '设备', type: 'relation', relation: slotRemoteSelect },
       { key: 'proxy_id', label: '代理', type: 'relation', relation: proxyRemoteSelect },
       { key: 'updated_at', label: '更新时间', type: 'datetime' },
     ],
@@ -182,12 +183,12 @@ export const resources: Record<string, ResourceConfig> = {
     rowActions: [
       {
         key: 'bind-slot',
-        label: '绑定 Slot',
+        label: '绑定设备',
         method: 'POST',
         icon: 'link',
         path: (record) => `/api/accounts/${record.id}/bind-slot`,
         fields: [
-          { key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择 Slot' },
+          { key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择设备' },
           { key: 'remark', label: '备注' },
         ],
       },
@@ -217,7 +218,7 @@ export const resources: Record<string, ResourceConfig> = {
         icon: 'play',
         path: (record) => `/api/accounts/${record.id}/login-task`,
         fields: [
-          { key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '默认使用账号已绑定 Slot' },
+          { key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '默认使用账号已绑定设备' },
           { key: 'credential_ref', label: '凭据引用' },
           { key: 'twofa_mode', label: '2FA 模式', type: 'select', options: twoFaOptions },
           { key: 'login_check_after_success', label: '登录后检测', type: 'boolean', defaultValue: true },
@@ -231,7 +232,7 @@ export const resources: Record<string, ResourceConfig> = {
         icon: 'play',
         path: (record) => `/api/accounts/${record.id}/login-check-task`,
         fields: [
-          { key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '默认使用账号已绑定 Slot' },
+          { key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '默认使用账号已绑定设备' },
           { key: 'params', label: '任务参数', type: 'json', defaultValue: {}, span: 2 },
         ],
       },
@@ -302,9 +303,9 @@ export const resources: Record<string, ResourceConfig> = {
 
   slots: {
     key: 'slots',
-    title: 'Execution Slot',
+    title: '设备管理',
     endpoint: '/api/execution-slots',
-    createLabel: '新增 Slot',
+    createLabel: '新增设备',
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
       { key: 'display_name', label: '名称' },
@@ -325,17 +326,17 @@ export const resources: Record<string, ResourceConfig> = {
     createFields: [
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions, defaultValue: 'fingerprint_browser' },
       { key: 'provider', label: '供应商', defaultValue: 'adspower' },
-      { key: 'slot_type', label: 'Slot 类型', type: 'select', options: slotTypeOptions, defaultValue: 'fingerprint_profile' },
-      { key: 'provider_slot_id', label: 'Provider Slot ID', required: true },
+      { key: 'slot_type', label: '设备类型', type: 'select', options: slotTypeOptions, defaultValue: 'fingerprint_profile' },
+      { key: 'provider_slot_id', label: 'Provider 设备 ID', required: true },
       { key: 'provider_slot_no', label: 'Provider 编号' },
-      { key: 'slot_key', label: 'Slot Key' },
+      { key: 'slot_key', label: '设备 Key' },
       { key: 'display_name', label: '显示名称' },
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions, defaultValue: 'threads' },
       { key: 'metadata', label: '扩展数据', type: 'json', defaultValue: {}, span: 2 },
     ],
     updateFields: [
       { key: 'provider_slot_no', label: 'Provider 编号' },
-      { key: 'slot_key', label: 'Slot Key' },
+      { key: 'slot_key', label: '设备 Key' },
       { key: 'display_name', label: '显示名称' },
       { key: 'business_platform', label: '业务平台', type: 'select', options: businessPlatformOptions },
       { key: 'status', label: '状态', type: 'select', options: slotStatusOptions },
@@ -344,9 +345,9 @@ export const resources: Record<string, ResourceConfig> = {
     rowActions: [
       { key: 'bind-account', label: '绑定账号', method: 'POST', icon: 'link', path: (record) => `/api/execution-slots/${record.id}/bind-account`, fields: [{ key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, required: true, placeholder: '请选择账号' }, { key: 'remark', label: '备注' }] },
       { key: 'bind-proxy', label: '绑定代理', method: 'POST', icon: 'link', path: (record) => `/api/execution-slots/${record.id}/bind-proxy`, fields: [{ key: 'proxy_id', label: '代理', type: 'remoteSelect', remote: proxyRemoteSelect, required: true, placeholder: '请选择代理' }, { key: 'remark', label: '备注' }] },
-      { key: 'unbind-proxy', label: '解绑代理', method: 'POST', icon: 'unlink', path: (record) => `/api/execution-slots/${record.id}/unbind-proxy`, confirm: '确认解绑该 Slot 代理？' },
+      { key: 'unbind-proxy', label: '解绑代理', method: 'POST', icon: 'unlink', path: (record) => `/api/execution-slots/${record.id}/unbind-proxy`, confirm: '确认解绑该设备代理？' },
       { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/execution-slots/${record.id}/enable`, variant: 'success' },
-      { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/execution-slots/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该 Slot？' },
+      { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/execution-slots/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该设备？' },
       { key: 'runtime', label: '关联 Runtime', method: 'GET', icon: 'list', path: (record) => `/api/execution-slots/${record.id}/runtime`, refresh: false },
     ],
     archiveLabel: '',
@@ -354,9 +355,9 @@ export const resources: Record<string, ResourceConfig> = {
 
   slotGroups: {
     key: 'slotGroups',
-    title: 'Slot 分组',
+    title: '设备分组',
     endpoint: '/api/slot-groups',
-    createLabel: '新增 Slot 组',
+    createLabel: '新增设备组',
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
       { key: 'name', label: '名称' },
@@ -390,9 +391,9 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'metadata', label: '扩展数据', type: 'json', span: 2 },
     ],
     rowActions: [
-      { key: 'add-slot', label: '添加 Slot', method: 'POST', icon: 'link', path: (record) => `/api/slot-groups/${record.id}/slots`, fields: [{ key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择 Slot' }, { key: 'sort_order', label: '排序', type: 'number' }, { key: 'remark', label: '备注' }, { key: 'metadata', label: '扩展数据', type: 'json', defaultValue: {}, span: 2 }] },
+      { key: 'add-slot', label: '添加设备', method: 'POST', icon: 'link', path: (record) => `/api/slot-groups/${record.id}/slots`, fields: [{ key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择设备' }, { key: 'sort_order', label: '排序', type: 'number' }, { key: 'remark', label: '备注' }, { key: 'metadata', label: '扩展数据', type: 'json', defaultValue: {}, span: 2 }] },
       { key: 'list-slots', label: '查看成员', method: 'GET', icon: 'list', path: (record) => `/api/slot-groups/${record.id}/slots`, params: { page: 1, page_size: 100 }, refresh: false },
-      { key: 'remove-slot', label: '移除 Slot', method: 'DELETE', icon: 'trash', variant: 'danger', path: (record, payload) => `/api/slot-groups/${record.id}/slots/${payload?.slot_id}`, fields: [{ key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择 Slot' }], confirm: '确认从 Slot 组移除该 Slot？' },
+      { key: 'remove-slot', label: '移除设备', method: 'DELETE', icon: 'trash', variant: 'danger', path: (record, payload) => `/api/slot-groups/${record.id}/slots/${payload?.slot_id}`, fields: [{ key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, required: true, placeholder: '请选择设备' }], confirm: '确认从设备组移除该设备？' },
     ],
     archiveLabel: '归档',
   },
@@ -548,8 +549,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'account_scope_type', label: '账号范围', defaultValue: 'single_account' },
       { key: 'execution_mode', label: '执行模式', defaultValue: 'immediate' },
       { key: 'status', label: '状态', type: 'select', options: templateStatusOptions, defaultValue: 'enabled' },
-      { key: 'slot_id', label: '默认 Slot', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认 Slot' },
-      { key: 'slot_group_id', label: '默认 Slot 组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认 Slot 组' },
+      { key: 'slot_id', label: '默认设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认设备' },
+      { key: 'slot_group_id', label: '默认设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认设备组' },
       { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号' },
       { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号组' },
       { key: 'default_params', label: '默认参数', type: 'templateParams', defaultValue: {}, span: 2, dependencyKey: 'script_key' },
@@ -572,8 +573,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'account_scope_type', label: '账号范围' },
       { key: 'execution_mode', label: '执行模式' },
       { key: 'status', label: '状态', type: 'select', options: templateStatusOptions },
-      { key: 'slot_id', label: '默认 Slot', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认 Slot' },
-      { key: 'slot_group_id', label: '默认 Slot 组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认 Slot 组' },
+      { key: 'slot_id', label: '默认设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认设备' },
+      { key: 'slot_group_id', label: '默认设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认设备组' },
       { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, span: 2, placeholder: '请选择账号' },
       { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, span: 2, placeholder: '请选择账号组' },
       { key: 'default_params', label: '默认参数', type: 'templateParams', span: 2, dependencyKey: 'script_key' },
@@ -583,8 +584,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'clone', label: '克隆模板', method: 'POST', icon: 'copy', path: (record) => `/api/task-templates/${record.id}/clone`, fields: [{ key: 'name', label: '新模板名称' }] },
       { key: 'enable', label: '启用模板', method: 'POST', icon: 'power', path: (record) => `/api/task-templates/${record.id}/enable`, variant: 'success' },
       { key: 'disable', label: '禁用模板', method: 'POST', icon: 'powerOff', variant: 'danger', path: (record) => `/api/task-templates/${record.id}/disable`, confirm: '确认禁用该任务模板？禁用后不能再基于它创建任务。' },
-      { key: 'create-task', label: '创建任务', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-task`, fields: [{ key: 'title', label: '任务标题' }, { key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, placeholder: '请选择账号' }, { key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择 Slot' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
-      { key: 'create-tasks', label: '批量创建', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-tasks`, fields: [{ key: 'title_prefix', label: '标题前缀' }, { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号' }, { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号组' }, { key: 'slot_ids', label: 'Slot 列表', type: 'remoteSelect', remote: slotMultiSelect, defaultValue: [], span: 2, placeholder: '请选择 Slot' }, { key: 'slot_group_id', label: 'Slot 组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择 Slot 组' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
+      { key: 'create-task', label: '创建任务', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-task`, fields: [{ key: 'title', label: '任务标题' }, { key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, placeholder: '请选择账号' }, { key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择设备' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
+      { key: 'create-tasks', label: '批量创建', method: 'POST', icon: 'play', path: (record) => `/api/task-templates/${record.id}/create-tasks`, fields: [{ key: 'title_prefix', label: '标题前缀' }, { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号' }, { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号组' }, { key: 'slot_ids', label: '设备列表', type: 'remoteSelect', remote: slotMultiSelect, defaultValue: [], span: 2, placeholder: '请选择设备' }, { key: 'slot_group_id', label: '设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择设备组' }, { key: 'timeout_seconds', label: '超时秒', type: 'number' }, { key: 'scheduled_at', label: '计划时间', type: 'datetime' }, { key: 'params', label: '覆盖参数', type: 'json', defaultValue: {}, span: 2 }] },
     ],
     archiveLabel: '删除',
     archiveConfirm: '确认删除该任务模板？删除后不可恢复，但已创建任务会保留参数快照。',
@@ -602,7 +603,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'business_platform', label: '平台' },
       { key: 'status', label: '状态', type: 'status' },
       { key: 'account_id', label: '账号', type: 'relation', relation: accountRemoteSelect },
-      { key: 'slot_id', label: 'Slot', type: 'relation', relation: slotRemoteSelect },
+      { key: 'slot_id', label: '设备', type: 'relation', relation: slotRemoteSelect },
       { key: 'created_at', label: '创建时间', type: 'datetime' },
     ],
     filters: [
@@ -633,7 +634,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions, defaultValue: 'fingerprint_browser' },
       { key: 'provider', label: '供应商', defaultValue: 'adspower' },
       { key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, placeholder: '请选择账号' },
-      { key: 'slot_id', label: 'Slot', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择 Slot' },
+      { key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择设备' },
       { key: 'timeout_seconds', label: '超时秒', type: 'number', defaultValue: 3600 },
       { key: 'scheduled_at', label: '计划时间', type: 'datetime' },
       { key: 'params', label: '任务参数', type: 'templateParams', defaultValue: {}, span: 2, dependencyKey: 'script_key' },
@@ -658,9 +659,9 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'runtime_platform', label: '执行平台' },
       { key: 'provider', label: '供应商' },
       { key: 'status', label: '状态', type: 'status' },
-      { key: 'slot_total', label: 'Slot 总数' },
-      { key: 'slot_idle', label: '空闲' },
-      { key: 'slot_running', label: '运行中' },
+      { key: 'slot_total', label: '设备总数' },
+      { key: 'slot_idle', label: '空闲设备' },
+      { key: 'slot_running', label: '运行中设备' },
       { key: 'last_heartbeat_at', label: '心跳', type: 'datetime' },
     ],
     filters: [
@@ -669,7 +670,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions },
     ],
     rowActions: [
-      { key: 'slots', label: '查看 Slot', method: 'GET', icon: 'list', path: (record) => `/api/runtimes/${record.id}/slots`, refresh: false },
+      { key: 'slots', label: '查看设备', method: 'GET', icon: 'list', path: (record) => `/api/runtimes/${record.id}/slots`, refresh: false },
     ],
     archiveLabel: '',
   },
