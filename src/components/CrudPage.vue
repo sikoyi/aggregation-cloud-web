@@ -24,6 +24,7 @@ import JsonPreview from '@/components/JsonPreview.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
@@ -55,6 +56,8 @@ const total = ref(0)
 const rows = ref<AnyRecord[]>([])
 const filters = reactive<AnyRecord>({})
 const lastResult = ref<unknown>(null)
+const taskDetailVisible = ref(false)
+const taskDetailId = ref<string | null>(null)
 
 const modal = reactive<{
   type: 'create' | 'edit' | 'action' | null
@@ -82,6 +85,19 @@ const modalTitle = computed(() => {
 
 function rowId(row: AnyRecord) {
   return String(row[idKey.value])
+}
+
+function openTaskDetail(record: AnyRecord) {
+  taskDetailId.value = rowId(record)
+  taskDetailVisible.value = true
+}
+
+function openRowDetail(record: AnyRecord) {
+  if (props.config.key === 'tasks') {
+    openTaskDetail(record)
+    return
+  }
+  lastResult.value = record
 }
 
 function actionIcon(action: RowActionConfig) {
@@ -230,6 +246,10 @@ function openAction(action: RowActionConfig, record: AnyRecord) {
 }
 
 async function runAction(action: RowActionConfig, record: AnyRecord) {
+  if (props.config.key === 'tasks' && action.key === 'detail') {
+    openTaskDetail(record)
+    return
+  }
   if (action.fields?.length) {
     openAction(action, record)
     return
@@ -291,6 +311,8 @@ function initFilters() {
   })
   page.value = 1
   lastResult.value = null
+  taskDetailVisible.value = false
+  taskDetailId.value = null
 }
 
 watch(
@@ -414,7 +436,7 @@ onMounted(() => {
           <template #default="{ row }">
             <el-space :size="2">
               <el-tooltip content="详情" placement="top">
-                <el-button text circle :icon="Eye" @click="lastResult = row" />
+                <el-button text circle :icon="Eye" @click="openRowDetail(row)" />
               </el-tooltip>
               <el-tooltip v-if="!config.readOnly && config.updateFields?.length" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" @click="openEdit(row)" />
@@ -493,5 +515,7 @@ onMounted(() => {
         </el-button>
       </template>
     </el-dialog>
+
+    <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
   </section>
 </template>
