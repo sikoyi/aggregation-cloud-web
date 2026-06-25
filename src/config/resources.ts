@@ -632,7 +632,7 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     deleteLabel: '删除',
     directDelete: true,
-    deleteConfirm: '确认删除该脚本？删除会同步清理参数定义，已被模板或任务引用的脚本不会被删除。',
+    deleteConfirm: '确认删除该脚本？删除会同步清理脚本参数、对应任务模板、任务记录、任务事件和分配记录，请谨慎操作。',
   },
 
   taskTemplates: {
