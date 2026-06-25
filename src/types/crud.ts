@@ -80,6 +80,7 @@ export interface RowActionConfig {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path: (record: AnyRecord, payload?: AnyRecord) => string
   fields?: FieldConfig[]
+  resultColumns?: ColumnConfig[]
   body?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => unknown)
   params?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => AnyRecord)
   confirm?: string | ((record: AnyRecord) => string)

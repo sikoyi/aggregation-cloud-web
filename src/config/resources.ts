@@ -788,8 +788,26 @@ export const resources: Record<string, ResourceConfig> = {
       { key: 'provider', label: '供应商', placeholder: 'adspower' },
       { key: 'runtime_platform', label: '执行平台', type: 'select', options: runtimePlatformOptions },
     ],
+    inlineActionKeys: ['detail'],
     rowActions: [
-      { key: 'slots', label: '查看设备', method: 'GET', icon: 'list', path: (record) => `/api/runtimes/${record.id}/slots`, refresh: false },
+      { key: 'detail', label: '查看详情', method: 'GET', icon: 'list', path: (record) => `/api/runtimes/${record.id}`, refresh: false },
+      {
+        key: 'slots',
+        label: '查看设备',
+        method: 'GET',
+        icon: 'list',
+        path: (record) => `/api/runtimes/${record.id}/slots`,
+        refresh: false,
+        resultColumns: [
+          { key: 'id', label: 'ID', type: 'id', minWidth: 110 },
+          { key: 'display_name', label: '名称', minWidth: 160 },
+          { key: 'provider_slot_id', label: 'Provider ID', minWidth: 170 },
+          { key: 'status', label: '状态', type: 'status', width: 120 },
+          { key: 'bound_account_id', label: '账号', type: 'id', minWidth: 120 },
+          { key: 'current_task_run_id', label: '当前任务', type: 'id', minWidth: 120 },
+          { key: 'last_seen_at', label: '心跳', type: 'datetime', minWidth: 180 },
+        ],
+      },
     ],
   },
 }

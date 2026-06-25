@@ -20,8 +20,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
-import JsonPreview from '@/components/JsonPreview.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -57,7 +57,10 @@ const total = ref(0)
 const rows = ref<AnyRecord[]>([])
 const selectedRows = ref<AnyRecord[]>([])
 const filters = reactive<AnyRecord>({})
-const lastResult = ref<unknown>(null)
+const resultDialogVisible = ref(false)
+const resultTitle = ref('')
+const resultValue = ref<unknown>(null)
+const resultColumns = ref<ColumnConfig[]>([])
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
 const tableRef = ref()
@@ -171,6 +174,13 @@ function hasFilterValue(value: unknown) {
 function openTaskDetail(record: AnyRecord) {
   taskDetailId.value = rowId(record)
   taskDetailVisible.value = true
+}
+
+function openResultDialog(action: RowActionConfig, data: unknown) {
+  resultTitle.value = action.label
+  resultValue.value = data
+  resultColumns.value = action.resultColumns || []
+  resultDialogVisible.value = true
 }
 
 function actionIcon(action: RowActionConfig) {
@@ -435,9 +445,9 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
   error.value = ''
   try {
     const data = await requestAction(action, record, payload)
-    if (action.method === 'GET') lastResult.value = data
+    if (action.method === 'GET') openResultDialog(action, data)
 
-    ElMessage.success(action.method === 'GET' ? '查询完成' : '操作完成')
+    if (action.method !== 'GET') ElMessage.success('操作完成')
     if (action.refresh !== false) await loadRows()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '操作失败'
@@ -461,7 +471,10 @@ function initFilters() {
     filters[field.key] = field.defaultValue ?? ''
   })
   page.value = 1
-  lastResult.value = null
+  resultDialogVisible.value = false
+  resultTitle.value = ''
+  resultValue.value = null
+  resultColumns.value = []
   taskDetailVisible.value = false
   taskDetailId.value = null
 }
@@ -718,16 +731,6 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <el-card v-if="lastResult" shadow="never" class="result-card">
-      <template #header>
-        <div class="flex items-center justify-between">
-          <span class="text-sm font-semibold text-slate-700">响应数据</span>
-          <el-button text @click="lastResult = null">关闭</el-button>
-        </div>
-      </template>
-      <JsonPreview :value="lastResult" />
-    </el-card>
-
     <el-dialog
       :model-value="Boolean(modal.type)"
       :title="modalTitle"
@@ -745,6 +748,13 @@ onMounted(() => {
         </el-button>
       </template>
     </el-dialog>
+
+    <ActionResultDialog
+      v-model="resultDialogVisible"
+      :title="resultTitle"
+      :value="resultValue"
+      :columns="resultColumns"
+    />
 
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
   </section>
