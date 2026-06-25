@@ -55,6 +55,7 @@ export interface FieldConfig {
   placeholder?: string
   options?: SelectOption[]
   remote?: RemoteSelectConfig
+  multiple?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   span?: 1 | 2
   readonly?: boolean
@@ -72,6 +73,7 @@ export interface ColumnConfig {
   className?: string
   minWidth?: number | string
   width?: number | string
+  align?: 'left' | 'center' | 'right'
 }
 
 export interface RowActionConfig {

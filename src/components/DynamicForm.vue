@@ -28,6 +28,23 @@ function timeRangeValue(value: unknown) {
   return Array.isArray(value) ? value.map(String) : []
 }
 
+function selectValue(field: FieldConfig) {
+  const value = props.modelValue[field.key]
+  if (field.multiple) {
+    return Array.isArray(value) ? value.map(String) : value ? [String(value)] : []
+  }
+  return String(value ?? '')
+}
+
+function updateSelectValue(field: FieldConfig, value: string | string[]) {
+  updateValue(
+    field.key,
+    field.multiple
+      ? (Array.isArray(value) ? value : [value]).filter(Boolean).map(String)
+      : String(value || ''),
+  )
+}
+
 const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
 </script>
 
@@ -78,13 +95,16 @@ const visibleFields = computed(() => props.fields.filter((field) => !field.hidde
 
           <el-select
             v-else-if="field.type === 'select'"
-            :model-value="String(modelValue[field.key] ?? '')"
+            :model-value="selectValue(field)"
             :disabled="field.readonly"
+            :multiple="Boolean(field.multiple)"
             clearable
+            collapse-tags
+            collapse-tags-tooltip
             filterable
             class="w-full"
             placeholder="请选择"
-            @update:model-value="updateValue(field.key, $event)"
+            @update:model-value="updateSelectValue(field, $event)"
           >
             <el-option
               v-for="option in field.options || []"

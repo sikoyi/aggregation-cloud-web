@@ -127,6 +127,8 @@ function detailValue(key: string, value: unknown) {
         :label="column.label"
         :min-width="column.minWidth || 140"
         :width="column.width"
+        :align="column.align || 'left'"
+        :header-align="column.align || 'left'"
         show-overflow-tooltip
       >
         <template #default="{ row }">

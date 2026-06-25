@@ -22,6 +22,7 @@ function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
   if (field.type === 'scriptParams') return []
   if (field.type === 'templateParams') return {}
   if (field.type === 'remoteSelect' && field.remote?.multiple) return []
+  if (field.type === 'select' && field.multiple) return []
   if (field.type === 'timeRange') return []
   if (field.type === 'tags') return ''
   return ''
@@ -51,6 +52,14 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
       return state
     }
     if (field.type === 'remoteSelect' && field.remote?.multiple) {
+      state[field.key] = Array.isArray(sourceValue)
+        ? cloneDefault(sourceValue)
+        : sourceValue
+          ? [sourceValue]
+          : []
+      return state
+    }
+    if (field.type === 'select' && field.multiple) {
       state[field.key] = Array.isArray(sourceValue)
         ? cloneDefault(sourceValue)
         : sourceValue
@@ -127,6 +136,7 @@ export function buildPayload(
   return fields.reduce<AnyRecord>((payload, field) => {
     const rawValue = state[field.key]
     if (field.readonly || field.hidden) return payload
+    if (Array.isArray(rawValue) && !rawValue.length && !field.required) return payload
     if ((rawValue === '' || rawValue === undefined || rawValue === null) && !field.required) {
       if (field.allowEmpty) payload[field.key] = rawValue === undefined || rawValue === null ? '' : rawValue
       if (mode === 'create' && field.type === 'json') payload[field.key] = {}
@@ -143,6 +153,14 @@ export function buildPayload(
     }
     if (field.type === 'tags') {
       payload[field.key] = parseTags(rawValue)
+      return payload
+    }
+    if (field.type === 'select' && field.multiple) {
+      payload[field.key] = Array.isArray(rawValue)
+        ? rawValue.filter(Boolean).map(String)
+        : rawValue
+          ? [String(rawValue)]
+          : []
       return payload
     }
     if (field.type === 'scriptParams') {

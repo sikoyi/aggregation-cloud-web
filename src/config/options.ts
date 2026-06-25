@@ -60,6 +60,15 @@ export const runtimePlatformOptions: SelectOption[] = [
   { label: '云手机', value: 'cloud_phone' },
 ]
 
+export const providerOptions: SelectOption[] = [
+  { label: 'AdsPower', value: 'adspower' },
+  { label: 'BitBrowser', value: 'bitbrowser' },
+  { label: 'Dolphin Anty', value: 'dolphin' },
+  { label: 'MoreLogin', value: 'morelogin' },
+  { label: '云手机供应商', value: 'cloud_phone_provider' },
+  { label: '自定义', value: 'custom' },
+]
+
 export const executionModeOptions: SelectOption[] = [
   { label: '立即执行', value: 'immediate' },
   { label: '计划执行', value: 'scheduled' },
