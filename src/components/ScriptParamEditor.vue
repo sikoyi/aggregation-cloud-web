@@ -25,7 +25,8 @@ function defaultParam(index: number): ScriptParamDraft {
     name: '',
     param_type: 'string',
     description: '',
-    required: false,
+    // 新增脚本参数默认必填，运营可以按实际业务手动关闭。
+    required: true,
     default_value: null,
     options: [],
     validation: {},

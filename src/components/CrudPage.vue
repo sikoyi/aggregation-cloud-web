@@ -654,7 +654,14 @@ onMounted(() => {
           </template>
         </el-table-column>
 
-        <el-table-column v-if="showOperationColumn" label="操作" :width="operationColumnWidth" fixed="right" align="right">
+        <el-table-column
+          v-if="showOperationColumn"
+          label="操作"
+          :width="operationColumnWidth"
+          fixed="right"
+          align="right"
+          header-align="center"
+        >
           <template #default="{ row }">
             <el-space :size="2">
               <el-tooltip v-if="canEditRow" content="编辑" placement="top">

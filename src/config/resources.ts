@@ -523,9 +523,9 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: '/api/scripts',
     createLabel: '新增脚本',
     columns: [
-      { key: 'id', label: 'ID', type: 'id' },
-      { key: 'script_key', label: '脚本 Key', type: 'tag', minWidth: 180 },
-      { key: 'name', label: '名称' },
+      { key: 'id', label: 'ID', type: 'id', align: 'center' },
+      { key: 'script_key', label: '脚本 Key', type: 'tag', minWidth: 180, align: 'center' },
+      { key: 'name', label: '名称', align: 'center' },
       {
         key: 'supported_business_platforms',
         label: '业务 App 范围',
@@ -533,8 +533,8 @@ export const resources: Record<string, ResourceConfig> = {
         width: 160,
         align: 'center',
       },
-      { key: 'status', label: '状态', type: 'status' },
-      { key: 'updated_at', label: '更新时间', type: 'datetime' },
+      { key: 'status', label: '状态', type: 'status', align: 'center' },
+      { key: 'updated_at', label: '更新时间', type: 'datetime', align: 'center' },
     ],
     filters: [
       { key: 'status', label: '状态', type: 'select', options: scriptStatusOptions },
