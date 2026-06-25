@@ -11,9 +11,11 @@ export type FieldType =
   | 'tags'
   | 'boolean'
   | 'datetime'
+  | 'datetimeRange'
   | 'timeRange'
   | 'scriptParams'
   | 'templateParams'
+  | 'slotTree'
   | 'remoteSelect'
 
 export type ColumnType =

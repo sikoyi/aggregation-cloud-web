@@ -159,13 +159,9 @@ const taskTemplatePayloadKeys = [
   'business_platform',
   'runtime_platform',
   'provider',
-  'account_scope_type',
+  'execution_count',
   'execution_mode',
   'status',
-  'slot_id',
-  'slot_group_id',
-  'account_ids',
-  'account_group_ids',
   'default_params',
   'description',
 ]
@@ -176,9 +172,16 @@ function buildExecutionWindow(record: AnyRecord) {
     : []
 }
 
+function normalizeDateTimeRange(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(Boolean)
+    .map((item) => new Date(String(item)).toISOString())
+}
+
 function buildTaskTemplateBody(payload: AnyRecord, record?: AnyRecord) {
   const body = pickPayload(payload, taskTemplatePayloadKeys)
-  const windowValue = Array.isArray(payload.execution_window) ? payload.execution_window : []
+  const windowValue = normalizeDateTimeRange(payload.execution_window)
   body.execution_window_start = windowValue[0] || null
   body.execution_window_end = windowValue[1] || null
   body.execution_timezone = String(record?.execution_timezone || payload.execution_timezone || 'Asia/Shanghai')
@@ -682,14 +685,10 @@ export const resources: Record<string, ResourceConfig> = {
         options: providerOptions,
         defaultValue: 'adspower',
       },
-      { key: 'account_scope_type', label: '账号范围', type: 'select', options: accountScopeTypeOptions, defaultValue: 'single_account' },
+      { key: 'execution_count', label: '执行次数', type: 'number', defaultValue: 1 },
       { key: 'execution_mode', label: '执行模式', type: 'select', options: executionModeOptions, defaultValue: 'immediate' },
-      { key: 'execution_window', label: '允许执行时段', type: 'timeRange', defaultValue: [], span: 2, placeholder: '不选择表示不限时段' },
+      { key: 'execution_window', label: '允许执行时段', type: 'datetimeRange', defaultValue: [], span: 2, placeholder: '请选择允许执行的开始和结束日期时间' },
       { key: 'status', label: '状态', type: 'select', options: templateStatusOptions, defaultValue: 'enabled' },
-      { key: 'slot_id', label: '默认设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认设备' },
-      { key: 'slot_group_id', label: '默认设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认设备组' },
-      { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号' },
-      { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, defaultValue: [], span: 2, placeholder: '请选择账号组' },
       { key: 'default_params', label: '默认参数', type: 'templateParams', defaultValue: {}, span: 2, dependencyKey: 'script_key' },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
     ],
@@ -710,54 +709,58 @@ export const resources: Record<string, ResourceConfig> = {
         type: 'select',
         options: providerOptions,
       },
-      { key: 'account_scope_type', label: '账号范围', type: 'select', options: accountScopeTypeOptions },
       { key: 'execution_mode', label: '执行模式', type: 'select', options: executionModeOptions },
-      { key: 'execution_window', label: '允许执行时段', type: 'timeRange', defaultValue: [], span: 2, placeholder: '不选择表示不限时段' },
+      { key: 'execution_window', label: '允许执行时段', type: 'datetimeRange', defaultValue: [], span: 2, placeholder: '请选择允许执行的开始和结束日期时间' },
       { key: 'status', label: '状态', type: 'select', options: templateStatusOptions },
-      { key: 'slot_id', label: '默认设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择默认设备' },
-      { key: 'slot_group_id', label: '默认设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, placeholder: '请选择默认设备组' },
-      { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, span: 2, placeholder: '请选择账号' },
-      { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, span: 2, placeholder: '请选择账号组' },
       { key: 'default_params', label: '默认参数', type: 'templateParams', span: 2, dependencyKey: 'script_key' },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
     ],
     rowActions: [
-      { key: 'clone', label: '克隆模板', method: 'POST', icon: 'copy', path: (record) => `/api/task-templates/${record.id}/clone`, fields: [{ key: 'name', label: '新模板名称' }] },
-      { key: 'enable', label: '启用模板', method: 'POST', icon: 'power', path: (record) => `/api/task-templates/${record.id}/enable`, variant: 'success' },
-      { key: 'disable', label: '禁用模板', method: 'POST', icon: 'powerOff', variant: 'danger', path: (record) => `/api/task-templates/${record.id}/disable`, confirm: '确认禁用该任务模板？禁用后不能再基于它创建任务。' },
       {
-        key: 'create-task',
-        label: '创建任务',
+        key: 'clone',
+        label: '克隆模板',
         method: 'POST',
-        icon: 'play',
-        path: (record) => `/api/task-templates/${record.id}/create-task`,
-        fields: [
-          { key: 'script_key', label: '脚本', hidden: true, readonly: true },
-          { key: 'title', label: '任务标题', defaultValue: (record?: AnyRecord) => (record?.name ? `${record.name}任务` : '') },
-          { key: 'account_id', label: '账号', type: 'remoteSelect', remote: accountRemoteSelect, placeholder: '请选择账号' },
-          { key: 'slot_id', label: '设备', type: 'remoteSelect', remote: slotRemoteSelect, placeholder: '请选择设备' },
-          { key: 'scheduled_at', label: '计划时间', type: 'datetime' },
-          { key: 'params', label: '覆盖参数', type: 'templateParams', defaultValue: {}, sourceKey: 'default_params', span: 2, dependencyKey: 'script_key' },
-        ],
+        icon: 'copy',
+        path: (record) => `/api/task-templates/${record.id}/clone`,
+        fields: [{ key: 'name', label: '新模板名称' }],
+      },
+      {
+        key: 'enable',
+        label: '启用模板',
+        method: 'POST',
+        icon: 'power',
+        path: (record) => `/api/task-templates/${record.id}/enable`,
+        variant: 'success',
+      },
+      {
+        key: 'disable',
+        label: '禁用模板',
+        method: 'POST',
+        icon: 'powerOff',
+        variant: 'danger',
+        path: (record) => `/api/task-templates/${record.id}/disable`,
+        confirm: '确认禁用该任务模板？禁用后不能再基于它创建任务。',
       },
       {
         key: 'create-tasks',
-        label: '批量创建',
+        label: '下发任务',
         method: 'POST',
         icon: 'play',
         path: (record) => `/api/task-templates/${record.id}/create-tasks`,
         fields: [
           { key: 'script_key', label: '脚本', hidden: true, readonly: true },
+          { key: 'business_platform', label: '业务 App', hidden: true, readonly: true },
+          { key: 'runtime_platform', label: '执行平台', hidden: true, readonly: true },
+          { key: 'provider', label: '供应商', hidden: true, readonly: true },
           { key: 'title_prefix', label: '标题前缀', defaultValue: (record?: AnyRecord) => record?.name || '' },
-          { key: 'account_ids', label: '账号列表', type: 'remoteSelect', remote: accountMultiSelect, sourceKey: 'account_ids', defaultValue: [], span: 2, placeholder: '请选择账号' },
-          { key: 'account_group_ids', label: '账号组列表', type: 'remoteSelect', remote: accountGroupMultiSelect, sourceKey: 'account_group_ids', defaultValue: [], span: 2, placeholder: '请选择账号组' },
-          { key: 'slot_ids', label: '设备列表', type: 'remoteSelect', remote: slotMultiSelect, sourceKey: 'slot_id', defaultValue: [], span: 2, placeholder: '请选择设备' },
-          { key: 'slot_group_id', label: '设备组', type: 'remoteSelect', remote: slotGroupRemoteSelect, sourceKey: 'slot_group_id', placeholder: '请选择设备组' },
+          { key: 'execution_count', label: '执行次数', type: 'number', required: true, defaultValue: (record?: AnyRecord) => Number(record?.execution_count || 1) },
           { key: 'scheduled_at', label: '计划时间', type: 'datetime' },
-          { key: 'params', label: '覆盖参数', type: 'templateParams', defaultValue: {}, sourceKey: 'default_params', span: 2, dependencyKey: 'script_key' },
+          { key: 'slot_ids', label: '设备组 / 设备', type: 'slotTree', required: true, defaultValue: [] },
+          { key: 'params', label: '覆盖参数', type: 'templateParams', defaultValue: {}, sourceKey: 'default_params', dependencyKey: 'script_key' },
         ],
       },
     ],
+    inlineActionKeys: ['create-tasks'],
     deleteLabel: '删除',
     deleteConfirm: '确认删除该任务模板？删除后不可恢复，但已创建任务会保留参数快照。',
   },

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
+import SlotTreeSelect from '@/components/SlotTreeSelect.vue'
 import TemplateParamsEditor from '@/components/TemplateParamsEditor.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import type { AnyRecord } from '@/types/api'
@@ -46,6 +47,11 @@ function updateSelectValue(field: FieldConfig, value: string | string[]) {
 }
 
 const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
+
+function fieldColumnSpan(field: FieldConfig) {
+  if (field.span === 2 || ['datetimeRange', 'scriptParams'].includes(field.type || '')) return 24
+  return 12
+}
 </script>
 
 <template>
@@ -55,7 +61,7 @@ const visibleFields = computed(() => props.fields.filter((field) => !field.hidde
         v-for="field in visibleFields"
         :key="field.key"
         :xs="24"
-        :md="field.span === 2 || ['scriptParams', 'templateParams'].includes(field.type || '') ? 24 : 12"
+        :md="fieldColumnSpan(field)"
       >
         <el-form-item :required="field.required" :label="field.label">
           <ScriptParamEditor
@@ -69,6 +75,18 @@ const visibleFields = computed(() => props.fields.filter((field) => !field.hidde
             v-else-if="field.type === 'templateParams'"
             :script-key="dependencyValue(field)"
             :model-value="modelValue[field.key]"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <SlotTreeSelect
+            v-else-if="field.type === 'slotTree'"
+            :model-value="modelValue[field.key]"
+            :disabled="field.readonly"
+            :filters="{
+              business_platform: modelValue.business_platform,
+              runtime_platform: modelValue.runtime_platform,
+              provider: modelValue.provider,
+            }"
             @update:model-value="updateValue(field.key, $event)"
           />
 
@@ -143,6 +161,21 @@ const visibleFields = computed(() => props.fields.filter((field) => !field.hidde
             placeholder="选择日期时间"
             clearable
             @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <el-date-picker
+            v-else-if="field.type === 'datetimeRange'"
+            :model-value="timeRangeValue(modelValue[field.key])"
+            :disabled="field.readonly"
+            class="w-full"
+            type="datetimerange"
+            format="YYYY-MM-DD HH:mm:ss"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            range-separator="至"
+            start-placeholder="开始日期时间"
+            end-placeholder="结束日期时间"
+            clearable
+            @update:model-value="updateValue(field.key, $event || [])"
           />
 
           <el-time-picker

@@ -21,8 +21,10 @@ function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
   if (field.type === 'json') return '{}'
   if (field.type === 'scriptParams') return []
   if (field.type === 'templateParams') return {}
+  if (field.type === 'slotTree') return []
   if (field.type === 'remoteSelect' && field.remote?.multiple) return []
   if (field.type === 'select' && field.multiple) return []
+  if (field.type === 'datetimeRange') return []
   if (field.type === 'timeRange') return []
   if (field.type === 'tags') return ''
   return ''
@@ -51,6 +53,14 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
       state[field.key] = isPlainObject(sourceValue) ? cloneDefault(sourceValue) : {}
       return state
     }
+    if (field.type === 'slotTree') {
+      state[field.key] = Array.isArray(sourceValue)
+        ? cloneDefault(sourceValue)
+        : sourceValue
+          ? [sourceValue]
+          : []
+      return state
+    }
     if (field.type === 'remoteSelect' && field.remote?.multiple) {
       state[field.key] = Array.isArray(sourceValue)
         ? cloneDefault(sourceValue)
@@ -71,7 +81,7 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
       state[field.key] = sourceValue.slice(0, 19)
       return state
     }
-    if (field.type === 'timeRange') {
+    if (field.type === 'datetimeRange' || field.type === 'timeRange') {
       state[field.key] = Array.isArray(sourceValue) ? cloneDefault(sourceValue) : []
       return state
     }
@@ -171,6 +181,14 @@ export function buildPayload(
       payload[field.key] = normalizeObject(rawValue)
       return payload
     }
+    if (field.type === 'slotTree') {
+      payload[field.key] = Array.isArray(rawValue)
+        ? rawValue.filter(Boolean).map(String)
+        : rawValue
+          ? [String(rawValue)]
+          : []
+      return payload
+    }
     if (field.type === 'json') {
       const value = parseJsonField(field, rawValue, mode === 'update' ? 'update' : 'create')
       if (value !== undefined) payload[field.key] = value
@@ -178,6 +196,12 @@ export function buildPayload(
     }
     if (field.type === 'datetime') {
       payload[field.key] = rawValue ? new Date(String(rawValue)).toISOString() : undefined
+      return payload
+    }
+    if (field.type === 'datetimeRange') {
+      payload[field.key] = Array.isArray(rawValue)
+        ? rawValue.filter(Boolean).map((value) => new Date(String(value)).toISOString())
+        : []
       return payload
     }
     if (field.type === 'timeRange') {
