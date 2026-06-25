@@ -123,7 +123,6 @@ const scriptCreateKeys = [
   'supported_runtime_platforms',
   'supported_providers',
   'supported_business_platforms',
-  'default_timeout_seconds',
   'max_timeout_seconds',
   'status',
 ]
@@ -576,7 +575,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: businessPlatformOptions,
         defaultValue: ['threads'],
       },
-      { key: 'default_timeout_seconds', label: '默认超时秒', type: 'number', defaultValue: 3600 },
       { key: 'max_timeout_seconds', label: '最大超时秒', type: 'number', defaultValue: 3600 },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
       {
@@ -617,7 +615,6 @@ export const resources: Record<string, ResourceConfig> = {
         multiple: true,
         options: businessPlatformOptions,
       },
-      { key: 'default_timeout_seconds', label: '默认超时秒', type: 'number' },
       { key: 'max_timeout_seconds', label: '最大超时秒', type: 'number' },
       { key: 'description', label: '描述', type: 'textarea', span: 2 },
       {
@@ -630,9 +627,6 @@ export const resources: Record<string, ResourceConfig> = {
       },
     ],
     rowActions: [
-      { key: 'detail', label: '详情与参数', method: 'GET', icon: 'list', path: (record) => `/api/scripts/${record.id}/detail`, refresh: false },
-      { key: 'params', label: '参数列表', method: 'GET', icon: 'list', path: (record) => `/api/scripts/${record.id}/params`, refresh: false },
-      { key: 'add-param', label: '新增参数', method: 'POST', icon: 'copy', path: (record) => `/api/scripts/${record.id}/params`, fields: [{ key: 'name', label: '模板展示名称', required: true }, { key: 'param_key', label: '脚本参数 Key', required: true }, { key: 'param_type', label: '参数类型', type: 'select', options: scriptParamTypeOptions, required: true }, { key: 'required', label: '必填', type: 'boolean' }, { key: 'sort_order', label: '排序', type: 'number', defaultValue: 0 }, { key: 'description', label: '描述', type: 'textarea', span: 2 }, { key: 'default_value', label: '默认值', type: 'json', defaultValue: null, span: 2 }, { key: 'options', label: '枚举选项', type: 'json', defaultValue: [], span: 2 }, { key: 'validation', label: '校验规则', type: 'json', defaultValue: {}, span: 2 }, { key: 'resource_selector', label: '资源选择器', type: 'json', defaultValue: {}, span: 2 }, { key: 'metadata', label: '扩展数据', type: 'json', defaultValue: {}, span: 2 }] },
       { key: 'enable', label: '启用', method: 'POST', icon: 'power', path: (record) => `/api/scripts/${record.id}/enable`, variant: 'success' },
       { key: 'disable', label: '禁用', method: 'POST', icon: 'powerOff', path: (record) => `/api/scripts/${record.id}/disable`, variant: 'danger', confirm: '确认禁用该脚本？' },
     ],

@@ -659,7 +659,7 @@ onMounted(() => {
           label="操作"
           :width="operationColumnWidth"
           fixed="right"
-          align="right"
+          align="center"
           header-align="center"
         >
           <template #default="{ row }">
