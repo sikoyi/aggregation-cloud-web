@@ -767,11 +767,10 @@ export const resources: Record<string, ResourceConfig> = {
     createBody: (payload) => buildTaskDispatchBody(payload),
     columns: [
       { key: 'id', label: 'ID', type: 'id' },
-      { key: 'title', label: '标题' },
+      { key: 'title', label: '任务名称' },
       { key: 'script_key', label: '脚本', type: 'relation', relation: scriptRemoteSelect },
       { key: 'business_platform', label: '平台' },
       { key: 'status', label: '状态', type: 'status' },
-      { key: 'result.progress_text', label: '执行进度', align: 'center' },
       { key: 'child_succeeded', label: '成功', align: 'center' },
       { key: 'child_failed', label: '失败', align: 'center' },
       { key: 'child_canceled', label: '取消', align: 'center' },
@@ -803,7 +802,7 @@ export const resources: Record<string, ResourceConfig> = {
         remote: taskTemplateRemoteSelect,
         placeholder: '请选择任务模板',
       },
-      { key: 'title_prefix', label: '任务标题前缀', placeholder: '为空时使用模板名称' },
+      { key: 'title_prefix', label: '任务名称', placeholder: '为空时使用模板名称' },
       {
         key: 'script_key',
         label: '脚本',
