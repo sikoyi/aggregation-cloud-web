@@ -235,8 +235,7 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "导入账号",
     columns: [
       { key: "id", label: "ID", type: "id" },
-      { key: "handle", label: "Handle" },
-      { key: "login_username", label: "登录名" },
+      { key: "handle", label: "账号 Handle" },
       { key: "business_platform", label: "平台" },
       { key: "country", label: "国家", align: "center" },
       { key: "status", label: "状态", type: "status" },
@@ -283,7 +282,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "keyword",
         label: "关键词",
-        placeholder: "Handle / 昵称 / 登录名",
+        placeholder: "账号 Handle / 昵称 / 登录账号",
       },
     ],
     createFields: [
@@ -301,6 +300,13 @@ export const resources: Record<string, ResourceConfig> = {
         options: accountCountryOptions,
         defaultValue: "韩国",
         required: true,
+      },
+      {
+        key: "group_id",
+        label: "账号分组",
+        type: "remoteSelect",
+        remote: accountGroupRemoteSelect,
+        placeholder: "可选，导入后自动加入分组",
       },
       {
         key: "delimiter",
@@ -321,8 +327,8 @@ export const resources: Record<string, ResourceConfig> = {
       },
     ],
     updateFields: [
-      { key: "login_username", label: "登录用户名" },
-      { key: "handle", label: "Handle" },
+      { key: "handle", label: "账号 Handle" },
+      { key: "login_username", label: "登录账号" },
       {
         key: "country",
         label: "账号国家",
@@ -330,18 +336,18 @@ export const resources: Record<string, ResourceConfig> = {
         options: accountCountryOptions,
       },
       { key: "display_name", label: "显示名称" },
-      { key: "platform_account_id", label: "平台账号 ID" },
+      { key: "platform_account_id", label: "平台账号 ID（内部 ID）" },
       { key: "avatar_url", label: "头像 URL" },
       { key: "profile_url", label: "主页 URL" },
-      { key: "password_secret_ref", label: "密码密文引用" },
+      { key: "password_secret_ref", label: "密码" },
       {
         key: "twofa_type",
         label: "2FA 类型",
         type: "select",
         options: twoFaOptions,
       },
-      { key: "totp_secret_ref", label: "TOTP 引用" },
-      { key: "backup_code_ref", label: "备用码引用" },
+      { key: "totp_secret_ref", label: "2FA 密钥 / TOTP" },
+      { key: "backup_code_ref", label: "备用码" },
       {
         key: "status",
         label: "状态",
