@@ -2,8 +2,10 @@
 import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord } from '@/types/api'
+import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
 
 const props = defineProps<{
@@ -22,6 +24,13 @@ const events = ref<AnyRecord[]>([])
 const assignments = ref<AnyRecord[]>([])
 const children = ref<AnyRecord[]>([])
 const activeTab = ref('basic')
+
+const scriptRelationConfig: RemoteSelectConfig = {
+  endpoint: '/api/scripts',
+  labelKey: 'name',
+  valueKey: 'script_key',
+  detailPath: (value: string) => `/api/scripts/by-key/${encodeURIComponent(value)}`,
+}
 
 const visible = computed({
   get: () => props.modelValue,
@@ -166,15 +175,11 @@ watch(
               </el-descriptions-item>
               <el-descriptions-item label="任务名称">{{ text(task.title) }}</el-descriptions-item>
               <el-descriptions-item label="业务平台">{{ text(task.business_platform) }}</el-descriptions-item>
-              <el-descriptions-item label="脚本 Key">{{ text(task.script_key) }}</el-descriptions-item>
+              <el-descriptions-item label="脚本">
+                <RelationCell :value="task.script_key" :config="scriptRelationConfig" />
+              </el-descriptions-item>
               <el-descriptions-item label="来源模板">
                 <span class="font-mono text-xs" :title="String(task.template_id || '')">{{ truncateId(task.template_id) }}</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="账号">
-                <span class="font-mono text-xs" :title="String(task.account_id || '')">{{ truncateId(task.account_id) }}</span>
-              </el-descriptions-item>
-              <el-descriptions-item label="设备">
-                <span class="font-mono text-xs" :title="String(task.slot_id || '')">{{ truncateId(task.slot_id) }}</span>
               </el-descriptions-item>
               <el-descriptions-item label="超时秒">{{ text(task.timeout_seconds) }}</el-descriptions-item>
               <el-descriptions-item label="计划时间">{{ taskTime('scheduled_at') }}</el-descriptions-item>
@@ -183,7 +188,6 @@ watch(
               <el-descriptions-item label="领取时间">{{ taskTime('claimed_at') }}</el-descriptions-item>
               <el-descriptions-item label="开始时间">{{ taskTime('started_at') }}</el-descriptions-item>
               <el-descriptions-item label="结束时间">{{ taskTime('finished_at') }}</el-descriptions-item>
-              <el-descriptions-item label="错误信息">{{ text(task.error_message) }}</el-descriptions-item>
             </el-descriptions>
 
             <div class="detail-section">
@@ -216,7 +220,6 @@ watch(
                   <span class="font-mono text-xs" :title="String(row.id || '')">{{ truncateId(row.id) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
               <el-table-column label="设备" min-width="130">
                 <template #default="{ row }">
                   <span class="font-mono text-xs" :title="String(row.slot_id || '')">{{ truncateId(row.slot_id) }}</span>
