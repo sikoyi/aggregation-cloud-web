@@ -225,11 +225,6 @@ export const accountDelimiterOptions: SelectOption[] = [
   { label: '自定义', value: 'custom' },
 ]
 
-export const accountStatusOptions: SelectOption[] = [
-  { label: '正常', value: 'normal' },
-  { label: '禁用', value: 'disabled' },
-]
-
 export const loginStatusOptions: SelectOption[] = [
   { label: '未知', value: 'unknown' },
   { label: '已登录', value: 'logged_in' },
@@ -305,7 +300,6 @@ export const twoFaOptions: SelectOption[] = [
   { label: 'TOTP', value: 'totp' },
   { label: '短信', value: 'sms' },
   { label: '邮箱', value: 'email' },
-  { label: '备用码', value: 'backup_code' },
   { label: '人工处理', value: 'manual' },
 ]
 

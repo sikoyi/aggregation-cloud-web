@@ -5,7 +5,6 @@ import type { ResourceConfig } from "@/types/crud";
 import {
   accountCountryOptions,
   accountDelimiterOptions,
-  accountStatusOptions,
   businessPlatformOptions,
   enabledStatusOptions,
   accountScopeTypeOptions,
@@ -39,16 +38,15 @@ const scriptRemoteSelect = {
 const accountRemoteSelect = {
   endpoint: "/api/accounts",
   labelKeys: [
-    "handle",
-    "display_name",
     "login_username",
+    "username",
+    "display_name",
     "platform_account_id",
   ],
   valueKey: "id",
   detailPath: (value: string) => `/api/accounts/${encodeURIComponent(value)}`,
   secondaryKeys: ["login_username", "platform_account_id"],
   searchParam: "keyword",
-  params: { status: "normal" },
   pageSize: 50,
 };
 
@@ -99,7 +97,6 @@ const accountGroupRemoteSelect = {
     `/api/account-groups/${encodeURIComponent(value)}`,
   secondaryKey: "business_platform",
   searchParam: "keyword",
-  params: { status: "enabled" },
   pageSize: 50,
 };
 
@@ -248,10 +245,11 @@ export const resources: Record<string, ResourceConfig> = {
     createSuccessMessage: (data) => formatAccountImportSuccess(data),
     columns: [
       { key: "id", label: "ID", type: "id" },
-      { key: "handle", label: "账号 Handle" },
+      { key: "login_username", label: "登录账号", minWidth: 180 },
+      { key: "password_secret_ref", label: "密码", minWidth: 180 },
+      { key: "totp_secret_ref", label: "2FA", minWidth: 220 },
       { key: "business_platform", label: "平台" },
       { key: "country", label: "国家", align: "center" },
-      { key: "status", label: "状态", type: "status" },
       { key: "login_status", label: "登录状态", type: "status" },
       {
         key: "bound_slot_id",
@@ -281,12 +279,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: accountCountryOptions,
       },
       {
-        key: "status",
-        label: "账号状态",
-        type: "select",
-        options: accountStatusOptions,
-      },
-      {
         key: "login_status",
         label: "登录状态",
         type: "select",
@@ -295,7 +287,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "keyword",
         label: "关键词",
-        placeholder: "账号 Handle / 昵称 / 登录账号",
+        placeholder: "登录账号 / 用户名 / 昵称",
       },
     ],
     createFields: [
@@ -340,18 +332,14 @@ export const resources: Record<string, ResourceConfig> = {
       },
     ],
     updateFields: [
-      { key: "handle", label: "账号 Handle" },
       { key: "login_username", label: "登录账号" },
+      { key: "username", label: "公开用户名" },
       {
         key: "country",
         label: "账号国家",
         type: "select",
         options: accountCountryOptions,
       },
-      { key: "display_name", label: "显示名称" },
-      { key: "platform_account_id", label: "平台账号 ID（内部 ID）" },
-      { key: "avatar_url", label: "头像 URL" },
-      { key: "profile_url", label: "主页 URL" },
       { key: "password_secret_ref", label: "密码" },
       {
         key: "twofa_type",
@@ -360,13 +348,7 @@ export const resources: Record<string, ResourceConfig> = {
         options: twoFaOptions,
       },
       { key: "totp_secret_ref", label: "2FA 密钥 / TOTP" },
-      { key: "backup_code_ref", label: "备用码" },
-      {
-        key: "status",
-        label: "状态",
-        type: "select",
-        options: accountStatusOptions,
-      },
+      { key: "display_name", label: "显示名称" },
     ],
     rowActions: [
       {
@@ -426,13 +408,6 @@ export const resources: Record<string, ResourceConfig> = {
             type: "remoteSelect",
             remote: slotRemoteSelect,
             placeholder: "默认使用账号已绑定设备",
-          },
-          { key: "credential_ref", label: "凭据引用" },
-          {
-            key: "twofa_mode",
-            label: "2FA 模式",
-            type: "select",
-            options: twoFaOptions,
           },
           {
             key: "login_check_after_success",
@@ -496,7 +471,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
       { key: "business_platform", label: "平台" },
-      { key: "status", label: "状态", type: "status" },
       { key: "member_count", label: "成员数" },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
@@ -506,12 +480,6 @@ export const resources: Record<string, ResourceConfig> = {
         label: "业务平台",
         type: "select",
         options: businessPlatformOptions,
-      },
-      {
-        key: "status",
-        label: "状态",
-        type: "select",
-        options: enabledStatusOptions,
       },
       { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
     ],
@@ -525,22 +493,9 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "name", label: "名称", required: true },
       { key: "description", label: "描述", type: "textarea", span: 2 },
-      {
-        key: "status",
-        label: "状态",
-        type: "select",
-        options: enabledStatusOptions,
-        defaultValue: "enabled",
-      },
     ],
     updateFields: [
       { key: "name", label: "名称" },
-      {
-        key: "status",
-        label: "状态",
-        type: "select",
-        options: enabledStatusOptions,
-      },
       { key: "description", label: "描述", type: "textarea", span: 2 },
     ],
     rowActions: [
@@ -591,23 +546,6 @@ export const resources: Record<string, ResourceConfig> = {
           },
         ],
         confirm: "确认从账号组移除该账号？",
-      },
-      {
-        key: "enable",
-        label: "启用",
-        method: "POST",
-        icon: "power",
-        path: (record) => `/api/account-groups/${record.id}/enable`,
-        variant: "success",
-      },
-      {
-        key: "disable",
-        label: "禁用",
-        method: "POST",
-        icon: "powerOff",
-        path: (record) => `/api/account-groups/${record.id}/disable`,
-        variant: "danger",
-        confirm: "确认禁用该账号组？禁用后不能再调整成员。",
       },
     ],
     deleteLabel: "删除",
