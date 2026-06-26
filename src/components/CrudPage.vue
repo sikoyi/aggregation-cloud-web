@@ -16,7 +16,7 @@ import {
   Unlink,
   Users,
 } from 'lucide-vue-next'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
@@ -311,6 +311,9 @@ async function confirmAction(message?: string, type: 'warning' | 'error' = 'warn
 async function submitEntity() {
   submitting.value = true
   error.value = ''
+  let successMessage = '保存成功'
+  let successTitle = '操作成功'
+  let useSuccessNotification = false
   try {
     if (modal.type === 'create') {
       const payload = buildPayload(props.config.createFields || [], formState.value, 'create')
@@ -318,6 +321,11 @@ async function submitEntity() {
       const body = props.config.createBody ? props.config.createBody(payload) : payload
       const data = await http.post<AnyRecord>(props.config.createEndpoint || props.config.endpoint, body)
       if (props.config.afterCreate) await props.config.afterCreate(data, payload)
+      if (props.config.createSuccessMessage) {
+        successMessage = props.config.createSuccessMessage(data, payload)
+        successTitle = props.config.createSuccessTitle || successTitle
+        useSuccessNotification = true
+      }
     }
     if (modal.type === 'edit' && modal.record) {
       const payload = buildPayload(props.config.updateFields || [], formState.value, 'update')
@@ -326,7 +334,15 @@ async function submitEntity() {
       if (props.config.afterUpdate) await props.config.afterUpdate(data, payload, modal.record)
     }
     closeModal()
-    ElMessage.success('保存成功')
+    if (useSuccessNotification) {
+      ElNotification.success({
+        title: successTitle,
+        message: successMessage,
+        duration: 7000,
+      })
+    } else {
+      ElMessage.success(successMessage)
+    }
     await loadRows()
   } catch (err) {
     error.value = notifyError(err, '提交失败', '提交失败')

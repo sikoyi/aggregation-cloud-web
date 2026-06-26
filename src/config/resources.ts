@@ -226,6 +226,17 @@ function buildTaskDispatchBody(payload: AnyRecord) {
   ]);
 }
 
+function formatAccountImportSuccess(data: AnyRecord) {
+  const total = Number(data.total_count || 0);
+  const created = Number(data.created_count || 0);
+  const duplicate = Number(data.duplicate_count || 0);
+  const existed = Number(data.existed_count || 0);
+  const failed = Number(data.failed_count || 0);
+  const grouped = Number(data.grouped_count || 0);
+  const groupText = data.group_id ? `，加入分组 ${grouped} 个` : "";
+  return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。`;
+}
+
 export const resources: Record<string, ResourceConfig> = {
   accounts: {
     key: "accounts",
@@ -233,6 +244,8 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/accounts",
     createEndpoint: "/api/accounts/import",
     createLabel: "导入账号",
+    createSuccessTitle: "账号导入完成",
+    createSuccessMessage: (data) => formatAccountImportSuccess(data),
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "handle", label: "账号 Handle" },
@@ -302,13 +315,6 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
       {
-        key: "group_id",
-        label: "账号分组",
-        type: "remoteSelect",
-        remote: accountGroupRemoteSelect,
-        placeholder: "可选，导入后自动加入分组",
-      },
-      {
         key: "delimiter",
         label: "分隔符",
         type: "select",
@@ -317,6 +323,13 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
       { key: "custom_delimiter", label: "自定义分隔符", placeholder: "选择自定义时填写" },
+      {
+        key: "group_id",
+        label: "账号分组",
+        type: "remoteSelect",
+        remote: accountGroupRemoteSelect,
+        placeholder: "可选，导入后自动加入分组",
+      },
       {
         key: "raw_text",
         label: "账号文本",
