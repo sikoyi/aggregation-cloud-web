@@ -3,7 +3,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '@/layouts/AppShell.vue'
 import { useAuthStore } from '@/stores/auth'
 import DashboardView from '@/views/DashboardView.vue'
-import DispatcherView from '@/views/DispatcherView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ResourceView from '@/views/ResourceView.vue'
 
@@ -26,7 +25,6 @@ export const router = createRouter({
         { path: 'task-templates', component: ResourceView, meta: { resource: 'taskTemplates' } },
         { path: 'tasks', component: ResourceView, meta: { resource: 'tasks' } },
         { path: 'runtimes', component: ResourceView, meta: { resource: 'runtimes' } },
-        { path: 'dispatcher', name: 'dispatcher', component: DispatcherView },
       ],
     },
   ],
@@ -42,4 +40,3 @@ router.beforeEach(async (to) => {
     await auth.loadMe().catch(() => auth.logout())
   }
 })
-
