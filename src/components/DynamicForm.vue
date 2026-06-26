@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ElMessage, type UploadFile } from 'element-plus'
 import { computed, ref } from 'vue'
 
 import { http } from '@/api/http'
@@ -57,6 +58,28 @@ function dependencyValue(field: FieldConfig) {
 
 function timeRangeValue(value: unknown) {
   return Array.isArray(value) ? value.map(String) : []
+}
+
+function textLineCount(value: unknown) {
+  return String(value || '')
+    .split(/\r?\n/)
+    .filter((line) => line.trim()).length
+}
+
+async function readTextFile(field: FieldConfig, uploadFile: UploadFile) {
+  const file = uploadFile.raw
+  if (!file) return
+  if (!file.name.toLowerCase().endsWith('.txt')) {
+    ElMessage.warning('只支持 .txt 文件')
+    return
+  }
+
+  try {
+    updateValue(field.key, await file.text())
+    ElMessage.success('文件已读取')
+  } catch {
+    ElMessage.error('读取文件失败')
+  }
 }
 
 function selectValue(field: FieldConfig) {
@@ -149,6 +172,31 @@ function fieldColumnSpan(field: FieldConfig) {
             resize="vertical"
             @update:model-value="updateValue(field.key, $event)"
           />
+
+          <div v-else-if="field.type === 'textImport'" class="text-import-field">
+            <div class="text-import-field__toolbar">
+              <el-upload
+                :auto-upload="false"
+                :show-file-list="false"
+                accept=".txt,text/plain"
+                :on-change="(file) => readTextFile(field, file)"
+              >
+                <el-button>选择 .txt 文件</el-button>
+              </el-upload>
+              <el-tag v-if="textLineCount(modelValue[field.key])" size="small" type="info" effect="plain">
+                {{ textLineCount(modelValue[field.key]) }} 行
+              </el-tag>
+            </div>
+            <el-input
+              :model-value="String(modelValue[field.key] ?? '')"
+              type="textarea"
+              :rows="10"
+              :placeholder="field.placeholder"
+              :readonly="field.readonly"
+              resize="vertical"
+              @update:model-value="updateValue(field.key, $event)"
+            />
+          </div>
 
           <el-select
             v-else-if="field.type === 'select'"
@@ -246,3 +294,19 @@ function fieldColumnSpan(field: FieldConfig) {
     </el-row>
   </el-form>
 </template>
+
+<style scoped>
+.text-import-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.text-import-field__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+</style>

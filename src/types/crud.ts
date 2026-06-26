@@ -5,6 +5,7 @@ import type { AnyRecord } from './api'
 export type FieldType =
   | 'text'
   | 'textarea'
+  | 'textImport'
   | 'number'
   | 'select'
   | 'json'

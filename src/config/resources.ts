@@ -314,7 +314,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "raw_text",
         label: "账号文本",
-        type: "textarea",
+        type: "textImport",
         required: true,
         span: 2,
         placeholder: "每行一个账号，默认格式：账号---密码---2FA。后面的国家等字段会被忽略。",
