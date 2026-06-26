@@ -16,6 +16,7 @@ import { http } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord } from '@/types/api'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
+import { notifyError } from '@/utils/notify'
 
 interface DashboardMetric {
   label: string
@@ -64,7 +65,7 @@ async function loadDashboard() {
   try {
     overview.value = await http.get<DashboardOverview>('/api/dashboard/overview')
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '加载失败'
+    error.value = notifyError(err, '加载失败', '加载失败')
   } finally {
     loading.value = false
   }
@@ -81,8 +82,6 @@ onMounted(loadDashboard)
       </div>
       <el-button :icon="Activity" :loading="loading" @click="loadDashboard">刷新</el-button>
     </div>
-
-    <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <el-card v-for="item in cards" :key="item.label" shadow="never" class="metric-card">

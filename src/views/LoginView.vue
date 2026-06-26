@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
+import { notifyError } from '@/utils/notify'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -12,15 +13,13 @@ const router = useRouter()
 
 const username = ref('admin')
 const password = ref('admin123456')
-const error = ref('')
 
 async function submit() {
-  error.value = ''
   try {
     await auth.login(username.value, password.value)
     router.push(String(route.query.redirect || '/'))
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '登录失败'
+    notifyError(err, '登录失败', '登录失败')
   }
 }
 </script>
@@ -61,7 +60,6 @@ async function submit() {
           <el-form-item label="密码">
             <el-input v-model="password" type="password" autocomplete="current-password" size="large" show-password />
           </el-form-item>
-          <el-alert v-if="error" class="mb-4" :title="error" type="error" show-icon :closable="false" />
           <el-button type="primary" size="large" class="w-full" :loading="auth.loading" @click="submit">
             登录
           </el-button>

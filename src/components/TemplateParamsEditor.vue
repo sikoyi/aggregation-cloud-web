@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import { notifyError } from '@/utils/notify'
 
 type ParamOption = Record<string, unknown>
 
@@ -93,7 +94,7 @@ async function loadParams(scriptKey: string) {
     mergeDefaults(items)
   } catch (err) {
     if (seq !== requestSeq) return
-    error.value = err instanceof Error ? err.message : '加载脚本参数失败'
+    error.value = notifyError(err, '加载失败', '加载脚本参数失败')
   } finally {
     if (seq === requestSeq) loading.value = false
   }
@@ -135,7 +136,6 @@ watch(
     </div>
 
     <el-alert v-if="!scriptKey" title="请先填写脚本 Key" type="info" show-icon :closable="false" />
-    <el-alert v-else-if="error" :title="error" type="error" show-icon :closable="false" />
     <el-empty v-else-if="!loading && loadedScriptKey && !params.length" description="该脚本暂无参数定义" :image-size="72" />
 
     <div v-if="params.length" class="grid grid-cols-1 gap-3 md:grid-cols-2">

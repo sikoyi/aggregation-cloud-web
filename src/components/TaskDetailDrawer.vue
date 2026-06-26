@@ -7,6 +7,7 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
+import { notifyError } from '@/utils/notify'
 
 const props = defineProps<{
   modelValue: boolean
@@ -152,7 +153,7 @@ async function loadDetail(taskId: string) {
     assignments.value = assignmentData.items || []
     children.value = childData.items || []
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '加载任务详情失败'
+    error.value = notifyError(err, '加载失败', '加载任务详情失败')
   } finally {
     loading.value = false
   }
@@ -183,8 +184,6 @@ watch(
     align-center
   >
     <div v-loading="loading" class="task-detail-body">
-      <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
-
       <template v-if="task">
         <div v-if="taskHistory.length" class="mb-3">
           <el-button size="small" @click="backToPreviousTask">返回父任务</el-button>

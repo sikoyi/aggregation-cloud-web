@@ -30,6 +30,7 @@ import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
 import { formatCell, truncateId } from '@/utils/format'
+import { getErrorMessage, notifyError } from '@/utils/notify'
 
 const props = defineProps<{
   config: ResourceConfig
@@ -236,7 +237,7 @@ async function loadRows() {
     total.value = data.total
     selectedRows.value = []
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '加载失败'
+    error.value = notifyError(err, '加载失败', '加载失败')
   } finally {
     loading.value = false
   }
@@ -274,9 +275,8 @@ async function openEdit(record: AnyRecord) {
     modal.action = null
     formState.value = buildFormState(props.config.updateFields || [], editRecord)
   } catch (err) {
-    const message = err instanceof Error ? err.message : '加载编辑数据失败'
+    const message = notifyError(err, '加载失败', '加载编辑数据失败')
     error.value = message
-    ElMessage.error(message)
   } finally {
     loading.value = false
   }
@@ -325,7 +325,7 @@ async function submitEntity() {
     ElMessage.success('保存成功')
     await loadRows()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '提交失败'
+    error.value = notifyError(err, '提交失败', '提交失败')
   } finally {
     submitting.value = false
   }
@@ -393,7 +393,7 @@ async function runBatchAction(action: RowActionConfig) {
       try {
         await requestAction(action, row)
       } catch (err) {
-        const message = err instanceof Error ? err.message : '操作失败'
+        const message = getErrorMessage(err, '操作失败')
         failures.push(`${rowId(row)}：${message}`)
       }
     }
@@ -404,8 +404,7 @@ async function runBatchAction(action: RowActionConfig) {
     clearSelection()
     await loadRows()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '批量操作失败'
-    ElMessage.error(error.value)
+    error.value = notifyError(err, '批量操作失败', '批量操作失败')
   } finally {
     submitting.value = false
   }
@@ -451,7 +450,7 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
     if (action.method !== 'GET') ElMessage.success('操作完成')
     if (action.refresh !== false) await loadRows()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '操作失败'
+    error.value = notifyError(err, '操作失败', '操作失败')
   } finally {
     submitting.value = false
   }
@@ -569,8 +568,6 @@ onMounted(() => {
         </div>
       </el-form>
     </el-card>
-
-    <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
     <div v-if="batchActions.length && hasSelectedRows" class="batch-toolbar">
       <div class="batch-toolbar__summary">
@@ -750,7 +747,6 @@ onMounted(() => {
       @close="closeModal"
     >
       <DynamicForm v-model="formState" :fields="modalFields" />
-      <el-alert v-if="error" class="mt-3" :title="error" type="error" show-icon :closable="false" />
       <template #footer>
         <el-button @click="closeModal">取消</el-button>
         <el-button type="primary" :loading="submitting" @click="modal.type === 'action' ? submitAction() : submitEntity()">
