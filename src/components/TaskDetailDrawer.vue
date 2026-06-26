@@ -21,6 +21,7 @@ const error = ref('')
 const task = ref<AnyRecord | null>(null)
 const events = ref<AnyRecord[]>([])
 const assignments = ref<AnyRecord[]>([])
+const children = ref<AnyRecord[]>([])
 
 const visible = computed({
   get: () => props.modelValue,
@@ -60,14 +61,16 @@ async function loadDetail(taskId: string) {
   loading.value = true
   error.value = ''
   try {
-    const [detail, eventData, assignmentData] = await Promise.all([
+    const [detail, eventData, assignmentData, childData] = await Promise.all([
       http.get<AnyRecord>(`/api/tasks/${encodeURIComponent(taskId)}`),
       http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/events`),
       http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/assignments`),
+      http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/children`),
     ])
     task.value = detail
     events.value = eventData.items || []
     assignments.value = assignmentData.items || []
+    children.value = childData.items || []
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载任务详情失败'
   } finally {
@@ -142,6 +145,36 @@ watch(
         <el-tabs>
           <el-tab-pane label="参数快照">
             <JsonPreview :value="task.params || {}" />
+          </el-tab-pane>
+
+          <el-tab-pane label="设备执行记录">
+            <el-table :data="children" border stripe empty-text="暂无设备执行记录">
+              <el-table-column label="子任务 ID" min-width="130">
+                <template #default="{ row }">
+                  <span class="font-mono text-xs" :title="String(row.id || '')">{{ truncateId(row.id) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
+              <el-table-column label="设备" min-width="130">
+                <template #default="{ row }">
+                  <span class="font-mono text-xs" :title="String(row.slot_id || '')">{{ truncateId(row.slot_id) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="status" label="状态" width="120">
+                <template #default="{ row }">
+                  <StatusBadge :value="row.status" />
+                </template>
+              </el-table-column>
+              <el-table-column label="结果描述" min-width="180" show-overflow-tooltip>
+                <template #default="{ row }">{{ text(row.result?.description || row.error_message) }}</template>
+              </el-table-column>
+              <el-table-column label="开始时间" min-width="170">
+                <template #default="{ row }">{{ formatDate(row.started_at) }}</template>
+              </el-table-column>
+              <el-table-column label="结束时间" min-width="170">
+                <template #default="{ row }">{{ formatDate(row.finished_at) }}</template>
+              </el-table-column>
+            </el-table>
           </el-tab-pane>
 
           <el-tab-pane label="执行时间线">
