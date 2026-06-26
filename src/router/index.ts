@@ -25,6 +25,7 @@ export const router = createRouter({
         { path: 'task-templates', component: ResourceView, meta: { resource: 'taskTemplates' } },
         { path: 'tasks', component: ResourceView, meta: { resource: 'tasks' } },
         { path: 'runtimes', component: ResourceView, meta: { resource: 'runtimes' } },
+        { path: 'operation-logs', component: ResourceView, meta: { resource: 'operationLogs' } },
       ],
     },
   ],

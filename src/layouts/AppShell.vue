@@ -3,6 +3,7 @@ import {
   Boxes,
   ClipboardList,
   Gauge,
+  History,
   Layers3,
   LayoutDashboard,
   LogOut,
@@ -69,7 +70,10 @@ const navGroups = [
     label: '运行监控',
     index: 'runtime',
     icon: Server,
-    children: [{ label: 'Runtime 状态', to: '/runtimes', icon: Server }],
+    children: [
+      { label: 'Runtime 状态', to: '/runtimes', icon: Server },
+      { label: '操作日志', to: '/operation-logs', icon: History },
+    ],
   },
 ]
 

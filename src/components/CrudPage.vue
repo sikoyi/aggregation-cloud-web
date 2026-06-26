@@ -43,6 +43,7 @@ const iconMap: IconMap = {
   play: Play,
   power: Power,
   powerOff: PowerOff,
+  rotate: RotateCcw,
   trash: Trash2,
   unlink: Unlink,
   users: Users,

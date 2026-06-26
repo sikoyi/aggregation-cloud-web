@@ -24,6 +24,8 @@ const events = ref<AnyRecord[]>([])
 const assignments = ref<AnyRecord[]>([])
 const children = ref<AnyRecord[]>([])
 const activeTab = ref('basic')
+const currentTaskId = ref<string | null>(null)
+const taskHistory = ref<string[]>([])
 
 const scriptRelationConfig: RemoteSelectConfig = {
   endpoint: '/api/scripts',
@@ -46,6 +48,7 @@ const resultDescription = computed(() => {
 })
 
 const paramRows = computed(() => objectRows(task.value?.params, PARAM_LABELS, HIDDEN_PARAM_KEYS))
+const isChildTask = computed(() => Boolean(task.value?.parent_task_run_id))
 
 const detailTitle = computed(() => {
   if (!task.value) return '任务详情'
@@ -109,6 +112,23 @@ function taskTime(key: string) {
   return formatDate(task.value?.[key])
 }
 
+function openChildDetail(row: AnyRecord) {
+  const childId = String(row.id || '')
+  if (!childId || !currentTaskId.value) return
+  taskHistory.value.push(currentTaskId.value)
+  currentTaskId.value = childId
+  activeTab.value = 'basic'
+  loadDetail(childId)
+}
+
+function backToPreviousTask() {
+  const previousId = taskHistory.value.pop()
+  if (!previousId) return
+  currentTaskId.value = previousId
+  activeTab.value = 'children'
+  loadDetail(previousId)
+}
+
 function timelineTitle(event: AnyRecord) {
   const from = event.status_from ? statusLabel(event.status_from) : ''
   const to = event.status_to ? statusLabel(event.status_to) : ''
@@ -142,6 +162,8 @@ watch(
   () => [props.modelValue, props.taskId] as const,
   ([open, taskId]) => {
     if (open && taskId) {
+      currentTaskId.value = taskId
+      taskHistory.value = []
       activeTab.value = 'basic'
       loadDetail(taskId)
     }
@@ -164,6 +186,9 @@ watch(
       <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
       <template v-if="task">
+        <div v-if="taskHistory.length" class="mb-3">
+          <el-button size="small" @click="backToPreviousTask">返回父任务</el-button>
+        </div>
         <el-tabs v-model="activeTab" class="task-detail-tabs">
           <el-tab-pane label="基础信息" name="basic">
             <el-descriptions :column="2" border>
@@ -177,6 +202,15 @@ watch(
               <el-descriptions-item label="业务平台">{{ text(task.business_platform) }}</el-descriptions-item>
               <el-descriptions-item label="脚本">
                 <RelationCell :value="task.script_key" :config="scriptRelationConfig" />
+              </el-descriptions-item>
+              <el-descriptions-item v-if="isChildTask" label="账号">
+                <span class="font-mono text-xs" :title="String(task.account_id || '')">{{ truncateId(task.account_id) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="isChildTask" label="设备">
+                <span class="font-mono text-xs" :title="String(task.slot_id || '')">{{ truncateId(task.slot_id) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="isChildTask" label="错误信息">
+                {{ text(task.error_message) }}
               </el-descriptions-item>
               <el-descriptions-item label="来源模板">
                 <span class="font-mono text-xs" :title="String(task.template_id || '')">{{ truncateId(task.template_id) }}</span>
@@ -238,6 +272,11 @@ watch(
               </el-table-column>
               <el-table-column label="结束时间" min-width="170">
                 <template #default="{ row }">{{ formatDate(row.finished_at) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="90" align="center" header-align="center">
+                <template #default="{ row }">
+                  <el-button text type="primary" @click="openChildDetail(row)">查看</el-button>
+                </template>
               </el-table-column>
             </el-table>
           </el-tab-pane>
