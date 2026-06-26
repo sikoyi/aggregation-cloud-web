@@ -767,8 +767,9 @@ export const resources: Record<string, ResourceConfig> = {
 
   tasks: {
     key: 'tasks',
-    title: '任务管理',
+    title: '任务记录',
     endpoint: '/api/tasks',
+    readOnly: true,
     createLabel: '新增任务',
     columns: [
       { key: 'id', label: 'ID', type: 'id' },

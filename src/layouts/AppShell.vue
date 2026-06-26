@@ -63,7 +63,7 @@ const navGroups = [
     children: [
       { label: '脚本管理', to: '/scripts', icon: ScrollText },
       { label: '任务模板', to: '/task-templates', icon: ClipboardList },
-      { label: '任务管理', to: '/tasks', icon: PlaySquare },
+      { label: '任务记录', to: '/tasks', icon: PlaySquare },
       { label: '任务分发', to: '/dispatcher', icon: Bot },
     ],
   },
