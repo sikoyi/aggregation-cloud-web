@@ -10,6 +10,27 @@ export const businessPlatformOptions: SelectOption[] = [
   { label: '其他', value: 'other' },
 ]
 
+export const accountCountryOptions: SelectOption[] = [
+  { label: '韩国', value: '韩国' },
+  { label: '美国', value: '美国' },
+  { label: '日本', value: '日本' },
+  { label: '中国台湾', value: '中国台湾' },
+  { label: '中国香港', value: '中国香港' },
+  { label: '新加坡', value: '新加坡' },
+  { label: '泰国', value: '泰国' },
+  { label: '越南', value: '越南' },
+  { label: '其他', value: '其他' },
+]
+
+export const accountDelimiterOptions: SelectOption[] = [
+  { label: '---', value: '---' },
+  { label: ':', value: ':' },
+  { label: ',', value: ',' },
+  { label: '|', value: '|' },
+  { label: 'Tab', value: '\\t' },
+  { label: '自定义', value: 'custom' },
+]
+
 export const accountStatusOptions: SelectOption[] = [
   { label: '正常', value: 'normal' },
   { label: '禁用', value: 'disabled' },
