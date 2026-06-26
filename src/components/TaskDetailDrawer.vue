@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
-import JsonPreview from '@/components/JsonPreview.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord } from '@/types/api'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
@@ -37,6 +36,9 @@ const resultDescription = computed(() => {
   return ''
 })
 
+const resultRows = computed(() => objectRows(task.value?.result, RESULT_LABELS))
+const paramRows = computed(() => objectRows(task.value?.params, PARAM_LABELS, HIDDEN_PARAM_KEYS))
+
 const detailTitle = computed(() => {
   if (!task.value) return '任务详情'
   return `任务详情：${task.value.title || truncateId(task.value.id)}`
@@ -44,6 +46,69 @@ const detailTitle = computed(() => {
 
 function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
+}
+
+const RESULT_LABELS: Record<string, string> = {
+  child_total: '设备执行总数',
+  child_finished: '已完成',
+  child_succeeded: '成功',
+  child_failed: '失败',
+  child_canceled: '取消',
+  progress_text: '执行进度',
+  description: '结果描述',
+  reported_at: '上报时间',
+  aggregated_at: '统计时间',
+  canceled_at: '取消时间',
+  cancel_requested_at: '取消请求时间',
+}
+
+const PARAM_LABELS: Record<string, string> = {
+  slot_ids: '设备列表',
+  execution_count: '每台设备执行次数',
+  child_total: '设备执行总数',
+  self_check: '自检标记',
+  source: '来源',
+}
+
+const HIDDEN_PARAM_KEYS = new Set([
+  'batch_index',
+  'batch_total',
+  'execution_index',
+  'execution_total',
+  'slot_index',
+  'slot_total',
+  'slot_id',
+])
+
+function objectRows(value: unknown, labels: Record<string, string>, hiddenKeys = new Set<string>()) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return []
+  return Object.entries(value as AnyRecord)
+    .filter(([key, item]) => !hiddenKeys.has(key) && item !== undefined && item !== null && item !== '')
+    .map(([key, item]) => ({
+      key,
+      label: labels[key] || key,
+      value: formatValue(item),
+    }))
+}
+
+function formatValue(value: unknown): string {
+  if (value === undefined || value === null || value === '') return '-'
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'string') return formatMaybeDate(value)
+  if (Array.isArray(value)) return value.map((item) => formatValue(item)).join('、') || '-'
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as AnyRecord)
+      .filter(([, item]) => item !== undefined && item !== null && item !== '')
+      .map(([key, item]) => `${key}: ${formatValue(item)}`)
+    return entries.join('；') || '-'
+  }
+  return String(value)
+}
+
+function formatMaybeDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(value)) return value
+  return formatDate(value)
 }
 
 function taskTime(key: string) {
@@ -135,6 +200,37 @@ watch(
               <el-descriptions-item label="结束时间">{{ taskTime('finished_at') }}</el-descriptions-item>
               <el-descriptions-item label="错误信息">{{ text(task.error_message) }}</el-descriptions-item>
             </el-descriptions>
+
+            <div class="detail-section">
+              <div class="detail-section__title">执行结果</div>
+              <el-alert
+                v-if="resultDescription"
+                class="mb-3"
+                :title="resultDescription"
+                type="success"
+                show-icon
+                :closable="false"
+              />
+              <el-empty v-if="!resultRows.length" description="暂无执行结果" :image-size="56" />
+              <el-descriptions v-else :column="2" border>
+                <el-descriptions-item
+                  v-for="row in resultRows"
+                  :key="row.key"
+                  :label="row.label"
+                >
+                  {{ row.value }}
+                </el-descriptions-item>
+              </el-descriptions>
+            </div>
+
+            <div class="detail-section">
+              <div class="detail-section__title">脚本参数快照</div>
+              <el-empty v-if="!paramRows.length" description="暂无脚本参数" :image-size="56" />
+              <el-table v-else :data="paramRows" border stripe>
+                <el-table-column prop="label" label="参数" width="180" />
+                <el-table-column prop="value" label="值" show-overflow-tooltip />
+              </el-table>
+            </div>
           </el-tab-pane>
 
           <el-tab-pane label="设备执行记录" name="children">
@@ -167,22 +263,6 @@ watch(
             </el-table>
           </el-tab-pane>
 
-          <el-tab-pane label="执行结果" name="result">
-            <el-alert
-              v-if="resultDescription"
-              class="mb-3"
-              :title="resultDescription"
-              type="success"
-              show-icon
-              :closable="false"
-            />
-            <JsonPreview :value="task.result || {}" />
-          </el-tab-pane>
-
-          <el-tab-pane label="参数快照" name="params">
-            <JsonPreview :value="task.params || {}" />
-          </el-tab-pane>
-
           <el-tab-pane label="执行时间线" name="events">
             <el-empty v-if="!events.length" description="暂无事件" />
             <el-timeline v-else>
@@ -198,7 +278,6 @@ watch(
                     <StatusBadge v-if="event.status_to" :value="event.status_to" />
                   </div>
                   <p v-if="event.message" class="mt-2 text-sm text-slate-600">{{ event.message }}</p>
-                  <JsonPreview v-if="event.metadata && Object.keys(event.metadata).length" class="mt-3" :value="event.metadata" />
                 </div>
               </el-timeline-item>
             </el-timeline>
@@ -240,5 +319,16 @@ watch(
 
 .task-detail-tabs :deep(.el-table) {
   width: 100%;
+}
+
+.detail-section {
+  margin-top: 16px;
+}
+
+.detail-section__title {
+  margin-bottom: 8px;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 700;
 }
 </style>
