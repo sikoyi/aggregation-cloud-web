@@ -22,6 +22,7 @@ const task = ref<AnyRecord | null>(null)
 const events = ref<AnyRecord[]>([])
 const assignments = ref<AnyRecord[]>([])
 const children = ref<AnyRecord[]>([])
+const activeTab = ref('basic')
 
 const visible = computed({
   get: () => props.modelValue,
@@ -36,7 +37,7 @@ const resultDescription = computed(() => {
   return ''
 })
 
-const drawerTitle = computed(() => {
+const detailTitle = computed(() => {
   if (!task.value) return '任务详情'
   return `任务详情：${task.value.title || truncateId(task.value.id)}`
 })
@@ -81,73 +82,62 @@ async function loadDetail(taskId: string) {
 watch(
   () => [props.modelValue, props.taskId] as const,
   ([open, taskId]) => {
-    if (open && taskId) loadDetail(taskId)
+    if (open && taskId) {
+      activeTab.value = 'basic'
+      loadDetail(taskId)
+    }
   },
   { immediate: true },
 )
 </script>
 
 <template>
-  <el-drawer v-model="visible" :title="drawerTitle" size="860px" destroy-on-close>
-    <div v-loading="loading" class="space-y-4">
+  <el-dialog
+    v-model="visible"
+    :title="detailTitle"
+    width="860px"
+    class="task-detail-dialog"
+    destroy-on-close
+    append-to-body
+    align-center
+  >
+    <div v-loading="loading" class="task-detail-body">
       <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
       <template v-if="task">
-        <el-card shadow="never">
-          <template #header>
-            <span class="text-sm font-semibold text-ink">基础信息</span>
-          </template>
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="任务 ID">
-              <span class="font-mono text-xs" :title="String(task.id || '')">{{ truncateId(task.id) }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <StatusBadge :value="task.status" />
-            </el-descriptions-item>
-            <el-descriptions-item label="标题">{{ text(task.title) }}</el-descriptions-item>
-            <el-descriptions-item label="业务平台">{{ text(task.business_platform) }}</el-descriptions-item>
-            <el-descriptions-item label="脚本 Key">{{ text(task.script_key) }}</el-descriptions-item>
-            <el-descriptions-item label="来源模板">
-              <span class="font-mono text-xs" :title="String(task.template_id || '')">{{ truncateId(task.template_id) }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="账号">
-              <span class="font-mono text-xs" :title="String(task.account_id || '')">{{ truncateId(task.account_id) }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="设备">
-              <span class="font-mono text-xs" :title="String(task.slot_id || '')">{{ truncateId(task.slot_id) }}</span>
-            </el-descriptions-item>
-            <el-descriptions-item label="超时秒">{{ text(task.timeout_seconds) }}</el-descriptions-item>
-            <el-descriptions-item label="计划时间">{{ taskTime('scheduled_at') }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ taskTime('created_at') }}</el-descriptions-item>
-            <el-descriptions-item label="更新时间">{{ taskTime('updated_at') }}</el-descriptions-item>
-            <el-descriptions-item label="领取时间">{{ taskTime('claimed_at') }}</el-descriptions-item>
-            <el-descriptions-item label="开始时间">{{ taskTime('started_at') }}</el-descriptions-item>
-            <el-descriptions-item label="结束时间">{{ taskTime('finished_at') }}</el-descriptions-item>
-            <el-descriptions-item label="错误信息">{{ text(task.error_message) }}</el-descriptions-item>
-          </el-descriptions>
-        </el-card>
-
-        <el-card shadow="never">
-          <template #header>
-            <span class="text-sm font-semibold text-ink">执行结果</span>
-          </template>
-          <el-alert
-            v-if="resultDescription"
-            class="mb-3"
-            :title="resultDescription"
-            type="success"
-            show-icon
-            :closable="false"
-          />
-          <JsonPreview :value="task.result || {}" />
-        </el-card>
-
-        <el-tabs>
-          <el-tab-pane label="参数快照">
-            <JsonPreview :value="task.params || {}" />
+        <el-tabs v-model="activeTab" class="task-detail-tabs">
+          <el-tab-pane label="基础信息" name="basic">
+            <el-descriptions :column="2" border>
+              <el-descriptions-item label="任务 ID">
+                <span class="font-mono text-xs" :title="String(task.id || '')">{{ truncateId(task.id) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="状态">
+                <StatusBadge :value="task.status" />
+              </el-descriptions-item>
+              <el-descriptions-item label="任务名称">{{ text(task.title) }}</el-descriptions-item>
+              <el-descriptions-item label="业务平台">{{ text(task.business_platform) }}</el-descriptions-item>
+              <el-descriptions-item label="脚本 Key">{{ text(task.script_key) }}</el-descriptions-item>
+              <el-descriptions-item label="来源模板">
+                <span class="font-mono text-xs" :title="String(task.template_id || '')">{{ truncateId(task.template_id) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="账号">
+                <span class="font-mono text-xs" :title="String(task.account_id || '')">{{ truncateId(task.account_id) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="设备">
+                <span class="font-mono text-xs" :title="String(task.slot_id || '')">{{ truncateId(task.slot_id) }}</span>
+              </el-descriptions-item>
+              <el-descriptions-item label="超时秒">{{ text(task.timeout_seconds) }}</el-descriptions-item>
+              <el-descriptions-item label="计划时间">{{ taskTime('scheduled_at') }}</el-descriptions-item>
+              <el-descriptions-item label="创建时间">{{ taskTime('created_at') }}</el-descriptions-item>
+              <el-descriptions-item label="更新时间">{{ taskTime('updated_at') }}</el-descriptions-item>
+              <el-descriptions-item label="领取时间">{{ taskTime('claimed_at') }}</el-descriptions-item>
+              <el-descriptions-item label="开始时间">{{ taskTime('started_at') }}</el-descriptions-item>
+              <el-descriptions-item label="结束时间">{{ taskTime('finished_at') }}</el-descriptions-item>
+              <el-descriptions-item label="错误信息">{{ text(task.error_message) }}</el-descriptions-item>
+            </el-descriptions>
           </el-tab-pane>
 
-          <el-tab-pane label="设备执行记录">
+          <el-tab-pane label="设备执行记录" name="children">
             <el-table :data="children" border stripe empty-text="暂无设备执行记录">
               <el-table-column label="子任务 ID" min-width="130">
                 <template #default="{ row }">
@@ -177,7 +167,23 @@ watch(
             </el-table>
           </el-tab-pane>
 
-          <el-tab-pane label="执行时间线">
+          <el-tab-pane label="执行结果" name="result">
+            <el-alert
+              v-if="resultDescription"
+              class="mb-3"
+              :title="resultDescription"
+              type="success"
+              show-icon
+              :closable="false"
+            />
+            <JsonPreview :value="task.result || {}" />
+          </el-tab-pane>
+
+          <el-tab-pane label="参数快照" name="params">
+            <JsonPreview :value="task.params || {}" />
+          </el-tab-pane>
+
+          <el-tab-pane label="执行时间线" name="events">
             <el-empty v-if="!events.length" description="暂无事件" />
             <el-timeline v-else>
               <el-timeline-item
@@ -198,7 +204,7 @@ watch(
             </el-timeline>
           </el-tab-pane>
 
-          <el-tab-pane label="分配记录">
+          <el-tab-pane label="分配记录" name="assignments">
             <el-table :data="assignments" border stripe empty-text="暂无分配记录">
               <el-table-column prop="runtime_id" label="Runtime" min-width="160" show-overflow-tooltip />
               <el-table-column prop="slot_id" label="设备" min-width="160" show-overflow-tooltip />
@@ -218,5 +224,21 @@ watch(
         </el-tabs>
       </template>
     </div>
-  </el-drawer>
+  </el-dialog>
 </template>
+
+<style scoped>
+.task-detail-body {
+  min-height: 280px;
+  max-height: 68vh;
+  overflow-y: auto;
+}
+
+.task-detail-tabs :deep(.el-tabs__header) {
+  margin-bottom: 14px;
+}
+
+.task-detail-tabs :deep(.el-table) {
+  width: 100%;
+}
+</style>
