@@ -72,7 +72,6 @@ export const providerOptions: SelectOption[] = [
 export const executionModeOptions: SelectOption[] = [
   { label: '立即执行', value: 'immediate' },
   { label: '计划执行', value: 'scheduled' },
-  { label: '事件触发', value: 'event_triggered' },
 ]
 
 export const accountScopeTypeOptions: SelectOption[] = [

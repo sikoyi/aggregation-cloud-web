@@ -16,6 +16,7 @@ export type FieldType =
   | 'scriptParams'
   | 'templateParams'
   | 'slotTree'
+  | 'templateSelect'
   | 'remoteSelect'
 
 export type ColumnType =

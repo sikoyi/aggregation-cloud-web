@@ -22,6 +22,7 @@ function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
   if (field.type === 'scriptParams') return []
   if (field.type === 'templateParams') return {}
   if (field.type === 'slotTree') return []
+  if (field.type === 'templateSelect') return ''
   if (field.type === 'remoteSelect' && field.remote?.multiple) return []
   if (field.type === 'select' && field.multiple) return []
   if (field.type === 'datetimeRange') return []

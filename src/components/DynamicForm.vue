@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
+import { http } from '@/api/http'
 import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
 import SlotTreeSelect from '@/components/SlotTreeSelect.vue'
 import TemplateParamsEditor from '@/components/TemplateParamsEditor.vue'
@@ -17,8 +18,37 @@ const emit = defineEmits<{
   'update:modelValue': [value: AnyRecord]
 }>()
 
+const templateLoading = ref(false)
+
 function updateValue(key: string, value: unknown) {
   emit('update:modelValue', { ...props.modelValue, [key]: value })
+}
+
+async function updateTemplateValue(field: FieldConfig, value: string | string[]) {
+  const templateId = Array.isArray(value) ? String(value[0] || '') : String(value || '')
+  if (!templateId || !field.remote?.detailPath) {
+    emit('update:modelValue', { ...props.modelValue, [field.key]: templateId })
+    return
+  }
+
+  templateLoading.value = true
+  try {
+    const template = await http.get<AnyRecord>(field.remote.detailPath(templateId))
+    emit('update:modelValue', {
+      ...props.modelValue,
+      [field.key]: templateId,
+      script_key: template.script_key || '',
+      business_platform: template.business_platform || '',
+      runtime_platform: template.runtime_platform || '',
+      provider: template.provider || '',
+      execution_mode: template.execution_mode || '',
+      execution_count: Number(template.execution_count || 1),
+      params: template.default_params || {},
+      slot_ids: [],
+    })
+  } finally {
+    templateLoading.value = false
+  }
 }
 
 function dependencyValue(field: FieldConfig) {
@@ -88,6 +118,15 @@ function fieldColumnSpan(field: FieldConfig) {
               provider: modelValue.provider,
             }"
             @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <RemoteSelect
+            v-else-if="field.type === 'templateSelect' && field.remote"
+            :model-value="modelValue[field.key]"
+            :config="field.remote"
+            :disabled="field.readonly || templateLoading"
+            :placeholder="field.placeholder"
+            @update:model-value="updateTemplateValue(field, $event)"
           />
 
           <RemoteSelect
