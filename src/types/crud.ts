@@ -102,6 +102,7 @@ export interface ResourceConfig {
   idKey?: string
   createEndpoint?: string
   createLabel?: string
+  deletePath?: (record: AnyRecord) => string
   createBody?: (payload: AnyRecord) => unknown
   afterCreate?: (createdRecord: AnyRecord, payload: AnyRecord) => Promise<unknown>
   loadEditRecord?: (record: AnyRecord) => Promise<AnyRecord>

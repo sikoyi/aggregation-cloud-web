@@ -147,7 +147,7 @@ const batchActions = computed<RowActionConfig[]>(() => {
       key: '__delete',
       label: `批量${props.config.deleteLabel}`,
       method: 'DELETE',
-      path: (record) => `${props.config.endpoint}/${rowId(record)}`,
+      path: (record) => rowDeletePath(record),
       variant: 'danger',
       icon: 'trash',
     })
@@ -165,6 +165,10 @@ const emptyDescription = computed(() => (hasActiveFilters.value ? '没有符合�
 
 function rowId(row: AnyRecord) {
   return String(row[idKey.value])
+}
+
+function rowDeletePath(row: AnyRecord) {
+  return props.config.deletePath ? props.config.deletePath(row) : `${props.config.endpoint}/${rowId(row)}`
 }
 
 function hasFilterValue(value: unknown) {
@@ -339,7 +343,7 @@ async function deleteRow(record: AnyRecord) {
       key: 'delete',
       label: props.config.deleteLabel || '删除',
       method: 'DELETE',
-      path: () => `${props.config.endpoint}/${rowId(record)}`,
+      path: () => rowDeletePath(record),
       refresh: true,
       variant: 'danger',
       icon: 'trash',

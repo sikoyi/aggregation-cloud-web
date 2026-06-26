@@ -513,13 +513,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: enabledStatusOptions,
         defaultValue: "enabled",
       },
-      {
-        key: "metadata",
-        label: "扩展数据",
-        type: "json",
-        defaultValue: {},
-        span: 2,
-      },
     ],
     updateFields: [
       { key: "name", label: "名称" },
@@ -530,7 +523,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: enabledStatusOptions,
       },
       { key: "description", label: "描述", type: "textarea", span: 2 },
-      { key: "metadata", label: "扩展数据", type: "json", span: 2 },
     ],
     rowActions: [
       {
@@ -550,13 +542,6 @@ export const resources: Record<string, ResourceConfig> = {
           },
           { key: "sort_order", label: "排序", type: "number" },
           { key: "remark", label: "备注" },
-          {
-            key: "metadata",
-            label: "扩展数据",
-            type: "json",
-            defaultValue: {},
-            span: 2,
-          },
         ],
       },
       {
@@ -606,6 +591,11 @@ export const resources: Record<string, ResourceConfig> = {
         confirm: "确认禁用该账号组？禁用后不能再调整成员。",
       },
     ],
+    deleteLabel: "删除",
+    deletePath: (record) => `/api/account-groups/${record.id}?force=true`,
+    directDelete: true,
+    deleteConfirm:
+      "确认删除该账号组？删除后组内成员会自动解绑，分组本身不可恢复，请谨慎操作。",
   },
 
   slots: {
