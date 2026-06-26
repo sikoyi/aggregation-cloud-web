@@ -147,7 +147,10 @@ export function buildPayload(
   return fields.reduce<AnyRecord>((payload, field) => {
     const rawValue = state[field.key]
     if (field.readonly || field.hidden) return payload
-    if (Array.isArray(rawValue) && !rawValue.length && !field.required) return payload
+    if (Array.isArray(rawValue) && !rawValue.length && !field.required) {
+      if (field.allowEmpty) payload[field.key] = []
+      return payload
+    }
     if ((rawValue === '' || rawValue === undefined || rawValue === null) && !field.required) {
       if (field.allowEmpty) payload[field.key] = rawValue === undefined || rawValue === null ? '' : rawValue
       if (mode === 'create' && field.type === 'json') payload[field.key] = {}

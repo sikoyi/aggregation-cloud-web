@@ -114,6 +114,14 @@ const accountGroupMultiSelect = {
   multiple: true,
 };
 
+const accountGroupForAccountEditRemoteSelect = {
+  ...accountGroupRemoteSelect,
+  multiple: true,
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform,
+  }),
+};
+
 const slotGroupRemoteSelect = {
   endpoint: "/api/slot-groups",
   labelKey: "name",
@@ -243,6 +251,21 @@ function formatAccountImportSuccess(data: AnyRecord) {
   return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。`;
 }
 
+async function loadAccountForEdit(record: AnyRecord) {
+  const groups = await http.get<AnyRecord[]>(`/api/accounts/${record.id}/groups`);
+  return {
+    ...record,
+    account_group_ids: groups.map((group) => String(group.id)),
+  };
+}
+
+async function updateAccountGroups(_updatedAccount: AnyRecord, payload: AnyRecord, record: AnyRecord) {
+  if (!Object.prototype.hasOwnProperty.call(payload, "account_group_ids")) return undefined;
+  return http.put(`/api/accounts/${record.id}/groups`, {
+    group_ids: Array.isArray(payload.account_group_ids) ? payload.account_group_ids : [],
+  });
+}
+
 export const resources: Record<string, ResourceConfig> = {
   accounts: {
     key: "accounts",
@@ -252,6 +275,18 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "导入账号",
     createSuccessTitle: "账号导入完成",
     createSuccessMessage: (data) => formatAccountImportSuccess(data),
+    loadEditRecord: loadAccountForEdit,
+    updateBody: (payload) =>
+      pickPayload(payload, [
+        "login_username",
+        "username",
+        "country",
+        "password_secret_ref",
+        "twofa_type",
+        "totp_secret_ref",
+        "display_name",
+      ]),
+    afterUpdate: updateAccountGroups,
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "login_username", label: "登录账号", minWidth: 180 },
@@ -357,128 +392,15 @@ export const resources: Record<string, ResourceConfig> = {
         options: twoFaOptions,
       },
       { key: "totp_secret_ref", label: "2FA 密钥 / TOTP" },
-      { key: "display_name", label: "显示名称" },
-    ],
-    rowActions: [
       {
-        key: "groups",
+        key: "account_group_ids",
         label: "所属分组",
-        method: "GET",
-        icon: "list",
-        path: (record) => `/api/accounts/${record.id}/groups`,
-        refresh: false,
-        resultColumns: [
-          { key: "id", label: "ID", type: "id", minWidth: 110 },
-          { key: "name", label: "分组名称", minWidth: 180 },
-          { key: "business_platform", label: "平台", minWidth: 120 },
-          { key: "member_count", label: "成员数", align: "center", width: 100 },
-          { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170 },
-        ],
+        type: "remoteSelect",
+        remote: accountGroupForAccountEditRemoteSelect,
+        allowEmpty: true,
+        placeholder: "请选择账号分组，可多选",
       },
-      {
-        key: "bind-slot",
-        label: "绑定设备",
-        method: "POST",
-        icon: "link",
-        path: (record) => `/api/accounts/${record.id}/bind-slot`,
-        fields: [
-          {
-            key: "slot_id",
-            label: "设备",
-            type: "remoteSelect",
-            remote: slotRemoteSelect,
-            required: true,
-            placeholder: "请选择设备",
-          },
-          { key: "remark", label: "备注" },
-        ],
-      },
-      {
-        key: "bind-proxy",
-        label: "绑定代理",
-        method: "POST",
-        icon: "link",
-        path: (record) => `/api/accounts/${record.id}/bind-proxy`,
-        fields: [
-          {
-            key: "proxy_id",
-            label: "代理",
-            type: "remoteSelect",
-            remote: proxyRemoteSelect,
-            required: true,
-            placeholder: "请选择代理",
-          },
-          { key: "remark", label: "备注" },
-        ],
-      },
-      {
-        key: "unbind-proxy",
-        label: "解绑代理",
-        method: "POST",
-        icon: "unlink",
-        path: (record) => `/api/accounts/${record.id}/unbind-proxy`,
-        confirm: "确认解绑该账号代理？",
-      },
-      {
-        key: "login-task",
-        label: "创建登录任务",
-        method: "POST",
-        icon: "play",
-        path: (record) => `/api/accounts/${record.id}/login-task`,
-        fields: [
-          {
-            key: "slot_id",
-            label: "设备",
-            type: "remoteSelect",
-            remote: slotRemoteSelect,
-            placeholder: "默认使用账号已绑定设备",
-          },
-          {
-            key: "login_check_after_success",
-            label: "登录后检测",
-            type: "boolean",
-            defaultValue: true,
-          },
-          {
-            key: "params",
-            label: "任务参数",
-            type: "json",
-            defaultValue: {},
-            span: 2,
-          },
-        ],
-      },
-      {
-        key: "login-check-task",
-        label: "登录检测任务",
-        method: "POST",
-        icon: "play",
-        path: (record) => `/api/accounts/${record.id}/login-check-task`,
-        fields: [
-          {
-            key: "slot_id",
-            label: "设备",
-            type: "remoteSelect",
-            remote: slotRemoteSelect,
-            placeholder: "默认使用账号已绑定设备",
-          },
-          {
-            key: "params",
-            label: "任务参数",
-            type: "json",
-            defaultValue: {},
-            span: 2,
-          },
-        ],
-      },
-      {
-        key: "metrics",
-        label: "指标快照",
-        method: "GET",
-        icon: "list",
-        path: (record) => `/api/accounts/${record.id}/metrics`,
-        refresh: false,
-      },
+      { key: "display_name", label: "显示名称" },
     ],
     batchActions: [
       {
@@ -714,50 +636,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "metadata", label: "扩展数据", type: "json", span: 2 },
     ],
     rowActions: [
-      {
-        key: "bind-account",
-        label: "绑定账号",
-        method: "POST",
-        icon: "link",
-        path: (record) => `/api/execution-slots/${record.id}/bind-account`,
-        fields: [
-          {
-            key: "account_id",
-            label: "账号",
-            type: "remoteSelect",
-            remote: accountRemoteSelect,
-            required: true,
-            placeholder: "请选择账号",
-          },
-          { key: "remark", label: "备注" },
-        ],
-      },
-      {
-        key: "bind-proxy",
-        label: "绑定代理",
-        method: "POST",
-        icon: "link",
-        path: (record) => `/api/execution-slots/${record.id}/bind-proxy`,
-        fields: [
-          {
-            key: "proxy_id",
-            label: "代理",
-            type: "remoteSelect",
-            remote: proxyRemoteSelect,
-            required: true,
-            placeholder: "请选择代理",
-          },
-          { key: "remark", label: "备注" },
-        ],
-      },
-      {
-        key: "unbind-proxy",
-        label: "解绑代理",
-        method: "POST",
-        icon: "unlink",
-        path: (record) => `/api/execution-slots/${record.id}/unbind-proxy`,
-        confirm: "确认解绑该设备代理？",
-      },
       {
         key: "enable",
         label: "启用",
