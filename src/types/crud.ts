@@ -38,7 +38,7 @@ export interface SelectOption {
 }
 
 export interface RemoteSelectConfig {
-  endpoint: string
+  endpoint: string | ((context?: AnyRecord) => string)
   labelKey?: string
   labelKeys?: string[]
   valueKey: string
@@ -46,7 +46,7 @@ export interface RemoteSelectConfig {
   searchParam?: string
   secondaryKey?: string
   secondaryKeys?: string[]
-  params?: AnyRecord
+  params?: AnyRecord | ((context?: AnyRecord) => AnyRecord)
   pageSize?: number
   multiple?: boolean
 }

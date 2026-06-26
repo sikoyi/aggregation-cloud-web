@@ -10,6 +10,7 @@ const props = defineProps<{
   config: RemoteSelectConfig
   disabled?: boolean
   placeholder?: string
+  context?: AnyRecord
 }>()
 
 const emit = defineEmits<{
@@ -64,13 +65,19 @@ function mergeSelected(items: AnyRecord[]) {
 async function loadOptions(keyword = '') {
   loading.value = true
   try {
+    const endpoint = typeof props.config.endpoint === 'function'
+      ? props.config.endpoint(props.context)
+      : props.config.endpoint
+    const baseParams = typeof props.config.params === 'function'
+      ? props.config.params(props.context)
+      : props.config.params || {}
     const params: AnyRecord = {
-      ...(props.config.params || {}),
+      ...baseParams,
       page: 1,
       page_size: props.config.pageSize || 50,
     }
     if (keyword && props.config.searchParam) params[props.config.searchParam] = keyword
-    const data = await http.get<PageResult<AnyRecord>>(props.config.endpoint, params)
+    const data = await http.get<PageResult<AnyRecord>>(endpoint, params)
     options.value = mergeSelected(data.items)
   } finally {
     loading.value = false
@@ -92,6 +99,14 @@ watch(
     if (missing) {
       loadOptions()
     }
+  },
+)
+
+watch(
+  () => props.context,
+  () => {
+    options.value = []
+    loadOptions()
   },
 )
 

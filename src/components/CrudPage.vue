@@ -68,7 +68,7 @@ const taskDetailId = ref<string | null>(null)
 const tableRef = ref()
 
 const modal = reactive<{
-  type: 'create' | 'edit' | 'action' | null
+  type: 'create' | 'edit' | 'action' | 'batch' | null
   record: AnyRecord | null
   action: RowActionConfig | null
 }>({
@@ -88,6 +88,7 @@ const modalFields = computed<FieldConfig[]>(() => {
 const modalTitle = computed(() => {
   if (modal.type === 'create') return props.config.createLabel || `新增${props.config.title}`
   if (modal.type === 'edit') return `编辑${props.config.title}`
+  if (modal.type === 'batch') return modal.action?.label || '批量操作'
   return modal.action?.label || '执行操作'
 })
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
@@ -395,23 +396,31 @@ async function requestAction(action: RowActionConfig, record: AnyRecord, payload
   return http.delete(path)
 }
 
-async function runBatchAction(action: RowActionConfig) {
+function openBatchAction(action: RowActionConfig) {
+  modal.type = 'batch'
+  modal.record = null
+  modal.action = action
+  formState.value = buildFormState(action.fields || [])
+}
+
+async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = {}) {
   if (!selectedRows.value.length) return
   const actionName = action.label.replace(/^批量/, '')
   const isDanger = action.variant === 'danger' || action.method === 'DELETE'
   const message =
     action.key === '__delete'
-      ? `确认删除已选 ${selectedRows.value.length} 条数据？此操作不可恢复。`
-      : `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`
+    ? `确认删除已选 ${selectedRows.value.length} 条数据？此操作不可恢复。`
+    : `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`
   if (!(await confirmAction(message, isDanger ? 'error' : 'warning'))) return
 
   submitting.value = true
   error.value = ''
   const failures: string[] = []
+  const rowsToHandle = [...selectedRows.value]
   try {
-    for (const row of selectedRows.value) {
+    for (const row of rowsToHandle) {
       try {
-        await requestAction(action, row)
+        await requestAction(action, row, payload)
       } catch (err) {
         const message = getErrorMessage(err, '操作失败')
         failures.push(`${rowId(row)}：${message}`)
@@ -420,7 +429,7 @@ async function runBatchAction(action: RowActionConfig) {
     if (failures.length) {
       throw new Error(`部分数据处理失败：${failures.slice(0, 3).join('；')}`)
     }
-    ElMessage.success(`已处理 ${selectedRows.value.length} 条`)
+    ElMessage.success(`已处理 ${rowsToHandle.length} 条`)
     clearSelection()
     await loadRows()
   } catch (err) {
@@ -428,6 +437,14 @@ async function runBatchAction(action: RowActionConfig) {
   } finally {
     submitting.value = false
   }
+}
+
+async function runBatchAction(action: RowActionConfig) {
+  if (action.fields?.length) {
+    openBatchAction(action)
+    return
+  }
+  await executeBatchAction(action)
 }
 
 function openAction(action: RowActionConfig, record: AnyRecord) {
@@ -453,6 +470,13 @@ async function runAction(action: RowActionConfig, record: AnyRecord) {
 async function submitAction() {
   if (!modal.action || !modal.record) return
   await executeRequest(modal.action, modal.record, buildPayload(modal.action.fields || [], formState.value, 'action'))
+  closeModal()
+}
+
+async function submitBatchAction() {
+  if (!modal.action) return
+  const payload = buildPayload(modal.action.fields || [], formState.value, 'action')
+  await executeBatchAction(modal.action, payload)
   closeModal()
 }
 
@@ -766,10 +790,14 @@ onMounted(() => {
       append-to-body
       @close="closeModal"
     >
-      <DynamicForm v-model="formState" :fields="modalFields" />
+      <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
       <template #footer>
         <el-button @click="closeModal">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="modal.type === 'action' ? submitAction() : submitEntity()">
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="modal.type === 'batch' ? submitBatchAction() : modal.type === 'action' ? submitAction() : submitEntity()"
+        >
           保存
         </el-button>
       </template>

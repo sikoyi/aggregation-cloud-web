@@ -55,6 +55,15 @@ const accountMultiSelect = {
   multiple: true,
 };
 
+const availableAccountForGroupMultiSelect = {
+  ...accountRemoteSelect,
+  multiple: true,
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform,
+    exclude_group_id: context?.id,
+  }),
+};
+
 // 后端模型仍然使用 Execution Slot；前端面向运营统一展示为“设备”。
 const slotRemoteSelect = {
   endpoint: "/api/execution-slots",
@@ -352,6 +361,21 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     rowActions: [
       {
+        key: "groups",
+        label: "所属分组",
+        method: "GET",
+        icon: "list",
+        path: (record) => `/api/accounts/${record.id}/groups`,
+        refresh: false,
+        resultColumns: [
+          { key: "id", label: "ID", type: "id", minWidth: 110 },
+          { key: "name", label: "分组名称", minWidth: 180 },
+          { key: "business_platform", label: "平台", minWidth: 120 },
+          { key: "member_count", label: "成员数", align: "center", width: 100 },
+          { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170 },
+        ],
+      },
+      {
         key: "bind-slot",
         label: "绑定设备",
         method: "POST",
@@ -456,6 +480,30 @@ export const resources: Record<string, ResourceConfig> = {
         refresh: false,
       },
     ],
+    batchActions: [
+      {
+        key: "batch-add-to-group",
+        label: "加入分组",
+        method: "POST",
+        icon: "users",
+        path: (_record, payload) => `/api/account-groups/${payload?.group_id}/accounts`,
+        body: (payload, record) => ({
+          account_ids: [String(record.id)],
+          remark: payload.remark || undefined,
+        }),
+        fields: [
+          {
+            key: "group_id",
+            label: "账号分组",
+            type: "remoteSelect",
+            remote: accountGroupRemoteSelect,
+            required: true,
+            placeholder: "请选择账号分组",
+          },
+          { key: "remark", label: "备注" },
+        ],
+      },
+    ],
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm:
@@ -507,12 +555,12 @@ export const resources: Record<string, ResourceConfig> = {
         path: (record) => `/api/account-groups/${record.id}/accounts`,
         fields: [
           {
-            key: "account_id",
+            key: "account_ids",
             label: "账号",
             type: "remoteSelect",
-            remote: accountRemoteSelect,
+            remote: availableAccountForGroupMultiSelect,
             required: true,
-            placeholder: "请选择账号",
+            placeholder: "请选择账号，可多选",
           },
           { key: "sort_order", label: "排序", type: "number" },
           { key: "remark", label: "备注" },

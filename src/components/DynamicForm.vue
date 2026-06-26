@@ -13,6 +13,7 @@ import type { FieldConfig } from '@/types/crud'
 const props = defineProps<{
   fields: FieldConfig[]
   modelValue: AnyRecord
+  context?: AnyRecord
 }>()
 
 const emit = defineEmits<{
@@ -147,6 +148,7 @@ function fieldColumnSpan(field: FieldConfig) {
             v-else-if="field.type === 'templateSelect' && field.remote"
             :model-value="modelValue[field.key]"
             :config="field.remote"
+            :context="context"
             :disabled="field.readonly || templateLoading"
             :placeholder="field.placeholder"
             @update:model-value="updateTemplateValue(field, $event)"
@@ -156,6 +158,7 @@ function fieldColumnSpan(field: FieldConfig) {
             v-else-if="field.type === 'remoteSelect' && field.remote"
             :model-value="modelValue[field.key]"
             :config="field.remote"
+            :context="context"
             :disabled="field.readonly"
             :placeholder="field.placeholder"
             @update:model-value="updateValue(field.key, $event)"
