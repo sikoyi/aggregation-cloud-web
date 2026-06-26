@@ -36,7 +36,6 @@ const resultDescription = computed(() => {
   return ''
 })
 
-const resultRows = computed(() => objectRows(task.value?.result, RESULT_LABELS))
 const paramRows = computed(() => objectRows(task.value?.params, PARAM_LABELS, HIDDEN_PARAM_KEYS))
 
 const detailTitle = computed(() => {
@@ -46,20 +45,6 @@ const detailTitle = computed(() => {
 
 function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
-}
-
-const RESULT_LABELS: Record<string, string> = {
-  child_total: '设备执行总数',
-  child_finished: '已完成',
-  child_succeeded: '成功',
-  child_failed: '失败',
-  child_canceled: '取消',
-  progress_text: '执行进度',
-  description: '结果描述',
-  reported_at: '上报时间',
-  aggregated_at: '统计时间',
-  canceled_at: '取消时间',
-  cancel_requested_at: '取消请求时间',
 }
 
 const PARAM_LABELS: Record<string, string> = {
@@ -211,16 +196,7 @@ watch(
                 show-icon
                 :closable="false"
               />
-              <el-empty v-if="!resultRows.length" description="暂无执行结果" :image-size="56" />
-              <el-descriptions v-else :column="2" border>
-                <el-descriptions-item
-                  v-for="row in resultRows"
-                  :key="row.key"
-                  :label="row.label"
-                >
-                  {{ row.value }}
-                </el-descriptions-item>
-              </el-descriptions>
+              <el-empty v-if="!resultDescription" description="暂无执行结果" :image-size="56" />
             </div>
 
             <div class="detail-section">
