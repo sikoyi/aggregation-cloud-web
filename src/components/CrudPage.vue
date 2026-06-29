@@ -68,6 +68,7 @@ const resultColumns = ref<ColumnConfig[]>([])
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
 const tableRef = ref()
+const slotGroupEditTab = ref('base')
 
 const modal = reactive<{
   type: 'create' | 'edit' | 'action' | 'batch' | null
@@ -93,10 +94,17 @@ const modalTitle = computed(() => {
   if (modal.type === 'batch') return modal.action?.label || '批量操作'
   return modal.action?.label || '执行操作'
 })
+const isTaskDispatchModal = computed(() => props.config.key === 'tasks' && modal.type === 'create')
 const modalWidth = computed(() => {
+  if (isTaskDispatchModal.value) return '1120px'
   if (modal.type === 'edit' && (props.config.accountGroupMembers || props.config.slotGroupMembers)) return '1180px'
   return '760px'
 })
+const taskDispatchDeviceFields = computed(() => modalFields.value.filter((field) => field.type === 'slotTree'))
+const taskDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'slotTree'))
+const showModalSaveButton = computed(
+  () => !(modal.type === 'edit' && props.config.slotGroupMembers && slotGroupEditTab.value === 'members'),
+)
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 function isInlineStatusAction(action: RowActionConfig) {
   return ['enable', 'disable'].includes(action.key) && !action.fields?.length
@@ -272,6 +280,7 @@ function openCreate() {
   modal.type = 'create'
   modal.record = null
   modal.action = null
+  slotGroupEditTab.value = 'base'
   formState.value = buildFormState(props.config.createFields || [])
 }
 
@@ -284,6 +293,7 @@ async function openEdit(record: AnyRecord) {
     modal.type = 'edit'
     modal.record = editRecord
     modal.action = null
+    slotGroupEditTab.value = 'base'
     formState.value = buildFormState(props.config.updateFields || [], editRecord)
   } catch (err) {
     const message = notifyError(err, '加载失败', '加载编辑数据失败')
@@ -297,6 +307,7 @@ function closeModal() {
   modal.type = null
   modal.record = null
   modal.action = null
+  slotGroupEditTab.value = 'base'
   formState.value = {}
   submitting.value = false
 }
@@ -796,8 +807,18 @@ onMounted(() => {
       append-to-body
       @close="closeModal"
     >
+      <div v-if="isTaskDispatchModal" class="task-dispatch-layout">
+        <div class="task-dispatch-layout__devices">
+          <div class="edit-panel-title">设备组 / 设备</div>
+          <DynamicForm v-model="formState" :fields="taskDispatchDeviceFields" :context="modal.record || undefined" />
+        </div>
+        <div class="task-dispatch-layout__params">
+          <div class="edit-panel-title">任务参数</div>
+          <DynamicForm v-model="formState" :fields="taskDispatchConfigFields" :context="modal.record || undefined" />
+        </div>
+      </div>
       <div
-        v-if="modal.type === 'edit' && (config.accountGroupMembers || config.slotGroupMembers) && modal.record"
+        v-else-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"
         class="account-group-edit-layout"
       >
         <div class="account-group-edit-layout__base">
@@ -805,22 +826,33 @@ onMounted(() => {
           <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
         </div>
         <AccountGroupMemberEditor
-          v-if="config.accountGroupMembers"
-          class="account-group-edit-layout__members"
-          :group="modal.record"
-          @changed="loadRows"
-        />
-        <SlotGroupMemberEditor
-          v-else
           class="account-group-edit-layout__members"
           :group="modal.record"
           @changed="loadRows"
         />
       </div>
+      <el-tabs
+        v-else-if="modal.type === 'edit' && config.slotGroupMembers && modal.record"
+        v-model="slotGroupEditTab"
+        class="slot-group-edit-tabs"
+      >
+        <el-tab-pane label="基础信息" name="base">
+          <div class="slot-group-edit-tabs__panel">
+            <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="组内设备" name="members">
+          <SlotGroupMemberEditor
+            :group="modal.record"
+            @changed="loadRows"
+          />
+        </el-tab-pane>
+      </el-tabs>
       <DynamicForm v-else v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
       <template #footer>
         <el-button @click="closeModal">取消</el-button>
         <el-button
+          v-if="showModalSaveButton"
           type="primary"
           :loading="submitting"
           @click="modal.type === 'batch' ? submitBatchAction() : modal.type === 'action' ? submitAction() : submitEntity()"
@@ -957,6 +989,33 @@ onMounted(() => {
   align-items: start;
 }
 
+.task-dispatch-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(520px, 1.25fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.task-dispatch-layout__devices,
+.task-dispatch-layout__params,
+.slot-group-edit-tabs__panel {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e6edf3;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.task-dispatch-layout__devices :deep(.el-col),
+.task-dispatch-layout__params :deep(.el-col) {
+  max-width: 100%;
+  flex: 0 0 100%;
+}
+
+.slot-group-edit-tabs :deep(.el-tabs__header) {
+  margin-bottom: 14px;
+}
+
 .account-group-edit-layout__base,
 .account-group-edit-layout__members {
   min-width: 0;
@@ -996,6 +1055,10 @@ onMounted(() => {
   }
 
   .account-group-edit-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .task-dispatch-layout {
     grid-template-columns: 1fr;
   }
 }
