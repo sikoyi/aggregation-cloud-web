@@ -93,7 +93,7 @@ const modalTitle = computed(() => {
   return modal.action?.label || '执行操作'
 })
 const modalWidth = computed(() => {
-  if (modal.type === 'edit' && props.config.accountGroupMembers) return '980px'
+  if (modal.type === 'edit' && props.config.accountGroupMembers) return '1180px'
   return '760px'
 })
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
@@ -795,12 +795,21 @@ onMounted(() => {
       append-to-body
       @close="closeModal"
     >
-      <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
-      <AccountGroupMemberEditor
+      <div
         v-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"
-        :group="modal.record"
-        @changed="loadRows"
-      />
+        class="account-group-edit-layout"
+      >
+        <div class="account-group-edit-layout__base">
+          <div class="edit-panel-title">基础信息</div>
+          <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
+        </div>
+        <AccountGroupMemberEditor
+          class="account-group-edit-layout__members"
+          :group="modal.record"
+          @changed="loadRows"
+        />
+      </div>
+      <DynamicForm v-else v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
       <template #footer>
         <el-button @click="closeModal">取消</el-button>
         <el-button
@@ -933,6 +942,32 @@ onMounted(() => {
   border-top: 1px solid #e6edf3;
 }
 
+.account-group-edit-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.86fr) minmax(560px, 1.4fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.account-group-edit-layout__base,
+.account-group-edit-layout__members {
+  min-width: 0;
+}
+
+.account-group-edit-layout__base {
+  padding: 14px;
+  border: 1px solid #e6edf3;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.edit-panel-title {
+  margin-bottom: 12px;
+  color: #1f2933;
+  font-size: 15px;
+  font-weight: 700;
+}
+
 @media (max-width: 768px) {
   .filter-grid {
     grid-template-columns: 1fr;
@@ -950,6 +985,10 @@ onMounted(() => {
   .table-pagination {
     justify-content: flex-start;
     overflow-x: auto;
+  }
+
+  .account-group-edit-layout {
+    grid-template-columns: 1fr;
   }
 }
 </style>
