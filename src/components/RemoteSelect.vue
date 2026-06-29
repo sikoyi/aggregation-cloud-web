@@ -62,6 +62,23 @@ function mergeSelected(items: AnyRecord[]) {
   return existing.length ? [...existing, ...items] : items
 }
 
+async function mergeSelectedDetails(items: AnyRecord[]) {
+  const selected = selectedValues()
+  if (!selected.length || !props.config.detailPath) return mergeSelected(items)
+
+  const missing = selected.filter(
+    (value) =>
+      !items.some((item) => optionValue(item) === value) &&
+      !options.value.some((item) => optionValue(item) === value),
+  )
+  if (!missing.length) return mergeSelected(items)
+
+  const details = await Promise.all(
+    missing.map((value) => http.get<AnyRecord>(props.config.detailPath?.(value) || '').catch(() => null)),
+  )
+  return mergeSelected([...details.filter(Boolean) as AnyRecord[], ...items])
+}
+
 async function loadOptions(keyword = '') {
   loading.value = true
   try {
@@ -78,7 +95,7 @@ async function loadOptions(keyword = '') {
     }
     if (keyword && props.config.searchParam) params[props.config.searchParam] = keyword
     const data = await http.get<PageResult<AnyRecord>>(endpoint, params)
-    options.value = mergeSelected(data.items)
+    options.value = await mergeSelectedDetails(data.items)
   } finally {
     loading.value = false
   }

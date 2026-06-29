@@ -20,6 +20,7 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -90,6 +91,10 @@ const modalTitle = computed(() => {
   if (modal.type === 'edit') return `编辑${props.config.title}`
   if (modal.type === 'batch') return modal.action?.label || '批量操作'
   return modal.action?.label || '执行操作'
+})
+const modalWidth = computed(() => {
+  if (modal.type === 'edit' && props.config.accountGroupMembers) return '980px'
+  return '760px'
 })
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 function isInlineStatusAction(action: RowActionConfig) {
@@ -785,12 +790,17 @@ onMounted(() => {
     <el-dialog
       :model-value="Boolean(modal.type)"
       :title="modalTitle"
-      width="760px"
+      :width="modalWidth"
       destroy-on-close
       append-to-body
       @close="closeModal"
     >
       <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
+      <AccountGroupMemberEditor
+        v-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"
+        :group="modal.record"
+        @changed="loadRows"
+      />
       <template #footer>
         <el-button @click="closeModal">取消</el-button>
         <el-button

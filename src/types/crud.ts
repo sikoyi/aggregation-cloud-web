@@ -121,6 +121,7 @@ export interface ResourceConfig {
   batchActions?: RowActionConfig[]
   deleteLabel?: string
   deleteConfirm?: string
+  accountGroupMembers?: boolean
 }
 
 export type IconMap = Record<string, Component>

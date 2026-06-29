@@ -55,15 +55,6 @@ const accountMultiSelect = {
   multiple: true,
 };
 
-const availableAccountForGroupMultiSelect = {
-  ...accountRemoteSelect,
-  multiple: true,
-  params: (context?: AnyRecord) => ({
-    business_platform: context?.business_platform,
-    exclude_group_id: context?.id,
-  }),
-};
-
 // 后端模型仍然使用 Execution Slot；前端面向运营统一展示为“设备”。
 const slotRemoteSelect = {
   endpoint: "/api/execution-slots",
@@ -98,6 +89,11 @@ const proxyRemoteSelect = {
   pageSize: 50,
 };
 
+const proxyReadonlyRemoteSelect = {
+  ...proxyRemoteSelect,
+  params: undefined,
+};
+
 const accountGroupRemoteSelect = {
   endpoint: "/api/account-groups",
   labelKey: "name",
@@ -116,7 +112,6 @@ const accountGroupMultiSelect = {
 
 const accountGroupForAccountEditRemoteSelect = {
   ...accountGroupRemoteSelect,
-  multiple: true,
   params: (context?: AnyRecord) => ({
     business_platform: context?.business_platform,
   }),
@@ -252,17 +247,14 @@ function formatAccountImportSuccess(data: AnyRecord) {
 }
 
 async function loadAccountForEdit(record: AnyRecord) {
-  const groups = await http.get<AnyRecord[]>(`/api/accounts/${record.id}/groups`);
-  return {
-    ...record,
-    account_group_ids: groups.map((group) => String(group.id)),
-  };
+  const account = await http.get<AnyRecord>(`/api/accounts/${record.id}`);
+  return { ...record, ...account, account_group_id: account.group_id || "" };
 }
 
 async function updateAccountGroups(_updatedAccount: AnyRecord, payload: AnyRecord, record: AnyRecord) {
-  if (!Object.prototype.hasOwnProperty.call(payload, "account_group_ids")) return undefined;
+  if (!Object.prototype.hasOwnProperty.call(payload, "account_group_id")) return undefined;
   return http.put(`/api/accounts/${record.id}/groups`, {
-    group_ids: Array.isArray(payload.account_group_ids) ? payload.account_group_ids : [],
+    group_id: payload.account_group_id || null,
   });
 }
 
@@ -302,10 +294,10 @@ export const resources: Record<string, ResourceConfig> = {
         relation: slotRemoteSelect,
       },
       {
-        key: "proxy_id",
-        label: "代理",
+        key: "group_id",
+        label: "所属分组",
         type: "relation",
-        relation: proxyRemoteSelect,
+        relation: accountGroupRemoteSelect,
       },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
@@ -393,19 +385,27 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "totp_secret_ref", label: "2FA 密钥 / TOTP" },
       {
-        key: "account_group_ids",
+        key: "account_group_id",
         label: "所属分组",
         type: "remoteSelect",
         remote: accountGroupForAccountEditRemoteSelect,
         allowEmpty: true,
-        placeholder: "请选择账号分组，可多选",
+        placeholder: "请选择账号分组",
+      },
+      {
+        key: "proxy_id",
+        label: "代理信息",
+        type: "remoteSelect",
+        remote: proxyReadonlyRemoteSelect,
+        readonly: true,
+        placeholder: "暂无代理",
       },
       { key: "display_name", label: "显示名称" },
     ],
     batchActions: [
       {
         key: "batch-add-to-group",
-        label: "加入分组",
+        label: "设置分组",
         method: "POST",
         icon: "users",
         path: (_record, payload) => `/api/account-groups/${payload?.group_id}/accounts`,
@@ -437,6 +437,7 @@ export const resources: Record<string, ResourceConfig> = {
     title: "账号分组",
     endpoint: "/api/account-groups",
     createLabel: "新增账号组",
+    accountGroupMembers: true,
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
@@ -467,56 +468,6 @@ export const resources: Record<string, ResourceConfig> = {
     updateFields: [
       { key: "name", label: "名称" },
       { key: "description", label: "描述", type: "textarea", span: 2 },
-    ],
-    rowActions: [
-      {
-        key: "add-account",
-        label: "添加账号",
-        method: "POST",
-        icon: "users",
-        path: (record) => `/api/account-groups/${record.id}/accounts`,
-        fields: [
-          {
-            key: "account_ids",
-            label: "账号",
-            type: "remoteSelect",
-            remote: availableAccountForGroupMultiSelect,
-            required: true,
-            placeholder: "请选择账号，可多选",
-          },
-          { key: "sort_order", label: "排序", type: "number" },
-          { key: "remark", label: "备注" },
-        ],
-      },
-      {
-        key: "list-accounts",
-        label: "查看成员",
-        method: "GET",
-        icon: "list",
-        path: (record) => `/api/account-groups/${record.id}/accounts`,
-        params: { page: 1, page_size: 100 },
-        refresh: false,
-      },
-      {
-        key: "remove-account",
-        label: "移除账号",
-        method: "DELETE",
-        icon: "trash",
-        variant: "danger",
-        path: (record, payload) =>
-          `/api/account-groups/${record.id}/accounts/${payload?.account_id}`,
-        fields: [
-          {
-            key: "account_id",
-            label: "账号",
-            type: "remoteSelect",
-            remote: accountRemoteSelect,
-            required: true,
-            placeholder: "请选择账号",
-          },
-        ],
-        confirm: "确认从账号组移除该账号？",
-      },
     ],
     deleteLabel: "删除",
     deletePath: (record) => `/api/account-groups/${record.id}?force=true`,
