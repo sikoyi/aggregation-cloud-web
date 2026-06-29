@@ -327,6 +327,7 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '枚举', value: 'enum' },
   { label: '日期时间', value: 'datetime' },
   { label: 'JSON', value: 'json' },
+  { label: '代理', value: 'proxy' },
   { label: '资源', value: 'res' },
   { label: '账号', value: 'account' },
   { label: '账号组', value: 'account_group' },

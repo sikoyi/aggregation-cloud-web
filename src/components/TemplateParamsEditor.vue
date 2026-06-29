@@ -3,6 +3,8 @@ import { RefreshCw } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import RemoteSelect from '@/components/RemoteSelect.vue'
+import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
 
 type ParamOption = Record<string, unknown>
@@ -37,6 +39,9 @@ const loading = ref(false)
 const error = ref('')
 const params = ref<ScriptParam[]>([])
 const loadedScriptKey = ref('')
+const resourcePickerVisible = ref(false)
+const resourcePickerValue = ref('')
+const resourcePickerParam = ref<ScriptParam | null>(null)
 let requestSeq = 0
 
 const values = computed<Record<string, unknown>>(() => {
@@ -50,8 +55,76 @@ function defaultForParam(param: ScriptParam) {
   if (param.param_type === 'bool') return false
   if (param.param_type === 'number') return 0
   if (param.param_type === 'json') return {}
+  if (isResourceParam(param)) return ''
   return ''
 }
+
+function normalizeParamType(param: ScriptParam) {
+  return String(param.param_type || '').trim()
+}
+
+function isResourceParam(param: ScriptParam) {
+  return ['proxy', 'res', 'account', 'account_group', 'execution_slot'].includes(normalizeParamType(param))
+}
+
+function resourceTypeLabel(param: ScriptParam | null) {
+  if (!param) return '资源'
+  const type = normalizeParamType(param)
+  if (type === 'account') return '账号'
+  if (type === 'account_group') return '账号组'
+  if (type === 'execution_slot') return '设备'
+  return '代理'
+}
+
+function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | null {
+  if (!param) return null
+  const type = normalizeParamType(param)
+  if (type === 'account') {
+    return {
+      endpoint: '/api/accounts',
+      labelKeys: ['login_username', 'username', 'display_name', 'platform_account_id'],
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/accounts/${encodeURIComponent(value)}`,
+      secondaryKeys: ['country', 'login_status'],
+      searchParam: 'keyword',
+      pageSize: 50,
+    }
+  }
+  if (type === 'account_group') {
+    return {
+      endpoint: '/api/account-groups',
+      labelKey: 'name',
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/account-groups/${encodeURIComponent(value)}`,
+      secondaryKey: 'business_platform',
+      searchParam: 'keyword',
+      pageSize: 50,
+    }
+  }
+  if (type === 'execution_slot') {
+    return {
+      endpoint: '/api/execution-slots',
+      labelKeys: ['display_name', 'provider_slot_id', 'provider_slot_no', 'id'],
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
+      secondaryKeys: ['provider', 'status'],
+      searchParam: 'keyword',
+      pageSize: 50,
+    }
+  }
+  return {
+    endpoint: '/api/resource-center/proxies',
+    labelKeys: ['name', 'source_proxy_url', 'host'],
+    valueKey: 'id',
+    detailPath: (value: string) => `/api/resource-center/proxies/${encodeURIComponent(value)}`,
+    secondaryKeys: ['source_proxy_url', 'status'],
+    searchParam: 'keyword',
+    params: { status: 'enabled' },
+    pageSize: 50,
+  }
+}
+
+const activeResourceSelectConfig = computed(() => resourceSelectConfig(resourcePickerParam.value))
 
 function optionLabel(option: ParamOption) {
   const label = option.label ?? option.name ?? option.value ?? option.key ?? option.id
@@ -102,6 +175,18 @@ async function loadParams(scriptKey: string) {
 
 function updateValue(param: ScriptParam, value: unknown) {
   emit('update:modelValue', { ...values.value, [param.param_key]: value })
+}
+
+function openResourcePicker(param: ScriptParam) {
+  resourcePickerParam.value = param
+  resourcePickerValue.value = String(values.value[param.param_key] || '')
+  resourcePickerVisible.value = true
+}
+
+function confirmResourcePicker() {
+  if (!resourcePickerParam.value) return
+  updateValue(resourcePickerParam.value, resourcePickerValue.value)
+  resourcePickerVisible.value = false
 }
 
 function jsonValue(param: ScriptParam) {
@@ -210,6 +295,18 @@ watch(
           clearable
           @update:model-value="updateValue(param, $event)"
         />
+        <div v-else-if="isResourceParam(param)" class="resource-param-field">
+          <el-input
+            :model-value="String(values[param.param_key] ?? '')"
+            readonly
+            clearable
+            :placeholder="`请选择${resourceTypeLabel(param)}，保存后脚本会收到资源 ID`"
+            @clear="updateValue(param, '')"
+          />
+          <el-button type="primary" @click="openResourcePicker(param)">
+            选择{{ resourceTypeLabel(param) }}
+          </el-button>
+        </div>
         <el-input
           v-else
           :model-value="String(values[param.param_key] ?? '')"
@@ -223,5 +320,48 @@ watch(
         </div>
       </el-card>
     </div>
+
+    <el-dialog
+      v-model="resourcePickerVisible"
+      :title="`选择${resourceTypeLabel(resourcePickerParam)}`"
+      width="560px"
+      append-to-body
+      destroy-on-close
+    >
+      <div class="space-y-3">
+        <RemoteSelect
+          v-if="activeResourceSelectConfig"
+          v-model="resourcePickerValue"
+          :config="activeResourceSelectConfig"
+          :placeholder="`搜索并选择${resourceTypeLabel(resourcePickerParam)}`"
+        />
+        <el-input
+          v-model="resourcePickerValue"
+          readonly
+          placeholder="资源 ID"
+        >
+          <template #prepend>ID</template>
+        </el-input>
+      </div>
+
+      <template #footer>
+        <el-button @click="resourcePickerVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmResourcePicker">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.resource-param-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .resource-param-field {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
