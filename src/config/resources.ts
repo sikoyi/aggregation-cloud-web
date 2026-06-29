@@ -61,7 +61,6 @@ const slotRemoteSelect = {
   labelKeys: [
     "display_name",
     "provider_slot_id",
-    "slot_key",
     "provider_slot_no",
   ],
   valueKey: "id",
@@ -480,6 +479,9 @@ export const resources: Record<string, ResourceConfig> = {
     key: "slots",
     title: "设备管理",
     endpoint: "/api/execution-slots",
+    deleteLabel: "删除",
+    directDelete: true,
+    deleteConfirm: "确认删除该设备？运行中的设备不能删除，删除后会解绑分组和账号关联。",
     createLabel: "新增设备",
     columns: [
       { key: "id", label: "ID", type: "id" },
@@ -551,7 +553,6 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "provider_slot_id", label: "Provider 设备 ID", required: true },
       { key: "provider_slot_no", label: "Provider 编号" },
-      { key: "slot_key", label: "设备 Key" },
       { key: "display_name", label: "显示名称" },
       {
         key: "business_platform",
@@ -570,7 +571,6 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     updateFields: [
       { key: "provider_slot_no", label: "Provider 编号" },
-      { key: "slot_key", label: "设备 Key" },
       { key: "display_name", label: "显示名称" },
       {
         key: "business_platform",
@@ -604,14 +604,6 @@ export const resources: Record<string, ResourceConfig> = {
         variant: "danger",
         confirm: "确认禁用该设备？",
       },
-      {
-        key: "runtime",
-        label: "关联 Runtime",
-        method: "GET",
-        icon: "list",
-        path: (record) => `/api/execution-slots/${record.id}/runtime`,
-        refresh: false,
-      },
     ],
   },
 
@@ -619,6 +611,11 @@ export const resources: Record<string, ResourceConfig> = {
     key: "slotGroups",
     title: "设备分组",
     endpoint: "/api/slot-groups",
+    deleteLabel: "删除",
+    deletePath: (record) => `/api/slot-groups/${record.id}?force=true`,
+    directDelete: true,
+    deleteConfirm:
+      "确认删除该设备组？删除后组内设备会自动解绑，设备本身不会删除。",
     createLabel: "新增设备组",
     columns: [
       { key: "id", label: "ID", type: "id" },
@@ -688,13 +685,6 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "enabled",
       },
       { key: "description", label: "描述", type: "textarea", span: 2 },
-      {
-        key: "metadata",
-        label: "扩展数据",
-        type: "json",
-        defaultValue: {},
-        span: 2,
-      },
     ],
     updateFields: [
       { key: "name", label: "名称" },
@@ -705,7 +695,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: enabledStatusOptions,
       },
       { key: "description", label: "描述", type: "textarea", span: 2 },
-      { key: "metadata", label: "扩展数据", type: "json", span: 2 },
     ],
     rowActions: [
       {
@@ -725,13 +714,6 @@ export const resources: Record<string, ResourceConfig> = {
           },
           { key: "sort_order", label: "排序", type: "number" },
           { key: "remark", label: "备注" },
-          {
-            key: "metadata",
-            label: "扩展数据",
-            type: "json",
-            defaultValue: {},
-            span: 2,
-          },
         ],
       },
       {
