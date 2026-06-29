@@ -64,7 +64,7 @@ function normalizeParamType(param: ScriptParam) {
 }
 
 function isResourceParam(param: ScriptParam) {
-  return ['proxy', 'res', 'account', 'account_group', 'execution_slot'].includes(normalizeParamType(param))
+  return ['proxy', 'res', 'account', 'account_group', 'content', 'media_asset', 'execution_slot'].includes(normalizeParamType(param))
 }
 
 function resourceTypeLabel(param: ScriptParam | null) {
@@ -73,6 +73,8 @@ function resourceTypeLabel(param: ScriptParam | null) {
   if (type === 'account') return '账号'
   if (type === 'account_group') return '账号组'
   if (type === 'execution_slot') return '设备'
+  if (type === 'content') return '内容'
+  if (type === 'media_asset') return '媒体资源'
   return '代理'
 }
 
@@ -109,6 +111,30 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
       secondaryKeys: ['provider', 'status'],
       searchParam: 'keyword',
+      pageSize: 50,
+    }
+  }
+  if (type === 'content') {
+    return {
+      endpoint: '/api/content-center/contents',
+      labelKeys: ['title', 'id'],
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/content-center/contents/${encodeURIComponent(value)}`,
+      secondaryKeys: ['content_type', 'status'],
+      searchParam: 'keyword',
+      params: { status: 'ready' },
+      pageSize: 50,
+    }
+  }
+  if (type === 'media_asset') {
+    return {
+      endpoint: '/api/content-center/media-assets',
+      labelKeys: ['name', 'source_url', 'storage_uri'],
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/content-center/media-assets/${encodeURIComponent(value)}`,
+      secondaryKeys: ['asset_type', 'status'],
+      searchParam: 'keyword',
+      params: { status: 'enabled' },
       pageSize: 50,
     }
   }
@@ -239,7 +265,7 @@ watch(
         </template>
 
         <el-input
-          v-if="param.param_type === 'textarea' || param.param_type === 'content'"
+          v-if="param.param_type === 'textarea'"
           :model-value="String(values[param.param_key] ?? '')"
           type="textarea"
           :rows="4"

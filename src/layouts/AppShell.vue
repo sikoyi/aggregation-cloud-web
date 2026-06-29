@@ -2,8 +2,10 @@
 import {
   Boxes,
   ClipboardList,
+  FileText,
   Gauge,
   History,
+  Image,
   Layers3,
   LayoutDashboard,
   LogOut,
@@ -54,6 +56,15 @@ const navGroups = [
     icon: ShieldCheck,
     children: [
       { label: '代理资源', to: '/proxies', icon: ShieldCheck },
+    ],
+  },
+  {
+    label: '内容中心',
+    index: 'content',
+    icon: FileText,
+    children: [
+      { label: '内容库', to: '/contents', icon: FileText },
+      { label: '素材库', to: '/media-assets', icon: Image },
     ],
   },
   {

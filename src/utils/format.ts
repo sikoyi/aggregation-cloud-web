@@ -25,6 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
   pending: '待处理',
   queued: '排队中',
   rate_limited: '限流中',
+  ready: '可使用',
   restricted: '受限',
   retry_wait: '等待重试',
   running: '运行中',
@@ -38,7 +39,7 @@ const STATUS_LABELS: Record<string, string> = {
   waiting_slot: '等待设备',
 }
 
-const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'logged_in', 'active']
+const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'logged_in', 'active', 'ready']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting']
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown']
 const DANGER_STATUSES = ['failed', 'error', 'expired', 'lost', 'restricted']
@@ -77,6 +78,10 @@ export function statusTagType(status: unknown) {
 export function formatCell(row: AnyRecord, column: ColumnConfig) {
   const value = getCellValue(row, column.key)
   if (value === undefined || value === null || value === '') return '-'
+  if (column.options?.length) {
+    const option = column.options.find((item) => String(item.value) === String(value))
+    if (option) return option.label
+  }
   if (column.type === 'status') return statusLabel(value)
   if (column.type === 'datetime') return formatDate(value)
   if (column.type === 'list') return Array.isArray(value) ? value.join(', ') : String(value)

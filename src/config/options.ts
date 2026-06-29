@@ -240,6 +240,31 @@ export const enabledStatusOptions: SelectOption[] = [
   { label: '禁用', value: 'disabled' },
 ]
 
+export const contentTypeOptions: SelectOption[] = [
+  { label: '文本内容', value: 'text' },
+  { label: '图文内容', value: 'image' },
+  { label: '视频内容', value: 'video' },
+  { label: '混合内容', value: 'mixed' },
+]
+
+export const contentStatusOptions: SelectOption[] = [
+  { label: '草稿', value: 'draft' },
+  { label: '可使用', value: 'ready' },
+  { label: '禁用', value: 'disabled' },
+]
+
+export const mediaAssetTypeOptions: SelectOption[] = [
+  { label: '图片', value: 'image' },
+  { label: '视频', value: 'video' },
+  { label: '文件', value: 'file' },
+  { label: '外链', value: 'link' },
+]
+
+export const mediaAssetStatusOptions: SelectOption[] = [
+  { label: '启用', value: 'enabled' },
+  { label: '禁用', value: 'disabled' },
+]
+
 export const templateStatusOptions: SelectOption[] = [
   { label: '启用', value: 'enabled' },
   { label: '禁用', value: 'disabled' },

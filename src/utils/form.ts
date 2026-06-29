@@ -147,6 +147,10 @@ export function buildPayload(
   return fields.reduce<AnyRecord>((payload, field) => {
     const rawValue = state[field.key]
     if (field.readonly || field.hidden) return payload
+    if (field.type === 'tags') {
+      payload[field.key] = parseTags(rawValue)
+      return payload
+    }
     if (Array.isArray(rawValue) && !rawValue.length && !field.required) {
       if (field.allowEmpty) payload[field.key] = []
       return payload
@@ -163,10 +167,6 @@ export function buildPayload(
     }
     if (field.type === 'boolean') {
       payload[field.key] = Boolean(rawValue)
-      return payload
-    }
-    if (field.type === 'tags') {
-      payload[field.key] = parseTags(rawValue)
       return payload
     }
     if (field.type === 'select' && field.multiple) {

@@ -75,6 +75,7 @@ export interface ColumnConfig {
   key: string
   label: string
   type?: ColumnType
+  options?: SelectOption[]
   relation?: RemoteSelectConfig
   className?: string
   minWidth?: number | string

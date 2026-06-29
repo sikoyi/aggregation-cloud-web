@@ -21,6 +21,8 @@ export const router = createRouter({
         { path: 'slots', component: ResourceView, meta: { resource: 'slots' } },
         { path: 'slot-groups', component: ResourceView, meta: { resource: 'slotGroups' } },
         { path: 'proxies', component: ResourceView, meta: { resource: 'proxies' } },
+        { path: 'contents', component: ResourceView, meta: { resource: 'contents' } },
+        { path: 'media-assets', component: ResourceView, meta: { resource: 'mediaAssets' } },
         { path: 'scripts', component: ResourceView, meta: { resource: 'scripts' } },
         { path: 'task-templates', component: ResourceView, meta: { resource: 'taskTemplates' } },
         { path: 'tasks', component: ResourceView, meta: { resource: 'tasks' } },
