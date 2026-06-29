@@ -66,6 +66,8 @@ export interface FieldConfig {
   hidden?: boolean
   sourceKey?: string
   dependencyKey?: string
+  scriptScopeKey?: string
+  disabledWhen?: { key: string; value: string | string[] }
   allowEmpty?: boolean
 }
 

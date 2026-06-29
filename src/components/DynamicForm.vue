@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, type UploadFile } from 'element-plus'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
@@ -21,6 +21,10 @@ const emit = defineEmits<{
 }>()
 
 const templateLoading = ref(false)
+const scriptScopeLoading = ref(false)
+const scriptScope = ref<AnyRecord | null>(null)
+const hasScriptScopeFields = computed(() => props.fields.some((field) => Boolean(field.scriptScopeKey)))
+const scriptScopeDependency = computed(() => String(props.modelValue.script_key || ''))
 
 function updateValue(key: string, value: unknown) {
   emit('update:modelValue', { ...props.modelValue, [key]: value })
@@ -50,6 +54,86 @@ async function updateTemplateValue(field: FieldConfig, value: string | string[])
     })
   } finally {
     templateLoading.value = false
+  }
+}
+
+function isDisabledByRule(field: FieldConfig) {
+  if (!field.disabledWhen) return false
+  const current = String(props.modelValue[field.disabledWhen.key] ?? '')
+  const values = Array.isArray(field.disabledWhen.value)
+    ? field.disabledWhen.value.map(String)
+    : [String(field.disabledWhen.value)]
+  return values.includes(current)
+}
+
+function isFieldDisabled(field: FieldConfig) {
+  return Boolean(
+    field.readonly
+      || isDisabledByRule(field)
+      || (field.scriptScopeKey && (!scriptScopeDependency.value || scriptScopeLoading.value)),
+  )
+}
+
+function fieldOptions(field: FieldConfig) {
+  if (!field.scriptScopeKey) return field.options || []
+
+  const rawValues = scriptScope.value?.[field.scriptScopeKey]
+  const values = Array.isArray(rawValues)
+    ? rawValues.map((value) => String(value)).filter(Boolean)
+    : []
+  const configured = new Map((field.options || []).map((option) => [String(option.value), option]))
+  return values.map((value) => configured.get(value) || { label: value, value })
+}
+
+function applyScriptScopeDefaults(scope: AnyRecord | null) {
+  if (!scope) return
+
+  const updates: AnyRecord = {}
+  for (const field of props.fields) {
+    if (!field.scriptScopeKey) continue
+
+    const rawScopeValues = scope[field.scriptScopeKey]
+    const values = Array.isArray(rawScopeValues)
+      ? rawScopeValues.map((value) => String(value)).filter(Boolean)
+      : []
+    if (!values.length) continue
+
+    if (field.multiple) {
+      const rawCurrent = props.modelValue[field.key]
+      const current = Array.isArray(rawCurrent)
+        ? rawCurrent.map((value) => String(value))
+        : []
+      const retained = current.filter((value) => values.includes(value))
+      const next = retained.length ? retained : [values[0]]
+      if (next.join('|') !== current.join('|')) updates[field.key] = next
+    } else {
+      const current = String(props.modelValue[field.key] || '')
+      if (!values.includes(current)) updates[field.key] = values[0]
+    }
+  }
+
+  if (Object.keys(updates).length) {
+    emit('update:modelValue', { ...props.modelValue, ...updates })
+  }
+}
+
+async function loadScriptScope(scriptKey: string) {
+  if (!hasScriptScopeFields.value) return
+  if (!scriptKey) {
+    scriptScope.value = null
+    return
+  }
+
+  scriptScopeLoading.value = true
+  try {
+    const detail = await http.get<AnyRecord>(`/api/scripts/by-key/${encodeURIComponent(scriptKey)}`)
+    scriptScope.value = detail
+    applyScriptScopeDefaults(detail)
+  } catch {
+    scriptScope.value = null
+    ElMessage.error('加载脚本支持范围失败')
+  } finally {
+    scriptScopeLoading.value = false
   }
 }
 
@@ -106,6 +190,16 @@ function fieldColumnSpan(field: FieldConfig) {
   if (field.span === 2 || ['datetimeRange', 'scriptParams'].includes(field.type || '')) return 24
   return 12
 }
+
+watch(scriptScopeDependency, (scriptKey) => {
+  void loadScriptScope(scriptKey)
+}, { immediate: true })
+
+watch(() => props.modelValue.execution_mode, (mode) => {
+  if (mode === 'immediate' && Array.isArray(props.modelValue.execution_window) && props.modelValue.execution_window.length) {
+    updateValue('execution_window', [])
+  }
+}, { immediate: true })
 </script>
 
 <template>
@@ -135,7 +229,7 @@ function fieldColumnSpan(field: FieldConfig) {
           <SlotTreeSelect
             v-else-if="field.type === 'slotTree'"
             :model-value="modelValue[field.key]"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             :filters="{
               business_platform: modelValue.business_platform,
               runtime_platform: modelValue.runtime_platform,
@@ -149,7 +243,7 @@ function fieldColumnSpan(field: FieldConfig) {
             :model-value="modelValue[field.key]"
             :config="field.remote"
             :context="context"
-            :disabled="field.readonly || templateLoading"
+            :disabled="isFieldDisabled(field) || templateLoading"
             :placeholder="field.placeholder"
             @update:model-value="updateTemplateValue(field, $event)"
           />
@@ -159,7 +253,7 @@ function fieldColumnSpan(field: FieldConfig) {
             :model-value="modelValue[field.key]"
             :config="field.remote"
             :context="context"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             :placeholder="field.placeholder"
             @update:model-value="updateValue(field.key, $event)"
           />
@@ -170,7 +264,7 @@ function fieldColumnSpan(field: FieldConfig) {
             type="textarea"
             :rows="field.type === 'json' ? 8 : 4"
             :placeholder="field.placeholder"
-            :readonly="field.readonly"
+            :readonly="isFieldDisabled(field)"
             :class="field.type === 'json' ? 'font-mono text-xs' : ''"
             resize="vertical"
             @update:model-value="updateValue(field.key, $event)"
@@ -182,6 +276,7 @@ function fieldColumnSpan(field: FieldConfig) {
                 :auto-upload="false"
                 :show-file-list="false"
                 accept=".txt,text/plain"
+                :disabled="isFieldDisabled(field)"
                 :on-change="(file) => readTextFile(field, file)"
               >
                 <el-button>选择 .txt 文件</el-button>
@@ -195,7 +290,7 @@ function fieldColumnSpan(field: FieldConfig) {
               type="textarea"
               :rows="10"
               :placeholder="field.placeholder"
-              :readonly="field.readonly"
+              :readonly="isFieldDisabled(field)"
               resize="vertical"
               @update:model-value="updateValue(field.key, $event)"
             />
@@ -204,7 +299,7 @@ function fieldColumnSpan(field: FieldConfig) {
           <el-select
             v-else-if="field.type === 'select'"
             :model-value="selectValue(field)"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             :multiple="Boolean(field.multiple)"
             clearable
             collapse-tags
@@ -215,7 +310,7 @@ function fieldColumnSpan(field: FieldConfig) {
             @update:model-value="updateSelectValue(field, $event)"
           >
             <el-option
-              v-for="option in field.options || []"
+              v-for="option in fieldOptions(field)"
               :key="String(option.value)"
               :label="option.label"
               :value="String(option.value)"
@@ -225,7 +320,7 @@ function fieldColumnSpan(field: FieldConfig) {
           <el-switch
             v-else-if="field.type === 'boolean'"
             :model-value="Boolean(modelValue[field.key])"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             active-text="是"
             inactive-text="否"
             @update:model-value="updateValue(field.key, $event)"
@@ -234,7 +329,7 @@ function fieldColumnSpan(field: FieldConfig) {
           <el-input-number
             v-else-if="field.type === 'number'"
             :model-value="Number(modelValue[field.key] || 0)"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             class="w-full"
             controls-position="right"
             @update:model-value="updateValue(field.key, $event)"
@@ -243,7 +338,7 @@ function fieldColumnSpan(field: FieldConfig) {
           <el-date-picker
             v-else-if="field.type === 'datetime'"
             :model-value="String(modelValue[field.key] ?? '')"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             class="w-full"
             type="datetime"
             format="YYYY-MM-DD HH:mm:ss"
@@ -256,7 +351,7 @@ function fieldColumnSpan(field: FieldConfig) {
           <el-date-picker
             v-else-if="field.type === 'datetimeRange'"
             :model-value="timeRangeValue(modelValue[field.key])"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             class="w-full"
             type="datetimerange"
             format="YYYY-MM-DD HH:mm:ss"
@@ -271,7 +366,7 @@ function fieldColumnSpan(field: FieldConfig) {
           <el-time-picker
             v-else-if="field.type === 'timeRange'"
             :model-value="timeRangeValue(modelValue[field.key])"
-            :disabled="field.readonly"
+            :disabled="isFieldDisabled(field)"
             class="w-full"
             is-range
             format="HH:mm"
@@ -288,7 +383,7 @@ function fieldColumnSpan(field: FieldConfig) {
             :model-value="String(modelValue[field.key] ?? '')"
             type="text"
             :placeholder="field.placeholder"
-            :readonly="field.readonly"
+            :readonly="isFieldDisabled(field)"
             clearable
             @update:model-value="updateValue(field.key, $event)"
           />

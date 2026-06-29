@@ -213,9 +213,14 @@ function normalizeDateTimeRange(value: unknown) {
 
 function buildTaskTemplateBody(payload: AnyRecord, record?: AnyRecord) {
   const body = pickPayload(payload, taskTemplatePayloadKeys);
-  const windowValue = normalizeDateTimeRange(payload.execution_window);
-  body.execution_window_start = windowValue[0] || null;
-  body.execution_window_end = windowValue[1] || null;
+  if (body.execution_mode === "immediate") {
+    body.execution_window_start = null;
+    body.execution_window_end = null;
+  } else {
+    const windowValue = normalizeDateTimeRange(payload.execution_window);
+    body.execution_window_start = windowValue[0] || null;
+    body.execution_window_end = windowValue[1] || null;
+  }
   body.execution_timezone = String(
     record?.execution_timezone || payload.execution_timezone || "Asia/Shanghai",
   );
@@ -924,6 +929,8 @@ export const resources: Record<string, ResourceConfig> = {
     title: "任务模板",
     endpoint: "/api/task-templates",
     createLabel: "新增模板",
+    inlineActionKeys: ["clone"],
+    directDelete: true,
     createBody: (payload) => buildTaskTemplateBody(payload),
     loadEditRecord: async (record) => ({
       ...record,
@@ -980,6 +987,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "业务平台",
         type: "select",
         options: businessPlatformOptions,
+        scriptScopeKey: "supported_business_platforms",
         defaultValue: "threads",
       },
       {
@@ -987,6 +995,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "执行平台",
         type: "select",
         options: runtimePlatformOptions,
+        scriptScopeKey: "supported_runtime_platforms",
         defaultValue: "fingerprint_browser",
       },
       {
@@ -994,6 +1003,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "供应商",
         type: "select",
         options: providerOptions,
+        scriptScopeKey: "supported_providers",
         defaultValue: "adspower",
       },
       {
@@ -1023,6 +1033,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "datetimeRange",
         defaultValue: [],
         span: 2,
+        disabledWhen: { key: "execution_mode", value: "immediate" },
         placeholder: "请选择允许执行的开始和结束日期时间",
       },
       {
@@ -1092,18 +1103,21 @@ export const resources: Record<string, ResourceConfig> = {
         label: "业务平台",
         type: "select",
         options: businessPlatformOptions,
+        scriptScopeKey: "supported_business_platforms",
       },
       {
         key: "runtime_platform",
         label: "执行平台",
         type: "select",
         options: runtimePlatformOptions,
+        scriptScopeKey: "supported_runtime_platforms",
       },
       {
         key: "provider",
         label: "供应商",
         type: "select",
         options: providerOptions,
+        scriptScopeKey: "supported_providers",
       },
       {
         key: "account_scope_type",
@@ -1129,6 +1143,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "datetimeRange",
         defaultValue: [],
         span: 2,
+        disabledWhen: { key: "execution_mode", value: "immediate" },
         placeholder: "请选择允许执行的开始和结束日期时间",
       },
       {
