@@ -55,7 +55,6 @@ function slotLabel(slot: AnyRecord) {
   return String(
     slot.display_name ||
       slot.provider_slot_no ||
-      slot.slot_key ||
       slot.provider_slot_id ||
       slot.id,
   )
