@@ -105,6 +105,7 @@ const taskDispatchConfigFields = computed(() => modalFields.value.filter((field)
 const showModalSaveButton = computed(
   () => !(modal.type === 'edit' && props.config.slotGroupMembers && slotGroupEditTab.value === 'members'),
 )
+const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : '保存'))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 function isInlineStatusAction(action: RowActionConfig) {
   return ['enable', 'disable'].includes(action.key) && !action.fields?.length
@@ -860,7 +861,7 @@ onMounted(() => {
           :loading="submitting"
           @click="modal.type === 'batch' ? submitBatchAction() : modal.type === 'action' ? submitAction() : submitEntity()"
         >
-          保存
+          {{ modalSubmitLabel }}
         </el-button>
       </template>
     </el-dialog>
@@ -1009,8 +1010,7 @@ onMounted(() => {
   background: #fbfdff;
 }
 
-.task-dispatch-layout__devices :deep(.el-col),
-.task-dispatch-layout__params :deep(.el-col) {
+.task-dispatch-layout__devices :deep(.el-col) {
   max-width: 100%;
   flex: 0 0 100%;
 }

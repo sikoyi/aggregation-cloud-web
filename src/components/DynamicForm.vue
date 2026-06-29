@@ -187,7 +187,7 @@ function updateSelectValue(field: FieldConfig, value: string | string[]) {
 const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
 
 function fieldColumnSpan(field: FieldConfig) {
-  if (field.span === 2 || ['datetimeRange', 'scriptParams'].includes(field.type || '')) return 24
+  if (field.span === 2 || ['datetimeRange', 'scriptParams', 'templateParams', 'slotTree', 'textImport'].includes(field.type || '')) return 24
   return 12
 }
 
