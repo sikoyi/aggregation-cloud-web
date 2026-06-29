@@ -1369,6 +1369,9 @@ export const resources: Record<string, ResourceConfig> = {
       },
     ],
     updateFields: [],
+    deleteLabel: "删除记录",
+    deleteConfirm:
+      "确认删除这条任务记录？删除后会同步删除它的设备执行子记录、分配记录和事件日志，此操作不可恢复，请谨慎操作。",
     inlineActionKeys: ["detail", "retry"],
     rowActions: [
       {
@@ -1395,22 +1398,6 @@ export const resources: Record<string, ResourceConfig> = {
         icon: "rotate",
         path: (record) => `/api/tasks/${record.id}/retry`,
         confirm: "确认基于该任务的失败、过期、断连或取消记录创建重试任务吗？",
-      },
-      {
-        key: "assignments",
-        label: "分配记录",
-        method: "GET",
-        icon: "list",
-        path: (record) => `/api/tasks/${record.id}/assignments`,
-        refresh: false,
-      },
-      {
-        key: "events",
-        label: "事件日志",
-        method: "GET",
-        icon: "list",
-        path: (record) => `/api/tasks/${record.id}/events`,
-        refresh: false,
       },
     ],
   },

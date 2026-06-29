@@ -125,15 +125,18 @@ const dropdownRowActions = computed(() => rowActionsForMenu.value.filter((action
 const canEditRow = computed(() => !props.config.readOnly && Boolean(props.config.updateFields?.length))
 const canDeleteRow = computed(() => !props.config.readOnly && Boolean(props.config.deleteLabel))
 const showDirectDelete = computed(() => canDeleteRow.value && (props.config.directDelete || !dropdownRowActions.value.length))
+const showDropdownDelete = computed(() => canDeleteRow.value && !showDirectDelete.value)
 const showOperationColumn = computed(
-  () => canEditRow.value || Boolean(inlineRowActions.value.length || dropdownRowActions.value.length || showDirectDelete.value),
+  () =>
+    canEditRow.value
+    || Boolean(inlineRowActions.value.length || dropdownRowActions.value.length || showDirectDelete.value || showDropdownDelete.value),
 )
 const operationColumnWidth = computed(() => {
   const actionCount =
     (canEditRow.value ? 1 : 0) +
     inlineRowActions.value.length +
     (showDirectDelete.value ? 1 : 0) +
-    (dropdownRowActions.value.length ? 1 : 0)
+    (dropdownRowActions.value.length || showDropdownDelete.value ? 1 : 0)
   return Math.max(104, Math.min(220, 52 + actionCount * 36))
 })
 const batchActions = computed<RowActionConfig[]>(() => {
@@ -744,7 +747,7 @@ onMounted(() => {
                 <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="deleteRow(row)" />
               </el-tooltip>
               <el-dropdown
-                v-if="dropdownRowActions.length"
+                v-if="dropdownRowActions.length || showDropdownDelete"
                 trigger="click"
                 :disabled="submitting"
                 @command="(command) => handleDropdown(String(command), row)"
@@ -762,7 +765,7 @@ onMounted(() => {
                       {{ action.label }}
                     </el-dropdown-item>
                     <el-dropdown-item
-                      v-if="!showDirectDelete && !config.readOnly && config.deleteLabel"
+                      v-if="showDropdownDelete"
                       command="__delete"
                       class="text-red-600"
                     >
@@ -991,7 +994,7 @@ onMounted(() => {
 
 .task-dispatch-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(520px, 1.25fr);
+  grid-template-columns: minmax(300px, 380px) minmax(620px, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -1010,6 +1013,11 @@ onMounted(() => {
 .task-dispatch-layout__params :deep(.el-col) {
   max-width: 100%;
   flex: 0 0 100%;
+}
+
+.task-dispatch-layout__devices :deep(.slot-tree-select) {
+  min-height: 480px;
+  max-height: 58vh;
 }
 
 .slot-group-edit-tabs :deep(.el-tabs__header) {
