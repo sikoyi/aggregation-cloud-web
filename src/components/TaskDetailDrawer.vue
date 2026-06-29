@@ -24,6 +24,7 @@ const task = ref<AnyRecord | null>(null)
 const events = ref<AnyRecord[]>([])
 const assignments = ref<AnyRecord[]>([])
 const children = ref<AnyRecord[]>([])
+const paramRows = ref<Array<{ key: string; label: string; value: string }>>([])
 const activeTab = ref('basic')
 const currentTaskId = ref<string | null>(null)
 const taskHistory = ref<string[]>([])
@@ -48,7 +49,6 @@ const resultDescription = computed(() => {
   return ''
 })
 
-const paramRows = computed(() => objectRows(task.value?.params, PARAM_LABELS, HIDDEN_PARAM_KEYS))
 const isChildTask = computed(() => Boolean(task.value?.parent_task_run_id))
 
 const detailTitle = computed(() => {
@@ -78,15 +78,82 @@ const HIDDEN_PARAM_KEYS = new Set([
   'slot_id',
 ])
 
-function objectRows(value: unknown, labels: Record<string, string>, hiddenKeys = new Set<string>()) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return []
-  return Object.entries(value as AnyRecord)
-    .filter(([key, item]) => !hiddenKeys.has(key) && item !== undefined && item !== null && item !== '')
-    .map(([key, item]) => ({
-      key,
-      label: labels[key] || key,
-      value: formatValue(item),
-    }))
+interface ScriptParamDefinition {
+  param_key: string
+  name: string
+  param_type: string
+}
+
+async function buildParamRows(currentTask: AnyRecord) {
+  const params = currentTask.params
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return []
+
+  const definitions = await loadParamDefinitions(String(currentTask.script_key || ''))
+  const definitionMap = new Map(definitions.map((item) => [item.param_key, item]))
+  const rows = await Promise.all(
+    Object.entries(params as AnyRecord)
+      .filter(([key, item]) => !HIDDEN_PARAM_KEYS.has(key) && item !== undefined && item !== null && item !== '')
+      .map(async ([key, item]) => {
+        const definition = definitionMap.get(key)
+        return {
+          key,
+          label: definition?.name || PARAM_LABELS[key] || key,
+          value: await formatParamValue(item, definition),
+        }
+      }),
+  )
+  return rows
+}
+
+async function loadParamDefinitions(scriptKey: string): Promise<ScriptParamDefinition[]> {
+  if (!scriptKey) return []
+  try {
+    const script = await http.get<AnyRecord>(`/api/scripts/by-key/${encodeURIComponent(scriptKey)}`)
+    return await http.get<ScriptParamDefinition[]>(`/api/scripts/${encodeURIComponent(String(script.id))}/params`)
+  } catch {
+    return []
+  }
+}
+
+async function formatParamValue(value: unknown, definition?: ScriptParamDefinition) {
+  const type = definition?.param_type || ''
+  if (['proxy', 'res', 'account', 'account_group', 'execution_slot'].includes(type)) {
+    return formatResourceParamValue(value, type)
+  }
+  return formatValue(value)
+}
+
+async function formatResourceParamValue(value: unknown, type: string) {
+  // 资源类参数在任务里保存 ID，详情页回显时转换成运营更容易识别的名称。
+  const ids = Array.isArray(value) ? value.map(String).filter(Boolean) : value ? [String(value)] : []
+  if (!ids.length) return '-'
+  const labels = await Promise.all(ids.map((id) => loadResourceLabel(id, type)))
+  return labels.join('、')
+}
+
+async function loadResourceLabel(id: string, type: string) {
+  try {
+    const resource = await http.get<AnyRecord>(resourceDetailPath(id, type))
+    return `${resourceDisplayName(resource, type)}（${truncateId(id)}）`
+  } catch {
+    return truncateId(id)
+  }
+}
+
+function resourceDetailPath(id: string, type: string) {
+  if (type === 'account') return `/api/accounts/${encodeURIComponent(id)}`
+  if (type === 'account_group') return `/api/account-groups/${encodeURIComponent(id)}`
+  if (type === 'execution_slot') return `/api/execution-slots/${encodeURIComponent(id)}`
+  return `/api/resource-center/proxies/${encodeURIComponent(id)}`
+}
+
+function resourceDisplayName(resource: AnyRecord, type: string) {
+  if (type === 'account') {
+    return text(resource.login_username || resource.username || resource.display_name || resource.platform_account_id)
+  }
+  if (type === 'account_group') return text(resource.name)
+  if (type === 'execution_slot') return text(resource.display_name || resource.provider_slot_id || resource.provider_slot_no)
+  return text(resource.name || resource.source_proxy_url || resource.host)
 }
 
 function formatValue(value: unknown): string {
@@ -141,6 +208,7 @@ function timelineTitle(event: AnyRecord) {
 async function loadDetail(taskId: string) {
   loading.value = true
   error.value = ''
+  paramRows.value = []
   try {
     const [detail, eventData, assignmentData, childData] = await Promise.all([
       http.get<AnyRecord>(`/api/tasks/${encodeURIComponent(taskId)}`),
@@ -152,6 +220,7 @@ async function loadDetail(taskId: string) {
     events.value = eventData.items || []
     assignments.value = assignmentData.items || []
     children.value = childData.items || []
+    paramRows.value = await buildParamRows(detail)
   } catch (err) {
     error.value = notifyError(err, '加载失败', '加载任务详情失败')
   } finally {
