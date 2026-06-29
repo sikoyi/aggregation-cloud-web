@@ -25,6 +25,7 @@ import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
+import SlotGroupMemberEditor from '@/components/SlotGroupMemberEditor.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
@@ -93,7 +94,7 @@ const modalTitle = computed(() => {
   return modal.action?.label || '执行操作'
 })
 const modalWidth = computed(() => {
-  if (modal.type === 'edit' && props.config.accountGroupMembers) return '1180px'
+  if (modal.type === 'edit' && (props.config.accountGroupMembers || props.config.slotGroupMembers)) return '1180px'
   return '760px'
 })
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
@@ -796,7 +797,7 @@ onMounted(() => {
       @close="closeModal"
     >
       <div
-        v-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"
+        v-if="modal.type === 'edit' && (config.accountGroupMembers || config.slotGroupMembers) && modal.record"
         class="account-group-edit-layout"
       >
         <div class="account-group-edit-layout__base">
@@ -804,6 +805,13 @@ onMounted(() => {
           <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
         </div>
         <AccountGroupMemberEditor
+          v-if="config.accountGroupMembers"
+          class="account-group-edit-layout__members"
+          :group="modal.record"
+          @changed="loadRows"
+        />
+        <SlotGroupMemberEditor
+          v-else
           class="account-group-edit-layout__members"
           :group="modal.record"
           @changed="loadRows"

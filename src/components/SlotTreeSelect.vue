@@ -45,7 +45,6 @@ function queryParams(extra: AnyRecord = {}) {
     provider: filters.provider || undefined,
     business_platform: filters.business_platform || undefined,
     runtime_platform: filters.runtime_platform || undefined,
-    status: 'enabled',
     page: 1,
     page_size: 100,
     ...extra,

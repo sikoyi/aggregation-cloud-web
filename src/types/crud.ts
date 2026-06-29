@@ -122,6 +122,7 @@ export interface ResourceConfig {
   deleteLabel?: string
   deleteConfirm?: string
   accountGroupMembers?: boolean
+  slotGroupMembers?: boolean
 }
 
 export type IconMap = Record<string, Component>
