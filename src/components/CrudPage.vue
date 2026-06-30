@@ -71,6 +71,11 @@ const resultValue = ref<unknown>(null)
 const resultColumns = ref<ColumnConfig[]>([])
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
+const assetViewerVisible = ref(false)
+const assetViewerTitle = ref('')
+const assetViewerUrl = ref('')
+const assetViewerKind = ref<'image' | 'video'>('image')
+const assetViewerFilename = ref('')
 const tableRef = ref()
 const slotGroupEditTab = ref('base')
 
@@ -245,6 +250,21 @@ function assetTypeLabel(record: AnyRecord, column: ColumnConfig) {
   const value = String(record.asset_type || '')
   const option = column.options?.find((item) => String(item.value) === value)
   return option?.label || value || '文件'
+}
+
+function openAssetViewer(record: AnyRecord) {
+  const kind = assetInlinePreviewKind(record)
+  const url = getAssetUrl(record, 'source_url')
+  if ((kind !== 'image' && kind !== 'video') || !url) return
+  assetViewerKind.value = kind
+  assetViewerUrl.value = url
+  assetViewerTitle.value = String(record.name || '素材预览')
+  assetViewerFilename.value = getAssetFilename(record, 'name')
+  assetViewerVisible.value = true
+}
+
+async function downloadViewerAsset() {
+  await downloadUrl(assetViewerUrl.value, assetViewerFilename.value || assetViewerTitle.value || 'asset')
 }
 
 async function downloadUrl(url: string, filename: string) {
@@ -820,21 +840,37 @@ onMounted(() => {
             />
             <template v-else-if="column.type === 'assetPreview'">
               <div class="asset-inline-preview">
-                <img
+                <button
                   v-if="assetInlinePreviewKind(row) === 'image' && getAssetUrl(row, 'source_url')"
-                  class="asset-inline-preview__media"
-                  :src="getAssetUrl(row, 'source_url')"
-                  :alt="String(row.name || '素材图片')"
+                  type="button"
+                  class="asset-inline-preview__button"
+                  :aria-label="`查看图片：${String(row.name || '素材图片')}`"
+                  @click="openAssetViewer(row)"
                 >
-                <video
+                  <img
+                    class="asset-inline-preview__media"
+                    :src="getAssetUrl(row, 'source_url')"
+                    :alt="String(row.name || '素材图片')"
+                  >
+                </button>
+                <button
                   v-else-if="assetInlinePreviewKind(row) === 'video' && getAssetUrl(row, 'source_url')"
-                  class="asset-inline-preview__media"
-                  :src="getAssetUrl(row, 'source_url')"
-                  controls
-                  muted
-                  playsinline
-                  preload="metadata"
-                />
+                  type="button"
+                  class="asset-inline-preview__button"
+                  :aria-label="`播放视频：${String(row.name || '素材视频')}`"
+                  @click="openAssetViewer(row)"
+                >
+                  <video
+                    class="asset-inline-preview__media"
+                    :src="getAssetUrl(row, 'source_url')"
+                    muted
+                    playsinline
+                    preload="metadata"
+                  />
+                  <span class="asset-inline-preview__play">
+                    <Play class="h-4 w-4" />
+                  </span>
+                </button>
                 <el-tag v-else effect="plain">{{ assetTypeLabel(row, column) }}</el-tag>
               </div>
             </template>
@@ -1003,6 +1039,35 @@ onMounted(() => {
       :value="resultValue"
       :columns="resultColumns"
     />
+
+    <el-dialog
+      v-model="assetViewerVisible"
+      :title="assetViewerTitle || '素材预览'"
+      width="min(92vw, 1080px)"
+      destroy-on-close
+      append-to-body
+    >
+      <div class="asset-viewer">
+        <img
+          v-if="assetViewerKind === 'image'"
+          class="asset-viewer__image"
+          :src="assetViewerUrl"
+          :alt="assetViewerTitle"
+        >
+        <video
+          v-else
+          class="asset-viewer__video"
+          :src="assetViewerUrl"
+          controls
+          playsinline
+          preload="metadata"
+        />
+      </div>
+      <template #footer>
+        <el-button :icon="Download" @click="downloadViewerAsset">下载</el-button>
+        <el-button type="primary" @click="assetViewerVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
   </section>
@@ -1181,6 +1246,17 @@ onMounted(() => {
   min-height: 84px;
 }
 
+.asset-inline-preview__button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .asset-inline-preview__media {
   width: 144px;
   height: 80px;
@@ -1188,6 +1264,53 @@ onMounted(() => {
   border-radius: 8px;
   background: #0f172a;
   object-fit: cover;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.asset-inline-preview__button:hover .asset-inline-preview__media {
+  border-color: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+  transform: translateY(-1px);
+}
+
+.asset-inline-preview__play {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.72);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.25);
+}
+
+.asset-viewer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  max-height: 72vh;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #0f172a;
+}
+
+.asset-viewer__image,
+.asset-viewer__video {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+}
+
+.asset-viewer__image {
+  object-fit: contain;
+}
+
+.asset-viewer__video {
+  width: 100%;
+  background: #000000;
 }
 
 @media (max-width: 768px) {
