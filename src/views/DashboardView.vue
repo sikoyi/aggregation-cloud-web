@@ -48,7 +48,7 @@ const cards = computed(() => {
   return [
     { label: '今日下发', value: data?.today_task_total || 0, icon: PlaySquare, tone: 'blue' },
     { label: '运行中', value: data?.running_task_total || 0, icon: Clock3, tone: 'indigo' },
-    { label: '成功', value: data?.succeeded_task_total || 0, icon: CheckCircle2, tone: 'green' },
+    { label: '完成', value: data?.succeeded_task_total || 0, icon: CheckCircle2, tone: 'green' },
     { label: '失败', value: data?.failed_task_total || 0, icon: XCircle, tone: 'red' },
     { label: '取消', value: data?.canceled_task_total || 0, icon: AlertTriangle, tone: 'amber' },
     { label: '在线 Runtime', value: data?.online_runtime_total || 0, icon: Server, tone: 'cyan' },

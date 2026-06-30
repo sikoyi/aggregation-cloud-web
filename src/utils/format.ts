@@ -8,6 +8,8 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: '已取消',
   challenge: '验证挑战',
   connecting: '连接中',
+  all_failed: '全部失败',
+  completed: '已完成',
   disabled: '已禁用',
   dispatching: '下发中',
   draft: '草稿',
@@ -23,6 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
   offline: '离线',
   online: '在线',
   pending: '待处理',
+  partial_completed: '部分完成',
   queued: '排队中',
   rate_limited: '限流中',
   ready: '可使用',
@@ -39,10 +42,10 @@ const STATUS_LABELS: Record<string, string> = {
   waiting_slot: '等待设备',
 }
 
-const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'logged_in', 'active', 'ready']
+const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'ready']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting']
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown']
-const DANGER_STATUSES = ['failed', 'error', 'expired', 'lost', 'restricted']
+const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted']
 
 export function getCellValue(row: AnyRecord, key: string) {
   if (!key.includes('.')) return row[key]
