@@ -231,6 +231,18 @@ function actionIcon(action: RowActionConfig) {
   return action.icon ? iconMap[action.icon] || MoreHorizontal : MoreHorizontal
 }
 
+function isRowActionVisible(action: RowActionConfig, record: AnyRecord) {
+  return action.visibleWhen ? action.visibleWhen(record) : true
+}
+
+function visibleInlineRowActions(record: AnyRecord) {
+  return inlineRowActions.value.filter((action) => isRowActionVisible(action, record))
+}
+
+function visibleDropdownRowActions(record: AnyRecord) {
+  return dropdownRowActions.value.filter((action) => isRowActionVisible(action, record))
+}
+
 function getAssetRawUrl(record: AnyRecord, key?: string) {
   const value = key ? getCellValue(record, key) : record.source_url || record.public_url || record.url || record.storage_uri
   const url = String(value || '').trim()
@@ -251,7 +263,20 @@ function assetColumnUrl(row: AnyRecord, column: ColumnConfig) {
   return getAssetUrl(row, column.key)
 }
 
+function isPreviewableAsset(record: AnyRecord) {
+  const type = String(record.asset_type || '').toLowerCase()
+  const mime = String(record.mime_type || '').toLowerCase()
+  return type === 'image' || type === 'video' || mime.startsWith('image/') || mime.startsWith('video/')
+}
+
 function openAssetPreview(action: RowActionConfig, record: AnyRecord) {
+  if (!isPreviewableAsset(record)) {
+    ElNotification.warning({
+      title: '无法预览',
+      message: '当前素材类型不支持预览',
+    })
+    return
+  }
   const url = getAssetUrl(record, action.urlKey)
   if (!url) {
     ElNotification.warning({
@@ -882,7 +907,7 @@ onMounted(() => {
               <el-tooltip v-if="canEditRow" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" :disabled="submitting" @click="openEdit(row)" />
               </el-tooltip>
-              <el-tooltip v-for="action in inlineRowActions" :key="action.key" :content="action.label" placement="top">
+              <el-tooltip v-for="action in visibleInlineRowActions(row)" :key="action.key" :content="action.label" placement="top">
                 <el-button
                   text
                   circle
@@ -899,8 +924,8 @@ onMounted(() => {
               >
                 <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="deleteRow(row)" />
               </el-tooltip>
+              <template v-if="visibleDropdownRowActions(row).length || showDropdownDelete">
               <el-dropdown
-                v-if="dropdownRowActions.length || showDropdownDelete"
                 trigger="click"
                 :disabled="submitting"
                 @command="(command) => handleDropdown(String(command), row)"
@@ -909,7 +934,7 @@ onMounted(() => {
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
-                      v-for="action in dropdownRowActions"
+                      v-for="action in visibleDropdownRowActions(row)"
                       :key="action.key"
                       :command="action.key"
                       :class="action.variant === 'danger' ? 'text-red-600' : ''"
@@ -928,6 +953,7 @@ onMounted(() => {
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
+              </template>
             </el-space>
           </template>
         </el-table-column>
@@ -1046,7 +1072,6 @@ onMounted(() => {
           controls
           preload="metadata"
         />
-        <el-empty v-else description="该素材暂不支持在线预览" :image-size="80" />
         <div class="asset-preview__footer">
           <el-link type="primary" :href="assetPreviewUrl" target="_blank" :underline="false">
             {{ assetPreviewUrl }}

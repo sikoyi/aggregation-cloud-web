@@ -306,6 +306,12 @@ function buildMediaUploadBody(payload: AnyRecord) {
   return formData;
 }
 
+function isPreviewableMediaAsset(record: AnyRecord) {
+  const type = String(record.asset_type || "").toLowerCase();
+  const mime = String(record.mime_type || "").toLowerCase();
+  return type === "image" || type === "video" || mime.startsWith("image/") || mime.startsWith("video/");
+}
+
 async function loadAccountForEdit(record: AnyRecord) {
   const account = await http.get<AnyRecord>(`/api/accounts/${record.id}`);
   return { ...record, ...account, account_group_id: account.group_id || "" };
@@ -1093,6 +1099,7 @@ export const resources: Record<string, ResourceConfig> = {
         clientAction: "preview",
         urlKey: "source_url",
         filenameKey: "name",
+        visibleWhen: isPreviewableMediaAsset,
         refresh: false,
       },
       {

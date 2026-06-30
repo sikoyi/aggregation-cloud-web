@@ -103,6 +103,7 @@ export interface RowActionConfig {
   clientAction?: 'preview' | 'download'
   urlKey?: string
   filenameKey?: string
+  visibleWhen?: (record: AnyRecord) => boolean
 }
 
 export interface ResourceConfig {
