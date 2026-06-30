@@ -39,15 +39,17 @@ const STATUS_LABELS: Record<string, string> = {
   stopping: '停止中',
   succeeded: '成功',
   twofa_required: '需要 2FA',
+  unused: '未使用',
+  used: '已使用',
   unbound: '已解绑',
   unknown: '未知',
   waiting_runtime: '等待 Runtime',
   waiting_slot: '等待设备',
 }
 
-const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'ready']
+const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'ready', 'used']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'login_pending']
-const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in']
+const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused']
 const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'risk']
 
 export function getCellValue(row: AnyRecord, key: string) {

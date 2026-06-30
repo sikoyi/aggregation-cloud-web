@@ -25,6 +25,7 @@ import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
+import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
 import SlotGroupMemberEditor from '@/components/SlotGroupMemberEditor.vue'
@@ -106,21 +107,45 @@ const modalTitle = computed(() => {
 const isTaskDispatchModal = computed(() => props.config.key === 'tasks' && modal.type === 'create')
 const modalWidth = computed(() => {
   if (isTaskDispatchModal.value) return '1120px'
-  if (modal.type === 'edit' && (props.config.accountGroupMembers || props.config.slotGroupMembers)) return '1180px'
+  if (modal.type === 'edit' && (props.config.accountGroupMembers || props.config.slotGroupMembers || props.config.proxyGroupMembers)) return '1180px'
   return '760px'
 })
 const taskDispatchDeviceFields = computed(() => modalFields.value.filter((field) => field.type === 'slotTree'))
 const taskDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'slotTree'))
 const showModalSaveButton = computed(
-  () => !(modal.type === 'edit' && props.config.slotGroupMembers && slotGroupEditTab.value === 'members'),
+  () => !(modal.type === 'edit' && (props.config.slotGroupMembers || props.config.proxyGroupMembers) && slotGroupEditTab.value === 'members'),
 )
+const groupMembersTabLabel = computed(() => (props.config.proxyGroupMembers ? '组内代理' : '组内设备'))
 const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : '保存'))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
+const statusSwitchActionKeys = computed(() => {
+  const keys = new Set(['enable', 'disable'])
+  props.config.columns
+    .map((column) => column.statusSwitch)
+    .filter(Boolean)
+    .forEach((config) => {
+      keys.add(config!.activeActionKey)
+      keys.add(config!.inactiveActionKey)
+    })
+  return keys
+})
+
 function isInlineStatusAction(action: RowActionConfig) {
-  return ['enable', 'disable'].includes(action.key) && !action.fields?.length
+  return statusSwitchActionKeys.value.has(action.key) && !action.fields?.length
 }
 
-function findInlineStatusAction(key: 'enable' | 'disable') {
+function defaultStatusSwitchConfig(column?: ColumnConfig) {
+  return column?.statusSwitch || {
+    activeValue: 'enabled',
+    inactiveValue: 'disabled',
+    activeText: '启用',
+    inactiveText: '禁用',
+    activeActionKey: 'enable',
+    inactiveActionKey: 'disable',
+  }
+}
+
+function findInlineStatusAction(key: string) {
   return [...(props.config.rowActions || []), ...(props.config.batchActions || [])].find(
     (action) => action.key === key && !action.fields?.length,
   )
@@ -303,8 +328,11 @@ async function downloadAsset(action: RowActionConfig, record: AnyRecord) {
   await downloadUrl(url, getAssetFilename(record, action.filenameKey))
 }
 
-function isEnabledStatus(value: unknown) {
+function isEnabledStatus(value: unknown, column?: ColumnConfig) {
+  const config = defaultStatusSwitchConfig(column)
   const status = String(value || '')
+  if (status === config.activeValue) return true
+  if (status === config.inactiveValue) return false
   return status !== '' && status !== 'disabled'
 }
 
@@ -313,17 +341,18 @@ function isSwitchableStatusColumn(column: ColumnConfig) {
 }
 
 function shouldShowStatusBadgeWithSwitch(value: unknown) {
-  return !['', 'enabled', 'disabled'].includes(String(value || ''))
+  return !['', 'enabled', 'disabled', 'used', 'unused'].includes(String(value || ''))
 }
 
-async function toggleEnabledStatus(row: AnyRecord, nextValue: boolean) {
-  const key = nextValue ? 'enable' : 'disable'
+async function toggleEnabledStatus(row: AnyRecord, column: ColumnConfig, nextValue: boolean) {
+  const config = defaultStatusSwitchConfig(column)
+  const key = nextValue ? config.activeActionKey : config.inactiveActionKey
   const configuredAction = findInlineStatusAction(key)
   const action: RowActionConfig = configuredAction
     ? { ...configuredAction, confirm: undefined, refresh: true }
     : {
         key,
-        label: nextValue ? '启用' : '禁用',
+        label: nextValue ? config.activeText : config.inactiveText,
         method: 'POST',
         path: () => `${props.config.endpoint}/${rowId(row)}/${key}`,
         refresh: true,
@@ -822,12 +851,12 @@ onMounted(() => {
           <template #default="{ row }">
             <div v-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
               <el-switch
-                :model-value="isEnabledStatus(row[column.key])"
-                active-text="启用"
-                inactive-text="禁用"
+                :model-value="isEnabledStatus(row[column.key], column)"
+                :active-text="defaultStatusSwitchConfig(column).activeText"
+                :inactive-text="defaultStatusSwitchConfig(column).inactiveText"
                 inline-prompt
                 :loading="submitting"
-                @change="(value) => toggleEnabledStatus(row, Boolean(value))"
+                @change="(value) => toggleEnabledStatus(row, column, Boolean(value))"
               />
               <StatusBadge v-if="shouldShowStatusBadgeWithSwitch(row[column.key])" :value="row[column.key]" />
             </div>
@@ -1003,7 +1032,7 @@ onMounted(() => {
         />
       </div>
       <el-tabs
-        v-else-if="modal.type === 'edit' && config.slotGroupMembers && modal.record"
+        v-else-if="modal.type === 'edit' && (config.slotGroupMembers || config.proxyGroupMembers) && modal.record"
         v-model="slotGroupEditTab"
         class="slot-group-edit-tabs"
       >
@@ -1012,8 +1041,14 @@ onMounted(() => {
             <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
           </div>
         </el-tab-pane>
-        <el-tab-pane label="组内设备" name="members">
+        <el-tab-pane :label="groupMembersTabLabel" name="members">
           <SlotGroupMemberEditor
+            v-if="config.slotGroupMembers"
+            :group="modal.record"
+            @changed="loadRows"
+          />
+          <ProxyGroupMemberEditor
+            v-else
             :group="modal.record"
             @changed="loadRows"
           />

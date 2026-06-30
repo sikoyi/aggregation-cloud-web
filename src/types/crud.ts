@@ -79,6 +79,14 @@ export interface ColumnConfig {
   type?: ColumnType
   options?: SelectOption[]
   relation?: RemoteSelectConfig
+  statusSwitch?: {
+    activeValue: string
+    inactiveValue: string
+    activeText: string
+    inactiveText: string
+    activeActionKey: string
+    inactiveActionKey: string
+  }
   className?: string
   minWidth?: number | string
   width?: number | string
@@ -134,6 +142,7 @@ export interface ResourceConfig {
   deleteConfirm?: string
   accountGroupMembers?: boolean
   slotGroupMembers?: boolean
+  proxyGroupMembers?: boolean
 }
 
 export type IconMap = Record<string, Component>

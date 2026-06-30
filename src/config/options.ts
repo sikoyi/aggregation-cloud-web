@@ -246,6 +246,22 @@ export const enabledStatusOptions: SelectOption[] = [
   { label: '禁用', value: 'disabled' },
 ]
 
+export const proxyModeOptions: SelectOption[] = [
+  { label: '静态代理', value: 'static' },
+  { label: '动态代理', value: 'dynamic' },
+]
+
+export const proxyUsageStatusOptions: SelectOption[] = [
+  { label: '未使用', value: 'unused' },
+  { label: '已使用', value: 'used' },
+]
+
+export const proxyUsageStatusFilterOptions: SelectOption[] = [
+  { label: '全部', value: 'all' },
+  { label: '未使用', value: 'unused' },
+  { label: '已使用', value: 'used' },
+]
+
 export const contentTypeOptions: SelectOption[] = [
   { label: '文本内容', value: 'text' },
   { label: '图文内容', value: 'image' },
@@ -362,6 +378,7 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '日期时间', value: 'datetime' },
   { label: 'JSON', value: 'json' },
   { label: '代理', value: 'proxy' },
+  { label: '代理组', value: 'proxy_group' },
   { label: '资源', value: 'res' },
   { label: '账号', value: 'account' },
   { label: '账号组', value: 'account_group' },

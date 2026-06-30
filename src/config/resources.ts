@@ -8,13 +8,14 @@ import {
   businessPlatformOptions,
   contentStatusOptions,
   contentTypeOptions,
-  enabledStatusOptions,
   accountScopeTypeOptions,
   executionModeOptions,
   loginStatusOptions,
   mediaAssetStatusOptions,
   mediaAssetTypeOptions,
   providerOptions,
+  proxyModeOptions,
+  proxyUsageStatusOptions,
   runtimePlatformOptions,
   runtimeStatusOptions,
   scriptParamTypeOptions,
@@ -82,13 +83,12 @@ const slotMultiSelect = {
 
 const proxyRemoteSelect = {
   endpoint: "/api/resource-center/proxies",
-  labelKeys: ["name", "host"],
+  labelKeys: ["name", "source_proxy_url", "host"],
   valueKey: "id",
   detailPath: (value: string) =>
     `/api/resource-center/proxies/${encodeURIComponent(value)}`,
-  secondaryKeys: ["host", "username"],
+  secondaryKeys: ["source_proxy_url", "status"],
   searchParam: "keyword",
-  params: { status: "enabled" },
   pageSize: 50,
 };
 
@@ -744,16 +744,36 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
+      { key: "proxy_mode", label: "类型", options: proxyModeOptions, align: "center" },
       { key: "source_proxy_url", label: "Socks5 链接", minWidth: 360 },
-      { key: "status", label: "状态", type: "statusSwitch" },
+      {
+        key: "status",
+        label: "使用状态",
+        type: "statusSwitch",
+        options: proxyUsageStatusOptions,
+        statusSwitch: {
+          activeValue: "used",
+          inactiveValue: "unused",
+          activeText: "已使用",
+          inactiveText: "未使用",
+          activeActionKey: "mark-used",
+          inactiveActionKey: "mark-unused",
+        },
+      },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
     filters: [
       {
-        key: "status",
-        label: "状态",
+        key: "proxy_mode",
+        label: "代理类型",
         type: "select",
-        options: enabledStatusOptions,
+        options: proxyModeOptions,
+      },
+      {
+        key: "status",
+        label: "使用状态",
+        type: "select",
+        options: proxyUsageStatusOptions,
       },
       {
         key: "keyword",
@@ -763,6 +783,14 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     createFields: [
       { key: "name", label: "代理名称 / 批量前缀", required: true },
+      {
+        key: "proxy_mode",
+        label: "代理类型",
+        type: "select",
+        options: proxyModeOptions,
+        defaultValue: "static",
+        required: true,
+      },
       {
         key: "proxy_urls",
         label: "Socks5 地址",
@@ -776,38 +804,73 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     updateFields: [
       { key: "name", label: "代理名称" },
+      {
+        key: "proxy_mode",
+        label: "代理类型",
+        type: "select",
+        options: proxyModeOptions,
+      },
       { key: "host", label: "Host", required: true },
       { key: "port", label: "端口", type: "number", required: true },
       { key: "username", label: "用户名", allowEmpty: true },
       { key: "password", label: "密码", allowEmpty: true },
       {
         key: "status",
-        label: "状态",
+        label: "使用状态",
         type: "select",
-        options: enabledStatusOptions,
+        options: proxyUsageStatusOptions,
       },
       { key: "remark", label: "备注", span: 2, allowEmpty: true },
     ],
-    batchActions: [
+    rowActions: [
       {
-        key: "enable",
-        label: "批量启用",
+        key: "mark-used",
+        label: "标记已使用",
         method: "POST",
         icon: "power",
-        path: (record) => `/api/resource-center/proxies/${record.id}/enable`,
+        path: (record) => `/api/resource-center/proxies/${record.id}/mark-used`,
         variant: "success",
       },
       {
-        key: "disable",
-        label: "批量禁用",
+        key: "mark-unused",
+        label: "标记未使用",
         method: "POST",
         icon: "powerOff",
-        path: (record) => `/api/resource-center/proxies/${record.id}/disable`,
-        variant: "danger",
+        path: (record) => `/api/resource-center/proxies/${record.id}/mark-unused`,
       },
     ],
     deleteLabel: "删除",
     deleteConfirm: "确认删除该代理？删除前请确认它没有关联账号或设备。",
+  },
+
+  proxyGroups: {
+    key: "proxyGroups",
+    title: "代理分组",
+    endpoint: "/api/resource-center/proxy-groups",
+    createLabel: "新增代理组",
+    proxyGroupMembers: true,
+    columns: [
+      { key: "id", label: "ID", type: "id" },
+      { key: "name", label: "名称" },
+      { key: "member_count", label: "成员数", align: "center" },
+      { key: "updated_at", label: "更新时间", type: "datetime" },
+    ],
+    filters: [
+      { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
+    ],
+    createFields: [
+      { key: "name", label: "名称", required: true },
+      { key: "description", label: "描述", type: "textarea", span: 2 },
+    ],
+    updateFields: [
+      { key: "name", label: "名称" },
+      { key: "description", label: "描述", type: "textarea", span: 2 },
+    ],
+    deleteLabel: "删除",
+    deletePath: (record) => `/api/resource-center/proxy-groups/${record.id}?force=true`,
+    directDelete: true,
+    deleteConfirm:
+      "确认删除该代理组？删除后组内成员会自动解绑，分组本身不可恢复，请谨慎操作。",
   },
 
   contents: {

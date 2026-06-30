@@ -4,7 +4,7 @@ import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
-import { accountSelectionStrategyOptions } from '@/config/options'
+import { accountSelectionStrategyOptions, proxyUsageStatusFilterOptions } from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
 
@@ -65,11 +65,15 @@ function normalizeParamType(param: ScriptParam) {
 }
 
 function isResourceParam(param: ScriptParam) {
-  return ['proxy', 'res', 'account', 'account_group', 'content', 'media_asset', 'execution_slot'].includes(normalizeParamType(param))
+  return ['proxy', 'res', 'proxy_group', 'account', 'account_group', 'content', 'media_asset', 'execution_slot'].includes(normalizeParamType(param))
 }
 
 function isAccountGroupParam(param: ScriptParam) {
   return normalizeParamType(param) === 'account_group'
+}
+
+function isProxyGroupParam(param: ScriptParam) {
+  return normalizeParamType(param) === 'proxy_group'
 }
 
 function accountGroupSelector(param: ScriptParam) {
@@ -88,14 +92,36 @@ function accountGroupSelector(param: ScriptParam) {
   }
 }
 
+function proxyGroupSelector(param: ScriptParam) {
+  const value = values.value[param.param_key]
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    return {
+      group_id: String(record.group_id || record.id || record.value || ''),
+      usage_status: String(record.usage_status || record.proxy_status || record.status || 'unused'),
+    }
+  }
+  const groupId = String(value || '')
+  return {
+    group_id: groupId,
+    usage_status: groupId ? 'all' : 'unused',
+  }
+}
+
 function resourceFieldValue(param: ScriptParam) {
   if (isAccountGroupParam(param)) return accountGroupSelector(param).group_id
+  if (isProxyGroupParam(param)) return proxyGroupSelector(param).group_id
   return String(values.value[param.param_key] || '')
 }
 
 function updateResourceFieldValue(param: ScriptParam, value: string) {
   if (isAccountGroupParam(param)) {
     const selector = accountGroupSelector(param)
+    updateValue(param, { ...selector, group_id: value })
+    return
+  }
+  if (isProxyGroupParam(param)) {
+    const selector = proxyGroupSelector(param)
     updateValue(param, { ...selector, group_id: value })
     return
   }
@@ -111,11 +137,17 @@ function updateAccountGroupStrategy(param: ScriptParam, strategy: unknown) {
   updateValue(param, { ...selector, selection_strategy: String(strategy || 'not_logged_in') })
 }
 
+function updateProxyGroupUsageStatus(param: ScriptParam, status: unknown) {
+  const selector = proxyGroupSelector(param)
+  updateValue(param, { ...selector, usage_status: String(status || 'unused') })
+}
+
 function resourceTypeLabel(param: ScriptParam | null) {
   if (!param) return '资源'
   const type = normalizeParamType(param)
   if (type === 'account') return '账号'
   if (type === 'account_group') return '账号组'
+  if (type === 'proxy_group') return '代理组'
   if (type === 'execution_slot') return '设备'
   if (type === 'content') return '内容'
   if (type === 'media_asset') return '媒体资源'
@@ -143,6 +175,17 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       valueKey: 'id',
       detailPath: (value: string) => `/api/account-groups/${encodeURIComponent(value)}`,
       secondaryKey: 'business_platform',
+      searchParam: 'keyword',
+      pageSize: 50,
+    }
+  }
+  if (type === 'proxy_group') {
+    return {
+      endpoint: '/api/resource-center/proxy-groups',
+      labelKey: 'name',
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/resource-center/proxy-groups/${encodeURIComponent(value)}`,
+      secondaryKey: 'member_count',
       searchParam: 'keyword',
       pageSize: 50,
     }
@@ -189,7 +232,6 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
     detailPath: (value: string) => `/api/resource-center/proxies/${encodeURIComponent(value)}`,
     secondaryKeys: ['source_proxy_url', 'status'],
     searchParam: 'keyword',
-    params: { status: 'enabled' },
     pageSize: 50,
   }
 }
@@ -370,7 +412,7 @@ watch(
             :model-value="resourceFieldValue(param)"
             readonly
             clearable
-            :placeholder="`请选择${resourceTypeLabel(param)}，保存后脚本会收到资源 ID`"
+            :placeholder="`请选择${resourceTypeLabel(param)}，下发时服务端会解析成资源信息`"
             @clear="clearResourceField(param)"
           />
           <el-button type="primary" @click="openResourcePicker(param)">
@@ -385,6 +427,20 @@ watch(
           >
             <el-option
               v-for="option in accountSelectionStrategyOptions"
+              :key="String(option.value)"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+          <el-select
+            v-if="isProxyGroupParam(param)"
+            :model-value="proxyGroupSelector(param).usage_status"
+            class="resource-param-field__strategy"
+            placeholder="代理使用状态"
+            @update:model-value="updateProxyGroupUsageStatus(param, $event)"
+          >
+            <el-option
+              v-for="option in proxyUsageStatusFilterOptions"
               :key="String(option.value)"
               :label="option.label"
               :value="option.value"

@@ -56,6 +56,7 @@ const navGroups = [
     icon: ShieldCheck,
     children: [
       { label: '代理资源', to: '/proxies', icon: ShieldCheck },
+      { label: '代理分组', to: '/proxy-groups', icon: Layers3 },
     ],
   },
   {
