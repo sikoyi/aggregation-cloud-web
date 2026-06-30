@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { loginStatusOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, truncateId } from '@/utils/format'
@@ -22,6 +23,7 @@ const emit = defineEmits<{
 const loading = ref(false)
 const submitting = ref(false)
 const keyword = ref('')
+const loginStatus = ref('')
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -58,6 +60,7 @@ async function loadMembers() {
       `/api/account-groups/${groupId.value}/accounts`,
       {
         keyword: keyword.value || undefined,
+        login_status: loginStatus.value || undefined,
         page: page.value,
         page_size: pageSize.value,
       },
@@ -198,6 +201,7 @@ function text(value: unknown) {
 
 function resetSearch() {
   keyword.value = ''
+  loginStatus.value = ''
   searchMembers()
 }
 
@@ -206,6 +210,7 @@ watch(
   () => {
     page.value = 1
     keyword.value = ''
+    loginStatus.value = ''
     selectedAccountIds.value = []
     loadMembers()
   },
@@ -243,8 +248,23 @@ onMounted(loadMembers)
         placeholder="搜索登录账号 / 公开用户名 / 昵称"
         @keydown.enter="searchMembers"
       />
+      <el-select
+        v-model="loginStatus"
+        clearable
+        class="member-editor__status-filter"
+        placeholder="登录状态"
+        @change="searchMembers"
+        @clear="searchMembers"
+      >
+        <el-option
+          v-for="option in loginStatusOptions"
+          :key="String(option.value)"
+          :label="option.label"
+          :value="option.value"
+        />
+      </el-select>
       <el-button :icon="Search" :loading="loading" @click="searchMembers">搜索</el-button>
-      <el-button :disabled="!keyword" @click="resetSearch">清空</el-button>
+      <el-button :disabled="!keyword && !loginStatus" @click="resetSearch">清空</el-button>
     </div>
 
     <div v-if="selectedMembers.length" class="member-editor__batch">
@@ -417,6 +437,10 @@ onMounted(loadMembers)
 .member-editor__add :deep(.el-select),
 .member-editor__search :deep(.el-input) {
   flex: 1;
+}
+
+.member-editor__status-filter {
+  width: 160px;
 }
 
 .member-editor__table :deep(.el-table__cell) {

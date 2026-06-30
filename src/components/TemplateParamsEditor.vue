@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
+import { accountSelectionStrategyOptions } from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
 
@@ -65,6 +66,49 @@ function normalizeParamType(param: ScriptParam) {
 
 function isResourceParam(param: ScriptParam) {
   return ['proxy', 'res', 'account', 'account_group', 'content', 'media_asset', 'execution_slot'].includes(normalizeParamType(param))
+}
+
+function isAccountGroupParam(param: ScriptParam) {
+  return normalizeParamType(param) === 'account_group'
+}
+
+function accountGroupSelector(param: ScriptParam) {
+  const value = values.value[param.param_key]
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    return {
+      group_id: String(record.group_id || record.id || record.value || ''),
+      selection_strategy: String(record.selection_strategy || record.account_selection_strategy || 'not_logged_in'),
+    }
+  }
+  const groupId = String(value || '')
+  return {
+    group_id: groupId,
+    selection_strategy: groupId ? 'all' : 'not_logged_in',
+  }
+}
+
+function resourceFieldValue(param: ScriptParam) {
+  if (isAccountGroupParam(param)) return accountGroupSelector(param).group_id
+  return String(values.value[param.param_key] || '')
+}
+
+function updateResourceFieldValue(param: ScriptParam, value: string) {
+  if (isAccountGroupParam(param)) {
+    const selector = accountGroupSelector(param)
+    updateValue(param, { ...selector, group_id: value })
+    return
+  }
+  updateValue(param, value)
+}
+
+function clearResourceField(param: ScriptParam) {
+  updateResourceFieldValue(param, '')
+}
+
+function updateAccountGroupStrategy(param: ScriptParam, strategy: unknown) {
+  const selector = accountGroupSelector(param)
+  updateValue(param, { ...selector, selection_strategy: String(strategy || 'not_logged_in') })
 }
 
 function resourceTypeLabel(param: ScriptParam | null) {
@@ -205,13 +249,13 @@ function updateValue(param: ScriptParam, value: unknown) {
 
 function openResourcePicker(param: ScriptParam) {
   resourcePickerParam.value = param
-  resourcePickerValue.value = String(values.value[param.param_key] || '')
+  resourcePickerValue.value = resourceFieldValue(param)
   resourcePickerVisible.value = true
 }
 
 function confirmResourcePicker() {
   if (!resourcePickerParam.value) return
-  updateValue(resourcePickerParam.value, resourcePickerValue.value)
+  updateResourceFieldValue(resourcePickerParam.value, resourcePickerValue.value)
   resourcePickerVisible.value = false
 }
 
@@ -323,15 +367,29 @@ watch(
         />
         <div v-else-if="isResourceParam(param)" class="resource-param-field">
           <el-input
-            :model-value="String(values[param.param_key] ?? '')"
+            :model-value="resourceFieldValue(param)"
             readonly
             clearable
             :placeholder="`请选择${resourceTypeLabel(param)}，保存后脚本会收到资源 ID`"
-            @clear="updateValue(param, '')"
+            @clear="clearResourceField(param)"
           />
           <el-button type="primary" @click="openResourcePicker(param)">
             选择{{ resourceTypeLabel(param) }}
           </el-button>
+          <el-select
+            v-if="isAccountGroupParam(param)"
+            :model-value="accountGroupSelector(param).selection_strategy"
+            class="resource-param-field__strategy"
+            placeholder="账号筛选策略"
+            @update:model-value="updateAccountGroupStrategy(param, $event)"
+          >
+            <el-option
+              v-for="option in accountSelectionStrategyOptions"
+              :key="String(option.value)"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
         </div>
         <el-input
           v-else
@@ -383,6 +441,10 @@ watch(
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+.resource-param-field__strategy {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 640px) {

@@ -64,6 +64,7 @@ const PARAM_LABELS: Record<string, string> = {
   slot_ids: '设备列表',
   execution_count: '每台设备执行次数',
   child_total: '设备执行总数',
+  account_selection_strategy: '账号筛选策略',
   self_check: '自检标记',
   source: '来源',
 }
@@ -76,6 +77,10 @@ const HIDDEN_PARAM_KEYS = new Set([
   'slot_index',
   'slot_total',
   'slot_id',
+  'account_group_id',
+  'account_group_param_key',
+  'selected_account_id',
+  'selected_account_ids',
 ])
 
 interface ScriptParamDefinition {
@@ -98,7 +103,9 @@ async function buildParamRows(currentTask: AnyRecord) {
         return {
           key,
           label: definition?.name || PARAM_LABELS[key] || key,
-          value: await formatParamValue(item, definition),
+          value: key === 'account_selection_strategy'
+            ? accountSelectionStrategyLabel(item)
+            : await formatParamValue(item, definition),
         }
       }),
   )
@@ -125,10 +132,30 @@ async function formatParamValue(value: unknown, definition?: ScriptParamDefiniti
 
 async function formatResourceParamValue(value: unknown, type: string) {
   // 资源类参数在任务里保存 ID，详情页回显时转换成运营更容易识别的名称。
-  const ids = Array.isArray(value) ? value.map(String).filter(Boolean) : value ? [String(value)] : []
+  const ids = normalizeResourceIds(value, type)
   if (!ids.length) return '-'
   const labels = await Promise.all(ids.map((id) => loadResourceLabel(id, type)))
   return labels.join('、')
+}
+
+function normalizeResourceIds(value: unknown, type: string) {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean)
+  if (type === 'account_group' && value && typeof value === 'object') {
+    const record = value as AnyRecord
+    const groupId = record.group_id || record.id || record.value
+    return groupId ? [String(groupId)] : []
+  }
+  return value ? [String(value)] : []
+}
+
+function accountSelectionStrategyLabel(value: unknown) {
+  const labels: Record<string, string> = {
+    all: '全部账号',
+    not_logged_in: '仅未登录账号',
+    failed: '仅登录失败',
+    not_logged_in_or_failed: '未登录 + 登录失败',
+  }
+  return labels[String(value || '')] || text(value)
 }
 
 async function loadResourceLabel(id: string, type: string) {

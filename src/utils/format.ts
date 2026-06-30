@@ -18,6 +18,7 @@ const STATUS_LABELS: Record<string, string> = {
   expired: '已超时',
   failed: '失败',
   idle: '空闲',
+  login_pending: '登录中',
   login_required: '需要登录',
   logged_in: '已登录',
   lost: '已丢失',
@@ -43,7 +44,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'ready']
-const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting']
+const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'login_pending']
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown']
 const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted']
 

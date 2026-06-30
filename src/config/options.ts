@@ -227,12 +227,20 @@ export const accountDelimiterOptions: SelectOption[] = [
 
 export const loginStatusOptions: SelectOption[] = [
   { label: '未知', value: 'unknown' },
+  { label: '登录中', value: 'login_pending' },
   { label: '已登录', value: 'logged_in' },
   { label: '需要登录', value: 'login_required' },
   { label: '需要 2FA', value: 'twofa_required' },
   { label: '挑战', value: 'challenge' },
   { label: '受限', value: 'restricted' },
   { label: '失败', value: 'failed' },
+]
+
+export const accountSelectionStrategyOptions: SelectOption[] = [
+  { label: '仅未登录账号', value: 'not_logged_in' },
+  { label: '未登录 + 登录失败', value: 'not_logged_in_or_failed' },
+  { label: '仅登录失败', value: 'failed' },
+  { label: '全部账号', value: 'all' },
 ]
 
 export const enabledStatusOptions: SelectOption[] = [
