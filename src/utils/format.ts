@@ -6,7 +6,7 @@ const STATUS_LABELS: Record<string, string> = {
   acknowledged: '已确认',
   assigned: '已分配',
   canceled: '已取消',
-  challenge: '验证挑战',
+  challenge: '风控异常',
   connecting: '连接中',
   all_failed: '全部失败',
   completed: '已完成',
@@ -19,10 +19,11 @@ const STATUS_LABELS: Record<string, string> = {
   failed: '失败',
   idle: '空闲',
   login_pending: '登录中',
-  login_required: '需要登录',
+  login_required: '未登录',
   logged_in: '已登录',
   lost: '已丢失',
   normal: '正常',
+  not_logged_in: '未登录',
   offline: '离线',
   online: '在线',
   pending: '待处理',
@@ -30,8 +31,9 @@ const STATUS_LABELS: Record<string, string> = {
   queued: '排队中',
   rate_limited: '限流中',
   ready: '可使用',
-  restricted: '受限',
+  restricted: '风控异常',
   retry_wait: '等待重试',
+  risk: '风控异常',
   running: '运行中',
   starting: '启动中',
   stopping: '停止中',
@@ -45,8 +47,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'ready']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'login_pending']
-const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown']
-const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted']
+const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in']
+const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'risk']
 
 export function getCellValue(row: AnyRecord, key: string) {
   if (!key.includes('.')) return row[key]
