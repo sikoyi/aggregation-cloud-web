@@ -124,7 +124,7 @@ async function loadParamDefinitions(scriptKey: string): Promise<ScriptParamDefin
 
 async function formatParamValue(value: unknown, definition?: ScriptParamDefinition) {
   const type = definition?.param_type || ''
-  if (['proxy', 'res', 'account', 'account_group', 'execution_slot'].includes(type)) {
+  if (['proxy', 'res', 'proxy_group', 'account', 'account_group', 'execution_slot'].includes(type)) {
     return formatResourceParamValue(value, type)
   }
   return formatValue(value)
@@ -140,7 +140,7 @@ async function formatResourceParamValue(value: unknown, type: string) {
 
 function normalizeResourceIds(value: unknown, type: string) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean)
-  if (type === 'account_group' && value && typeof value === 'object') {
+  if ((type === 'account_group' || type === 'proxy_group') && value && typeof value === 'object') {
     const record = value as AnyRecord
     const groupId = record.group_id || record.id || record.value
     return groupId ? [String(groupId)] : []
@@ -161,7 +161,9 @@ function accountSelectionStrategyLabel(value: unknown) {
 async function loadResourceLabel(id: string, type: string) {
   try {
     const resource = await http.get<AnyRecord>(resourceDetailPath(id, type))
-    return `${resourceDisplayName(resource, type)}（${truncateId(id)}）`
+    const name = resourceDisplayName(resource, type)
+    if (type === 'account_group' || type === 'proxy_group') return name
+    return `${name}（${truncateId(id)}）`
   } catch {
     return truncateId(id)
   }
@@ -170,6 +172,7 @@ async function loadResourceLabel(id: string, type: string) {
 function resourceDetailPath(id: string, type: string) {
   if (type === 'account') return `/api/accounts/${encodeURIComponent(id)}`
   if (type === 'account_group') return `/api/account-groups/${encodeURIComponent(id)}`
+  if (type === 'proxy_group') return `/api/resource-center/proxy-groups/${encodeURIComponent(id)}`
   if (type === 'execution_slot') return `/api/execution-slots/${encodeURIComponent(id)}`
   return `/api/resource-center/proxies/${encodeURIComponent(id)}`
 }
@@ -179,6 +182,7 @@ function resourceDisplayName(resource: AnyRecord, type: string) {
     return text(resource.login_username || resource.username || resource.display_name || resource.platform_account_id)
   }
   if (type === 'account_group') return text(resource.name)
+  if (type === 'proxy_group') return text(resource.name)
   if (type === 'execution_slot') return text(resource.display_name || resource.provider_slot_id || resource.provider_slot_no)
   return text(resource.name || resource.source_proxy_url || resource.host)
 }

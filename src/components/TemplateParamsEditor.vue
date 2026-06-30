@@ -43,6 +43,7 @@ const loadedScriptKey = ref('')
 const resourcePickerVisible = ref(false)
 const resourcePickerValue = ref('')
 const resourcePickerParam = ref<ScriptParam | null>(null)
+const resourceLabelCache = ref<Record<string, string>>({})
 let requestSeq = 0
 
 const values = computed<Record<string, unknown>>(() => {
@@ -114,18 +115,68 @@ function resourceFieldValue(param: ScriptParam) {
   return String(values.value[param.param_key] || '')
 }
 
+function resourceCacheKey(param: ScriptParam, value: string) {
+  return `${normalizeParamType(param)}:${value}`
+}
+
+function resourceDisplayValue(param: ScriptParam) {
+  const value = resourceFieldValue(param)
+  if (!value) return ''
+  return resourceLabelCache.value[resourceCacheKey(param, value)] || value
+}
+
+function remoteFieldValue(record: Record<string, unknown>, keys: string[]) {
+  const key = keys.find((item) => record[item] !== undefined && record[item] !== null && record[item] !== '')
+  return key ? String(record[key]) : ''
+}
+
+function resourceRecordLabel(record: Record<string, unknown>, config: RemoteSelectConfig) {
+  const labelKeys = config.labelKeys || (config.labelKey ? [config.labelKey] : [])
+  return remoteFieldValue(record, [...labelKeys, config.valueKey])
+}
+
+async function loadResourceDisplayLabel(param: ScriptParam, explicitValue?: string) {
+  const value = explicitValue ?? resourceFieldValue(param)
+  if (!value) return
+  const config = resourceSelectConfig(param)
+  if (!config?.detailPath) return
+
+  const key = resourceCacheKey(param, value)
+  if (resourceLabelCache.value[key]) return
+  try {
+    const record = await http.get<Record<string, unknown>>(config.detailPath(value))
+    const label = resourceRecordLabel(record, config)
+    if (label) {
+      resourceLabelCache.value = { ...resourceLabelCache.value, [key]: label }
+    }
+  } catch {
+    // 资源可能已被删除；保留 ID 作为兜底，避免表单无法识别当前值。
+  }
+}
+
+function hydrateResourceDisplayLabels() {
+  sortedParams(params.value)
+    .filter(isResourceParam)
+    .forEach((param) => {
+      void loadResourceDisplayLabel(param)
+    })
+}
+
 function updateResourceFieldValue(param: ScriptParam, value: string) {
   if (isAccountGroupParam(param)) {
     const selector = accountGroupSelector(param)
     updateValue(param, { ...selector, group_id: value })
+    void loadResourceDisplayLabel(param, value)
     return
   }
   if (isProxyGroupParam(param)) {
     const selector = proxyGroupSelector(param)
     updateValue(param, { ...selector, group_id: value })
+    void loadResourceDisplayLabel(param, value)
     return
   }
   updateValue(param, value)
+  void loadResourceDisplayLabel(param, value)
 }
 
 function clearResourceField(param: ScriptParam) {
@@ -321,6 +372,14 @@ watch(
   },
   { immediate: true },
 )
+
+watch(
+  [() => props.modelValue, () => params.value],
+  () => {
+    hydrateResourceDisplayLabels()
+  },
+  { deep: true },
+)
 </script>
 
 <template>
@@ -409,7 +468,7 @@ watch(
         />
         <div v-else-if="isResourceParam(param)" class="resource-param-field">
           <el-input
-            :model-value="resourceFieldValue(param)"
+            :model-value="resourceDisplayValue(param)"
             readonly
             clearable
             :placeholder="`请选择${resourceTypeLabel(param)}，下发时服务端会解析成资源信息`"
@@ -475,13 +534,6 @@ watch(
           :config="activeResourceSelectConfig"
           :placeholder="`搜索并选择${resourceTypeLabel(resourcePickerParam)}`"
         />
-        <el-input
-          v-model="resourcePickerValue"
-          readonly
-          placeholder="资源 ID"
-        >
-          <template #prepend>ID</template>
-        </el-input>
       </div>
 
       <template #footer>
