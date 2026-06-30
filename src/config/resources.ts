@@ -342,6 +342,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "login_username", label: "登录账号", minWidth: 180 },
+      { key: "group_name", label: "所属分组", minWidth: 160 },
       { key: "password_secret_ref", label: "密码", minWidth: 180 },
       { key: "totp_secret_ref", label: "2FA", minWidth: 220 },
       { key: "business_platform", label: "平台" },
@@ -352,12 +353,6 @@ export const resources: Record<string, ResourceConfig> = {
         label: "设备",
         type: "relation",
         relation: slotRemoteSelect,
-      },
-      {
-        key: "group_id",
-        label: "所属分组",
-        type: "relation",
-        relation: accountGroupRemoteSelect,
       },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
@@ -429,6 +424,14 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     updateFields: [
       { key: "login_username", label: "登录账号" },
+      {
+        key: "account_group_id",
+        label: "所属分组",
+        type: "remoteSelect",
+        remote: accountGroupForAccountEditRemoteSelect,
+        allowEmpty: true,
+        placeholder: "请选择账号分组",
+      },
       { key: "username", label: "公开用户名" },
       {
         key: "country",
@@ -444,14 +447,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: twoFaOptions,
       },
       { key: "totp_secret_ref", label: "2FA 密钥 / TOTP" },
-      {
-        key: "account_group_id",
-        label: "所属分组",
-        type: "remoteSelect",
-        remote: accountGroupForAccountEditRemoteSelect,
-        allowEmpty: true,
-        placeholder: "请选择账号分组",
-      },
       {
         key: "proxy_id",
         label: "代理信息",
