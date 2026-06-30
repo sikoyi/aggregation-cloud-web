@@ -151,6 +151,10 @@ function textLineCount(value: unknown) {
     .filter((line) => line.trim()).length
 }
 
+function selectedFileName(value: unknown) {
+  return value instanceof File ? value.name : ''
+}
+
 async function readTextFile(field: FieldConfig, uploadFile: UploadFile) {
   const file = uploadFile.raw
   if (!file) return
@@ -165,6 +169,10 @@ async function readTextFile(field: FieldConfig, uploadFile: UploadFile) {
   } catch {
     ElMessage.error('读取文件失败')
   }
+}
+
+function updateFile(field: FieldConfig, uploadFile: UploadFile) {
+  updateValue(field.key, uploadFile.raw || null)
 }
 
 function selectValue(field: FieldConfig) {
@@ -187,7 +195,7 @@ function updateSelectValue(field: FieldConfig, value: string | string[]) {
 const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
 
 function fieldColumnSpan(field: FieldConfig) {
-  if (field.span === 2 || ['datetimeRange', 'scriptParams', 'templateParams', 'slotTree', 'textImport'].includes(field.type || '')) return 24
+  if (field.span === 2 || ['datetimeRange', 'scriptParams', 'templateParams', 'slotTree', 'textImport', 'file'].includes(field.type || '')) return 24
   return 12
 }
 
@@ -294,6 +302,21 @@ watch(() => props.modelValue.execution_mode, (mode) => {
               resize="vertical"
               @update:model-value="updateValue(field.key, $event)"
             />
+          </div>
+
+          <div v-else-if="field.type === 'file'" class="file-field">
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              :disabled="isFieldDisabled(field)"
+              :on-change="(file) => updateFile(field, file)"
+            >
+              <el-button>选择文件</el-button>
+            </el-upload>
+            <el-tag v-if="selectedFileName(modelValue[field.key])" type="info" effect="plain">
+              {{ selectedFileName(modelValue[field.key]) }}
+            </el-tag>
+            <span v-else class="text-xs text-slate-400">{{ field.placeholder || '请选择要上传的文件' }}</span>
           </div>
 
           <el-select
@@ -405,6 +428,13 @@ watch(() => props.modelValue.execution_mode, (mode) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+}
+
+.file-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
 }
 </style>

@@ -20,6 +20,7 @@ function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
   if (field.type === 'boolean') return false
   if (field.type === 'json') return '{}'
   if (field.type === 'scriptParams') return []
+  if (field.type === 'file') return null
   if (field.type === 'templateParams') return {}
   if (field.type === 'slotTree') return []
   if (field.type === 'templateSelect') return ''
@@ -163,6 +164,10 @@ export function buildPayload(
 
     if (field.type === 'number') {
       payload[field.key] = Number(rawValue)
+      return payload
+    }
+    if (field.type === 'file') {
+      payload[field.key] = rawValue
       return payload
     }
     if (field.type === 'boolean') {

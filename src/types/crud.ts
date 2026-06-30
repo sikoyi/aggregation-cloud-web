@@ -6,6 +6,7 @@ export type FieldType =
   | 'text'
   | 'textarea'
   | 'textImport'
+  | 'file'
   | 'number'
   | 'select'
   | 'json'
@@ -96,6 +97,8 @@ export interface RowActionConfig {
   refresh?: boolean
   variant?: 'default' | 'danger' | 'success'
   icon?: string
+  successTitle?: string
+  successMessage?: (data: AnyRecord, payload: AnyRecord) => string
 }
 
 export interface ResourceConfig {
@@ -119,6 +122,7 @@ export interface ResourceConfig {
   createFields?: FieldConfig[]
   updateFields?: FieldConfig[]
   rowActions?: RowActionConfig[]
+  headerActions?: RowActionConfig[]
   inlineActionKeys?: string[]
   directDelete?: boolean
   batchActions?: RowActionConfig[]

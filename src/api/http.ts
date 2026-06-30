@@ -33,16 +33,19 @@ async function request<T>(
   path: string,
   options: { params?: AnyRecord; body?: unknown; auth?: boolean } = {},
 ) {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: HeadersInit = {
     Accept: 'application/json',
   }
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (options.body !== undefined && !isFormData) headers['Content-Type'] = 'application/json'
   if (options.auth !== false && token()) headers.Authorization = `Bearer ${token()}`
+  const body: BodyInit | undefined =
+    options.body === undefined ? undefined : isFormData ? (options.body as FormData) : JSON.stringify(options.body)
 
   const response = await fetch(buildUrl(path, options.params), {
     method,
     headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body,
   })
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
   if (!response.ok || !payload || payload.code !== 0) {
@@ -64,4 +67,3 @@ export const http = {
   delete: <T>(path: string) => request<T>('DELETE', path),
   apiBaseUrl: API_BASE_URL,
 }
-

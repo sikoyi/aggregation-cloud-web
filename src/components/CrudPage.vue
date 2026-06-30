@@ -14,6 +14,7 @@ import {
   Search,
   Trash2,
   Unlink,
+  Upload,
   Users,
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
@@ -49,6 +50,7 @@ const iconMap: IconMap = {
   rotate: RotateCcw,
   trash: Trash2,
   unlink: Unlink,
+  upload: Upload,
   users: Users,
 }
 
@@ -119,6 +121,7 @@ function findInlineStatusAction(key: 'enable' | 'disable') {
 
 const hasInlineStatusSwitch = computed(() => Boolean(findInlineStatusAction('enable') && findInlineStatusAction('disable')))
 const rowActionsForMenu = computed(() => (props.config.rowActions || []).filter((action) => !isInlineStatusAction(action)))
+const headerActions = computed(() => props.config.headerActions || [])
 // 高频行操作可以配置为直接按钮，减少用户反复展开下拉菜单的成本。
 const inlineActionKeys = computed(() => new Set(props.config.inlineActionKeys || []))
 const inlineRowActions = computed(() => rowActionsForMenu.value.filter((action) => inlineActionKeys.value.has(action.key)))
@@ -424,6 +427,21 @@ function openBatchAction(action: RowActionConfig) {
   formState.value = buildFormState(action.fields || [])
 }
 
+function openHeaderAction(action: RowActionConfig) {
+  modal.type = 'action'
+  modal.record = {}
+  modal.action = action
+  formState.value = buildFormState(action.fields || [])
+}
+
+async function runHeaderAction(action: RowActionConfig) {
+  if (action.fields?.length) {
+    openHeaderAction(action)
+    return
+  }
+  await executeRequest(action, {})
+}
+
 async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = {}) {
   if (!selectedRows.value.length) return
   const actionName = action.label.replace(/^批量/, '')
@@ -512,7 +530,17 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
     const data = await requestAction(action, record, payload)
     if (action.method === 'GET') openResultDialog(action, data)
 
-    if (action.method !== 'GET') ElMessage.success('操作完成')
+    if (action.method !== 'GET') {
+      if (action.successMessage) {
+        ElNotification.success({
+          title: action.successTitle || '操作完成',
+          message: action.successMessage(data as AnyRecord, payload),
+          duration: 7000,
+        })
+      } else {
+        ElMessage.success('操作完成')
+      }
+    }
     if (action.refresh !== false) await loadRows()
   } catch (err) {
     error.value = notifyError(err, '操作失败', '操作失败')
@@ -576,6 +604,16 @@ onMounted(() => {
           @click="openCreate"
         >
           {{ config.createLabel || '新增' }}
+        </el-button>
+        <el-button
+          v-for="action in headerActions"
+          :key="action.key"
+          :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
+          :icon="actionIcon(action)"
+          :disabled="loading || submitting"
+          @click="runHeaderAction(action)"
+        >
+          {{ action.label }}
         </el-button>
       </el-space>
     </div>

@@ -270,6 +270,42 @@ function formatAccountImportSuccess(data: AnyRecord) {
   return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。`;
 }
 
+function formatContentImportSuccess(data: AnyRecord) {
+  const total = Number(data.total_count || 0);
+  const created = Number(data.created_count || 0);
+  const duplicate = Number(data.duplicate_count || 0);
+  const existed = Number(data.existed_count || 0);
+  const failed = Number(data.failed_count || 0);
+  return `共解析 ${total} 条内容，成功导入 ${created} 条；本次重复 ${duplicate} 条，系统已存在 ${existed} 条，失败 ${failed} 条。`;
+}
+
+function appendFormValue(formData: FormData, key: string, value: unknown) {
+  if (value === undefined || value === null || value === "") return;
+  if (value instanceof File) {
+    formData.append(key, value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    formData.append(key, value.join(","));
+    return;
+  }
+  formData.append(key, String(value));
+}
+
+function buildMediaUploadBody(payload: AnyRecord) {
+  const formData = new FormData();
+  [
+    "file",
+    "business_platform",
+    "name",
+    "asset_type",
+    "tags",
+    "status",
+    "remark",
+  ].forEach((key) => appendFormValue(formData, key, payload[key]));
+  return formData;
+}
+
 async function loadAccountForEdit(record: AnyRecord) {
   const account = await http.get<AnyRecord>(`/api/accounts/${record.id}`);
   return { ...record, ...account, account_group_id: account.group_id || "" };
@@ -784,6 +820,71 @@ export const resources: Record<string, ResourceConfig> = {
     title: "内容库",
     endpoint: "/api/content-center/contents",
     createLabel: "新增内容",
+    headerActions: [
+      {
+        key: "import",
+        label: "批量导入内容",
+        method: "POST",
+        icon: "upload",
+        path: () => "/api/content-center/contents/import",
+        successTitle: "内容导入完成",
+        successMessage: (data) => formatContentImportSuccess(data),
+        fields: [
+          {
+            key: "business_platform",
+            label: "业务 App",
+            type: "select",
+            options: businessPlatformOptions,
+            defaultValue: "threads",
+          },
+          {
+            key: "content_type",
+            label: "内容类型",
+            type: "select",
+            options: contentTypeOptions,
+            defaultValue: "text",
+          },
+          {
+            key: "status",
+            label: "状态",
+            type: "select",
+            options: contentStatusOptions,
+            defaultValue: "draft",
+          },
+          {
+            key: "split_mode",
+            label: "拆分方式",
+            type: "select",
+            options: [
+              { label: "每行一条", value: "line" },
+              { label: "空行分隔", value: "blank_line" },
+            ],
+            defaultValue: "line",
+          },
+          {
+            key: "duplicate_policy",
+            label: "重复处理",
+            type: "select",
+            options: [
+              { label: "跳过重复内容", value: "skip" },
+              { label: "允许重复导入", value: "allow" },
+            ],
+            defaultValue: "skip",
+          },
+          { key: "title_prefix", label: "标题前缀", placeholder: "可选，例如 Threads内容" },
+          { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
+          {
+            key: "raw_text",
+            label: "内容文本",
+            type: "textImport",
+            required: true,
+            span: 2,
+            placeholder: "默认每行导入为一条内容；如果内容本身有换行，可以选择空行分隔。",
+          },
+          { key: "remark", label: "备注", type: "textarea", span: 2 },
+        ],
+      },
+    ],
     columns: [
       { key: "id", label: "ID", type: "id", align: "center" },
       { key: "title", label: "内容标题", minWidth: 240 },
@@ -811,6 +912,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: contentStatusOptions,
       },
+      { key: "tags", label: "标签", placeholder: "多个标签用逗号分隔" },
       { key: "keyword", label: "关键词", placeholder: "标题 / 正文 / 备注" },
     ],
     createFields: [
@@ -898,7 +1000,9 @@ export const resources: Record<string, ResourceConfig> = {
     key: "mediaAssets",
     title: "素材库",
     endpoint: "/api/content-center/media-assets",
-    createLabel: "新增素材",
+    createEndpoint: "/api/content-center/media-assets/upload",
+    createLabel: "上传素材",
+    createBody: (payload) => buildMediaUploadBody(payload),
     columns: [
       { key: "id", label: "ID", type: "id", align: "center" },
       { key: "name", label: "素材名称", minWidth: 220 },
@@ -927,9 +1031,17 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: mediaAssetStatusOptions,
       },
+      { key: "tags", label: "标签", placeholder: "多个标签用逗号分隔" },
       { key: "keyword", label: "关键词", placeholder: "名称 / 地址 / 备注" },
     ],
     createFields: [
+      {
+        key: "file",
+        label: "素材文件",
+        type: "file",
+        required: true,
+        placeholder: "请选择图片、视频或文件",
+      },
       {
         key: "business_platform",
         label: "业务 App",
@@ -937,13 +1049,13 @@ export const resources: Record<string, ResourceConfig> = {
         options: businessPlatformOptions,
         defaultValue: "threads",
       },
-      { key: "name", label: "素材名称", required: true },
+      { key: "name", label: "素材名称", placeholder: "不填时使用文件名" },
       {
         key: "asset_type",
         label: "素材类型",
         type: "select",
         options: mediaAssetTypeOptions,
-        defaultValue: "image",
+        placeholder: "不选时自动识别",
       },
       {
         key: "status",
@@ -952,18 +1064,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: mediaAssetStatusOptions,
         defaultValue: "enabled",
       },
-      {
-        key: "source_url",
-        label: "素材地址",
-        required: true,
-        span: 2,
-        placeholder: "图片/视频/文件外链，或脚本能够读取的素材地址",
-      },
-      { key: "storage_uri", label: "内部存储地址", span: 2, placeholder: "后续接对象存储后使用，可暂不填" },
-      { key: "mime_type", label: "MIME 类型", placeholder: "例如 image/jpeg" },
-      { key: "file_size", label: "文件大小(Byte)", type: "number" },
-      { key: "width", label: "宽度", type: "number" },
-      { key: "height", label: "高度", type: "number" },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
       { key: "remark", label: "备注", type: "textarea", span: 2 },
     ],
