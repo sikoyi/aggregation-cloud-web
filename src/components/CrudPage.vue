@@ -3,7 +3,6 @@ import {
   Copy,
   Download,
   Edit3,
-  Eye,
   Link2,
   ListChecks,
   MoreHorizontal,
@@ -45,7 +44,6 @@ const iconMap: IconMap = {
   copy: Copy,
   download: Download,
   edit: Edit3,
-  eye: Eye,
   link: Link2,
   list: ListChecks,
   play: Play,
@@ -73,12 +71,6 @@ const resultValue = ref<unknown>(null)
 const resultColumns = ref<ColumnConfig[]>([])
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
-const assetPreviewVisible = ref(false)
-const assetPreviewTitle = ref('')
-const assetPreviewUrl = ref('')
-const assetPreviewType = ref('')
-const assetPreviewMime = ref('')
-const assetPreviewFilename = ref('')
 const tableRef = ref()
 const slotGroupEditTab = ref('base')
 
@@ -118,12 +110,6 @@ const showModalSaveButton = computed(
   () => !(modal.type === 'edit' && props.config.slotGroupMembers && slotGroupEditTab.value === 'members'),
 )
 const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : '保存'))
-const assetPreviewKind = computed(() => {
-  const mime = assetPreviewMime.value.toLowerCase()
-  if (mime.startsWith('image/') || assetPreviewType.value === 'image') return 'image'
-  if (mime.startsWith('video/') || assetPreviewType.value === 'video') return 'video'
-  return 'file'
-})
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 function isInlineStatusAction(action: RowActionConfig) {
   return ['enable', 'disable'].includes(action.key) && !action.fields?.length
@@ -231,18 +217,6 @@ function actionIcon(action: RowActionConfig) {
   return action.icon ? iconMap[action.icon] || MoreHorizontal : MoreHorizontal
 }
 
-function isRowActionVisible(action: RowActionConfig, record: AnyRecord) {
-  return action.visibleWhen ? action.visibleWhen(record) : true
-}
-
-function visibleInlineRowActions(record: AnyRecord) {
-  return inlineRowActions.value.filter((action) => isRowActionVisible(action, record))
-}
-
-function visibleDropdownRowActions(record: AnyRecord) {
-  return dropdownRowActions.value.filter((action) => isRowActionVisible(action, record))
-}
-
 function getAssetRawUrl(record: AnyRecord, key?: string) {
   const value = key ? getCellValue(record, key) : record.source_url || record.public_url || record.url || record.storage_uri
   const url = String(value || '').trim()
@@ -259,38 +233,18 @@ function getAssetFilename(record: AnyRecord, key?: string) {
   return name || `asset-${rowId(record)}`
 }
 
-function assetColumnUrl(row: AnyRecord, column: ColumnConfig) {
-  return getAssetUrl(row, column.key)
-}
-
-function isPreviewableAsset(record: AnyRecord) {
+function assetInlinePreviewKind(record: AnyRecord) {
   const type = String(record.asset_type || '').toLowerCase()
   const mime = String(record.mime_type || '').toLowerCase()
-  return type === 'image' || type === 'video' || mime.startsWith('image/') || mime.startsWith('video/')
+  if (type === 'image' || mime.startsWith('image/')) return 'image'
+  if (type === 'video' || mime.startsWith('video/')) return 'video'
+  return 'other'
 }
 
-function openAssetPreview(action: RowActionConfig, record: AnyRecord) {
-  if (!isPreviewableAsset(record)) {
-    ElNotification.warning({
-      title: '无法预览',
-      message: '当前素材类型不支持预览',
-    })
-    return
-  }
-  const url = getAssetUrl(record, action.urlKey)
-  if (!url) {
-    ElNotification.warning({
-      title: '无法预览',
-      message: '当前素材没有可访问的公开地址',
-    })
-    return
-  }
-  assetPreviewTitle.value = getAssetFilename(record, action.filenameKey)
-  assetPreviewUrl.value = url
-  assetPreviewType.value = String(record.asset_type || '').toLowerCase()
-  assetPreviewMime.value = String(record.mime_type || '').toLowerCase()
-  assetPreviewFilename.value = getAssetFilename(record, action.filenameKey)
-  assetPreviewVisible.value = true
+function assetTypeLabel(record: AnyRecord, column: ColumnConfig) {
+  const value = String(record.asset_type || '')
+  const option = column.options?.find((item) => String(item.value) === value)
+  return option?.label || value || '文件'
 }
 
 async function downloadUrl(url: string, filename: string) {
@@ -327,10 +281,6 @@ async function downloadAsset(action: RowActionConfig, record: AnyRecord) {
     return
   }
   await downloadUrl(url, getAssetFilename(record, action.filenameKey))
-}
-
-async function downloadPreviewAsset() {
-  await downloadUrl(assetPreviewUrl.value, assetPreviewFilename.value)
 }
 
 function isEnabledStatus(value: unknown) {
@@ -618,10 +568,6 @@ async function runAction(action: RowActionConfig, record: AnyRecord) {
     openTaskDetail(record)
     return
   }
-  if (action.clientAction === 'preview') {
-    openAssetPreview(action, record)
-    return
-  }
   if (action.clientAction === 'download') {
     await downloadAsset(action, record)
     return
@@ -872,17 +818,25 @@ onMounted(() => {
               :config="column.relation"
               :row="row"
             />
-            <template v-else-if="column.type === 'assetUrl'">
-              <el-link
-                v-if="assetColumnUrl(row, column)"
-                type="primary"
-                :href="assetColumnUrl(row, column)"
-                target="_blank"
-                :underline="false"
-              >
-                {{ formatCell(row, column) }}
-              </el-link>
-              <span v-else>-</span>
+            <template v-else-if="column.type === 'assetPreview'">
+              <div class="asset-inline-preview">
+                <img
+                  v-if="assetInlinePreviewKind(row) === 'image' && getAssetUrl(row, 'source_url')"
+                  class="asset-inline-preview__media"
+                  :src="getAssetUrl(row, 'source_url')"
+                  :alt="String(row.name || '素材图片')"
+                >
+                <video
+                  v-else-if="assetInlinePreviewKind(row) === 'video' && getAssetUrl(row, 'source_url')"
+                  class="asset-inline-preview__media"
+                  :src="getAssetUrl(row, 'source_url')"
+                  controls
+                  muted
+                  playsinline
+                  preload="metadata"
+                />
+                <el-tag v-else effect="plain">{{ assetTypeLabel(row, column) }}</el-tag>
+              </div>
             </template>
             <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
               {{ truncateId(row[column.key]) }}
@@ -907,7 +861,7 @@ onMounted(() => {
               <el-tooltip v-if="canEditRow" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" :disabled="submitting" @click="openEdit(row)" />
               </el-tooltip>
-              <el-tooltip v-for="action in visibleInlineRowActions(row)" :key="action.key" :content="action.label" placement="top">
+              <el-tooltip v-for="action in inlineRowActions" :key="action.key" :content="action.label" placement="top">
                 <el-button
                   text
                   circle
@@ -924,8 +878,8 @@ onMounted(() => {
               >
                 <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="deleteRow(row)" />
               </el-tooltip>
-              <template v-if="visibleDropdownRowActions(row).length || showDropdownDelete">
               <el-dropdown
+                v-if="dropdownRowActions.length || showDropdownDelete"
                 trigger="click"
                 :disabled="submitting"
                 @command="(command) => handleDropdown(String(command), row)"
@@ -934,7 +888,7 @@ onMounted(() => {
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
-                      v-for="action in visibleDropdownRowActions(row)"
+                      v-for="action in dropdownRowActions"
                       :key="action.key"
                       :command="action.key"
                       :class="action.variant === 'danger' ? 'text-red-600' : ''"
@@ -953,7 +907,6 @@ onMounted(() => {
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
-              </template>
             </el-space>
           </template>
         </el-table-column>
@@ -1050,38 +1003,6 @@ onMounted(() => {
       :value="resultValue"
       :columns="resultColumns"
     />
-
-    <el-dialog
-      v-model="assetPreviewVisible"
-      :title="assetPreviewTitle || '素材预览'"
-      width="820px"
-      destroy-on-close
-      append-to-body
-    >
-      <div class="asset-preview">
-        <img
-          v-if="assetPreviewKind === 'image'"
-          class="asset-preview__media asset-preview__image"
-          :src="assetPreviewUrl"
-          :alt="assetPreviewTitle"
-        >
-        <video
-          v-else-if="assetPreviewKind === 'video'"
-          class="asset-preview__media"
-          :src="assetPreviewUrl"
-          controls
-          preload="metadata"
-        />
-        <div class="asset-preview__footer">
-          <el-link type="primary" :href="assetPreviewUrl" target="_blank" :underline="false">
-            {{ assetPreviewUrl }}
-          </el-link>
-          <el-button type="primary" :icon="Download" @click="downloadPreviewAsset">
-            下载
-          </el-button>
-        </div>
-      </div>
-    </el-dialog>
 
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
   </section>
@@ -1253,40 +1174,20 @@ onMounted(() => {
   font-weight: 700;
 }
 
-.asset-preview {
-  display: grid;
-  gap: 14px;
+.asset-inline-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 84px;
 }
 
-.asset-preview__media {
-  width: 100%;
-  max-height: 62vh;
-  border: 1px solid #e6edf3;
+.asset-inline-preview__media {
+  width: 144px;
+  height: 80px;
+  border: 1px solid #d9e2ec;
   border-radius: 8px;
   background: #0f172a;
-}
-
-.asset-preview__image {
-  object-fit: contain;
-  background: #f8fafc;
-}
-
-.asset-preview__footer {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-}
-
-.asset-preview__footer :deep(.el-link) {
-  min-width: 0;
-  justify-content: flex-start;
-}
-
-.asset-preview__footer :deep(.el-link__inner) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  object-fit: cover;
 }
 
 @media (max-width: 768px) {
@@ -1316,8 +1217,5 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .asset-preview__footer {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

@@ -306,12 +306,6 @@ function buildMediaUploadBody(payload: AnyRecord) {
   return formData;
 }
 
-function isPreviewableMediaAsset(record: AnyRecord) {
-  const type = String(record.asset_type || "").toLowerCase();
-  const mime = String(record.mime_type || "").toLowerCase();
-  return type === "image" || type === "video" || mime.startsWith("image/") || mime.startsWith("video/");
-}
-
 async function loadAccountForEdit(record: AnyRecord) {
   const account = await http.get<AnyRecord>(`/api/accounts/${record.id}`);
   return { ...record, ...account, account_group_id: account.group_id || "" };
@@ -1009,7 +1003,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "name", label: "素材名称", minWidth: 220 },
       { key: "business_platform", label: "业务 App", align: "center" },
       { key: "asset_type", label: "素材类型", options: mediaAssetTypeOptions, align: "center" },
-      { key: "source_url", label: "素材地址", type: "assetUrl", minWidth: 360 },
+      { key: "source_url", label: "素材预览", type: "assetPreview", options: mediaAssetTypeOptions, width: 180, align: "center" },
       { key: "status", label: "状态", type: "status", align: "center" },
       { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170, align: "center" },
     ],
@@ -1093,16 +1087,6 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     rowActions: [
       {
-        key: "preview",
-        label: "预览",
-        icon: "eye",
-        clientAction: "preview",
-        urlKey: "source_url",
-        filenameKey: "name",
-        visibleWhen: isPreviewableMediaAsset,
-        refresh: false,
-      },
-      {
         key: "download",
         label: "下载",
         icon: "download",
@@ -1112,7 +1096,7 @@ export const resources: Record<string, ResourceConfig> = {
         refresh: false,
       },
     ],
-    inlineActionKeys: ["preview", "download"],
+    inlineActionKeys: ["download"],
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm: "确认删除该素材？仍被内容引用的素材后端会阻止删除。",

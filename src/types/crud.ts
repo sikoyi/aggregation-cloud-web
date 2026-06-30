@@ -31,7 +31,7 @@ export type ColumnType =
   | 'tag'
   | 'id'
   | 'boolean'
-  | 'assetUrl'
+  | 'assetPreview'
   | 'relation'
 
 export interface SelectOption {
@@ -100,10 +100,9 @@ export interface RowActionConfig {
   icon?: string
   successTitle?: string
   successMessage?: (data: AnyRecord, payload: AnyRecord) => string
-  clientAction?: 'preview' | 'download'
+  clientAction?: 'download'
   urlKey?: string
   filenameKey?: string
-  visibleWhen?: (record: AnyRecord) => boolean
 }
 
 export interface ResourceConfig {
