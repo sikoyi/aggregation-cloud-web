@@ -574,19 +574,44 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
   error.value = ''
   const failures: string[] = []
   const rowsToHandle = [...selectedRows.value]
+  let batchData: unknown = null
   try {
-    for (const row of rowsToHandle) {
-      try {
-        await requestAction(action, row, payload)
-      } catch (err) {
-        const message = getErrorMessage(err, '操作失败')
-        failures.push(`${rowId(row)}：${message}`)
+    if (action.batchPath || action.batchBody || action.batchParams) {
+      const path = action.batchPath
+        ? action.batchPath(rowsToHandle, payload)
+        : action.path?.(rowsToHandle[0], payload) || ''
+      const body = action.batchBody ? action.batchBody(payload, rowsToHandle) : payload
+      const params = typeof action.batchParams === 'function'
+        ? action.batchParams(payload, rowsToHandle)
+        : action.batchParams
+      if (action.method === 'GET') {
+        batchData = await http.get(path, params)
+        openResultDialog(action, batchData)
+      } else if (action.method === 'PUT') {
+        batchData = await http.put(path, body)
+      } else if (action.method === 'DELETE') {
+        batchData = await http.delete(path)
+      } else {
+        batchData = await http.post(path, body, params)
+      }
+    } else {
+      for (const row of rowsToHandle) {
+        try {
+          await requestAction(action, row, payload)
+        } catch (err) {
+          const message = getErrorMessage(err, '操作失败')
+          failures.push(`${rowId(row)}：${message}`)
+        }
       }
     }
     if (failures.length) {
       throw new Error(`部分数据处理失败：${failures.slice(0, 3).join('；')}`)
     }
-    ElMessage.success(`已处理 ${rowsToHandle.length} 条`)
+    ElMessage.success(
+      action.successMessage && batchData
+        ? action.successMessage(batchData as AnyRecord, payload)
+        : `已处理 ${rowsToHandle.length} 条`,
+    )
     clearSelection()
     await loadRows()
   } catch (err) {

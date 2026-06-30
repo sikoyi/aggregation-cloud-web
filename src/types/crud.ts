@@ -98,10 +98,13 @@ export interface RowActionConfig {
   label: string
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path?: (record: AnyRecord, payload?: AnyRecord) => string
+  batchPath?: (records: AnyRecord[], payload?: AnyRecord) => string
   fields?: FieldConfig[]
   resultColumns?: ColumnConfig[]
   body?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => unknown)
+  batchBody?: (payload: AnyRecord, records: AnyRecord[]) => unknown
   params?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => AnyRecord)
+  batchParams?: AnyRecord | ((payload: AnyRecord, records: AnyRecord[]) => AnyRecord)
   confirm?: string | ((record: AnyRecord) => string)
   refresh?: boolean
   variant?: 'default' | 'danger' | 'success'

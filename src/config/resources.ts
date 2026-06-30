@@ -130,6 +130,22 @@ const accountGroupMultiSelect = {
   multiple: true,
 };
 
+const proxyGroupRemoteSelect = {
+  endpoint: "/api/resource-center/proxy-groups",
+  labelKey: "name",
+  valueKey: "id",
+  detailPath: (value: string) =>
+    `/api/resource-center/proxy-groups/${encodeURIComponent(value)}`,
+  secondaryKey: "member_count",
+  searchParam: "keyword",
+  pageSize: 50,
+};
+
+const proxyGroupMultiSelect = {
+  ...proxyGroupRemoteSelect,
+  multiple: true,
+};
+
 const accountGroupForAccountEditRemoteSelect = {
   ...accountGroupRemoteSelect,
   params: (context?: AnyRecord) => ({
@@ -316,6 +332,25 @@ async function updateAccountGroups(_updatedAccount: AnyRecord, payload: AnyRecor
   return http.put(`/api/accounts/${record.id}/groups`, {
     group_id: payload.account_group_id || null,
   });
+}
+
+async function loadProxyForEdit(record: AnyRecord) {
+  const proxy = await http.get<AnyRecord>(`/api/resource-center/proxies/${record.id}`);
+  return { ...record, ...proxy, group_ids: Array.isArray(proxy.group_ids) ? proxy.group_ids : [] };
+}
+
+function buildProxyUpdateBody(payload: AnyRecord) {
+  return pickPayload(payload, [
+    "name",
+    "proxy_mode",
+    "host",
+    "port",
+    "username",
+    "password",
+    "status",
+    "remark",
+    "group_ids",
+  ]);
 }
 
 export const resources: Record<string, ResourceConfig> = {
@@ -741,6 +776,8 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/resource-center/proxies",
     createEndpoint: "/api/resource-center/proxies/import",
     createLabel: "导入代理",
+    loadEditRecord: loadProxyForEdit,
+    updateBody: buildProxyUpdateBody,
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
@@ -811,7 +848,36 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: proxyUsageStatusOptions,
       },
+      {
+        key: "group_ids",
+        label: "所属代理组",
+        type: "remoteSelect",
+        remote: proxyGroupMultiSelect,
+        allowEmpty: true,
+        span: 2,
+      },
       { key: "remark", label: "备注", span: 2, allowEmpty: true },
+    ],
+    batchActions: [
+      {
+        key: "batch-add-group",
+        label: "批量加入分组",
+        method: "POST",
+        icon: "users",
+        fields: [
+          {
+            key: "group_id",
+            label: "代理组",
+            type: "remoteSelect",
+            remote: proxyGroupRemoteSelect,
+            required: true,
+          },
+        ],
+        batchPath: (_records, payload) => `/api/resource-center/proxy-groups/${payload?.group_id}/proxies`,
+        batchBody: (_payload, records) => ({ proxy_ids: records.map((record) => String(record.id)) }),
+        successMessage: (data) =>
+          `已加入 ${Number(data.added_count || 0)} 个代理，跳过 ${Number(data.skipped_count || 0)} 个已在分组内的代理`,
+      },
     ],
     deleteLabel: "删除",
     deleteConfirm: "确认删除该代理？删除前请确认它没有关联账号或设备。",
