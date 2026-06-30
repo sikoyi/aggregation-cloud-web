@@ -1,6 +1,7 @@
 import type { ApiResponse, AnyRecord } from '@/types/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const API_BASE_ORIGIN = API_BASE_URL.replace(/\/$/, '')
 
 export class ApiError extends Error {
   status: number
@@ -26,6 +27,14 @@ function buildUrl(path: string, params?: AnyRecord) {
     url.searchParams.set(key, String(value))
   })
   return url.toString()
+}
+
+export function resolveBackendUrl(value: unknown) {
+  const url = String(value || '').trim()
+  if (!url) return ''
+  if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url
+  if (url.startsWith('/')) return `${API_BASE_ORIGIN}${url}`
+  return url
 }
 
 async function request<T>(
@@ -66,4 +75,5 @@ export const http = {
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, { body }),
   delete: <T>(path: string) => request<T>('DELETE', path),
   apiBaseUrl: API_BASE_URL,
+  resolveBackendUrl,
 }

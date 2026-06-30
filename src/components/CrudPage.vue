@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import {
   Copy,
+  Download,
   Edit3,
+  Eye,
   Link2,
   ListChecks,
   MoreHorizontal,
@@ -20,7 +22,7 @@ import {
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
-import { http } from '@/api/http'
+import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
@@ -32,7 +34,7 @@ import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
-import { formatCell, truncateId } from '@/utils/format'
+import { formatCell, getCellValue, truncateId } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
 
 const props = defineProps<{
@@ -41,7 +43,9 @@ const props = defineProps<{
 
 const iconMap: IconMap = {
   copy: Copy,
+  download: Download,
   edit: Edit3,
+  eye: Eye,
   link: Link2,
   list: ListChecks,
   play: Play,
@@ -69,6 +73,12 @@ const resultValue = ref<unknown>(null)
 const resultColumns = ref<ColumnConfig[]>([])
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
+const assetPreviewVisible = ref(false)
+const assetPreviewTitle = ref('')
+const assetPreviewUrl = ref('')
+const assetPreviewType = ref('')
+const assetPreviewMime = ref('')
+const assetPreviewFilename = ref('')
 const tableRef = ref()
 const slotGroupEditTab = ref('base')
 
@@ -108,6 +118,12 @@ const showModalSaveButton = computed(
   () => !(modal.type === 'edit' && props.config.slotGroupMembers && slotGroupEditTab.value === 'members'),
 )
 const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : '保存'))
+const assetPreviewKind = computed(() => {
+  const mime = assetPreviewMime.value.toLowerCase()
+  if (mime.startsWith('image/') || assetPreviewType.value === 'image') return 'image'
+  if (mime.startsWith('video/') || assetPreviewType.value === 'video') return 'video'
+  return 'file'
+})
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 function isInlineStatusAction(action: RowActionConfig) {
   return ['enable', 'disable'].includes(action.key) && !action.fields?.length
@@ -213,6 +229,83 @@ function openResultDialog(action: RowActionConfig, data: unknown) {
 
 function actionIcon(action: RowActionConfig) {
   return action.icon ? iconMap[action.icon] || MoreHorizontal : MoreHorizontal
+}
+
+function getAssetRawUrl(record: AnyRecord, key?: string) {
+  const value = key ? getCellValue(record, key) : record.source_url || record.public_url || record.url || record.storage_uri
+  const url = String(value || '').trim()
+  return url && !url.startsWith('local://') ? url : ''
+}
+
+function getAssetUrl(record: AnyRecord, key?: string) {
+  const rawUrl = getAssetRawUrl(record, key)
+  return rawUrl ? resolveBackendUrl(rawUrl) : ''
+}
+
+function getAssetFilename(record: AnyRecord, key?: string) {
+  const name = String((key ? getCellValue(record, key) : record.name) || '').trim()
+  return name || `asset-${rowId(record)}`
+}
+
+function assetColumnUrl(row: AnyRecord, column: ColumnConfig) {
+  return getAssetUrl(row, column.key)
+}
+
+function openAssetPreview(action: RowActionConfig, record: AnyRecord) {
+  const url = getAssetUrl(record, action.urlKey)
+  if (!url) {
+    ElNotification.warning({
+      title: '无法预览',
+      message: '当前素材没有可访问的公开地址',
+    })
+    return
+  }
+  assetPreviewTitle.value = getAssetFilename(record, action.filenameKey)
+  assetPreviewUrl.value = url
+  assetPreviewType.value = String(record.asset_type || '').toLowerCase()
+  assetPreviewMime.value = String(record.mime_type || '').toLowerCase()
+  assetPreviewFilename.value = getAssetFilename(record, action.filenameKey)
+  assetPreviewVisible.value = true
+}
+
+async function downloadUrl(url: string, filename: string) {
+  if (!url) return
+  try {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(response.statusText || '下载失败')
+    const blob = await response.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(objectUrl)
+    ElMessage.success('已开始下载')
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    ElNotification.info({
+      title: '已打开素材地址',
+      message: '浏览器无法直接下载该地址，已在新窗口打开',
+    })
+  }
+}
+
+async function downloadAsset(action: RowActionConfig, record: AnyRecord) {
+  const url = getAssetUrl(record, action.urlKey)
+  if (!url) {
+    ElNotification.warning({
+      title: '无法下载',
+      message: '当前素材没有可访问的公开地址',
+    })
+    return
+  }
+  await downloadUrl(url, getAssetFilename(record, action.filenameKey))
+}
+
+async function downloadPreviewAsset() {
+  await downloadUrl(assetPreviewUrl.value, assetPreviewFilename.value)
 }
 
 function isEnabledStatus(value: unknown) {
@@ -403,6 +496,7 @@ function clearSelection() {
 }
 
 async function requestAction(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
+  if (!action.method || !action.path) throw new Error('当前操作缺少接口配置')
   const path = action.path(record, payload)
   const params = typeof action.params === 'function' ? action.params(payload, record) : action.params
   const body =
@@ -497,6 +591,14 @@ function openAction(action: RowActionConfig, record: AnyRecord) {
 async function runAction(action: RowActionConfig, record: AnyRecord) {
   if (props.config.key === 'tasks' && action.key === 'detail') {
     openTaskDetail(record)
+    return
+  }
+  if (action.clientAction === 'preview') {
+    openAssetPreview(action, record)
+    return
+  }
+  if (action.clientAction === 'download') {
+    await downloadAsset(action, record)
     return
   }
   if (action.fields?.length) {
@@ -745,6 +847,18 @@ onMounted(() => {
               :config="column.relation"
               :row="row"
             />
+            <template v-else-if="column.type === 'assetUrl'">
+              <el-link
+                v-if="assetColumnUrl(row, column)"
+                type="primary"
+                :href="assetColumnUrl(row, column)"
+                target="_blank"
+                :underline="false"
+              >
+                {{ formatCell(row, column) }}
+              </el-link>
+              <span v-else>-</span>
+            </template>
             <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
               {{ truncateId(row[column.key]) }}
             </span>
@@ -910,6 +1024,39 @@ onMounted(() => {
       :value="resultValue"
       :columns="resultColumns"
     />
+
+    <el-dialog
+      v-model="assetPreviewVisible"
+      :title="assetPreviewTitle || '素材预览'"
+      width="820px"
+      destroy-on-close
+      append-to-body
+    >
+      <div class="asset-preview">
+        <img
+          v-if="assetPreviewKind === 'image'"
+          class="asset-preview__media asset-preview__image"
+          :src="assetPreviewUrl"
+          :alt="assetPreviewTitle"
+        >
+        <video
+          v-else-if="assetPreviewKind === 'video'"
+          class="asset-preview__media"
+          :src="assetPreviewUrl"
+          controls
+          preload="metadata"
+        />
+        <el-empty v-else description="该素材暂不支持在线预览" :image-size="80" />
+        <div class="asset-preview__footer">
+          <el-link type="primary" :href="assetPreviewUrl" target="_blank" :underline="false">
+            {{ assetPreviewUrl }}
+          </el-link>
+          <el-button type="primary" :icon="Download" @click="downloadPreviewAsset">
+            下载
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
 
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
   </section>
@@ -1081,6 +1228,42 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.asset-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.asset-preview__media {
+  width: 100%;
+  max-height: 62vh;
+  border: 1px solid #e6edf3;
+  border-radius: 8px;
+  background: #0f172a;
+}
+
+.asset-preview__image {
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.asset-preview__footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.asset-preview__footer :deep(.el-link) {
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.asset-preview__footer :deep(.el-link__inner) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   .filter-grid {
     grid-template-columns: 1fr;
@@ -1105,6 +1288,10 @@ onMounted(() => {
   }
 
   .task-dispatch-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-preview__footer {
     grid-template-columns: 1fr;
   }
 }

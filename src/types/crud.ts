@@ -31,6 +31,7 @@ export type ColumnType =
   | 'tag'
   | 'id'
   | 'boolean'
+  | 'assetUrl'
   | 'relation'
 
 export interface SelectOption {
@@ -87,8 +88,8 @@ export interface ColumnConfig {
 export interface RowActionConfig {
   key: string
   label: string
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  path: (record: AnyRecord, payload?: AnyRecord) => string
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  path?: (record: AnyRecord, payload?: AnyRecord) => string
   fields?: FieldConfig[]
   resultColumns?: ColumnConfig[]
   body?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => unknown)
@@ -99,6 +100,9 @@ export interface RowActionConfig {
   icon?: string
   successTitle?: string
   successMessage?: (data: AnyRecord, payload: AnyRecord) => string
+  clientAction?: 'preview' | 'download'
+  urlKey?: string
+  filenameKey?: string
 }
 
 export interface ResourceConfig {
