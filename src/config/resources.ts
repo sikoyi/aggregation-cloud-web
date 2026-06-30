@@ -781,6 +781,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
+      { key: "group_names", label: "所属分组", type: "list", minWidth: 180 },
       { key: "proxy_mode", label: "类型", options: proxyModeOptions, align: "center" },
       { key: "source_proxy_url", label: "Socks5 链接", minWidth: 360 },
       {
