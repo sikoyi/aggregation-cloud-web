@@ -652,13 +652,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: businessPlatformOptions,
         defaultValue: "threads",
       },
-      {
-        key: "metadata",
-        label: "扩展数据",
-        type: "json",
-        defaultValue: {},
-        span: 2,
-      },
     ],
     updateFields: [
       { key: "provider_slot_no", label: "Provider 编号" },
@@ -675,7 +668,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: slotStatusOptions,
       },
-      { key: "metadata", label: "扩展数据", type: "json", span: 2 },
     ],
     rowActions: [
       {
@@ -1726,20 +1718,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "remoteSelect",
         remote: taskTemplateRemoteSelect,
         placeholder: "全部模板",
-      },
-      {
-        key: "account_id",
-        label: "账号",
-        type: "remoteSelect",
-        remote: accountRemoteSelect,
-        placeholder: "全部账号",
-      },
-      {
-        key: "slot_id",
-        label: "设备",
-        type: "remoteSelect",
-        remote: slotRemoteSelect,
-        placeholder: "全部设备",
       },
       {
         key: "keyword",
