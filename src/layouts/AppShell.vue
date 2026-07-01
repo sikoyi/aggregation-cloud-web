@@ -16,14 +16,16 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { useRealtimeEvents } from '@/composables/useRealtimeEvents'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const realtime = useRealtimeEvents()
 
 const navGroups = [
   {
@@ -96,8 +98,25 @@ const userInitial = computed(() => auth.displayName.slice(0, 1).toUpperCase())
 
 async function logout() {
   await auth.logout()
+  realtime.disconnect()
   router.push('/login')
 }
+
+onMounted(() => {
+  realtime.connect()
+})
+
+onBeforeUnmount(() => {
+  realtime.disconnect()
+})
+
+watch(
+  () => auth.token,
+  (token) => {
+    if (token) realtime.connect()
+    else realtime.disconnect()
+  },
+)
 </script>
 
 <template>

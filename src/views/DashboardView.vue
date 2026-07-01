@@ -10,10 +10,11 @@ import {
   Users,
   XCircle,
 } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { http } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord } from '@/types/api'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -42,6 +43,7 @@ interface DashboardOverview {
 const loading = ref(false)
 const error = ref('')
 const overview = ref<DashboardOverview | null>(null)
+let realtimeRefreshTimer: number | undefined
 
 const cards = computed(() => {
   const data = overview.value
@@ -71,7 +73,27 @@ async function loadDashboard() {
   }
 }
 
-onMounted(loadDashboard)
+function scheduleRealtimeRefresh() {
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+  realtimeRefreshTimer = window.setTimeout(() => {
+    loadDashboard()
+  }, 500)
+}
+
+function handleRealtimeEvent(event: Event) {
+  const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (payload?.topic === 'task' || payload?.topic === 'runtime') scheduleRealtimeRefresh()
+}
+
+onMounted(() => {
+  loadDashboard()
+  window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+})
 </script>
 
 <template>

@@ -19,7 +19,7 @@ import {
   Users,
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
@@ -31,6 +31,7 @@ import RelationCell from '@/components/RelationCell.vue'
 import SlotGroupMemberEditor from '@/components/SlotGroupMemberEditor.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
+import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
@@ -79,6 +80,7 @@ const assetViewerKind = ref<'image' | 'video'>('image')
 const assetViewerFilename = ref('')
 const tableRef = ref()
 const slotGroupEditTab = ref('base')
+let realtimeRefreshTimer: number | undefined
 
 const modal = reactive<{
   type: 'create' | 'edit' | 'action' | 'batch' | null
@@ -389,6 +391,25 @@ async function loadRows() {
   } finally {
     loading.value = false
   }
+}
+
+function shouldRefreshForRealtime(event: RealtimeEventPayload) {
+  if (props.config.key === 'tasks') return event.topic === 'task'
+  if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
+  if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
+  return false
+}
+
+function scheduleRealtimeRefresh() {
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+  realtimeRefreshTimer = window.setTimeout(() => {
+    loadRows()
+  }, 500)
+}
+
+function handleRealtimeEvent(event: Event) {
+  const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (payload && shouldRefreshForRealtime(payload)) scheduleRealtimeRefresh()
 }
 
 function handleSizeChange(size: number) {
@@ -743,6 +764,12 @@ watch(
 onMounted(() => {
   initFilters()
   loadRows()
+  window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
 })
 </script>
 
