@@ -41,6 +41,10 @@ router.beforeEach(async (to) => {
   }
   if (to.name === 'login' && auth.isAuthenticated) return { name: 'dashboard' }
   if (auth.isAuthenticated && !auth.user) {
-    await auth.loadMe().catch(() => auth.logout())
+    await auth.loadMe().catch(() => {
+      auth.clearSession()
+      return { name: 'login', query: { redirect: to.fullPath } }
+    })
+    if (!auth.isAuthenticated) return { name: 'login', query: { redirect: to.fullPath } }
   }
 })

@@ -16,6 +16,14 @@ export class ApiError extends Error {
   }
 }
 
+type UnauthorizedHandler = (error: ApiError) => void
+
+let unauthorizedHandler: UnauthorizedHandler | null = null
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
+  unauthorizedHandler = handler
+}
+
 function token() {
   return localStorage.getItem('access_token')
 }
@@ -58,12 +66,16 @@ async function request<T>(
   })
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
   if (!response.ok || !payload || payload.code !== 0) {
-    throw new ApiError(
+    const error = new ApiError(
       payload?.msg || response.statusText || '请求失败',
       response.status,
       payload?.code,
       payload?.data,
     )
+    if (response.status === 401 && token() && !path.includes('/api/auth/login')) {
+      unauthorizedHandler?.(error)
+    }
+    throw error
   }
   return payload.data
 }

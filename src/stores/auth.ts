@@ -47,15 +47,17 @@ export const useAuthStore = defineStore('auth', {
       if (!this.token) return
       this.user = await http.get<User>('/api/auth/me')
     },
+    clearSession() {
+      this.token = ''
+      this.user = null
+      localStorage.removeItem('access_token')
+    },
     async logout() {
       try {
         if (this.token) await http.post('/api/auth/logout')
       } finally {
-        this.token = ''
-        this.user = null
-        localStorage.removeItem('access_token')
+        this.clearSession()
       }
     },
   },
 })
-
