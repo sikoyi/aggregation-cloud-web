@@ -216,6 +216,11 @@ const activeFilterCount = computed(
 )
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 const emptyDescription = computed(() => (hasActiveFilters.value ? '没有符合筛选条件的数据' : '暂无数据'))
+const emptyTip = computed(() =>
+  hasActiveFilters.value
+    ? '可以清空筛选条件后重新查看全部数据。'
+    : '当前模块还没有数据，可以通过上方操作创建或导入。',
+)
 
 function rowId(row: AnyRecord) {
   return String(row[idKey.value])
@@ -436,13 +441,21 @@ function closeModal() {
   submitting.value = false
 }
 
-async function confirmAction(message?: string, type: 'warning' | 'error' = 'warning') {
+async function confirmAction(
+  message?: string,
+  type: 'warning' | 'error' = 'warning',
+  title = '确认操作',
+) {
   if (!message) return true
   try {
-    await ElMessageBox.confirm(message, '确认操作', {
+    await ElMessageBox.confirm(message, title, {
       type,
       confirmButtonText: '确认',
       cancelButtonText: '取消',
+      closeOnClickModal: false,
+      closeOnPressEscape: false,
+      distinguishCancelAndClose: true,
+      confirmButtonClass: type === 'error' ? 'el-button--danger' : undefined,
     })
     return true
   } catch {
@@ -495,7 +508,7 @@ async function submitEntity() {
 
 async function deleteRow(record: AnyRecord) {
   const message = props.config.deleteConfirm || `确认删除 ${rowId(record)}？`
-  if (!(await confirmAction(message, 'error'))) return
+  if (!(await confirmAction(message, 'error', '确认删除'))) return
   await executeRequest(
     {
       key: 'delete',
@@ -568,7 +581,7 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
     action.key === '__delete'
     ? `确认删除已选 ${selectedRows.value.length} 条数据？此操作不可恢复。`
     : `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`
-  if (!(await confirmAction(message, isDanger ? 'error' : 'warning'))) return
+  if (!(await confirmAction(message, isDanger ? 'error' : 'warning', isDanger ? '确认批量删除' : '确认批量操作'))) return
 
   submitting.value = true
   error.value = ''
@@ -822,9 +835,9 @@ onMounted(() => {
     <div v-if="batchActions.length && hasSelectedRows" class="batch-toolbar">
       <div class="batch-toolbar__summary">
         <ListChecks class="h-4 w-4 text-slate-500" />
-        <span>已选</span>
+        <span>已选择</span>
         <strong>{{ selectedCount }}</strong>
-        <span>条</span>
+        <span>条数据</span>
       </div>
       <div class="batch-toolbar__actions">
         <el-button
@@ -860,7 +873,7 @@ onMounted(() => {
         table-layout="auto"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column v-if="batchActions.length" type="selection" width="48" />
+        <el-table-column v-if="batchActions.length" type="selection" width="48" reserve-selection />
 
         <el-table-column
           v-for="column in config.columns"
@@ -1002,7 +1015,8 @@ onMounted(() => {
         </el-table-column>
 
         <template #empty>
-          <el-empty :description="emptyDescription" :image-size="72">
+          <el-empty :description="emptyDescription" :image-size="78">
+            <p class="table-empty__tip">{{ emptyTip }}</p>
             <el-button v-if="hasActiveFilters" size="small" :icon="RotateCcw" @click="resetFilters">
               清空筛选
             </el-button>
@@ -1181,24 +1195,36 @@ onMounted(() => {
 }
 
 .batch-toolbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   min-height: 48px;
-  padding: 10px 14px;
-  border: 1px solid #dbe4f0;
+  padding: 10px 14px 10px 16px;
+  overflow: hidden;
+  border: 1px solid #d9e6f2;
   border-radius: 8px;
-  background: #f8fafc;
+  background: #fff;
+  box-shadow: 0 8px 22px rgb(15 23 42 / 6%);
+}
+
+.batch-toolbar::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #2f6f9f;
+  content: "";
 }
 
 .batch-toolbar__summary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 92px;
+  min-width: 132px;
   color: #475569;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .batch-toolbar__summary strong {
@@ -1211,11 +1237,22 @@ onMounted(() => {
   flex: 1;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 
 .batch-toolbar :deep(.el-button) {
   margin-left: 0;
+}
+
+.batch-toolbar :deep(.el-button.is-plain) {
+  border-color: #cddbea;
+  background: #f8fbff;
+}
+
+.batch-toolbar :deep(.el-button--danger.is-plain) {
+  border-color: #f2b8b8;
+  background: #fff7f7;
 }
 
 .resource-table :deep(.el-table__cell) {
@@ -1227,7 +1264,7 @@ onMounted(() => {
 }
 
 .resource-table :deep(.el-table__empty-block) {
-  min-height: 220px;
+  min-height: 260px;
 }
 
 .resource-table :deep(.el-button.is-circle) {
@@ -1240,6 +1277,14 @@ onMounted(() => {
   justify-content: flex-end;
   padding: 14px 16px;
   border-top: 1px solid #e6edf3;
+}
+
+.table-empty__tip {
+  max-width: 320px;
+  margin: -4px auto 12px;
+  color: #7b8794;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .account-group-edit-layout {
