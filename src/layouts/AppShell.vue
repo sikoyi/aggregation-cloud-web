@@ -106,8 +106,7 @@ async function logout() {
       <div class="flex h-16 items-center gap-2 border-b border-line px-5">
         <Gauge class="h-6 w-6 text-brand-600" />
         <div>
-          <div class="text-sm font-semibold text-ink">Aggregation Cloud</div>
-          <div class="text-xs text-slate-500">Control Console</div>
+          <div class="text-sm font-semibold text-ink">社媒聚合云控系统</div>
         </div>
       </div>
       <el-scrollbar class="flex-1">
@@ -131,7 +130,7 @@ async function logout() {
         <div class="flex h-16 items-center justify-between gap-3 px-4 lg:px-6">
           <div class="flex min-w-0 items-center gap-3 lg:hidden">
             <Gauge class="h-5 w-5 text-brand-600" />
-            <span class="truncate text-sm font-semibold text-ink">Aggregation Cloud</span>
+            <span class="truncate text-sm font-semibold text-ink">社媒聚合云控系统</span>
           </div>
           <div class="hidden text-sm text-slate-500 lg:block">后端 API：127.0.0.1:8000</div>
           <div class="flex items-center gap-3">
