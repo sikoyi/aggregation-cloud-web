@@ -50,7 +50,6 @@ async function updateTemplateValue(field: FieldConfig, value: string | string[])
       execution_mode: template.execution_mode || '',
       execution_count: Number(template.execution_count || 1),
       params: template.default_params || {},
-      slot_ids: [],
     })
   } finally {
     templateLoading.value = false
