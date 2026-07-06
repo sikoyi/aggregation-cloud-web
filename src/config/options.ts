@@ -227,7 +227,7 @@ export const accountDelimiterOptions: SelectOption[] = [
 
 export const loginStatusOptions: SelectOption[] = [
   { label: '未登录', value: 'not_logged_in' },
-  { label: '登录中', value: 'login_pending' },
+  { label: '未知', value: 'unknown' },
   { label: '已登录', value: 'logged_in' },
   { label: '需要 2FA', value: 'twofa_required' },
   { label: '封禁', value: 'banned' },
