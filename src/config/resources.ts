@@ -440,7 +440,7 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "---",
         required: true,
       },
-      { key: "custom_delimiter", label: "自定义分隔符", placeholder: "选择自定义时填写" },
+      { key: "custom_delimiter", label: "自定义分隔符", placeholder: "可填写空格、space、\\t 或自定义字符" },
       {
         key: "group_id",
         label: "账号分组",

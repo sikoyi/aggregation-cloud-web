@@ -222,6 +222,7 @@ export const accountDelimiterOptions: SelectOption[] = [
   { label: ',', value: ',' },
   { label: '|', value: '|' },
   { label: 'Tab', value: '\\t' },
+  { label: '空格', value: ' ' },
   { label: '自定义', value: 'custom' },
 ]
 
