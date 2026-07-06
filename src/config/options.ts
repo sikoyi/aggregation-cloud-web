@@ -229,15 +229,12 @@ export const loginStatusOptions: SelectOption[] = [
   { label: '未登录', value: 'not_logged_in' },
   { label: '登录中', value: 'login_pending' },
   { label: '已登录', value: 'logged_in' },
-  { label: '登录失败', value: 'failed' },
   { label: '需要 2FA', value: 'twofa_required' },
-  { label: '风控异常', value: 'risk' },
+  { label: '封禁', value: 'banned' },
 ]
 
 export const accountSelectionStrategyOptions: SelectOption[] = [
   { label: '仅未登录账号', value: 'not_logged_in' },
-  { label: '未登录 + 登录失败', value: 'not_logged_in_or_failed' },
-  { label: '仅登录失败', value: 'failed' },
   { label: '全部账号', value: 'all' },
 ]
 

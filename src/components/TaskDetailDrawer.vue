@@ -152,8 +152,6 @@ function accountSelectionStrategyLabel(value: unknown) {
   const labels: Record<string, string> = {
     all: '全部账号',
     not_logged_in: '仅未登录账号',
-    failed: '仅登录失败',
-    not_logged_in_or_failed: '未登录 + 登录失败',
   }
   return labels[String(value || '')] || text(value)
 }
