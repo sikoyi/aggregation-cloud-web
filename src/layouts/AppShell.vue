@@ -71,6 +71,16 @@ const navGroups = [
     ],
   },
   {
+    label: '互动中心',
+    index: 'interaction',
+    icon: ScrollText,
+    children: [
+      { label: '发布内容', to: '/published-contents', icon: FileText },
+      { label: '评论记录', to: '/content-comments', icon: ScrollText },
+      { label: '互动动作', to: '/interaction-actions', icon: PlaySquare },
+    ],
+  },
+  {
     label: '任务中心',
     index: 'task',
     icon: ClipboardList,

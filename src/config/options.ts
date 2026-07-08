@@ -273,6 +273,45 @@ export const contentStatusOptions: SelectOption[] = [
   { label: '禁用', value: 'disabled' },
 ]
 
+export const publishedContentTypeOptions: SelectOption[] = [
+  { label: '帖子', value: 'post' },
+  { label: '视频', value: 'video' },
+  { label: '图片', value: 'image' },
+  { label: '笔记', value: 'note' },
+  { label: 'Thread', value: 'thread' },
+  { label: '混合内容', value: 'mixed' },
+]
+
+export const publishedContentStatusOptions: SelectOption[] = [
+  { label: '正常', value: 'normal' },
+  { label: '已删除', value: 'deleted' },
+  { label: '已隐藏', value: 'hidden' },
+  { label: '不可访问', value: 'unavailable' },
+  { label: '异常', value: 'error' },
+]
+
+export const commentStatusOptions: SelectOption[] = [
+  { label: '正常', value: 'normal' },
+  { label: '已删除', value: 'deleted' },
+  { label: '已隐藏', value: 'hidden' },
+  { label: '异常', value: 'error' },
+]
+
+export const interactionActionTypeOptions: SelectOption[] = [
+  { label: '评论', value: 'comment' },
+  { label: '回复评论', value: 'reply_comment' },
+  { label: '点赞内容', value: 'like_content' },
+  { label: '点赞评论', value: 'like_comment' },
+  { label: '收藏', value: 'collect' },
+]
+
+export const interactionActionStatusOptions: SelectOption[] = [
+  { label: '待执行', value: 'pending' },
+  { label: '执行中', value: 'running' },
+  { label: '成功', value: 'succeeded' },
+  { label: '失败', value: 'failed' },
+]
+
 export const mediaAssetTypeOptions: SelectOption[] = [
   { label: '图片', value: 'image' },
   { label: '视频', value: 'video' },
