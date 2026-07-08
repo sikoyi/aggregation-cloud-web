@@ -1326,6 +1326,17 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "text_content", label: "正文内容", type: "textarea", span: 2, allowEmpty: true },
       { key: "platform_metadata", label: "平台元数据", type: "json", span: 2, allowEmpty: true },
     ],
+    inlineActionKeys: ["detail"],
+    rowActions: [
+      {
+        key: "detail",
+        label: "查看详情",
+        method: "GET",
+        icon: "list",
+        path: (record) => `/api/interaction-center/published-contents/${record.id}`,
+        refresh: false,
+      },
+    ],
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm: "确认删除该发布内容？评论、指标快照和互动动作记录会一起删除。",

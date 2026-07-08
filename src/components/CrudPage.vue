@@ -26,6 +26,7 @@ import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
+import PublishedContentDetailDialog from '@/components/PublishedContentDetailDialog.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
 import SlotGroupMemberEditor from '@/components/SlotGroupMemberEditor.vue'
@@ -73,6 +74,8 @@ const resultValue = ref<unknown>(null)
 const resultColumns = ref<ColumnConfig[]>([])
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
+const publishedContentDetailVisible = ref(false)
+const publishedContentDetailId = ref<string | null>(null)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -241,6 +244,11 @@ function hasFilterValue(value: unknown) {
 function openTaskDetail(record: AnyRecord) {
   taskDetailId.value = rowId(record)
   taskDetailVisible.value = true
+}
+
+function openPublishedContentDetail(record: AnyRecord) {
+  publishedContentDetailId.value = rowId(record)
+  publishedContentDetailVisible.value = true
 }
 
 function openResultDialog(action: RowActionConfig, data: unknown) {
@@ -676,6 +684,10 @@ async function runAction(action: RowActionConfig, record: AnyRecord) {
     openTaskDetail(record)
     return
   }
+  if (props.config.key === 'publishedContents' && action.key === 'detail') {
+    openPublishedContentDetail(record)
+    return
+  }
   if (action.clientAction === 'download') {
     await downloadAsset(action, record)
     return
@@ -751,6 +763,8 @@ function initFilters() {
   resultColumns.value = []
   taskDetailVisible.value = false
   taskDetailId.value = null
+  publishedContentDetailVisible.value = false
+  publishedContentDetailId.value = null
 }
 
 watch(
@@ -1171,6 +1185,11 @@ onBeforeUnmount(() => {
     </el-dialog>
 
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
+    <PublishedContentDetailDialog
+      v-if="config.key === 'publishedContents'"
+      v-model="publishedContentDetailVisible"
+      :content-id="publishedContentDetailId"
+    />
   </section>
 </template>
 
