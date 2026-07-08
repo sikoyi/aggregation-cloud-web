@@ -351,17 +351,35 @@ watch(
   --el-tree-node-hover-bg-color: #f8fafc;
 }
 
+:deep(.comment-tree .el-tree-node__content) {
+  height: auto;
+  min-height: 44px;
+  align-items: flex-start;
+  padding: 4px 0;
+}
+
+:deep(.comment-tree .el-tree-node__expand-icon) {
+  margin-top: 14px;
+}
+
+:deep(.comment-tree .el-tree-node__children) {
+  overflow: visible;
+}
+
 .comment-node {
   width: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef2f7;
+  line-height: 1.45;
 }
 
 .comment-node__main {
   min-width: 0;
+  flex: 1;
 }
 
 .comment-node__meta,
