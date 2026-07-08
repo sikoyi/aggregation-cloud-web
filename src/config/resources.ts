@@ -390,6 +390,7 @@ export const resources: Record<string, ResourceConfig> = {
         "display_name",
       ]),
     afterUpdate: updateAccountGroups,
+    accountPublishedContents: true,
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "login_username", label: "登录账号", minWidth: 180 },
@@ -1222,6 +1223,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "标题", minWidth: 220 },
+      { key: "author_account_name", label: "发布账号", minWidth: 160, align: "center" },
       { key: "business_platform", label: "业务 App", align: "center" },
       { key: "content_type", label: "内容类型", options: publishedContentTypeOptions, align: "center" },
       { key: "platform_content_id", label: "平台内容 ID", minWidth: 160, align: "center" },

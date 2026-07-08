@@ -23,6 +23,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
+import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
@@ -82,6 +83,7 @@ const assetViewerUrl = ref('')
 const assetViewerKind = ref<'image' | 'video'>('image')
 const assetViewerFilename = ref('')
 const tableRef = ref()
+const accountEditTab = ref('base')
 const slotGroupEditTab = ref('base')
 let realtimeRefreshTimer: number | undefined
 
@@ -112,14 +114,25 @@ const modalTitle = computed(() => {
 const isTaskDispatchModal = computed(() => props.config.key === 'tasks' && modal.type === 'create')
 const modalWidth = computed(() => {
   if (isTaskDispatchModal.value) return '1120px'
-  if (modal.type === 'edit' && (props.config.accountGroupMembers || props.config.slotGroupMembers || props.config.proxyGroupMembers)) return '1180px'
+  if (
+    modal.type === 'edit'
+    && (
+      props.config.accountPublishedContents
+      || props.config.accountGroupMembers
+      || props.config.slotGroupMembers
+      || props.config.proxyGroupMembers
+    )
+  ) return '1180px'
   return '760px'
 })
 const taskDispatchDeviceFields = computed(() => modalFields.value.filter((field) => field.type === 'slotTree'))
 const taskDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'slotTree'))
-const showModalSaveButton = computed(
-  () => !(modal.type === 'edit' && (props.config.slotGroupMembers || props.config.proxyGroupMembers) && slotGroupEditTab.value === 'members'),
-)
+const showModalSaveButton = computed(() => {
+  if (modal.type !== 'edit') return true
+  if (props.config.accountPublishedContents && accountEditTab.value === 'publishedContents') return false
+  if ((props.config.slotGroupMembers || props.config.proxyGroupMembers) && slotGroupEditTab.value === 'members') return false
+  return true
+})
 const groupMembersTabLabel = computed(() => (props.config.proxyGroupMembers ? '组内代理' : '组内设备'))
 const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : '保存'))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
@@ -438,6 +451,7 @@ function openCreate() {
   modal.type = 'create'
   modal.record = null
   modal.action = null
+  accountEditTab.value = 'base'
   slotGroupEditTab.value = 'base'
   formState.value = buildFormState(props.config.createFields || [])
 }
@@ -451,6 +465,7 @@ async function openEdit(record: AnyRecord) {
     modal.type = 'edit'
     modal.record = editRecord
     modal.action = null
+    accountEditTab.value = 'base'
     slotGroupEditTab.value = 'base'
     formState.value = buildFormState(props.config.updateFields || [], editRecord)
   } catch (err) {
@@ -465,6 +480,7 @@ function closeModal() {
   modal.type = null
   modal.record = null
   modal.action = null
+  accountEditTab.value = 'base'
   slotGroupEditTab.value = 'base'
   formState.value = {}
   submitting.value = false
@@ -1096,6 +1112,20 @@ onBeforeUnmount(() => {
           <div class="edit-panel-title">任务参数</div>
           <DynamicForm v-model="formState" :fields="taskDispatchConfigFields" :context="modal.record || undefined" />
         </div>
+      </div>
+      <div
+        v-else-if="modal.type === 'edit' && config.accountPublishedContents && modal.record"
+      >
+        <el-tabs v-model="accountEditTab" class="account-edit-tabs">
+          <el-tab-pane label="基础信息" name="base">
+            <div class="slot-group-edit-tabs__panel">
+              <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="发布内容" name="publishedContents">
+            <AccountPublishedContentPanel :account="modal.record" />
+          </el-tab-pane>
+        </el-tabs>
       </div>
       <div
         v-else-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"

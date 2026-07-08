@@ -143,6 +143,7 @@ export interface ResourceConfig {
   batchActions?: RowActionConfig[]
   deleteLabel?: string
   deleteConfirm?: string
+  accountPublishedContents?: boolean
   accountGroupMembers?: boolean
   slotGroupMembers?: boolean
   proxyGroupMembers?: boolean

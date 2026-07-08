@@ -175,7 +175,9 @@ watch(
                 <span v-else>-</span>
               </el-descriptions-item>
               <el-descriptions-item label="发布账号">
-                <span class="font-mono text-xs" :title="String(content.author_account_id || '')">{{ truncateId(content.author_account_id) }}</span>
+                <span :title="String(content.author_account_id || '')">
+                  {{ text(content.author_account_name || content.author_login_username || content.author_username || truncateId(content.author_account_id)) }}
+                </span>
               </el-descriptions-item>
               <el-descriptions-item label="发布时间">{{ formatDate(content.published_at) }}</el-descriptions-item>
               <el-descriptions-item label="最近采集">{{ formatDate(content.last_collected_at) }}</el-descriptions-item>
