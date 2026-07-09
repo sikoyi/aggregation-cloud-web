@@ -6,6 +6,7 @@ import {
   accountCountryOptions,
   accountDelimiterOptions,
   businessPlatformOptions,
+  contentStatusFilterOptions,
   contentStatusOptions,
   contentTypeOptions,
   commentStatusOptions,
@@ -149,7 +150,9 @@ const contentRemoteSelect = {
   searchParam: "keyword",
   params: (context?: AnyRecord) => ({
     business_platform: context?.business_platform || undefined,
-    status: context?.content_status || undefined,
+    status: context?.content_status && context.content_status !== "all"
+      ? context.content_status
+      : undefined,
   }),
   pageSize: 50,
 };
@@ -332,7 +335,7 @@ function buildTaskDispatchBody(payload: AnyRecord) {
 }
 
 function buildPublishedContentDispatchBody(payload: AnyRecord) {
-  return pickPayload(payload, [
+  const body = pickPayload(payload, [
     "business_platform",
     "runtime_platform",
     "provider",
@@ -344,6 +347,10 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "content_group_id",
     "scheduled_at",
   ]);
+  if (body.content_status === "all") {
+    body.content_status = null;
+  }
+  return body;
 }
 
 function formatPublishedContentDispatchSuccess(data: AnyRecord) {
@@ -1655,7 +1662,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "content_status",
         label: "内容使用状态",
         type: "select",
-        options: contentStatusOptions,
+        options: contentStatusFilterOptions,
         defaultValue: "unused",
         allowEmpty: true,
       },

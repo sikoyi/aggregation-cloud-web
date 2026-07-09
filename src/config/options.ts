@@ -272,6 +272,12 @@ export const contentStatusOptions: SelectOption[] = [
   { label: '已使用', value: 'used' },
 ]
 
+export const contentStatusFilterOptions: SelectOption[] = [
+  { label: '全部', value: 'all' },
+  { label: '未使用', value: 'unused' },
+  { label: '已使用', value: 'used' },
+]
+
 export const publishedContentTypeOptions: SelectOption[] = [
   { label: '帖子', value: 'post' },
   { label: '视频', value: 'video' },
