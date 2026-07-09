@@ -24,7 +24,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const keyword = ref('')
 const contentType = ref('')
-const status = ref('ready')
+const status = ref('unused')
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -49,7 +49,7 @@ const availableContentSelect = computed<RemoteSelectConfig>(() => ({
   multiple: true,
   params: {
     business_platform: props.group?.business_platform || undefined,
-    status: 'ready',
+    status: 'unused',
   },
 }))
 
@@ -211,7 +211,7 @@ function materialAssetCount(value: unknown) {
 function resetSearch() {
   keyword.value = ''
   contentType.value = ''
-  status.value = 'ready'
+  status.value = 'unused'
   searchMembers()
 }
 
@@ -221,7 +221,7 @@ watch(
     page.value = 1
     keyword.value = ''
     contentType.value = ''
-    status.value = 'ready'
+    status.value = 'unused'
     selectedContentIds.value = []
     loadMembers()
   },
@@ -235,7 +235,7 @@ onMounted(loadMembers)
     <div class="member-editor__header">
       <div>
         <div class="text-sm font-semibold text-ink">组内内容</div>
-        <div class="text-xs text-slate-500">任务下发选择内容池时，会从这里的可发布内容里随机抽取。</div>
+        <div class="text-xs text-slate-500">任务下发选择内容池时，会从这里的未使用内容里随机抽取。</div>
       </div>
       <el-button :icon="Search" :loading="loading" @click="loadMembers">刷新</el-button>
     </div>

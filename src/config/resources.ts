@@ -126,7 +126,7 @@ const contentGroupRemoteSelect = {
   valueKey: "id",
   detailPath: (value: string) =>
     `/api/content-center/content-groups/${encodeURIComponent(value)}`,
-  secondaryKey: "ready_count",
+  secondaryKey: "unused_count",
   searchParam: "keyword",
   pageSize: 50,
 };
@@ -946,7 +946,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "name", label: "名称", minWidth: 220 },
       { key: "business_platform", label: "业务 App", align: "center" },
       { key: "member_count", label: "内容数量", align: "center" },
-      { key: "ready_count", label: "可发布", align: "center" },
+      { key: "unused_count", label: "未使用", align: "center" },
       { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170, align: "center" },
     ],
     filters: [
@@ -1020,7 +1020,7 @@ export const resources: Record<string, ResourceConfig> = {
             label: "状态",
             type: "select",
             options: contentStatusOptions,
-            defaultValue: "draft",
+            defaultValue: "unused",
           },
           {
             key: "split_mode",
@@ -1107,7 +1107,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "状态",
         type: "select",
         options: contentStatusOptions,
-        defaultValue: "draft",
+        defaultValue: "unused",
       },
       {
         key: "material_asset_ids",

@@ -261,7 +261,7 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       detailPath: (value: string) => `/api/content-center/contents/${encodeURIComponent(value)}`,
       secondaryKeys: ['content_type', 'status'],
       searchParam: 'keyword',
-      params: { status: 'ready' },
+      params: { status: 'unused' },
       pageSize: 50,
     }
   }
@@ -271,7 +271,7 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       labelKey: 'name',
       valueKey: 'id',
       detailPath: (value: string) => `/api/content-center/content-groups/${encodeURIComponent(value)}`,
-      secondaryKey: 'ready_count',
+      secondaryKey: 'unused_count',
       searchParam: 'keyword',
       pageSize: 50,
     }

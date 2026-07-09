@@ -268,9 +268,8 @@ export const contentTypeOptions: SelectOption[] = [
 ]
 
 export const contentStatusOptions: SelectOption[] = [
-  { label: '草稿', value: 'draft' },
-  { label: '可使用', value: 'ready' },
-  { label: '禁用', value: 'disabled' },
+  { label: '未使用', value: 'unused' },
+  { label: '已使用', value: 'used' },
 ]
 
 export const publishedContentTypeOptions: SelectOption[] = [

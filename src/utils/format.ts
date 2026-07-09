@@ -32,7 +32,6 @@ const STATUS_LABELS: Record<string, string> = {
   partial_completed: '部分完成',
   queued: '排队中',
   rate_limited: '限流中',
-  ready: '可使用',
   restricted: '封禁',
   retry_wait: '等待重试',
   running: '运行中',
@@ -48,7 +47,7 @@ const STATUS_LABELS: Record<string, string> = {
   waiting_slot: '等待设备',
 }
 
-const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'ready', 'used']
+const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting']
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked']
 const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked']
