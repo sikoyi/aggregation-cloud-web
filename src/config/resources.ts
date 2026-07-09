@@ -1177,6 +1177,28 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "text_body", label: "内容正文", type: "textarea", span: 2, allowEmpty: true },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
     ],
+    batchActions: [
+      {
+        key: "batch-add-to-content-group",
+        label: "加入内容池",
+        method: "POST",
+        icon: "users",
+        fields: [
+          {
+            key: "group_id",
+            label: "内容池",
+            type: "remoteSelect",
+            remote: contentGroupRemoteSelect,
+            required: true,
+            placeholder: "请选择内容池",
+          },
+        ],
+        batchPath: (_records, payload) => `/api/content-center/content-groups/${payload?.group_id}/contents`,
+        batchBody: (_payload, records) => ({ content_ids: records.map((record) => String(record.id)) }),
+        successMessage: (data) =>
+          `已加入 ${Number(data.added_count || 0)} 条内容，跳过 ${Number(data.skipped_count || 0)} 条已在池内的内容`,
+      },
+    ],
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm:

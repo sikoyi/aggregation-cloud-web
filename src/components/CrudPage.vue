@@ -612,7 +612,11 @@ async function requestAction(action: RowActionConfig, record: AnyRecord, payload
 
 function openBatchAction(action: RowActionConfig) {
   modal.type = 'batch'
-  modal.record = null
+  const selectedPlatforms = [...new Set(selectedRows.value.map((row) => String(row.business_platform || '')).filter(Boolean))]
+  modal.record = {
+    selectedRows: selectedRows.value,
+    business_platform: selectedPlatforms.length === 1 ? selectedPlatforms[0] : undefined,
+  }
   modal.action = action
   formState.value = buildFormState(action.fields || [])
 }
