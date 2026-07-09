@@ -339,6 +339,7 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "script_key",
     "account_ids",
     "content_source_type",
+    "content_status",
     "content_id",
     "content_group_id",
     "scheduled_at",
@@ -1618,7 +1619,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: contentStatusOptions,
         defaultValue: "unused",
-        disabledWhen: { key: "content_source_type", value: "content_group" },
         allowEmpty: true,
       },
       {
@@ -1628,7 +1628,7 @@ export const resources: Record<string, ResourceConfig> = {
         remote: contentGroupRemoteSelect,
         disabledWhen: { key: "content_source_type", value: "content" },
         allowEmpty: true,
-        placeholder: "按账号数量从内容池未使用内容中取用",
+        placeholder: "按账号数量从内容池中随机取用",
       },
       {
         key: "content_id",
