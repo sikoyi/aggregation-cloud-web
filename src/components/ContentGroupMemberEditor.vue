@@ -250,7 +250,7 @@ onMounted(loadMembers)
     </div>
 
     <div class="member-editor__search">
-      <el-input v-model="keyword" clearable placeholder="标题 / 正文 / 备注 / 标签" @keyup.enter="searchMembers" />
+      <el-input v-model="keyword" clearable placeholder="标题 / 正文 / 标签" @keyup.enter="searchMembers" />
       <el-select v-model="contentType" clearable placeholder="内容类型">
         <el-option
           v-for="option in contentTypeOptions"
@@ -351,7 +351,6 @@ onMounted(loadMembers)
           <el-descriptions-item label="正文" :span="2">
             <div class="whitespace-pre-wrap leading-6">{{ text(contentDetail.text_body) }}</div>
           </el-descriptions-item>
-          <el-descriptions-item label="备注" :span="2">{{ text(contentDetail.remark) }}</el-descriptions-item>
         </el-descriptions>
       </div>
     </el-dialog>

@@ -192,6 +192,10 @@ function updateSelectValue(field: FieldConfig, value: string | string[]) {
 }
 
 const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
+const fieldContext = computed(() => ({
+  ...(props.context || {}),
+  ...props.modelValue,
+}))
 
 function fieldColumnSpan(field: FieldConfig) {
   if (field.span === 2 || ['datetimeRange', 'scriptParams', 'templateParams', 'slotTree', 'textImport', 'file'].includes(field.type || '')) return 24
@@ -249,7 +253,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             v-else-if="field.type === 'templateSelect' && field.remote"
             :model-value="modelValue[field.key]"
             :config="field.remote"
-            :context="context"
+            :context="fieldContext"
             :disabled="isFieldDisabled(field) || templateLoading"
             :placeholder="field.placeholder"
             @update:model-value="updateTemplateValue(field, $event)"
@@ -259,7 +263,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             v-else-if="field.type === 'remoteSelect' && field.remote"
             :model-value="modelValue[field.key]"
             :config="field.remote"
-            :context="context"
+            :context="fieldContext"
             :disabled="isFieldDisabled(field)"
             :placeholder="field.placeholder"
             @update:model-value="updateValue(field.key, $event)"

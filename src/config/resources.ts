@@ -128,6 +128,9 @@ const contentGroupRemoteSelect = {
     `/api/content-center/content-groups/${encodeURIComponent(value)}`,
   secondaryKey: "unused_count",
   searchParam: "keyword",
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+  }),
   pageSize: 50,
 };
 
@@ -320,7 +323,9 @@ function formatContentImportSuccess(data: AnyRecord) {
   const duplicate = Number(data.duplicate_count || 0);
   const existed = Number(data.existed_count || 0);
   const failed = Number(data.failed_count || 0);
-  return `共解析 ${total} 条内容，成功导入 ${created} 条；本次重复 ${duplicate} 条，系统已存在 ${existed} 条，失败 ${failed} 条。`;
+  const grouped = Number(data.grouped_count || 0);
+  const groupText = data.group_id ? `，加入内容池 ${grouped} 条` : "";
+  return `共解析 ${total} 条内容，成功导入 ${created} 条${groupText}；本次重复 ${duplicate} 条，系统已存在 ${existed} 条，失败 ${failed} 条。`;
 }
 
 function appendFormValue(formData: FormData, key: string, value: unknown) {
@@ -956,7 +961,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: businessPlatformOptions,
       },
-      { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
+      { key: "keyword", label: "关键词", placeholder: "名称 / 备注" },
     ],
     createFields: [
       {
@@ -967,7 +972,7 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "threads",
       },
       { key: "name", label: "名称", required: true },
-      { key: "description", label: "描述", type: "textarea", span: 2 },
+      { key: "description", label: "备注", type: "textarea", span: 2 },
     ],
     updateFields: [
       {
@@ -977,7 +982,7 @@ export const resources: Record<string, ResourceConfig> = {
         options: businessPlatformOptions,
       },
       { key: "name", label: "名称" },
-      { key: "description", label: "描述", type: "textarea", span: 2 },
+      { key: "description", label: "备注", type: "textarea", span: 2 },
     ],
     deleteLabel: "删除",
     deletePath: (record) => `/api/content-center/content-groups/${record.id}?force=true`,
@@ -1023,6 +1028,13 @@ export const resources: Record<string, ResourceConfig> = {
             defaultValue: "unused",
           },
           {
+            key: "content_group_id",
+            label: "内容池",
+            type: "remoteSelect",
+            remote: contentGroupRemoteSelect,
+            placeholder: "可选，导入后自动加入内容池",
+          },
+          {
             key: "split_mode",
             label: "拆分方式",
             type: "select",
@@ -1052,7 +1064,6 @@ export const resources: Record<string, ResourceConfig> = {
             span: 2,
             placeholder: "默认每行导入为一条内容；如果内容本身有换行，可以选择空行分隔。",
           },
-          { key: "remark", label: "备注", type: "textarea", span: 2 },
         ],
       },
     ],
@@ -1084,7 +1095,7 @@ export const resources: Record<string, ResourceConfig> = {
         options: contentStatusOptions,
       },
       { key: "tags", label: "标签", placeholder: "多个标签用逗号分隔" },
-      { key: "keyword", label: "关键词", placeholder: "标题 / 正文 / 备注" },
+      { key: "keyword", label: "关键词", placeholder: "标题 / 正文 / 标签" },
     ],
     createFields: [
       {
@@ -1110,6 +1121,13 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "unused",
       },
       {
+        key: "content_group_id",
+        label: "内容池",
+        type: "remoteSelect",
+        remote: contentGroupRemoteSelect,
+        placeholder: "可选，创建后自动加入内容池",
+      },
+      {
         key: "material_asset_ids",
         label: "关联素材",
         type: "remoteSelect",
@@ -1126,7 +1144,6 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "填写要发布的正文。没有正文时需要至少选择一个素材。",
       },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
-      { key: "remark", label: "备注", type: "textarea", span: 2 },
     ],
     updateFields: [
       {
@@ -1159,7 +1176,6 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "text_body", label: "内容正文", type: "textarea", span: 2, allowEmpty: true },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
-      { key: "remark", label: "备注", type: "textarea", span: 2, allowEmpty: true },
     ],
     deleteLabel: "删除",
     directDelete: true,
