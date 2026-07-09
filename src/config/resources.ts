@@ -149,7 +149,7 @@ const contentRemoteSelect = {
   searchParam: "keyword",
   params: (context?: AnyRecord) => ({
     business_platform: context?.business_platform || undefined,
-    status: "unused",
+    status: context?.content_status || undefined,
   }),
   pageSize: 50,
 };
@@ -1613,6 +1613,15 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "content_group",
       },
       {
+        key: "content_status",
+        label: "内容使用状态",
+        type: "select",
+        options: contentStatusOptions,
+        defaultValue: "unused",
+        disabledWhen: { key: "content_source_type", value: "content_group" },
+        allowEmpty: true,
+      },
+      {
         key: "content_group_id",
         label: "内容池",
         type: "remoteSelect",
@@ -1628,9 +1637,9 @@ export const resources: Record<string, ResourceConfig> = {
         remote: contentRemoteSelect,
         disabledWhen: { key: "content_source_type", value: "content_group" },
         allowEmpty: true,
-        placeholder: "选择内容库中一条未使用内容",
+        placeholder: "按使用状态筛选并选择内容",
       },
-      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
+      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true, placeholder: "不填则立即下发" },
     ],
     updateFields: [
       {

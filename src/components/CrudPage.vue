@@ -1138,7 +1138,7 @@ onBeforeUnmount(() => {
           <DynamicForm v-model="formState" :fields="taskDispatchConfigFields" :context="modal.record || undefined" />
         </div>
       </div>
-      <div v-else-if="isPublishedContentDispatchModal" class="task-dispatch-layout">
+      <div v-else-if="isPublishedContentDispatchModal" class="task-dispatch-layout task-dispatch-layout--published">
         <div class="task-dispatch-layout__devices">
           <div class="edit-panel-title">账号分组 / 已登录账号</div>
           <DynamicForm v-model="formState" :fields="publishedDispatchAccountFields" :context="modal.record || undefined" />
@@ -1422,6 +1422,11 @@ onBeforeUnmount(() => {
   align-items: start;
 }
 
+.task-dispatch-layout--published {
+  grid-template-columns: minmax(240px, 300px) minmax(660px, 1fr);
+  gap: 14px;
+}
+
 .task-dispatch-layout__devices,
 .task-dispatch-layout__params,
 .slot-group-edit-tabs__panel {
@@ -1440,6 +1445,15 @@ onBeforeUnmount(() => {
 .task-dispatch-layout__devices :deep(.slot-tree-select) {
   min-height: 480px;
   max-height: 58vh;
+}
+
+.task-dispatch-layout--published .task-dispatch-layout__devices {
+  padding: 12px;
+}
+
+.task-dispatch-layout--published :deep(.account-tree-select) {
+  min-height: 240px;
+  max-height: 44vh;
 }
 
 .slot-group-edit-tabs :deep(.el-tabs__header) {

@@ -25,6 +25,8 @@ interface AccountTreeNode {
 const treeRef = ref()
 const loading = ref(false)
 const treeData = ref<AccountTreeNode[]>([])
+const loggedInCount = ref(0)
+const selectableCount = ref(0)
 const treeProps = {
   label: 'label',
   children: 'children',
@@ -34,6 +36,11 @@ const treeProps = {
 const selectedAccountIds = computed(() =>
   Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
 )
+const emptyMessage = computed(() => {
+  if (loggedInCount.value === 0) return '当前业务 App 暂无已登录账号'
+  if (selectableCount.value === 0) return '当前业务 App 的已登录账号都未绑定设备，暂时不能下发发布任务'
+  return ''
+})
 
 function accountNodeId(accountId: string) {
   return `account:${accountId}`
@@ -84,6 +91,7 @@ async function loadTree() {
     ])
 
     const groupedAccountIds = new Set<string>()
+    const availableAccountIds = new Set<string>()
     const groupNodes = await Promise.all(
       groupsPage.items.map(async (group) => {
         const accounts = await http.get<PageResult<AnyRecord>>(
@@ -95,6 +103,7 @@ async function loadTree() {
           return true
         })
         items.forEach((account) => groupedAccountIds.add(String(account.id)))
+        items.filter((account) => account.bound_slot_id).forEach((account) => availableAccountIds.add(String(account.id)))
         return {
           id: `group:${group.id}`,
           label: String(group.name || group.id),
@@ -105,8 +114,11 @@ async function loadTree() {
     )
 
     const ungroupedAccounts = accountsPage.items.filter((account) => !groupedAccountIds.has(String(account.id)))
+    ungroupedAccounts.filter((account) => account.bound_slot_id).forEach((account) => availableAccountIds.add(String(account.id)))
+    loggedInCount.value = accountsPage.items.length
+    selectableCount.value = availableAccountIds.size
     treeData.value = [
-      ...groupNodes,
+      ...groupNodes.filter((node) => node.children?.length),
       ...(ungroupedAccounts.length
         ? [
             {
@@ -120,6 +132,10 @@ async function loadTree() {
 
     await nextTick()
     syncCheckedKeys()
+    const nextSelected = selectedAccountIds.value.filter((accountId) => availableAccountIds.has(accountId))
+    if (nextSelected.length !== selectedAccountIds.value.length) {
+      emit('update:modelValue', nextSelected)
+    }
   } finally {
     loading.value = false
   }
@@ -148,6 +164,14 @@ watch(
 
 <template>
   <div class="account-tree-select" v-loading="loading">
+    <el-alert
+      v-if="!loading && emptyMessage"
+      class="account-tree-select__alert"
+      :title="emptyMessage"
+      type="warning"
+      :closable="false"
+      show-icon
+    />
     <el-tree
       ref="treeRef"
       :data="treeData"
@@ -158,7 +182,7 @@ watch(
       :check-strictly="false"
       :expand-on-click-node="false"
       :disabled="disabled"
-      empty-text="暂无已登录账号"
+      :empty-text="emptyMessage || '暂无已登录账号'"
       @check="emitChecked"
     />
   </div>
@@ -166,6 +190,7 @@ watch(
 
 <style scoped>
 .account-tree-select {
+  width: 100%;
   min-height: 260px;
   max-height: 420px;
   overflow: auto;
@@ -173,6 +198,10 @@ watch(
   border: 1px solid #dbe4f0;
   border-radius: 6px;
   background: #f8fafc;
+}
+
+.account-tree-select__alert {
+  margin-bottom: 10px;
 }
 
 .account-tree-select :deep(.el-tree) {

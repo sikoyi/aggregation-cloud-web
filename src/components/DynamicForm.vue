@@ -380,7 +380,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             type="datetime"
             format="YYYY-MM-DD HH:mm:ss"
             value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="选择日期时间"
+            :placeholder="field.placeholder || '选择日期时间'"
             clearable
             @update:model-value="updateValue(field.key, $event)"
           />
