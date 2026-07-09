@@ -117,8 +117,9 @@ const modalTitle = computed(() => {
 })
 const isTaskDispatchModal = computed(() => props.config.key === 'tasks' && modal.type === 'create')
 const isPublishedContentDispatchModal = computed(() => props.config.key === 'publishedContents' && modal.type === 'create')
+const isInteractionSessionCreateModal = computed(() => props.config.key === 'interactionSessions' && modal.type === 'create')
 const modalWidth = computed(() => {
-  if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value) return '1120px'
+  if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value || isInteractionSessionCreateModal.value) return '1120px'
   if (
     modal.type === 'edit'
     && (
@@ -135,6 +136,18 @@ const taskDispatchDeviceFields = computed(() => modalFields.value.filter((field)
 const taskDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'slotTree'))
 const publishedDispatchAccountFields = computed(() => modalFields.value.filter((field) => field.type === 'accountTree'))
 const publishedDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'accountTree'))
+const interactionMainFields = computed(() => {
+  const keys = new Set(['title', 'business_platform', 'runtime_platform', 'provider', 'main_account_id', 'target_content_id'])
+  return modalFields.value.filter((field) => keys.has(field.key))
+})
+const interactionCommentFields = computed(() => {
+  const keys = new Set(['comment_account_ids'])
+  return modalFields.value.filter((field) => keys.has(field.key))
+})
+const interactionParamFields = computed(() => {
+  const keys = new Set(['script_key', 'scheduled_at', 'ai_config'])
+  return modalFields.value.filter((field) => keys.has(field.key))
+})
 const showModalSaveButton = computed(() => {
   if (modal.type !== 'edit') return true
   if (props.config.accountPublishedContents && accountEditTab.value === 'publishedContents') return false
@@ -1149,6 +1162,20 @@ onBeforeUnmount(() => {
           <DynamicForm v-model="formState" :fields="publishedDispatchConfigFields" :context="modal.record || undefined" />
         </div>
       </div>
+      <div v-else-if="isInteractionSessionCreateModal" class="interaction-session-create-layout">
+        <div class="interaction-session-create-layout__panel">
+          <div class="edit-panel-title">主号</div>
+          <DynamicForm v-model="formState" :fields="interactionMainFields" :context="modal.record || undefined" />
+        </div>
+        <div class="interaction-session-create-layout__panel">
+          <div class="edit-panel-title">评论账号</div>
+          <DynamicForm v-model="formState" :fields="interactionCommentFields" :context="modal.record || undefined" />
+        </div>
+        <div class="interaction-session-create-layout__panel">
+          <div class="edit-panel-title">参数填写</div>
+          <DynamicForm v-model="formState" :fields="interactionParamFields" :context="modal.record || undefined" />
+        </div>
+      </div>
       <div
         v-else-if="modal.type === 'edit' && config.accountPublishedContents && modal.record"
       >
@@ -1457,6 +1484,26 @@ onBeforeUnmount(() => {
   max-height: 44vh;
 }
 
+.interaction-session-create-layout {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.interaction-session-create-layout__panel {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e6edf3;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.interaction-session-create-layout__panel :deep(.el-col) {
+  max-width: 100%;
+  flex: 0 0 100%;
+}
+
 .slot-group-edit-tabs :deep(.el-tabs__header) {
   margin-bottom: 14px;
 }
@@ -1578,6 +1625,10 @@ onBeforeUnmount(() => {
   }
 
   .task-dispatch-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .interaction-session-create-layout {
     grid-template-columns: 1fr;
   }
 

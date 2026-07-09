@@ -116,8 +116,11 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
     }
     if (keyword && props.config.searchParam) params[props.config.searchParam] = keyword
     const data = await http.get<PageResult<AnyRecord>>(endpoint, params)
+    const matchedItems = props.config.matchesContext
+      ? data.items.filter((item) => props.config.matchesContext?.(item, props.context))
+      : data.items
     if (behavior.clearMissing && props.config.clearWhenMissing) {
-      const items = await mergeDetailsForCurrentSelection(data.items)
+      const items = await mergeDetailsForCurrentSelection(matchedItems)
       const availableItems = props.config.matchesContext
         ? items.filter((item) => props.config.matchesContext?.(item, props.context))
         : items
@@ -134,7 +137,7 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
       }
       return
     }
-    options.value = await mergeSelectedDetails(data.items)
+    options.value = await mergeSelectedDetails(matchedItems)
   } finally {
     loading.value = false
   }

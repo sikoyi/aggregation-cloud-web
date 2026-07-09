@@ -48,6 +48,25 @@ function scriptMatchesContext(script: AnyRecord, context?: AnyRecord) {
   );
 }
 
+function accountMatchesContext(account: AnyRecord, context?: AnyRecord) {
+  if (context?.business_platform && account.business_platform !== context.business_platform) return false;
+  if (context?.runtime_platform && account.bound_slot_runtime_platform !== context.runtime_platform) return false;
+  if (context?.provider && account.bound_slot_provider !== context.provider) return false;
+  return true;
+}
+
+function commentAccountMatchesContext(account: AnyRecord, context?: AnyRecord) {
+  if (!accountMatchesContext(account, context)) return false;
+  if (context?.main_account_id && String(account.id) === String(context.main_account_id)) return false;
+  return true;
+}
+
+function targetContentMatchesContext(content: AnyRecord, context?: AnyRecord) {
+  if (!context?.main_account_id) return false;
+  if (context.business_platform && content.business_platform !== context.business_platform) return false;
+  return String(content.author_account_id || "") === String(context.main_account_id);
+}
+
 const scriptRemoteSelect = {
   endpoint: "/api/scripts",
   labelKey: "name",
@@ -87,6 +106,33 @@ const accountRemoteSelect = {
 const accountMultiSelect = {
   ...accountRemoteSelect,
   multiple: true,
+};
+
+const interactionMainAccountRemoteSelect = {
+  ...accountRemoteSelect,
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+    runtime_platform: context?.runtime_platform || undefined,
+    provider: context?.provider || undefined,
+    login_status: "logged_in",
+  }),
+  clearWhenMissing: true,
+  matchesContext: accountMatchesContext,
+  emptyText: "当前业务 App / 执行平台 / 供应商下暂无已登录主号",
+};
+
+const interactionCommentAccountRemoteSelect = {
+  ...accountRemoteSelect,
+  multiple: true,
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+    runtime_platform: context?.runtime_platform || undefined,
+    provider: context?.provider || undefined,
+    login_status: "logged_in",
+  }),
+  clearWhenMissing: true,
+  matchesContext: commentAccountMatchesContext,
+  emptyText: "当前业务 App / 执行平台 / 供应商下暂无可用评论账号",
 };
 
 // 后端模型仍然使用 Execution Slot；前端面向运营统一展示为“设备”。
@@ -188,6 +234,21 @@ const publishedContentRemoteSelect = {
   secondaryKeys: ["business_platform", "status"],
   searchParam: "keyword",
   pageSize: 50,
+};
+
+const interactionTargetContentRemoteSelect = {
+  ...publishedContentRemoteSelect,
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+    author_account_id: context?.main_account_id || undefined,
+    status: "normal",
+  }),
+  clearWhenMissing: true,
+  matchesContext: targetContentMatchesContext,
+  emptyText: (context?: AnyRecord) =>
+    context?.main_account_id
+      ? "当前主号暂无可选择的已发布内容"
+      : "请先选择主号，再选择目标内容",
 };
 
 const accountGroupRemoteSelect = {
@@ -1505,43 +1566,39 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "keyword", label: "关键词", placeholder: "会话名称 / 目标帖子 / ID" },
     ],
     createFields: [
-      { key: "title", label: "会话名称", required: true },
+      { key: "title", label: "会话名称", required: true, span: 2 },
       {
         key: "business_platform",
         label: "业务 App",
         type: "select",
         options: businessPlatformOptions,
         defaultValue: "threads",
+        span: 2,
+      },
+      {
+        key: "main_account_id",
+        label: "主号",
+        type: "remoteSelect",
+        remote: interactionMainAccountRemoteSelect,
+        required: true,
+        span: 2,
       },
       {
         key: "target_content_id",
         label: "目标内容",
         type: "remoteSelect",
-        remote: publishedContentRemoteSelect,
-        placeholder: "优先选择内容库里的目标帖子",
-      },
-      { key: "target_platform_content_id", label: "平台帖子 ID", placeholder: "没有内容记录时可填写" },
-      { key: "target_content_url", label: "目标链接", span: 2, placeholder: "没有内容记录时可填写帖子链接" },
-      {
-        key: "main_account_id",
-        label: "主号",
-        type: "remoteSelect",
-        remote: accountRemoteSelect,
+        remote: interactionTargetContentRemoteSelect,
         required: true,
+        span: 2,
+        placeholder: "从主号已发布内容中选择目标帖子",
       },
       {
         key: "comment_account_ids",
         label: "评论账号",
         type: "remoteSelect",
-        remote: accountMultiSelect,
+        remote: interactionCommentAccountRemoteSelect,
         required: true,
-      },
-      {
-        key: "script_key",
-        label: "互动脚本",
-        type: "remoteSelect",
-        remote: scriptRemoteSelect,
-        required: true,
+        span: 2,
       },
       {
         key: "runtime_platform",
@@ -1549,6 +1606,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: runtimePlatformOptions,
         defaultValue: "fingerprint_browser",
+        span: 2,
       },
       {
         key: "provider",
@@ -1556,8 +1614,17 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: providerOptions,
         defaultValue: "adspower",
+        span: 2,
       },
-      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
+      {
+        key: "script_key",
+        label: "互动脚本",
+        type: "remoteSelect",
+        remote: scriptRemoteSelect,
+        required: true,
+        span: 2,
+      },
+      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true, span: 2 },
       {
         key: "ai_config",
         label: "AI 配置",
@@ -1570,7 +1637,6 @@ export const resources: Record<string, ResourceConfig> = {
           max_length: 120,
         },
       },
-      { key: "params", label: "扩展参数", type: "json", span: 2, allowEmpty: true },
     ],
     inlineActionKeys: ["detail"],
     rowActions: [
