@@ -3,6 +3,7 @@ import { ElMessage, type UploadFile } from 'element-plus'
 import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
 import SlotTreeSelect from '@/components/SlotTreeSelect.vue'
 import TemplateParamsEditor from '@/components/TemplateParamsEditor.vue'
@@ -245,6 +246,16 @@ watch(() => props.modelValue.execution_mode, (mode) => {
               business_platform: modelValue.business_platform,
               runtime_platform: modelValue.runtime_platform,
               provider: modelValue.provider,
+            }"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <AccountTreeSelect
+            v-else-if="field.type === 'accountTree'"
+            :model-value="modelValue[field.key]"
+            :disabled="isFieldDisabled(field)"
+            :filters="{
+              business_platform: modelValue.business_platform,
             }"
             @update:model-value="updateValue(field.key, $event)"
           />

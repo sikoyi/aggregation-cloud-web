@@ -116,8 +116,9 @@ const modalTitle = computed(() => {
   return modal.action?.label || '执行操作'
 })
 const isTaskDispatchModal = computed(() => props.config.key === 'tasks' && modal.type === 'create')
+const isPublishedContentDispatchModal = computed(() => props.config.key === 'publishedContents' && modal.type === 'create')
 const modalWidth = computed(() => {
-  if (isTaskDispatchModal.value) return '1120px'
+  if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value) return '1120px'
   if (
     modal.type === 'edit'
     && (
@@ -132,6 +133,8 @@ const modalWidth = computed(() => {
 })
 const taskDispatchDeviceFields = computed(() => modalFields.value.filter((field) => field.type === 'slotTree'))
 const taskDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'slotTree'))
+const publishedDispatchAccountFields = computed(() => modalFields.value.filter((field) => field.type === 'accountTree'))
+const publishedDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'accountTree'))
 const showModalSaveButton = computed(() => {
   if (modal.type !== 'edit') return true
   if (props.config.accountPublishedContents && accountEditTab.value === 'publishedContents') return false
@@ -143,7 +146,7 @@ const groupMembersTabLabel = computed(() => {
   if (props.config.contentGroupMembers) return '组内内容'
   return '组内设备'
 })
-const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : '保存'))
+const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : isPublishedContentDispatchModal.value ? '确认下发' : '保存'))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 const statusSwitchActionKeys = computed(() => {
   const keys = new Set(['enable', 'disable'])
@@ -1133,6 +1136,16 @@ onBeforeUnmount(() => {
         <div class="task-dispatch-layout__params">
           <div class="edit-panel-title">任务参数</div>
           <DynamicForm v-model="formState" :fields="taskDispatchConfigFields" :context="modal.record || undefined" />
+        </div>
+      </div>
+      <div v-else-if="isPublishedContentDispatchModal" class="task-dispatch-layout">
+        <div class="task-dispatch-layout__devices">
+          <div class="edit-panel-title">账号分组 / 已登录账号</div>
+          <DynamicForm v-model="formState" :fields="publishedDispatchAccountFields" :context="modal.record || undefined" />
+        </div>
+        <div class="task-dispatch-layout__params">
+          <div class="edit-panel-title">发布配置</div>
+          <DynamicForm v-model="formState" :fields="publishedDispatchConfigFields" :context="modal.record || undefined" />
         </div>
       </div>
       <div

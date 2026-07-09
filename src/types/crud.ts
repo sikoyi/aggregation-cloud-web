@@ -17,6 +17,7 @@ export type FieldType =
   | 'timeRange'
   | 'scriptParams'
   | 'templateParams'
+  | 'accountTree'
   | 'slotTree'
   | 'templateSelect'
   | 'remoteSelect'

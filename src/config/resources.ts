@@ -139,6 +139,21 @@ const contentGroupMultiSelect = {
   multiple: true,
 };
 
+const contentRemoteSelect = {
+  endpoint: "/api/content-center/contents",
+  labelKeys: ["title", "text_body"],
+  valueKey: "id",
+  detailPath: (value: string) =>
+    `/api/content-center/contents/${encodeURIComponent(value)}`,
+  secondaryKeys: ["content_type", "status"],
+  searchParam: "keyword",
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+    status: "unused",
+  }),
+  pageSize: 50,
+};
+
 const publishedContentRemoteSelect = {
   endpoint: "/api/interaction-center/published-contents",
   labelKeys: ["title", "platform_content_id", "content_url"],
@@ -271,6 +286,11 @@ const taskTemplatePayloadKeys = [
   "description",
 ];
 
+const publishedContentSourceOptions = [
+  { label: "指定内容", value: "content" },
+  { label: "内容池随机", value: "content_group" },
+];
+
 function buildExecutionWindow(record: AnyRecord) {
   return record.execution_window_start && record.execution_window_end
     ? [record.execution_window_start, record.execution_window_end]
@@ -309,6 +329,27 @@ function buildTaskDispatchBody(payload: AnyRecord) {
     "params",
     "scheduled_at",
   ]);
+}
+
+function buildPublishedContentDispatchBody(payload: AnyRecord) {
+  return pickPayload(payload, [
+    "business_platform",
+    "runtime_platform",
+    "provider",
+    "script_key",
+    "account_ids",
+    "content_source_type",
+    "content_id",
+    "content_group_id",
+    "scheduled_at",
+  ]);
+}
+
+function formatPublishedContentDispatchSuccess(data: AnyRecord) {
+  const total = Number(data.total || 0);
+  const task = data.task && typeof data.task === "object" ? data.task as AnyRecord : {};
+  const taskId = task.id ? `，父任务 ID：${task.id}` : "";
+  return `已下发 ${total} 个账号发布任务${taskId}`;
 }
 
 function formatAccountImportSuccess(data: AnyRecord) {
@@ -1481,7 +1522,11 @@ export const resources: Record<string, ResourceConfig> = {
     key: "publishedContents",
     title: "发布内容",
     endpoint: "/api/interaction-center/published-contents",
-    createLabel: "新增发布内容",
+    createEndpoint: "/api/interaction-center/published-contents/dispatch",
+    createLabel: "下发发布任务",
+    createBody: (payload) => buildPublishedContentDispatchBody(payload),
+    createSuccessTitle: "发布任务已下发",
+    createSuccessMessage: (data) => formatPublishedContentDispatchSuccess(data),
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "标题", minWidth: 220 },
@@ -1532,34 +1577,60 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "threads",
       },
       {
-        key: "content_type",
-        label: "内容类型",
+        key: "runtime_platform",
+        label: "执行平台",
         type: "select",
-        options: publishedContentTypeOptions,
-        defaultValue: "post",
+        options: runtimePlatformOptions,
+        defaultValue: "fingerprint_browser",
       },
-      { key: "title", label: "标题" },
       {
-        key: "status",
-        label: "状态",
+        key: "provider",
+        label: "供应商",
         type: "select",
-        options: publishedContentStatusOptions,
-        defaultValue: "normal",
+        options: providerOptions,
+        defaultValue: "adspower",
       },
-      { key: "platform_content_id", label: "平台内容 ID" },
-      { key: "content_url", label: "内容链接" },
       {
-        key: "author_account_id",
-        label: "发布账号",
+        key: "script_key",
+        label: "发布脚本",
         type: "remoteSelect",
-        remote: accountRemoteSelect,
-        allowEmpty: true,
+        remote: scriptRemoteSelect,
+        required: true,
+        placeholder: "请选择发布脚本",
       },
-      { key: "source_task_run_id", label: "来源任务 ID" },
-      { key: "published_at", label: "发布时间", type: "datetime" },
-      { key: "media_urls", label: "媒体链接", type: "tags", span: 2, placeholder: "多个媒体链接可换行或逗号分隔" },
-      { key: "text_content", label: "正文内容", type: "textarea", span: 2 },
-      { key: "platform_metadata", label: "平台元数据", type: "json", span: 2, allowEmpty: true },
+      {
+        key: "account_ids",
+        label: "发布账号",
+        type: "accountTree",
+        required: true,
+        span: 2,
+      },
+      {
+        key: "content_source_type",
+        label: "内容来源",
+        type: "select",
+        options: publishedContentSourceOptions,
+        defaultValue: "content_group",
+      },
+      {
+        key: "content_group_id",
+        label: "内容池",
+        type: "remoteSelect",
+        remote: contentGroupRemoteSelect,
+        disabledWhen: { key: "content_source_type", value: "content" },
+        allowEmpty: true,
+        placeholder: "按账号数量从内容池未使用内容中取用",
+      },
+      {
+        key: "content_id",
+        label: "指定内容",
+        type: "remoteSelect",
+        remote: contentRemoteSelect,
+        disabledWhen: { key: "content_source_type", value: "content_group" },
+        allowEmpty: true,
+        placeholder: "选择内容库中一条未使用内容",
+      },
+      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
     ],
     updateFields: [
       {
@@ -1588,7 +1659,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "published_at", label: "发布时间", type: "datetime", allowEmpty: true },
       { key: "media_urls", label: "媒体链接", type: "tags", span: 2, allowEmpty: true },
       { key: "text_content", label: "正文内容", type: "textarea", span: 2, allowEmpty: true },
-      { key: "platform_metadata", label: "平台元数据", type: "json", span: 2, allowEmpty: true },
     ],
     inlineActionKeys: ["detail"],
     rowActions: [
