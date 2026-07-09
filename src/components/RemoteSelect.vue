@@ -19,6 +19,7 @@ const emit = defineEmits<{
 
 const loading = ref(false)
 const options = ref<AnyRecord[]>([])
+const suppressNextModelReload = ref(false)
 
 const selectValue = computed(() => {
   if (props.config.multiple) {
@@ -79,7 +80,20 @@ async function mergeSelectedDetails(items: AnyRecord[]) {
   return mergeSelected([...details.filter(Boolean) as AnyRecord[], ...items])
 }
 
-async function loadOptions(keyword = '') {
+async function mergeDetailsForCurrentSelection(items: AnyRecord[]) {
+  const selected = selectedValues()
+  if (!selected.length || !props.config.detailPath) return items
+
+  const missing = selected.filter((value) => !items.some((item) => optionValue(item) === value))
+  if (!missing.length) return items
+
+  const details = await Promise.all(
+    missing.map((value) => http.get<AnyRecord>(props.config.detailPath?.(value) || '').catch(() => null)),
+  )
+  return [...details.filter(Boolean) as AnyRecord[], ...items]
+}
+
+async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
   loading.value = true
   try {
     const endpoint = typeof props.config.endpoint === 'function'
@@ -95,6 +109,24 @@ async function loadOptions(keyword = '') {
     }
     if (keyword && props.config.searchParam) params[props.config.searchParam] = keyword
     const data = await http.get<PageResult<AnyRecord>>(endpoint, params)
+    if (behavior.clearMissing && props.config.clearWhenMissing) {
+      const items = await mergeDetailsForCurrentSelection(data.items)
+      const availableItems = props.config.matchesContext
+        ? items.filter((item) => props.config.matchesContext?.(item, props.context))
+        : items
+      const availableValues = new Set(availableItems.map(optionValue))
+      const currentValues = selectedValues()
+      const retainedValues = currentValues.filter((value) => availableValues.has(value))
+      options.value = availableItems
+      if (retainedValues.length !== currentValues.length) {
+        suppressNextModelReload.value = true
+        emit(
+          'update:modelValue',
+          props.config.multiple ? retainedValues : '',
+        )
+      }
+      return
+    }
     options.value = await mergeSelectedDetails(data.items)
   } finally {
     loading.value = false
@@ -106,12 +138,16 @@ function handleVisibleChange(visible: boolean) {
 }
 
 onMounted(() => {
-  loadOptions()
+  loadOptions('', { clearMissing: Boolean(props.config.clearWhenMissing) })
 })
 
 watch(
   () => props.modelValue,
   () => {
+    if (suppressNextModelReload.value) {
+      suppressNextModelReload.value = false
+      return
+    }
     const missing = selectedValues().some((value) => !options.value.some((item) => optionValue(item) === value))
     if (missing) {
       loadOptions()
@@ -123,8 +159,9 @@ watch(
   () => props.context,
   () => {
     options.value = []
-    loadOptions()
+    loadOptions('', { clearMissing: Boolean(props.config.clearWhenMissing) })
   },
+  { deep: true },
 )
 
 function updateSelected(value: string | string[]) {

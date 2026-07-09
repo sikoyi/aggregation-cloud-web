@@ -52,6 +52,8 @@ export interface RemoteSelectConfig {
   params?: AnyRecord | ((context?: AnyRecord) => AnyRecord)
   pageSize?: number
   multiple?: boolean
+  clearWhenMissing?: boolean
+  matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
 }
 
 export interface FieldConfig {

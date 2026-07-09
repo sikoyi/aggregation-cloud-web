@@ -34,6 +34,20 @@ import {
   twoFaOptions,
 } from "./options";
 
+function includesScopeValue(values: unknown, value: unknown) {
+  if (!value) return true;
+  return Array.isArray(values) && values.map(String).includes(String(value));
+}
+
+function scriptMatchesContext(script: AnyRecord, context?: AnyRecord) {
+  if (script.status && script.status !== "enabled") return false;
+  return (
+    includesScopeValue(script.supported_business_platforms, context?.business_platform)
+    && includesScopeValue(script.supported_runtime_platforms, context?.runtime_platform)
+    && includesScopeValue(script.supported_providers, context?.provider)
+  );
+}
+
 const scriptRemoteSelect = {
   endpoint: "/api/scripts",
   labelKey: "name",
@@ -42,8 +56,15 @@ const scriptRemoteSelect = {
     `/api/scripts/by-key/${encodeURIComponent(value)}`,
   secondaryKey: "script_key",
   searchParam: "keyword",
-  params: { status: "enabled" },
+  params: (context?: AnyRecord) => ({
+    status: "enabled",
+    business_platform: context?.business_platform || undefined,
+    runtime_platform: context?.runtime_platform || undefined,
+    provider: context?.provider || undefined,
+  }),
   pageSize: 50,
+  clearWhenMissing: true,
+  matchesContext: scriptMatchesContext,
 };
 
 // 常见关联资源统一用远程下拉，表单提交仍然使用后端需要的 id/key。

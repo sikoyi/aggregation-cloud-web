@@ -877,6 +877,7 @@ onBeforeUnmount(() => {
                 v-if="filter.type === 'remoteSelect' && filter.remote"
                 :model-value="filters[filter.key]"
                 :config="filter.remote"
+                :context="filters"
                 :placeholder="filter.placeholder || '全部'"
                 @update:model-value="filters[filter.key] = $event; page = 1; loadRows()"
               />
