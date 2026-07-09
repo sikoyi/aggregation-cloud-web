@@ -37,8 +37,18 @@ const selectedAccountIds = computed(() =>
   Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
 )
 const emptyMessage = computed(() => {
-  if (loggedInCount.value === 0) return '当前业务 App 暂无已登录账号'
-  if (selectableCount.value === 0) return '当前业务 App 的已登录账号都未绑定设备，暂时不能下发发布任务'
+  const filters = props.filters || {}
+  const hasRuntimeFilter = Boolean(filters.runtime_platform || filters.provider)
+  if (loggedInCount.value === 0) {
+    return hasRuntimeFilter
+      ? '当前业务 App 在该执行平台/供应商下暂无已登录账号'
+      : '当前业务 App 暂无已登录账号'
+  }
+  if (selectableCount.value === 0) {
+    return hasRuntimeFilter
+      ? '当前业务 App 在该执行平台/供应商下的已登录账号都未绑定可用设备，暂时不能下发发布任务'
+      : '当前业务 App 的已登录账号都未绑定设备，暂时不能下发发布任务'
+  }
   return ''
 })
 
@@ -50,11 +60,20 @@ function queryParams(extra: AnyRecord = {}) {
   const filters = props.filters || {}
   return {
     business_platform: filters.business_platform || undefined,
+    runtime_platform: filters.runtime_platform || undefined,
+    provider: filters.provider || undefined,
     login_status: 'logged_in',
     page: 1,
     page_size: 100,
     ...extra,
   }
+}
+
+function accountMatchesRuntime(account: AnyRecord) {
+  const filters = props.filters || {}
+  if (filters.runtime_platform && account.bound_slot_runtime_platform !== filters.runtime_platform) return false
+  if (filters.provider && account.bound_slot_provider !== filters.provider) return false
+  return true
 }
 
 function accountLabel(account: AnyRecord) {
@@ -96,10 +115,11 @@ async function loadTree() {
       groupsPage.items.map(async (group) => {
         const accounts = await http.get<PageResult<AnyRecord>>(
           `/api/account-groups/${encodeURIComponent(String(group.id))}/accounts`,
-          { login_status: 'logged_in', page: 1, page_size: 100 },
+          queryParams({ page: 1, page_size: 100 }),
         )
         const items = accounts.items.filter((account) => {
           if (props.filters?.business_platform && account.business_platform !== props.filters.business_platform) return false
+          if (!accountMatchesRuntime(account)) return false
           return true
         })
         items.forEach((account) => groupedAccountIds.add(String(account.id)))

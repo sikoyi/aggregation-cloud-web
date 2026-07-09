@@ -256,6 +256,8 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :disabled="isFieldDisabled(field)"
             :filters="{
               business_platform: modelValue.business_platform,
+              runtime_platform: modelValue.runtime_platform,
+              provider: modelValue.provider,
             }"
             @update:model-value="updateValue(field.key, $event)"
           />

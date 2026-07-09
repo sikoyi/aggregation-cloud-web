@@ -486,6 +486,18 @@ export const resources: Record<string, ResourceConfig> = {
         type: "relation",
         relation: slotRemoteSelect,
       },
+      {
+        key: "bound_slot_runtime_platform",
+        label: "所在执行平台",
+        options: runtimePlatformOptions,
+        align: "center",
+      },
+      {
+        key: "bound_slot_provider",
+        label: "设备供应商",
+        options: providerOptions,
+        align: "center",
+      },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
     filters: [
@@ -506,6 +518,18 @@ export const resources: Record<string, ResourceConfig> = {
         label: "登录状态",
         type: "select",
         options: loginStatusOptions,
+      },
+      {
+        key: "runtime_platform",
+        label: "所在执行平台",
+        type: "select",
+        options: runtimePlatformOptions,
+      },
+      {
+        key: "provider",
+        label: "设备供应商",
+        type: "select",
+        options: providerOptions,
       },
       {
         key: "keyword",
@@ -586,6 +610,20 @@ export const resources: Record<string, ResourceConfig> = {
         remote: proxyReadonlyRemoteSelect,
         readonly: true,
         placeholder: "暂无代理",
+      },
+      {
+        key: "bound_slot_runtime_platform",
+        label: "所在执行平台",
+        type: "select",
+        options: runtimePlatformOptions,
+        readonly: true,
+      },
+      {
+        key: "bound_slot_provider",
+        label: "设备供应商",
+        type: "select",
+        options: providerOptions,
+        readonly: true,
       },
       { key: "display_name", label: "显示名称" },
     ],
