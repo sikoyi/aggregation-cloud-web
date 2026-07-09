@@ -134,6 +134,11 @@ const contentGroupRemoteSelect = {
   pageSize: 50,
 };
 
+const contentGroupMultiSelect = {
+  ...contentGroupRemoteSelect,
+  multiple: true,
+};
+
 const publishedContentRemoteSelect = {
   endpoint: "/api/interaction-center/published-contents",
   labelKeys: ["title", "platform_content_id", "content_url"],
@@ -370,6 +375,22 @@ async function updateAccountGroups(_updatedAccount: AnyRecord, payload: AnyRecor
 async function loadProxyForEdit(record: AnyRecord) {
   const proxy = await http.get<AnyRecord>(`/api/resource-center/proxies/${record.id}`);
   return { ...record, ...proxy, group_ids: Array.isArray(proxy.group_ids) ? proxy.group_ids : [] };
+}
+
+async function loadContentForEdit(record: AnyRecord) {
+  const content = await http.get<AnyRecord>(`/api/content-center/contents/${record.id}`);
+  return {
+    ...record,
+    ...content,
+    content_group_ids: Array.isArray(content.content_group_ids) ? content.content_group_ids : [],
+  };
+}
+
+async function updateContentGroups(_updatedContent: AnyRecord, payload: AnyRecord, record: AnyRecord) {
+  if (!Object.prototype.hasOwnProperty.call(payload, "content_group_ids")) return undefined;
+  return http.put(`/api/content-center/contents/${record.id}/groups`, {
+    content_group_ids: Array.isArray(payload.content_group_ids) ? payload.content_group_ids : [],
+  });
 }
 
 function buildProxyUpdateBody(payload: AnyRecord) {
@@ -996,6 +1017,18 @@ export const resources: Record<string, ResourceConfig> = {
     title: "内容库",
     endpoint: "/api/content-center/contents",
     createLabel: "新增内容",
+    loadEditRecord: loadContentForEdit,
+    updateBody: (payload) =>
+      pickPayload(payload, [
+        "business_platform",
+        "title",
+        "content_type",
+        "text_body",
+        "material_asset_ids",
+        "tags",
+        "status",
+      ]),
+    afterUpdate: updateContentGroups,
     headerActions: [
       {
         key: "import",
@@ -1070,6 +1103,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id", align: "center" },
       { key: "title", label: "内容标题", minWidth: 240 },
+      { key: "content_group_names", label: "所属内容池", type: "list", minWidth: 180 },
       { key: "business_platform", label: "业务 App", align: "center" },
       { key: "content_type", label: "内容类型", options: contentTypeOptions, align: "center" },
       { key: "status", label: "状态", type: "status", align: "center" },
@@ -1164,6 +1198,15 @@ export const resources: Record<string, ResourceConfig> = {
         label: "状态",
         type: "select",
         options: contentStatusOptions,
+      },
+      {
+        key: "content_group_ids",
+        label: "所属内容池",
+        type: "remoteSelect",
+        remote: contentGroupMultiSelect,
+        span: 2,
+        allowEmpty: true,
+        placeholder: "可选择一个或多个内容池",
       },
       {
         key: "material_asset_ids",
