@@ -26,6 +26,7 @@ import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
+import InteractionSessionDetailDialog from '@/components/InteractionSessionDetailDialog.vue'
 import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
 import PublishedContentDetailDialog from '@/components/PublishedContentDetailDialog.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -75,6 +76,8 @@ const resultValue = ref<unknown>(null)
 const resultColumns = ref<ColumnConfig[]>([])
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
+const interactionSessionDetailVisible = ref(false)
+const interactionSessionDetailId = ref<string | null>(null)
 const publishedContentDetailVisible = ref(false)
 const publishedContentDetailId = ref<string | null>(null)
 const assetViewerVisible = ref(false)
@@ -257,6 +260,11 @@ function hasFilterValue(value: unknown) {
 function openTaskDetail(record: AnyRecord) {
   taskDetailId.value = rowId(record)
   taskDetailVisible.value = true
+}
+
+function openInteractionSessionDetail(record: AnyRecord) {
+  interactionSessionDetailId.value = rowId(record)
+  interactionSessionDetailVisible.value = true
 }
 
 function openPublishedContentDetail(record: AnyRecord) {
@@ -698,6 +706,10 @@ function openAction(action: RowActionConfig, record: AnyRecord) {
 async function runAction(action: RowActionConfig, record: AnyRecord) {
   if (props.config.key === 'tasks' && action.key === 'detail') {
     openTaskDetail(record)
+    return
+  }
+  if (props.config.key === 'interactionSessions' && action.key === 'detail') {
+    openInteractionSessionDetail(record)
     return
   }
   if (props.config.key === 'publishedContents' && action.key === 'detail') {
@@ -1215,6 +1227,11 @@ onBeforeUnmount(() => {
     </el-dialog>
 
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
+    <InteractionSessionDetailDialog
+      v-if="config.key === 'interactionSessions'"
+      v-model="interactionSessionDetailVisible"
+      :session-id="interactionSessionDetailId"
+    />
     <PublishedContentDetailDialog
       v-if="config.key === 'publishedContents'"
       v-model="publishedContentDetailVisible"

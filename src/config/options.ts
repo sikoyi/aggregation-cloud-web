@@ -312,6 +312,22 @@ export const interactionActionStatusOptions: SelectOption[] = [
   { label: '失败', value: 'failed' },
 ]
 
+export const interactionSessionStatusOptions: SelectOption[] = [
+  { label: '排队中', value: 'queued' },
+  { label: '运行中', value: 'running' },
+  { label: '已完成', value: 'completed' },
+  { label: '部分完成', value: 'partial_completed' },
+  { label: '全部失败', value: 'all_failed' },
+  { label: '失败', value: 'failed' },
+  { label: '已取消', value: 'canceled' },
+]
+
+export const interactionStepActionOptions: SelectOption[] = [
+  { label: '首页刷帖评论', value: 'homepage_browse_comment' },
+  { label: '主号回复评论', value: 'main_reply_comment' },
+  { label: '评论号二次回复', value: 'commenter_reply_main' },
+]
+
 export const mediaAssetTypeOptions: SelectOption[] = [
   { label: '图片', value: 'image' },
   { label: '视频', value: 'video' },

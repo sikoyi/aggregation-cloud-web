@@ -24,6 +24,7 @@ export const router = createRouter({
         { path: 'proxy-groups', component: ResourceView, meta: { resource: 'proxyGroups' } },
         { path: 'contents', component: ResourceView, meta: { resource: 'contents' } },
         { path: 'media-assets', component: ResourceView, meta: { resource: 'mediaAssets' } },
+        { path: 'interaction-sessions', component: ResourceView, meta: { resource: 'interactionSessions' } },
         { path: 'published-contents', component: ResourceView, meta: { resource: 'publishedContents' } },
         { path: 'content-comments', component: ResourceView, meta: { resource: 'contentComments' } },
         { path: 'interaction-actions', component: ResourceView, meta: { resource: 'interactionActions' } },

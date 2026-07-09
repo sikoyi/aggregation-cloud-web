@@ -75,6 +75,7 @@ const navGroups = [
     index: 'interaction',
     icon: ScrollText,
     children: [
+      { label: '互动会话', to: '/interaction-sessions', icon: PlaySquare },
       { label: '发布内容', to: '/published-contents', icon: FileText },
       { label: '评论记录', to: '/content-comments', icon: ScrollText },
       { label: '互动动作', to: '/interaction-actions', icon: PlaySquare },

@@ -6,6 +6,7 @@ const STATUS_LABELS: Record<string, string> = {
   acknowledged: '已确认',
   assigned: '已分配',
   banned: '封禁',
+  blocked: '已阻断',
   canceled: '已取消',
   challenge: '封禁',
   connecting: '连接中',
@@ -21,6 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
   idle: '空闲',
   login_required: '未登录',
   logged_in: '已登录',
+  locked: '待前置步骤',
   lost: '已丢失',
   normal: '正常',
   not_logged_in: '未登录',
@@ -48,8 +50,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'ready', 'used']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting']
-const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused']
-const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned']
+const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked']
+const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked']
 
 export function getCellValue(row: AnyRecord, key: string) {
   if (!key.includes('.')) return row[key]
