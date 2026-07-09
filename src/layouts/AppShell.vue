@@ -67,6 +67,7 @@ const navGroups = [
     icon: FileText,
     children: [
       { label: '内容库', to: '/contents', icon: FileText },
+      { label: '内容池', to: '/content-groups', icon: Layers3 },
       { label: '素材库', to: '/media-assets', icon: Image },
     ],
   },

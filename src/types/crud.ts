@@ -147,6 +147,7 @@ export interface ResourceConfig {
   accountGroupMembers?: boolean
   slotGroupMembers?: boolean
   proxyGroupMembers?: boolean
+  contentGroupMembers?: boolean
 }
 
 export type IconMap = Record<string, Component>

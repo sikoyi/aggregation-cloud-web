@@ -66,7 +66,7 @@ function normalizeParamType(param: ScriptParam) {
 }
 
 function isResourceParam(param: ScriptParam) {
-  return ['proxy', 'res', 'proxy_group', 'account', 'account_group', 'content', 'media_asset', 'execution_slot'].includes(normalizeParamType(param))
+  return ['proxy', 'res', 'proxy_group', 'account', 'account_group', 'content', 'content_group', 'media_asset', 'execution_slot'].includes(normalizeParamType(param))
 }
 
 function isAccountGroupParam(param: ScriptParam) {
@@ -201,6 +201,7 @@ function resourceTypeLabel(param: ScriptParam | null) {
   if (type === 'proxy_group') return '代理组'
   if (type === 'execution_slot') return '设备'
   if (type === 'content') return '内容'
+  if (type === 'content_group') return '内容池'
   if (type === 'media_asset') return '媒体资源'
   return '代理'
 }
@@ -261,6 +262,17 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       secondaryKeys: ['content_type', 'status'],
       searchParam: 'keyword',
       params: { status: 'ready' },
+      pageSize: 50,
+    }
+  }
+  if (type === 'content_group') {
+    return {
+      endpoint: '/api/content-center/content-groups',
+      labelKey: 'name',
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/content-center/content-groups/${encodeURIComponent(value)}`,
+      secondaryKey: 'ready_count',
+      searchParam: 'keyword',
       pageSize: 50,
     }
   }

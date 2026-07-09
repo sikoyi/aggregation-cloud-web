@@ -25,6 +25,7 @@ import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
+import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import InteractionSessionDetailDialog from '@/components/InteractionSessionDetailDialog.vue'
 import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
@@ -124,6 +125,7 @@ const modalWidth = computed(() => {
       || props.config.accountGroupMembers
       || props.config.slotGroupMembers
       || props.config.proxyGroupMembers
+      || props.config.contentGroupMembers
     )
   ) return '1180px'
   return '760px'
@@ -133,10 +135,14 @@ const taskDispatchConfigFields = computed(() => modalFields.value.filter((field)
 const showModalSaveButton = computed(() => {
   if (modal.type !== 'edit') return true
   if (props.config.accountPublishedContents && accountEditTab.value === 'publishedContents') return false
-  if ((props.config.slotGroupMembers || props.config.proxyGroupMembers) && slotGroupEditTab.value === 'members') return false
+  if ((props.config.slotGroupMembers || props.config.proxyGroupMembers || props.config.contentGroupMembers) && slotGroupEditTab.value === 'members') return false
   return true
 })
-const groupMembersTabLabel = computed(() => (props.config.proxyGroupMembers ? '组内代理' : '组内设备'))
+const groupMembersTabLabel = computed(() => {
+  if (props.config.proxyGroupMembers) return '组内代理'
+  if (props.config.contentGroupMembers) return '组内内容'
+  return '组内设备'
+})
 const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : '保存'))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 const statusSwitchActionKeys = computed(() => {
@@ -1154,7 +1160,7 @@ onBeforeUnmount(() => {
         />
       </div>
       <el-tabs
-        v-else-if="modal.type === 'edit' && (config.slotGroupMembers || config.proxyGroupMembers) && modal.record"
+        v-else-if="modal.type === 'edit' && (config.slotGroupMembers || config.proxyGroupMembers || config.contentGroupMembers) && modal.record"
         v-model="slotGroupEditTab"
         class="slot-group-edit-tabs"
       >
@@ -1170,6 +1176,11 @@ onBeforeUnmount(() => {
             @changed="loadRows"
           />
           <ProxyGroupMemberEditor
+            v-else-if="config.proxyGroupMembers"
+            :group="modal.record"
+            @changed="loadRows"
+          />
+          <ContentGroupMemberEditor
             v-else
             :group="modal.record"
             @changed="loadRows"

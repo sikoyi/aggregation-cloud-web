@@ -120,6 +120,17 @@ const mediaAssetMultiSelect = {
   multiple: true,
 };
 
+const contentGroupRemoteSelect = {
+  endpoint: "/api/content-center/content-groups",
+  labelKey: "name",
+  valueKey: "id",
+  detailPath: (value: string) =>
+    `/api/content-center/content-groups/${encodeURIComponent(value)}`,
+  secondaryKey: "ready_count",
+  searchParam: "keyword",
+  pageSize: 50,
+};
+
 const publishedContentRemoteSelect = {
   endpoint: "/api/interaction-center/published-contents",
   labelKeys: ["title", "platform_content_id", "content_url"],
@@ -922,6 +933,57 @@ export const resources: Record<string, ResourceConfig> = {
     directDelete: true,
     deleteConfirm:
       "确认删除该代理组？删除后组内成员会自动解绑，分组本身不可恢复，请谨慎操作。",
+  },
+
+  contentGroups: {
+    key: "contentGroups",
+    title: "内容池",
+    endpoint: "/api/content-center/content-groups",
+    createLabel: "新增内容池",
+    contentGroupMembers: true,
+    columns: [
+      { key: "id", label: "ID", type: "id", align: "center" },
+      { key: "name", label: "名称", minWidth: 220 },
+      { key: "business_platform", label: "业务 App", align: "center" },
+      { key: "member_count", label: "内容数量", align: "center" },
+      { key: "ready_count", label: "可发布", align: "center" },
+      { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170, align: "center" },
+    ],
+    filters: [
+      {
+        key: "business_platform",
+        label: "业务 App",
+        type: "select",
+        options: businessPlatformOptions,
+      },
+      { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
+    ],
+    createFields: [
+      {
+        key: "business_platform",
+        label: "业务 App",
+        type: "select",
+        options: businessPlatformOptions,
+        defaultValue: "threads",
+      },
+      { key: "name", label: "名称", required: true },
+      { key: "description", label: "描述", type: "textarea", span: 2 },
+    ],
+    updateFields: [
+      {
+        key: "business_platform",
+        label: "业务 App",
+        type: "select",
+        options: businessPlatformOptions,
+      },
+      { key: "name", label: "名称" },
+      { key: "description", label: "描述", type: "textarea", span: 2 },
+    ],
+    deleteLabel: "删除",
+    deletePath: (record) => `/api/content-center/content-groups/${record.id}?force=true`,
+    directDelete: true,
+    deleteConfirm:
+      "确认删除该内容池？删除后组内内容只会解除关系，内容本身不会被删除。",
   },
 
   contents: {

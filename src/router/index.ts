@@ -23,6 +23,7 @@ export const router = createRouter({
         { path: 'proxies', component: ResourceView, meta: { resource: 'proxies' } },
         { path: 'proxy-groups', component: ResourceView, meta: { resource: 'proxyGroups' } },
         { path: 'contents', component: ResourceView, meta: { resource: 'contents' } },
+        { path: 'content-groups', component: ResourceView, meta: { resource: 'contentGroups' } },
         { path: 'media-assets', component: ResourceView, meta: { resource: 'mediaAssets' } },
         { path: 'interaction-sessions', component: ResourceView, meta: { resource: 'interactionSessions' } },
         { path: 'published-contents', component: ResourceView, meta: { resource: 'publishedContents' } },

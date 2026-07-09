@@ -436,6 +436,7 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '账号', value: 'account' },
   { label: '账号组', value: 'account_group' },
   { label: '内容', value: 'content' },
+  { label: '内容池', value: 'content_group' },
   { label: '媒体资源', value: 'media_asset' },
   { label: '设备', value: 'execution_slot' },
   { label: '密钥', value: 'secret' },
