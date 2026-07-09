@@ -65,6 +65,7 @@ const scriptRemoteSelect = {
   pageSize: 50,
   clearWhenMissing: true,
   matchesContext: scriptMatchesContext,
+  emptyText: "当前业务 App / 执行平台 / 供应商下暂无可用脚本，请先在脚本管理中确认脚本支持范围",
 };
 
 // 常见关联资源统一用远程下拉，表单提交仍然使用后端需要的 id/key。

@@ -28,6 +28,13 @@ const selectValue = computed(() => {
   return String(props.modelValue || '')
 })
 
+const emptyText = computed(() => {
+  if (typeof props.config.emptyText === 'function') {
+    return props.config.emptyText(props.context)
+  }
+  return props.config.emptyText || '暂无可选数据'
+})
+
 function fieldValue(option: AnyRecord, keys: string[]) {
   const key = keys.find((item) => option[item] !== undefined && option[item] !== null && option[item] !== '')
   return key ? String(option[key]) : ''
@@ -205,5 +212,20 @@ function updateSelected(value: string | string[]) {
         </span>
       </div>
     </el-option>
+    <template #empty>
+      <div class="remote-select-empty">
+        {{ emptyText }}
+      </div>
+    </template>
   </el-select>
 </template>
+
+<style scoped>
+.remote-select-empty {
+  padding: 16px 18px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+</style>

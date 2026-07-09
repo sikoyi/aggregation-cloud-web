@@ -54,6 +54,7 @@ export interface RemoteSelectConfig {
   multiple?: boolean
   clearWhenMissing?: boolean
   matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
+  emptyText?: string | ((context?: AnyRecord) => string)
 }
 
 export interface FieldConfig {
