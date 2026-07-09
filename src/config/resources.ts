@@ -48,19 +48,6 @@ function scriptMatchesContext(script: AnyRecord, context?: AnyRecord) {
   );
 }
 
-function accountMatchesContext(account: AnyRecord, context?: AnyRecord) {
-  if (context?.business_platform && account.business_platform !== context.business_platform) return false;
-  if (context?.runtime_platform && account.bound_slot_runtime_platform !== context.runtime_platform) return false;
-  if (context?.provider && account.bound_slot_provider !== context.provider) return false;
-  return true;
-}
-
-function commentAccountMatchesContext(account: AnyRecord, context?: AnyRecord) {
-  if (!accountMatchesContext(account, context)) return false;
-  if (context?.main_account_id && String(account.id) === String(context.main_account_id)) return false;
-  return true;
-}
-
 function targetContentMatchesContext(content: AnyRecord, context?: AnyRecord) {
   if (!context?.main_account_id) return false;
   if (context.business_platform && content.business_platform !== context.business_platform) return false;
@@ -106,33 +93,6 @@ const accountRemoteSelect = {
 const accountMultiSelect = {
   ...accountRemoteSelect,
   multiple: true,
-};
-
-const interactionMainAccountRemoteSelect = {
-  ...accountRemoteSelect,
-  params: (context?: AnyRecord) => ({
-    business_platform: context?.business_platform || undefined,
-    runtime_platform: context?.runtime_platform || undefined,
-    provider: context?.provider || undefined,
-    login_status: "logged_in",
-  }),
-  clearWhenMissing: true,
-  matchesContext: accountMatchesContext,
-  emptyText: "当前业务 App / 执行平台 / 供应商下暂无已登录主号",
-};
-
-const interactionCommentAccountRemoteSelect = {
-  ...accountRemoteSelect,
-  multiple: true,
-  params: (context?: AnyRecord) => ({
-    business_platform: context?.business_platform || undefined,
-    runtime_platform: context?.runtime_platform || undefined,
-    provider: context?.provider || undefined,
-    login_status: "logged_in",
-  }),
-  clearWhenMissing: true,
-  matchesContext: commentAccountMatchesContext,
-  emptyText: "当前业务 App / 执行平台 / 供应商下暂无可用评论账号",
 };
 
 // 后端模型仍然使用 Execution Slot；前端面向运营统一展示为“设备”。
@@ -1578,25 +1538,16 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "main_account_id",
         label: "主号",
-        type: "remoteSelect",
-        remote: interactionMainAccountRemoteSelect,
+        type: "accountTree",
+        multiple: false,
         required: true,
         span: 2,
-      },
-      {
-        key: "target_content_id",
-        label: "目标内容",
-        type: "remoteSelect",
-        remote: interactionTargetContentRemoteSelect,
-        required: true,
-        span: 2,
-        placeholder: "从主号已发布内容中选择目标帖子",
       },
       {
         key: "comment_account_ids",
         label: "评论账号",
-        type: "remoteSelect",
-        remote: interactionCommentAccountRemoteSelect,
+        type: "accountTree",
+        multiple: true,
         required: true,
         span: 2,
       },
@@ -1615,6 +1566,15 @@ export const resources: Record<string, ResourceConfig> = {
         options: providerOptions,
         defaultValue: "adspower",
         span: 2,
+      },
+      {
+        key: "target_content_id",
+        label: "目标内容",
+        type: "remoteSelect",
+        remote: interactionTargetContentRemoteSelect,
+        required: true,
+        span: 2,
+        placeholder: "从主号已发布内容中选择目标帖子",
       },
       {
         key: "script_key",

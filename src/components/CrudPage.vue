@@ -119,7 +119,8 @@ const isTaskDispatchModal = computed(() => props.config.key === 'tasks' && modal
 const isPublishedContentDispatchModal = computed(() => props.config.key === 'publishedContents' && modal.type === 'create')
 const isInteractionSessionCreateModal = computed(() => props.config.key === 'interactionSessions' && modal.type === 'create')
 const modalWidth = computed(() => {
-  if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value || isInteractionSessionCreateModal.value) return '1120px'
+  if (isInteractionSessionCreateModal.value) return '1240px'
+  if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value) return '1120px'
   if (
     modal.type === 'edit'
     && (
@@ -137,7 +138,7 @@ const taskDispatchConfigFields = computed(() => modalFields.value.filter((field)
 const publishedDispatchAccountFields = computed(() => modalFields.value.filter((field) => field.type === 'accountTree'))
 const publishedDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'accountTree'))
 const interactionMainFields = computed(() => {
-  const keys = new Set(['title', 'business_platform', 'runtime_platform', 'provider', 'main_account_id', 'target_content_id'])
+  const keys = new Set(['main_account_id'])
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const interactionCommentFields = computed(() => {
@@ -145,7 +146,7 @@ const interactionCommentFields = computed(() => {
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const interactionParamFields = computed(() => {
-  const keys = new Set(['script_key', 'scheduled_at', 'ai_config'])
+  const keys = new Set(['title', 'business_platform', 'runtime_platform', 'provider', 'target_content_id', 'script_key', 'scheduled_at', 'ai_config'])
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const showModalSaveButton = computed(() => {
@@ -1486,7 +1487,7 @@ onBeforeUnmount(() => {
 
 .interaction-session-create-layout {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(240px, 300px) minmax(260px, 340px) minmax(560px, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -1502,6 +1503,11 @@ onBeforeUnmount(() => {
 .interaction-session-create-layout__panel :deep(.el-col) {
   max-width: 100%;
   flex: 0 0 100%;
+}
+
+.interaction-session-create-layout__panel :deep(.account-tree-select) {
+  min-height: 430px;
+  max-height: 58vh;
 }
 
 .slot-group-edit-tabs :deep(.el-tabs__header) {

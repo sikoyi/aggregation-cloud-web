@@ -254,10 +254,12 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             v-else-if="field.type === 'accountTree'"
             :model-value="modelValue[field.key]"
             :disabled="isFieldDisabled(field)"
+            :multiple="field.multiple !== false"
             :filters="{
               business_platform: modelValue.business_platform,
               runtime_platform: modelValue.runtime_platform,
               provider: modelValue.provider,
+              exclude_account_id: field.key === 'comment_account_ids' ? modelValue.main_account_id : undefined,
             }"
             @update:model-value="updateValue(field.key, $event)"
           />

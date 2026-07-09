@@ -8,10 +8,11 @@ const props = defineProps<{
   modelValue: unknown
   disabled?: boolean
   filters?: AnyRecord
+  multiple?: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string[]]
+  'update:modelValue': [value: string | string[]]
 }>()
 
 interface AccountTreeNode {
@@ -33,9 +34,11 @@ const treeProps = {
   disabled: 'disabled',
 }
 
-const selectedAccountIds = computed(() =>
-  Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
-)
+const isMultiple = computed(() => props.multiple !== false)
+const selectedAccountIds = computed(() => {
+  if (Array.isArray(props.modelValue)) return props.modelValue.filter(Boolean).map(String)
+  return props.modelValue ? [String(props.modelValue)] : []
+})
 const emptyMessage = computed(() => {
   const filters = props.filters || {}
   const hasRuntimeFilter = Boolean(filters.runtime_platform || filters.provider)
@@ -46,8 +49,8 @@ const emptyMessage = computed(() => {
   }
   if (selectableCount.value === 0) {
     return hasRuntimeFilter
-      ? '当前业务 App 在该执行平台/供应商下的已登录账号都未绑定可用设备，暂时不能下发发布任务'
-      : '当前业务 App 的已登录账号都未绑定设备，暂时不能下发发布任务'
+      ? '当前业务 App 在该执行平台/供应商下的已登录账号都未绑定可用设备，暂时不能下发任务'
+      : '当前业务 App 的已登录账号都未绑定设备，暂时不能下发任务'
   }
   return ''
 })
@@ -71,6 +74,7 @@ function queryParams(extra: AnyRecord = {}) {
 
 function accountMatchesRuntime(account: AnyRecord) {
   const filters = props.filters || {}
+  if (filters.exclude_account_id && String(account.id) === String(filters.exclude_account_id)) return false
   if (filters.runtime_platform && account.bound_slot_runtime_platform !== filters.runtime_platform) return false
   if (filters.provider && account.bound_slot_provider !== filters.provider) return false
   return true
@@ -78,11 +82,11 @@ function accountMatchesRuntime(account: AnyRecord) {
 
 function accountLabel(account: AnyRecord) {
   return String(
-    account.login_username ||
-      account.username ||
-      account.display_name ||
-      account.platform_account_id ||
-      account.id,
+    account.login_username
+      || account.username
+      || account.display_name
+      || account.platform_account_id
+      || account.id,
   )
 }
 
@@ -99,6 +103,10 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
 
 function syncCheckedKeys() {
   treeRef.value?.setCheckedKeys?.(selectedAccountIds.value.map(accountNodeId))
+}
+
+function emitSelection(accountIds: string[]) {
+  emit('update:modelValue', isMultiple.value ? accountIds : String(accountIds[0] || ''))
 }
 
 async function loadTree() {
@@ -133,9 +141,12 @@ async function loadTree() {
       }),
     )
 
-    const ungroupedAccounts = accountsPage.items.filter((account) => !groupedAccountIds.has(String(account.id)))
+    const ungroupedAccounts = accountsPage.items.filter((account) => {
+      if (groupedAccountIds.has(String(account.id))) return false
+      return accountMatchesRuntime(account)
+    })
     ungroupedAccounts.filter((account) => account.bound_slot_id).forEach((account) => availableAccountIds.add(String(account.id)))
-    loggedInCount.value = accountsPage.items.length
+    loggedInCount.value = accountsPage.items.filter(accountMatchesRuntime).length
     selectableCount.value = availableAccountIds.size
     treeData.value = [
       ...groupNodes.filter((node) => node.children?.length),
@@ -154,21 +165,29 @@ async function loadTree() {
     syncCheckedKeys()
     const nextSelected = selectedAccountIds.value.filter((accountId) => availableAccountIds.has(accountId))
     if (nextSelected.length !== selectedAccountIds.value.length) {
-      emit('update:modelValue', nextSelected)
+      emitSelection(nextSelected)
     }
   } finally {
     loading.value = false
   }
 }
 
-function emitChecked() {
+function emitChecked(node?: AccountTreeNode) {
   const checkedNodes = (treeRef.value?.getCheckedNodes?.(true) || []) as AccountTreeNode[]
-  emit(
-    'update:modelValue',
-    checkedNodes
-      .map((node) => node.accountId)
-      .filter((accountId): accountId is string => Boolean(accountId)),
-  )
+  let accountIds = checkedNodes
+    .map((item) => item.accountId)
+    .filter((accountId): accountId is string => Boolean(accountId))
+
+  // 主号只允许选一个，避免传给后端时出现数组和单值混用。
+  if (!isMultiple.value) {
+    const clickedAccountId = node?.accountId
+    accountIds = clickedAccountId && accountIds.includes(clickedAccountId)
+      ? [clickedAccountId]
+      : accountIds.slice(-1)
+    treeRef.value?.setCheckedKeys?.(accountIds.map(accountNodeId))
+  }
+
+  emitSelection(accountIds)
 }
 
 onMounted(loadTree)
@@ -199,7 +218,7 @@ watch(
       node-key="id"
       show-checkbox
       default-expand-all
-      :check-strictly="false"
+      :check-strictly="!isMultiple"
       :expand-on-click-node="false"
       :disabled="disabled"
       :empty-text="emptyMessage || '暂无已登录账号'"

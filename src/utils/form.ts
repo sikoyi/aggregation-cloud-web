@@ -22,7 +22,7 @@ function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
   if (field.type === 'scriptParams') return []
   if (field.type === 'file') return null
   if (field.type === 'templateParams') return {}
-  if (field.type === 'accountTree') return []
+  if (field.type === 'accountTree') return field.multiple === false ? '' : []
   if (field.type === 'slotTree') return []
   if (field.type === 'templateSelect') return ''
   if (field.type === 'remoteSelect' && field.remote?.multiple) return []
@@ -65,11 +65,15 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
       return state
     }
     if (field.type === 'accountTree') {
-      state[field.key] = Array.isArray(sourceValue)
-        ? cloneDefault(sourceValue)
-        : sourceValue
-          ? [sourceValue]
-          : []
+      if (field.multiple === false) {
+        state[field.key] = Array.isArray(sourceValue) ? String(sourceValue[0] || '') : sourceValue ? String(sourceValue) : ''
+      } else {
+        state[field.key] = Array.isArray(sourceValue)
+          ? cloneDefault(sourceValue)
+          : sourceValue
+            ? [sourceValue]
+            : []
+      }
       return state
     }
     if (field.type === 'remoteSelect' && field.remote?.multiple) {
@@ -208,11 +212,15 @@ export function buildPayload(
       return payload
     }
     if (field.type === 'accountTree') {
-      payload[field.key] = Array.isArray(rawValue)
-        ? rawValue.filter(Boolean).map(String)
-        : rawValue
-          ? [String(rawValue)]
-          : []
+      if (field.multiple === false) {
+        payload[field.key] = Array.isArray(rawValue) ? String(rawValue[0] || '') : String(rawValue || '')
+      } else {
+        payload[field.key] = Array.isArray(rawValue)
+          ? rawValue.filter(Boolean).map(String)
+          : rawValue
+            ? [String(rawValue)]
+            : []
+      }
       return payload
     }
     if (field.type === 'json') {
