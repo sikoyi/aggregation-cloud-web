@@ -8,6 +8,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import DeviceCenterView from '@/views/DeviceCenterView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ProxyCenterView from '@/views/ProxyCenterView.vue'
+import ReportView from '@/views/ReportView.vue'
 import ResourceView from '@/views/ResourceView.vue'
 
 export const router = createRouter({
@@ -20,6 +21,7 @@ export const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         { path: '', name: 'dashboard', component: DashboardView },
+        { path: 'reports', component: ReportView },
         { path: 'accounts', component: AccountCenterView },
         { path: 'account-groups', redirect: { path: '/accounts', query: { tab: 'groups' } } },
         { path: 'slots', component: DeviceCenterView },

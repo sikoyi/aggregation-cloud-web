@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Boxes,
+  BarChart3,
   ClipboardList,
   FileText,
   Gauge,
@@ -30,7 +31,10 @@ const navGroups = [
     label: '工作台',
     index: 'workspace',
     icon: LayoutDashboard,
-    children: [{ label: '总览', to: '/', icon: LayoutDashboard }],
+    children: [
+      { label: '总览', to: '/', icon: LayoutDashboard },
+      { label: '运营报表', to: '/reports', icon: BarChart3 },
+    ],
   },
   {
     label: '账号中心',
