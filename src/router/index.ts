@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '@/layouts/AppShell.vue'
 import { useAuthStore } from '@/stores/auth'
 import AccountCenterView from '@/views/AccountCenterView.vue'
+import ContentCenterView from '@/views/ContentCenterView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import DeviceCenterView from '@/views/DeviceCenterView.vue'
 import LoginView from '@/views/LoginView.vue'
@@ -25,8 +26,8 @@ export const router = createRouter({
         { path: 'slot-groups', redirect: { path: '/slots', query: { tab: 'groups' } } },
         { path: 'proxies', component: ProxyCenterView },
         { path: 'proxy-groups', redirect: { path: '/proxies', query: { tab: 'groups' } } },
-        { path: 'contents', component: ResourceView, meta: { resource: 'contents' } },
-        { path: 'content-groups', component: ResourceView, meta: { resource: 'contentGroups' } },
+        { path: 'contents', component: ContentCenterView },
+        { path: 'content-groups', redirect: { path: '/contents', query: { tab: 'groups' } } },
         { path: 'media-assets', component: ResourceView, meta: { resource: 'mediaAssets' } },
         { path: 'interaction-sessions', component: ResourceView, meta: { resource: 'interactionSessions' } },
         { path: 'published-contents', component: ResourceView, meta: { resource: 'publishedContents' } },
