@@ -2375,7 +2375,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "child_succeeded", label: "成功", align: "center" },
       { key: "child_failed", label: "失败", align: "center" },
       { key: "child_canceled", label: "取消", align: "center" },
-      { key: "scheduled_at", label: "计划时间", type: "datetime" },
       { key: "finished_at", label: "结束时间", type: "datetime" },
       { key: "created_at", label: "创建时间", type: "datetime" },
     ],
