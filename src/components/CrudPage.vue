@@ -740,13 +740,17 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
     if (failures.length) {
       throw new Error(`部分数据处理失败：${failures.slice(0, 3).join('；')}`)
     }
-    ElMessage.success(
-      action.successMessage && batchData
-        ? action.successMessage(batchData as AnyRecord, payload)
-        : `已处理 ${rowsToHandle.length} 条`,
-    )
+    if (action.showResult && batchData) {
+      openResultDialog(action, batchData)
+    } else {
+      ElMessage.success(
+        action.successMessage && batchData
+          ? action.successMessage(batchData as AnyRecord, payload)
+          : `已处理 ${rowsToHandle.length} 条`,
+      )
+    }
     clearSelection()
-    await loadRows()
+    if (action.refresh !== false) await loadRows()
   } catch (err) {
     error.value = notifyError(err, '批量操作失败', '批量操作失败')
   } finally {
@@ -816,9 +820,9 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
   error.value = ''
   try {
     const data = await requestAction(action, record, payload)
-    if (action.method === 'GET') openResultDialog(action, data)
+    if (action.method === 'GET' || action.showResult) openResultDialog(action, data)
 
-    if (action.method !== 'GET') {
+    if (action.method !== 'GET' && !action.showResult) {
       if (action.successMessage) {
         ElNotification.success({
           title: action.successTitle || '操作完成',

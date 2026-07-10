@@ -5,7 +5,7 @@ import JsonPreview from '@/components/JsonPreview.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
-import { formatCell, formatDate, getCellValue, truncateId } from '@/utils/format'
+import { formatCell, formatDate, getCellValue, statusLabel, truncateId } from '@/utils/format'
 
 const props = defineProps<{
   modelValue: boolean
@@ -34,6 +34,17 @@ const KEY_LABELS: Record<string, string> = {
   bound_account_id: '账号',
   proxy_id: '代理',
   current_task_run_id: '当前任务',
+  checked_at: '检测时间',
+  latency_ms: '延迟',
+  exit_ip: '出口 IP',
+  country: '国家/地区',
+  region: '地区',
+  city: '城市',
+  isp: 'ISP',
+  error_message: '错误信息',
+  total_count: '检测总数',
+  succeeded_count: '成功数量',
+  failed_count: '失败数量',
   last_seen_at: '心跳',
   created_at: '创建时间',
   updated_at: '更新时间',
@@ -96,6 +107,7 @@ function detailLabel(key: string) {
 
 function detailValue(key: string, value: unknown) {
   if (value === undefined || value === null || value === '') return '-'
+  if (key === 'status' || key.endsWith('_status')) return statusLabel(value)
   if (key.endsWith('_at')) return formatDate(value)
   return String(value)
 }

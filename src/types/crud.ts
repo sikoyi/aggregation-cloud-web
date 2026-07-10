@@ -115,6 +115,7 @@ export interface RowActionConfig {
   icon?: string
   successTitle?: string
   successMessage?: (data: AnyRecord, payload: AnyRecord) => string
+  showResult?: boolean
   clientAction?: 'download'
   urlKey?: string
   filenameKey?: string
