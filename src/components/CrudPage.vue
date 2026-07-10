@@ -89,6 +89,7 @@ const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
 const assetViewerKind = ref<'image' | 'video'>('image')
 const assetViewerFilename = ref('')
+const assetViewerRecord = ref<AnyRecord | null>(null)
 const tableRef = ref()
 const accountEditTab = ref('base')
 const slotGroupEditTab = ref('base')
@@ -325,6 +326,13 @@ function getAssetFilename(record: AnyRecord, key?: string) {
   return name || `asset-${rowId(record)}`
 }
 
+function getAssetDownloadEndpoint(record: AnyRecord) {
+  if (props.config.key !== 'mediaAssets') return ''
+  const storageUri = String(record.storage_uri || '').trim()
+  if (!storageUri.startsWith('local://')) return ''
+  return `${props.config.endpoint}/${encodeURIComponent(rowId(record))}/download`
+}
+
 function assetInlinePreviewKind(record: AnyRecord) {
   const type = String(record.asset_type || '').toLowerCase()
   const mime = String(record.mime_type || '').toLowerCase()
@@ -347,17 +355,25 @@ function openAssetViewer(record: AnyRecord) {
   assetViewerUrl.value = url
   assetViewerTitle.value = String(record.name || '素材预览')
   assetViewerFilename.value = getAssetFilename(record, 'name')
+  assetViewerRecord.value = record
   assetViewerVisible.value = true
 }
 
 async function downloadViewerAsset() {
+  if (assetViewerRecord.value) {
+    await downloadAssetRecord(assetViewerRecord.value, assetViewerFilename.value || assetViewerTitle.value || 'asset', 'source_url')
+    return
+  }
   await downloadUrl(assetViewerUrl.value, assetViewerFilename.value || assetViewerTitle.value || 'asset')
 }
 
-async function downloadUrl(url: string, filename: string) {
+async function downloadUrl(url: string, filename: string, auth = false) {
   if (!url) return
   try {
-    const response = await fetch(url)
+    const headers: HeadersInit = {}
+    const accessToken = localStorage.getItem('access_token')
+    if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`
+    const response = await fetch(url, { headers })
     if (!response.ok) throw new Error(response.statusText || '下载失败')
     const blob = await response.blob()
     const objectUrl = URL.createObjectURL(blob)
@@ -369,7 +385,14 @@ async function downloadUrl(url: string, filename: string) {
     link.remove()
     URL.revokeObjectURL(objectUrl)
     ElMessage.success('已开始下载')
-  } catch {
+  } catch (error) {
+    if (auth) {
+      ElNotification.error({
+        title: '下载失败',
+        message: error instanceof Error ? error.message : '素材下载失败，请稍后重试',
+      })
+      return
+    }
     window.open(url, '_blank', 'noopener,noreferrer')
     ElNotification.info({
       title: '已打开素材地址',
@@ -378,8 +401,13 @@ async function downloadUrl(url: string, filename: string) {
   }
 }
 
-async function downloadAsset(action: RowActionConfig, record: AnyRecord) {
-  const url = getAssetUrl(record, action.urlKey)
+async function downloadAssetRecord(record: AnyRecord, filename: string, urlKey?: string) {
+  const endpoint = getAssetDownloadEndpoint(record)
+  if (endpoint) {
+    await downloadUrl(resolveBackendUrl(endpoint), filename, true)
+    return
+  }
+  const url = getAssetUrl(record, urlKey)
   if (!url) {
     ElNotification.warning({
       title: '无法下载',
@@ -387,7 +415,11 @@ async function downloadAsset(action: RowActionConfig, record: AnyRecord) {
     })
     return
   }
-  await downloadUrl(url, getAssetFilename(record, action.filenameKey))
+  await downloadUrl(url, filename)
+}
+
+async function downloadAsset(action: RowActionConfig, record: AnyRecord) {
+  await downloadAssetRecord(record, getAssetFilename(record, action.filenameKey), action.urlKey)
 }
 
 function isEnabledStatus(value: unknown, column?: ColumnConfig) {
