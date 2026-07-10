@@ -54,6 +54,10 @@ function isRecord(value: unknown): value is AnyRecord {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
+function visibleResultEntries(value: AnyRecord) {
+  return Object.entries(value).filter(([key]) => !['proxy', 'detail'].includes(key))
+}
+
 const rawItems = computed(() => {
   if (Array.isArray(props.value)) return props.value
   if (isRecord(props.value) && Array.isArray(props.value.items)) return props.value.items
@@ -89,12 +93,12 @@ const displayColumns = computed<ColumnConfig[]>(() => {
 
 const detailEntries = computed(() => {
   if (!isRecord(props.value) || isTabularResult.value) return []
-  return Object.entries(props.value).filter(([, value]) => value === null || typeof value !== 'object')
+  return visibleResultEntries(props.value).filter(([, value]) => value === null || typeof value !== 'object')
 })
 
 const objectEntries = computed(() => {
   if (!isRecord(props.value) || isTabularResult.value) return []
-  return Object.entries(props.value).filter(([, value]) => value !== null && typeof value === 'object')
+  return visibleResultEntries(props.value).filter(([, value]) => value !== null && typeof value === 'object')
 })
 
 function close() {
@@ -109,7 +113,25 @@ function detailValue(key: string, value: unknown) {
   if (value === undefined || value === null || value === '') return '-'
   if (key === 'status' || key.endsWith('_status')) return statusLabel(value)
   if (key.endsWith('_at')) return formatDate(value)
+  if (key === 'latency_ms' || key.endsWith('_latency_ms')) return `${value} ms`
   return String(value)
+}
+
+function isLatencyKey(key: string) {
+  return key === 'latency_ms' || key.endsWith('_latency_ms')
+}
+
+function latencyText(value: unknown) {
+  if (value === undefined || value === null || value === '') return '-'
+  return `${value} ms`
+}
+
+function latencyTagType(value: unknown) {
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) return 'info'
+  if (numberValue < 500) return 'success'
+  if (numberValue < 1000) return 'warning'
+  return 'danger'
 }
 </script>
 
@@ -144,6 +166,9 @@ function detailValue(key: string, value: unknown) {
       >
         <template #default="{ row }">
           <StatusBadge v-if="column.type === 'status'" :value="getCellValue(row, column.key)" />
+          <el-tag v-else-if="isLatencyKey(column.key)" :type="latencyTagType(getCellValue(row, column.key))" effect="light">
+            {{ latencyText(getCellValue(row, column.key)) }}
+          </el-tag>
           <span v-else-if="column.type === 'id'" :title="String(getCellValue(row, column.key) || '')" class="font-mono text-xs">
             {{ truncateId(getCellValue(row, column.key)) }}
           </span>
@@ -158,7 +183,10 @@ function detailValue(key: string, value: unknown) {
     <div v-else-if="detailEntries.length || objectEntries.length" class="space-y-4">
       <el-descriptions :column="2" border>
         <el-descriptions-item v-for="[key, value] in detailEntries" :key="key" :label="detailLabel(key)">
-          {{ detailValue(key, value) }}
+          <el-tag v-if="isLatencyKey(key)" :type="latencyTagType(value)" effect="light">
+            {{ latencyText(value) }}
+          </el-tag>
+          <template v-else>{{ detailValue(key, value) }}</template>
         </el-descriptions-item>
       </el-descriptions>
 
