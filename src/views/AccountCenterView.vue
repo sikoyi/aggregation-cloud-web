@@ -61,14 +61,6 @@ watch(
             <p>统一维护账号、分组和组内成员。</p>
           </div>
         </div>
-        <div class="account-center__actions">
-          <el-tooltip content="刷新" placement="bottom">
-            <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
-          </el-tooltip>
-          <el-button type="primary" :icon="Plus" @click="openActiveCreate">
-            {{ activeCreateLabel }}
-          </el-button>
-        </div>
       </div>
 
       <el-tabs v-model="activeTab" class="account-center__tabs" @tab-change="handleTabChange">
@@ -79,6 +71,14 @@ watch(
               账号列表
             </span>
           </template>
+          <div class="account-center__pane-actions">
+            <el-tooltip content="刷新" placement="bottom">
+              <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
+            </el-tooltip>
+            <el-button type="primary" :icon="Plus" @click="openActiveCreate">
+              {{ activeCreateLabel }}
+            </el-button>
+          </div>
           <CrudPage ref="accountPageRef" :config="accountConfig" embedded hide-header-actions />
         </el-tab-pane>
         <el-tab-pane name="groups" lazy>
@@ -88,6 +88,14 @@ watch(
               账号分组
             </span>
           </template>
+          <div class="account-center__pane-actions">
+            <el-tooltip content="刷新" placement="bottom">
+              <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
+            </el-tooltip>
+            <el-button type="primary" :icon="Plus" @click="openActiveCreate">
+              {{ activeCreateLabel }}
+            </el-button>
+          </div>
           <CrudPage ref="accountGroupPageRef" :config="accountGroupConfig" embedded hide-header-actions />
         </el-tab-pane>
       </el-tabs>
@@ -97,6 +105,7 @@ watch(
 
 <style scoped>
 .account-center__workspace {
+  --account-center-content-inset: 16px;
   border-radius: 8px;
   border-color: #d9e2ec;
 }
@@ -108,9 +117,9 @@ watch(
 .account-center__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
-  padding: 13px 16px;
+  padding: 13px var(--account-center-content-inset);
   border-bottom: 1px solid #e6edf3;
   background: #ffffff;
 }
@@ -122,11 +131,13 @@ watch(
   min-width: 0;
 }
 
-.account-center__actions {
+.account-center__pane-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
+  margin-bottom: 12px;
 }
 
 .account-center__icon {
@@ -156,7 +167,7 @@ watch(
 
 .account-center__tabs :deep(.el-tabs__header) {
   margin: 0;
-  padding: 0 16px;
+  padding: 0 var(--account-center-content-inset);
   background: #ffffff;
 }
 
@@ -177,7 +188,7 @@ watch(
 }
 
 .account-center__tabs :deep(.el-tabs__content) {
-  padding: 14px 16px 16px;
+  padding: 14px var(--account-center-content-inset) 16px;
   background: #f8fafc;
 }
 
@@ -191,11 +202,6 @@ watch(
   .account-center__header {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .account-center__actions {
-    width: 100%;
-    justify-content: flex-end;
   }
 
   .account-center__tabs :deep(.el-tabs__content) {
