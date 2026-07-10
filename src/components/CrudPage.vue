@@ -845,7 +845,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="resource-page space-y-4" :class="{ 'resource-page--embedded': props.embedded }">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="resource-page__header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
         <h1 v-if="!props.embedded" class="text-xl font-semibold text-ink">{{ config.title }}</h1>
       </div>
@@ -966,7 +966,7 @@ onBeforeUnmount(() => {
         stripe
         border
         highlight-current-row
-        scrollbar-always-on
+        :scrollbar-always-on="!props.embedded"
         class="resource-table"
         table-layout="auto"
         @selection-change="handleSelectionChange"
@@ -1304,6 +1304,32 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.resource-page--embedded {
+  gap: 12px;
+}
+
+.resource-page--embedded .resource-page__header {
+  justify-content: flex-end;
+  margin-top: -2px;
+}
+
+.resource-page--embedded .resource-page__header > div:first-child {
+  display: none;
+}
+
+.resource-page--embedded :deep(.filter-card .el-card__body) {
+  padding: 12px 14px;
+}
+
+.resource-page--embedded .filter-card__header {
+  margin-bottom: 10px;
+}
+
+.resource-page--embedded .filter-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px 12px;
 }
 
 .filter-card__title {

@@ -37,19 +37,19 @@ watch(
 
 <template>
   <section class="account-center">
-    <div class="account-center__hero">
-      <div class="account-center__title">
-        <div class="account-center__icon">
-          <Users class="h-5 w-5" />
-        </div>
-        <div>
-          <h1>账号管理</h1>
-          <p>统一维护账号、分组和组内成员，减少运营在多个页面之间来回切换。</p>
+    <el-card shadow="never" class="account-center__workspace">
+      <div class="account-center__header">
+        <div class="account-center__title">
+          <div class="account-center__icon">
+            <Users class="h-5 w-5" />
+          </div>
+          <div class="min-w-0">
+            <h1>账号管理</h1>
+            <p>统一维护账号、分组和组内成员。</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <el-card shadow="never" class="account-center__tabs-card">
       <el-tabs v-model="activeTab" class="account-center__tabs" @tab-change="handleTabChange">
         <el-tab-pane name="accounts" lazy>
           <template #label>
@@ -75,36 +75,39 @@ watch(
 </template>
 
 <style scoped>
-.account-center {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.account-center__workspace {
+  border-radius: 8px;
+  border-color: #d9e2ec;
 }
 
-.account-center__hero {
+.account-center__workspace :deep(.el-card__body) {
+  padding: 0;
+}
+
+.account-center__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e6edf3;
   background: #ffffff;
-  padding: 16px 18px;
 }
 
 .account-center__title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 
 .account-center__icon {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
   color: #1f668f;
   background: #eef8ff;
@@ -112,24 +115,15 @@ watch(
 
 .account-center__title h1 {
   color: #1f2933;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1.25;
 }
 
 .account-center__title p {
-  margin-top: 5px;
+  margin-top: 3px;
   color: #66788a;
-  font-size: 13px;
-}
-
-.account-center__tabs-card {
-  border-radius: 8px;
-  border-color: #d9e2ec;
-}
-
-.account-center__tabs-card :deep(.el-card__body) {
-  padding: 0;
+  font-size: 12px;
 }
 
 .account-center__tabs :deep(.el-tabs__header) {
@@ -143,8 +137,19 @@ watch(
   background: #e6edf3;
 }
 
+.account-center__tabs :deep(.el-tabs__item) {
+  height: 40px;
+  color: #52606d;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-center__tabs :deep(.el-tabs__item.is-active) {
+  color: #1f668f;
+}
+
 .account-center__tabs :deep(.el-tabs__content) {
-  padding: 16px;
+  padding: 14px 16px 16px;
   background: #f8fafc;
 }
 
@@ -155,7 +160,7 @@ watch(
 }
 
 @media (max-width: 768px) {
-  .account-center__hero {
+  .account-center__header {
     align-items: flex-start;
     flex-direction: column;
   }
