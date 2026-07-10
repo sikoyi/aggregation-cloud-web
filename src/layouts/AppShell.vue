@@ -38,10 +38,7 @@ const navGroups = [
     label: '账号中心',
     index: 'account',
     icon: Users,
-    children: [
-      { label: '账号管理', to: '/accounts', icon: Users },
-      { label: '账号分组', to: '/account-groups', icon: Layers3 },
-    ],
+    children: [{ label: '账号管理', to: '/accounts', icon: Users }],
   },
   {
     label: '设备管理',

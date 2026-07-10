@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import AppShell from '@/layouts/AppShell.vue'
 import { useAuthStore } from '@/stores/auth'
+import AccountCenterView from '@/views/AccountCenterView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import LoginView from '@/views/LoginView.vue'
 import ResourceView from '@/views/ResourceView.vue'
@@ -16,8 +17,8 @@ export const router = createRouter({
       meta: { requiresAuth: true },
       children: [
         { path: '', name: 'dashboard', component: DashboardView },
-        { path: 'accounts', component: ResourceView, meta: { resource: 'accounts' } },
-        { path: 'account-groups', component: ResourceView, meta: { resource: 'accountGroups' } },
+        { path: 'accounts', component: AccountCenterView },
+        { path: 'account-groups', redirect: { path: '/accounts', query: { tab: 'groups' } } },
         { path: 'slots', component: ResourceView, meta: { resource: 'slots' } },
         { path: 'slot-groups', component: ResourceView, meta: { resource: 'slotGroups' } },
         { path: 'proxies', component: ResourceView, meta: { resource: 'proxies' } },

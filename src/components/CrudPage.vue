@@ -44,6 +44,7 @@ import { getErrorMessage, notifyError } from '@/utils/notify'
 
 const props = defineProps<{
   config: ResourceConfig
+  embedded?: boolean
 }>()
 
 const iconMap: IconMap = {
@@ -843,10 +844,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="resource-page space-y-4">
+  <section class="resource-page space-y-4" :class="{ 'resource-page--embedded': props.embedded }">
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
-        <h1 class="text-xl font-semibold text-ink">{{ config.title }}</h1>
+        <h1 v-if="!props.embedded" class="text-xl font-semibold text-ink">{{ config.title }}</h1>
       </div>
       <el-space wrap>
         <el-tooltip content="刷新" placement="bottom">
