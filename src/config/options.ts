@@ -249,6 +249,11 @@ export const proxyModeOptions: SelectOption[] = [
   { label: '动态代理', value: 'dynamic' },
 ]
 
+export const proxyProtocolOptions: SelectOption[] = [
+  { label: 'Socks5', value: 'socks5' },
+  { label: 'HTTP', value: 'http' },
+]
+
 export const proxyUsageStatusOptions: SelectOption[] = [
   { label: '未使用', value: 'unused' },
   { label: '已使用', value: 'used' },

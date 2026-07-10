@@ -6,7 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { proxyModeOptions, proxyUsageStatusOptions } from '@/config/options'
+import { proxyModeOptions, proxyProtocolOptions, proxyUsageStatusOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatCell, formatDate, truncateId } from '@/utils/format'
@@ -23,6 +23,7 @@ const emit = defineEmits<{
 const loading = ref(false)
 const submitting = ref(false)
 const keyword = ref('')
+const proxyType = ref('')
 const proxyMode = ref('')
 const status = ref('')
 const page = ref(1)
@@ -43,7 +44,7 @@ const availableProxySelect = computed<RemoteSelectConfig>(() => ({
   labelKeys: ['name', 'source_proxy_url', 'host'],
   valueKey: 'id',
   detailPath: (value: string) => `/api/resource-center/proxies/${encodeURIComponent(value)}`,
-  secondaryKeys: ['proxy_mode', 'status'],
+  secondaryKeys: ['proxy_type', 'proxy_mode', 'status'],
   searchParam: 'keyword',
   pageSize: 50,
   multiple: true,
@@ -60,6 +61,7 @@ async function loadMembers() {
       `/api/resource-center/proxy-groups/${groupId.value}/proxies`,
       {
         keyword: keyword.value || undefined,
+        proxy_type: proxyType.value || undefined,
         proxy_mode: proxyMode.value || undefined,
         status: status.value || undefined,
         page: page.value,
@@ -200,6 +202,7 @@ function text(value: unknown) {
 
 function resetSearch() {
   keyword.value = ''
+  proxyType.value = ''
   proxyMode.value = ''
   status.value = ''
   searchMembers()
@@ -210,6 +213,7 @@ watch(
   () => {
     page.value = 1
     keyword.value = ''
+    proxyType.value = ''
     proxyMode.value = ''
     status.value = ''
     selectedProxyIds.value = []
@@ -246,9 +250,24 @@ onMounted(loadMembers)
       <el-input
         v-model="keyword"
         clearable
-        placeholder="搜索名称 / Socks5 链接 / Host"
+        placeholder="搜索名称 / 代理链接 / Host"
         @keydown.enter="searchMembers"
       />
+      <el-select
+        v-model="proxyType"
+        clearable
+        class="member-editor__select"
+        placeholder="代理协议"
+        @change="searchMembers"
+        @clear="searchMembers"
+      >
+        <el-option
+          v-for="option in proxyProtocolOptions"
+          :key="String(option.value)"
+          :label="option.label"
+          :value="option.value"
+        />
+      </el-select>
       <el-select
         v-model="proxyMode"
         clearable
@@ -280,7 +299,7 @@ onMounted(loadMembers)
         />
       </el-select>
       <el-button :icon="Search" :loading="loading" @click="searchMembers">搜索</el-button>
-      <el-button :disabled="!keyword && !proxyMode && !status" @click="resetSearch">清空</el-button>
+      <el-button :disabled="!keyword && !proxyType && !proxyMode && !status" @click="resetSearch">清空</el-button>
     </div>
 
     <div v-if="selectedMembers.length" class="member-editor__batch">
@@ -314,7 +333,12 @@ onMounted(loadMembers)
         </template>
       </el-table-column>
       <el-table-column prop="name" label="名称" min-width="150" />
-      <el-table-column prop="source_proxy_url" label="Socks5 链接" min-width="300" />
+      <el-table-column prop="source_proxy_url" label="代理链接" min-width="360" />
+      <el-table-column prop="proxy_type" label="协议" min-width="90" align="center" header-align="center">
+        <template #default="{ row }">
+          {{ formatCell(row, { key: 'proxy_type', label: '协议', options: proxyProtocolOptions }) }}
+        </template>
+      </el-table-column>
       <el-table-column prop="proxy_mode" label="类型" min-width="100" align="center" header-align="center">
         <template #default="{ row }">
           {{ formatCell(row, { key: 'proxy_mode', label: '类型', options: proxyModeOptions }) }}
@@ -367,10 +391,13 @@ onMounted(loadMembers)
             <StatusBadge :value="proxyDetail.status" />
           </el-descriptions-item>
           <el-descriptions-item label="代理名称">{{ text(proxyDetail.name) }}</el-descriptions-item>
+          <el-descriptions-item label="代理协议">
+            {{ formatCell(proxyDetail, { key: 'proxy_type', label: '代理协议', options: proxyProtocolOptions }) }}
+          </el-descriptions-item>
           <el-descriptions-item label="代理类型">
             {{ formatCell(proxyDetail, { key: 'proxy_mode', label: '代理类型', options: proxyModeOptions }) }}
           </el-descriptions-item>
-          <el-descriptions-item label="Socks5 链接" :span="2">
+          <el-descriptions-item label="代理链接" :span="2">
             <span class="font-mono text-xs">{{ text(proxyDetail.source_proxy_url) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="Host">{{ text(proxyDetail.host) }}</el-descriptions-item>

@@ -22,6 +22,7 @@ import {
   publishedContentStatusOptions,
   publishedContentTypeOptions,
   proxyModeOptions,
+  proxyProtocolOptions,
   proxyUsageStatusOptions,
   runtimePlatformOptions,
   runtimeStatusOptions,
@@ -488,6 +489,7 @@ async function updateContentGroups(_updatedContent: AnyRecord, payload: AnyRecor
 function buildProxyUpdateBody(payload: AnyRecord) {
   return pickPayload(payload, [
     "name",
+    "proxy_type",
     "proxy_mode",
     "host",
     "port",
@@ -959,8 +961,9 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
       { key: "group_names", label: "所属分组", type: "list", minWidth: 180 },
+      { key: "proxy_type", label: "协议", options: proxyProtocolOptions, align: "center" },
       { key: "proxy_mode", label: "类型", options: proxyModeOptions, align: "center" },
-      { key: "source_proxy_url", label: "Socks5 链接", minWidth: 620 },
+      { key: "source_proxy_url", label: "代理链接", minWidth: 620 },
       {
         key: "status",
         label: "使用状态",
@@ -969,6 +972,12 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
     filters: [
+      {
+        key: "proxy_type",
+        label: "代理协议",
+        type: "select",
+        options: proxyProtocolOptions,
+      },
       {
         key: "proxy_mode",
         label: "代理类型",
@@ -1015,17 +1024,23 @@ export const resources: Record<string, ResourceConfig> = {
       },
       {
         key: "proxy_urls",
-        label: "Socks5 地址",
+        label: "代理地址",
         type: "textarea",
         required: true,
         span: 2,
         placeholder:
-          "socks5://user:pass@127.0.0.1:1080\nsocks5://user:pass@127.0.0.2:1080",
+          "socks5://user:pass@127.0.0.1:1080\nhttp://user:pass@127.0.0.2:8080\nhttps://user:pass@127.0.0.3:8080",
       },
       { key: "remark", label: "备注", span: 2 },
     ],
     updateFields: [
       { key: "name", label: "代理名称" },
+      {
+        key: "proxy_type",
+        label: "代理协议",
+        type: "select",
+        options: proxyProtocolOptions,
+      },
       {
         key: "proxy_mode",
         label: "代理类型",
