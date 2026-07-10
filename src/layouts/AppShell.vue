@@ -9,7 +9,6 @@ import {
   Layers3,
   LayoutDashboard,
   LogOut,
-  Network,
   PlaySquare,
   ScrollText,
   Server,
@@ -44,19 +43,13 @@ const navGroups = [
     label: '设备管理',
     index: 'device',
     icon: Boxes,
-    children: [
-      { label: '设备列表', to: '/slots', icon: Boxes },
-      { label: '设备分组', to: '/slot-groups', icon: Network },
-    ],
+    children: [{ label: '设备管理', to: '/slots', icon: Boxes }],
   },
   {
     label: '资源中心',
     index: 'resource',
     icon: ShieldCheck,
-    children: [
-      { label: '代理资源', to: '/proxies', icon: ShieldCheck },
-      { label: '代理分组', to: '/proxy-groups', icon: Layers3 },
-    ],
+    children: [{ label: '代理资源', to: '/proxies', icon: ShieldCheck }],
   },
   {
     label: '内容中心',

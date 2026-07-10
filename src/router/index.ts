@@ -4,7 +4,9 @@ import AppShell from '@/layouts/AppShell.vue'
 import { useAuthStore } from '@/stores/auth'
 import AccountCenterView from '@/views/AccountCenterView.vue'
 import DashboardView from '@/views/DashboardView.vue'
+import DeviceCenterView from '@/views/DeviceCenterView.vue'
 import LoginView from '@/views/LoginView.vue'
+import ProxyCenterView from '@/views/ProxyCenterView.vue'
 import ResourceView from '@/views/ResourceView.vue'
 
 export const router = createRouter({
@@ -19,10 +21,10 @@ export const router = createRouter({
         { path: '', name: 'dashboard', component: DashboardView },
         { path: 'accounts', component: AccountCenterView },
         { path: 'account-groups', redirect: { path: '/accounts', query: { tab: 'groups' } } },
-        { path: 'slots', component: ResourceView, meta: { resource: 'slots' } },
-        { path: 'slot-groups', component: ResourceView, meta: { resource: 'slotGroups' } },
-        { path: 'proxies', component: ResourceView, meta: { resource: 'proxies' } },
-        { path: 'proxy-groups', component: ResourceView, meta: { resource: 'proxyGroups' } },
+        { path: 'slots', component: DeviceCenterView },
+        { path: 'slot-groups', redirect: { path: '/slots', query: { tab: 'groups' } } },
+        { path: 'proxies', component: ProxyCenterView },
+        { path: 'proxy-groups', redirect: { path: '/proxies', query: { tab: 'groups' } } },
         { path: 'contents', component: ResourceView, meta: { resource: 'contents' } },
         { path: 'content-groups', component: ResourceView, meta: { resource: 'contentGroups' } },
         { path: 'media-assets', component: ResourceView, meta: { resource: 'mediaAssets' } },
