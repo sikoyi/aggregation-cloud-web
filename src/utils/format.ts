@@ -92,6 +92,7 @@ export function formatCell(row: AnyRecord, column: ColumnConfig) {
   }
   if (column.type === 'status') return statusLabel(value)
   if (column.type === 'datetime') return formatDate(value)
+  if (column.key.endsWith('_latency_ms')) return `${value} ms`
   if (column.type === 'list') return Array.isArray(value) ? value.join(', ') : String(value)
   if (column.type === 'json') return JSON.stringify(value)
   if (column.type === 'boolean') return value ? '是' : '否'

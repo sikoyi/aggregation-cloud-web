@@ -961,20 +961,23 @@ export const resources: Record<string, ResourceConfig> = {
     loadEditRecord: loadProxyForEdit,
     updateBody: buildProxyUpdateBody,
     columns: [
-      { key: "id", label: "ID", type: "id", width: 86, align: "center" },
-      { key: "name", label: "名称", minWidth: 150 },
-      { key: "group_names", label: "所属分组", type: "list", minWidth: 130 },
-      { key: "proxy_type", label: "协议", options: proxyProtocolOptions, width: 88, align: "center" },
-      { key: "proxy_mode", label: "类型", options: proxyModeOptions, width: 100, align: "center" },
-      { key: "source_proxy_url", label: "代理链接", minWidth: 430 },
+      { key: "id", label: "ID", type: "id", width: 76, align: "center" },
+      { key: "name", label: "名称", minWidth: 130 },
+      { key: "group_names", label: "所属分组", type: "list", minWidth: 120 },
+      { key: "proxy_type", label: "协议", options: proxyProtocolOptions, width: 82, align: "center" },
+      { key: "proxy_mode", label: "类型", options: proxyModeOptions, width: 92, align: "center" },
+      { key: "source_proxy_url", label: "代理链接", minWidth: 320 },
       {
         key: "status",
         label: "使用状态",
         type: "status",
-        width: 110,
+        width: 96,
       },
-      { key: "created_at", label: "创建时间", type: "datetime", width: 170, align: "center" },
-      { key: "updated_at", label: "更新时间", type: "datetime", width: 170, align: "center" },
+      { key: "last_check_status", label: "检测状态", type: "status", width: 100, align: "center" },
+      { key: "last_check_latency_ms", label: "延迟", width: 92, align: "center" },
+      { key: "last_check_ip", label: "出口 IP", minWidth: 130, align: "center" },
+      { key: "last_checked_at", label: "检测时间", type: "datetime", width: 160, align: "center" },
+      { key: "created_at", label: "创建时间", type: "datetime", width: 160, align: "center" },
     ],
     filters: [
       {
@@ -1072,7 +1075,41 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "remark", label: "备注", span: 2, allowEmpty: true },
     ],
+    rowActions: [
+      {
+        key: "check",
+        label: "检测",
+        method: "POST",
+        path: (record) => `/api/resource-center/proxies/${record.id}/check`,
+        icon: "rotate",
+        refresh: true,
+        successTitle: "代理检测完成",
+        successMessage: (data) => {
+          if (data.status === "succeeded") {
+            const parts = [
+              `延迟 ${data.latency_ms || "-"} ms`,
+              `出口 IP ${data.exit_ip || "-"}`,
+              data.country ? `${data.country}${data.city ? ` / ${data.city}` : ""}` : "",
+              data.isp ? `ISP ${data.isp}` : "",
+            ].filter(Boolean);
+            return parts.join("，");
+          }
+          return `检测失败：${data.error_message || "代理不可用"}`;
+        },
+      },
+    ],
+    inlineActionKeys: ["check"],
     batchActions: [
+      {
+        key: "batch-check",
+        label: "批量检测",
+        method: "POST",
+        icon: "rotate",
+        batchPath: () => "/api/resource-center/proxies/check/batch",
+        batchBody: (_payload, records) => ({ proxy_ids: records.map((record) => String(record.id)) }),
+        successMessage: (data) =>
+          `检测完成：成功 ${Number(data.succeeded_count || 0)} 个，失败 ${Number(data.failed_count || 0)} 个`,
+      },
       {
         key: "batch-add-group",
         label: "批量加入分组",
