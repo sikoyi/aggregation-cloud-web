@@ -958,18 +958,20 @@ export const resources: Record<string, ResourceConfig> = {
     loadEditRecord: loadProxyForEdit,
     updateBody: buildProxyUpdateBody,
     columns: [
-      { key: "id", label: "ID", type: "id" },
-      { key: "name", label: "名称" },
-      { key: "group_names", label: "所属分组", type: "list", minWidth: 180 },
-      { key: "proxy_type", label: "协议", options: proxyProtocolOptions, align: "center" },
-      { key: "proxy_mode", label: "类型", options: proxyModeOptions, align: "center" },
-      { key: "source_proxy_url", label: "代理链接", minWidth: 620 },
+      { key: "id", label: "ID", type: "id", width: 86, align: "center" },
+      { key: "name", label: "名称", minWidth: 150 },
+      { key: "group_names", label: "所属分组", type: "list", minWidth: 130 },
+      { key: "proxy_type", label: "协议", options: proxyProtocolOptions, width: 88, align: "center" },
+      { key: "proxy_mode", label: "类型", options: proxyModeOptions, width: 100, align: "center" },
+      { key: "source_proxy_url", label: "代理链接", minWidth: 430 },
       {
         key: "status",
         label: "使用状态",
         type: "status",
+        width: 110,
       },
-      { key: "updated_at", label: "更新时间", type: "datetime" },
+      { key: "created_at", label: "创建时间", type: "datetime", width: 170, align: "center" },
+      { key: "updated_at", label: "更新时间", type: "datetime", width: 170, align: "center" },
     ],
     filters: [
       {
