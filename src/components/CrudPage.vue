@@ -23,6 +23,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
+import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
@@ -153,7 +154,7 @@ const interactionParamFields = computed(() => {
 })
 const showModalSaveButton = computed(() => {
   if (modal.type !== 'edit') return true
-  if (props.config.accountPublishedContents && accountEditTab.value === 'publishedContents') return false
+  if (props.config.accountPublishedContents && ['metrics', 'publishedContents'].includes(accountEditTab.value)) return false
   if ((props.config.slotGroupMembers || props.config.proxyGroupMembers || props.config.contentGroupMembers) && slotGroupEditTab.value === 'members') return false
   return true
 })
@@ -1195,6 +1196,9 @@ onBeforeUnmount(() => {
             <div class="slot-group-edit-tabs__panel">
               <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
             </div>
+          </el-tab-pane>
+          <el-tab-pane label="趋势分析" name="metrics">
+            <AccountMetricsPanel :account="modal.record" />
           </el-tab-pane>
           <el-tab-pane label="发布内容" name="publishedContents">
             <AccountPublishedContentPanel :account="modal.record" />

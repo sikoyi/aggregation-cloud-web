@@ -22,12 +22,19 @@ interface CommentNode extends AnyRecord {
 }
 
 type MetricKey = 'comment_count' | 'like_count' | 'share_count' | 'view_count'
+type PeriodValue = '24h' | '7d' | '30d' | 'all'
 
 const metricDefs: Array<{ key: MetricKey; label: string; color: string }> = [
   { key: 'comment_count', label: '评论', color: '#2563eb' },
   { key: 'like_count', label: '点赞', color: '#16a34a' },
   { key: 'share_count', label: '分享', color: '#f97316' },
   { key: 'view_count', label: '浏览', color: '#9333ea' },
+]
+const periodOptions: Array<{ label: string; value: PeriodValue }> = [
+  { label: '近 24 小时', value: '24h' },
+  { label: '近 7 天', value: '7d' },
+  { label: '近 30 天', value: '30d' },
+  { label: '全部', value: 'all' },
 ]
 
 const visible = computed({
@@ -36,8 +43,10 @@ const visible = computed({
 })
 
 const loading = ref(false)
+const curveLoading = ref(false)
 const error = ref('')
 const activeTab = ref('basic')
+const metricPeriod = ref<PeriodValue>('7d')
 const detail = ref<AnyRecord | null>(null)
 
 const content = computed<AnyRecord | null>(() => {
@@ -188,10 +197,26 @@ async function loadDetail(contentId: string) {
   error.value = ''
   try {
     detail.value = await http.get<AnyRecord>(`/api/interaction-center/published-contents/${encodeURIComponent(contentId)}`)
+    await loadMetricCurve(contentId)
   } catch (err) {
     error.value = notifyError(err, '加载失败', '加载发布内容详情失败')
   } finally {
     loading.value = false
+  }
+}
+
+async function loadMetricCurve(contentId: string) {
+  curveLoading.value = true
+  try {
+    const curve = await http.get<AnyRecord>(
+      `/api/interaction-center/published-contents/${encodeURIComponent(contentId)}/metrics/curve`,
+      { period: metricPeriod.value },
+    )
+    if (detail.value) detail.value = { ...detail.value, metric_curve: curve }
+  } catch (err) {
+    notifyError(err, '加载趋势失败', '加载发布内容趋势失败')
+  } finally {
+    curveLoading.value = false
   }
 }
 
@@ -200,6 +225,7 @@ watch(
   ([open, contentId]) => {
     if (open && contentId) {
       activeTab.value = 'basic'
+      metricPeriod.value = '7d'
       loadDetail(contentId)
     }
     if (!open) {
@@ -209,6 +235,10 @@ watch(
   },
   { immediate: true },
 )
+
+watch(metricPeriod, () => {
+  if (props.modelValue && props.contentId) loadMetricCurve(props.contentId)
+})
 </script>
 
 <template>
@@ -292,7 +322,20 @@ watch(
           </el-tab-pane>
 
           <el-tab-pane label="趋势分析" name="metrics">
-            <div class="trend-grid">
+            <div v-loading="curveLoading" class="trend-panel">
+              <div class="trend-toolbar">
+                <div>
+                  <strong>趋势周期</strong>
+                  <span>按采集时间过滤指标快照</span>
+                </div>
+                <el-radio-group v-model="metricPeriod" size="small">
+                  <el-radio-button v-for="option in periodOptions" :key="option.value" :label="option.value">
+                    {{ option.label }}
+                  </el-radio-button>
+                </el-radio-group>
+              </div>
+
+              <div class="trend-grid">
               <div v-for="metric in metricDefs" :key="metric.key" class="trend-card">
                 <div class="trend-card__head">
                   <span>{{ metric.label }}</span>
@@ -309,7 +352,7 @@ watch(
               </div>
             </div>
 
-            <div class="trend-chart">
+              <div class="trend-chart">
               <div class="trend-chart__header">
                 <div>
                   <strong>指标走势</strong>
@@ -343,8 +386,9 @@ watch(
                 </text>
               </svg>
             </div>
+            </div>
 
-            <el-table :data="metrics" border stripe empty-text="暂无指标快照">
+            <el-table :data="curvePoints" border stripe empty-text="暂无指标快照">
               <el-table-column label="采集时间" min-width="170" align="center">
                 <template #default="{ row }">{{ formatDate(row.captured_at) }}</template>
               </el-table-column>
@@ -352,12 +396,6 @@ watch(
               <el-table-column prop="like_count" label="点赞" width="90" align="center" />
               <el-table-column prop="share_count" label="分享" width="90" align="center" />
               <el-table-column prop="view_count" label="浏览" width="90" align="center" />
-              <el-table-column prop="source" label="来源" width="110" align="center" />
-              <el-table-column label="任务" width="120" align="center">
-                <template #default="{ row }">
-                  <span class="font-mono text-xs" :title="String(row.task_run_id || '')">{{ truncateId(row.task_run_id) }}</span>
-                </template>
-              </el-table-column>
             </el-table>
           </el-tab-pane>
 
@@ -459,6 +497,28 @@ watch(
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.trend-panel {
+  min-height: 260px;
+}
+
+.trend-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.trend-toolbar strong {
+  display: block;
+  color: #0f172a;
+}
+
+.trend-toolbar span {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .trend-card {
@@ -655,6 +715,11 @@ watch(
   }
 
   .trend-chart__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .trend-toolbar {
     align-items: flex-start;
     flex-direction: column;
   }

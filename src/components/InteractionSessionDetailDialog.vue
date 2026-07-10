@@ -66,6 +66,27 @@ function stepActionLabel(value: unknown) {
   return labels[action] || action || '-'
 }
 
+function compactId(value: unknown) {
+  const id = String(value || '').trim()
+  if (!id) return ''
+  if (id.length <= 18) return id
+  return `${id.slice(0, 10)}...${id.slice(-5)}`
+}
+
+function targetCommentText(step: AnyRecord) {
+  if (step.target_platform_comment_id) return `平台评论 ${compactId(step.target_platform_comment_id)}`
+  if (step.target_comment_id) return `评论 ${compactId(step.target_comment_id)}`
+  return Number(step.step_no || 0) <= 1 ? '目标帖子' : '等待上一步结果'
+}
+
+function resultCommentText(step: AnyRecord) {
+  if (step.result_platform_comment_id) return `平台评论 ${compactId(step.result_platform_comment_id)}`
+  if (step.result_comment_id) return `评论 ${compactId(step.result_comment_id)}`
+  if (step.status === 'locked') return '等待解锁'
+  if (step.status === 'queued' || step.status === 'running') return '等待执行'
+  return '等待上报'
+}
+
 async function loadDetail(sessionId: string) {
   loading.value = true
   error.value = ''
@@ -141,6 +162,14 @@ watch(
           <el-table-column prop="accountName" label="评论账号" min-width="160" align="center" />
           <el-table-column label="互动步骤" min-width="760">
             <template #default="{ row }">
+              <div class="chain-strip">
+                <div v-for="step in row.steps" :key="`${step.id}-chain`" class="chain-node">
+                  <span>第 {{ step.step_no }} 步</span>
+                  <strong :title="String(step.result_platform_comment_id || step.result_comment_id || '')">
+                    {{ resultCommentText(step) }}
+                  </strong>
+                </div>
+              </div>
               <div class="step-grid">
                 <div v-for="step in row.steps" :key="step.id" class="step-card">
                   <div class="step-card__head">
@@ -151,6 +180,18 @@ watch(
                   <div class="step-card__meta">执行账号：{{ text(step.operator_account_name || step.operator_account_id) }}</div>
                   <div class="step-card__meta">
                     任务：<span class="font-mono" :title="String(step.task_run_id || '')">{{ truncateId(step.task_run_id) }}</span>
+                  </div>
+                  <div class="step-card__relation">
+                    <span>回复目标</span>
+                    <strong :title="String(step.target_platform_comment_id || step.target_comment_id || '')">
+                      {{ targetCommentText(step) }}
+                    </strong>
+                  </div>
+                  <div class="step-card__relation">
+                    <span>产出评论</span>
+                    <strong :title="String(step.result_platform_comment_id || step.result_comment_id || '')">
+                      {{ resultCommentText(step) }}
+                    </strong>
                   </div>
                   <div v-if="step.result_content" class="step-card__content">{{ step.result_content }}</div>
                   <div v-if="step.error_message" class="step-card__error">{{ step.error_message }}</div>
@@ -204,8 +245,47 @@ watch(
   gap: 10px;
 }
 
+.chain-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.chain-node {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 12px;
+}
+
+.chain-node:not(:last-child)::after {
+  content: "";
+  width: 18px;
+  height: 1px;
+  background: #bfdbfe;
+  margin-left: 2px;
+}
+
+.chain-node span {
+  color: #64748b;
+}
+
+.chain-node strong {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .step-card {
-  min-height: 132px;
+  min-height: 168px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 10px;
@@ -229,6 +309,29 @@ watch(
   margin-top: 5px;
   color: #64748b;
   font-size: 12px;
+}
+
+.step-card__relation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 7px;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.step-card__relation strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .step-card__content {
