@@ -78,6 +78,7 @@ const resultDialogVisible = ref(false)
 const resultTitle = ref('')
 const resultValue = ref<unknown>(null)
 const resultColumns = ref<ColumnConfig[]>([])
+const resultLoading = ref(false)
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
 const interactionSessionDetailVisible = ref(false)
@@ -299,10 +300,11 @@ function openPublishedContentDetail(record: AnyRecord) {
   publishedContentDetailVisible.value = true
 }
 
-function openResultDialog(action: RowActionConfig, data: unknown) {
+function openResultDialog(action: RowActionConfig, data: unknown, loading = false) {
   resultTitle.value = action.label
   resultValue.value = data
   resultColumns.value = action.resultColumns || []
+  resultLoading.value = loading
   resultDialogVisible.value = true
 }
 
@@ -708,6 +710,7 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
   const failures: string[] = []
   const rowsToHandle = [...selectedRows.value]
   let batchData: unknown = null
+  if (action.showResult) openResultDialog(action, null, true)
   try {
     if (action.batchPath || action.batchBody || action.batchParams) {
       const path = action.batchPath
@@ -741,7 +744,7 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
       throw new Error(`部分数据处理失败：${failures.slice(0, 3).join('；')}`)
     }
     if (action.showResult && batchData) {
-      openResultDialog(action, batchData)
+      openResultDialog(action, batchData, false)
     } else {
       ElMessage.success(
         action.successMessage && batchData
@@ -753,7 +756,15 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
     if (action.refresh !== false) await loadRows()
   } catch (err) {
     error.value = notifyError(err, '批量操作失败', '批量操作失败')
+    if (action.showResult) {
+      resultValue.value = {
+        status: 'failed',
+        checked_at: new Date().toISOString(),
+        error_message: getErrorMessage(err, '批量操作失败'),
+      }
+    }
   } finally {
+    resultLoading.value = false
     submitting.value = false
   }
 }
@@ -818,9 +829,10 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
 
   submitting.value = true
   error.value = ''
+  if (action.showResult) openResultDialog(action, null, true)
   try {
     const data = await requestAction(action, record, payload)
-    if (action.method === 'GET' || action.showResult) openResultDialog(action, data)
+    if (action.method === 'GET' || action.showResult) openResultDialog(action, data, false)
 
     if (action.method !== 'GET' && !action.showResult) {
       if (action.successMessage) {
@@ -836,7 +848,15 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
     if (action.refresh !== false) await loadRows()
   } catch (err) {
     error.value = notifyError(err, '操作失败', '操作失败')
+    if (action.showResult) {
+      resultValue.value = {
+        status: 'failed',
+        checked_at: new Date().toISOString(),
+        error_message: getErrorMessage(err, '操作失败'),
+      }
+    }
   } finally {
+    resultLoading.value = false
     submitting.value = false
   }
 }
@@ -859,6 +879,7 @@ function initFilters() {
   resultDialogVisible.value = false
   resultTitle.value = ''
   resultValue.value = null
+  resultLoading.value = false
   resultColumns.value = []
   taskDetailVisible.value = false
   taskDetailId.value = null
@@ -1302,6 +1323,7 @@ onBeforeUnmount(() => {
       :title="resultTitle"
       :value="resultValue"
       :columns="resultColumns"
+      :loading="resultLoading"
     />
 
     <el-dialog
