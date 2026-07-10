@@ -998,6 +998,15 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
       {
+        key: "group_ids",
+        label: "导入到代理组",
+        type: "remoteSelect",
+        remote: proxyGroupMultiSelect,
+        allowEmpty: true,
+        span: 2,
+        placeholder: "可选择一个或多个代理组",
+      },
+      {
         key: "proxy_urls",
         label: "Socks5 地址",
         type: "textarea",
