@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Layers3, Users } from 'lucide-vue-next'
+import { Layers3, Plus, RefreshCw, Users } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -14,6 +14,11 @@ const router = useRouter()
 const accountConfig = computed(() => resources.accounts)
 const accountGroupConfig = computed(() => resources.accountGroups)
 const activeTab = ref<AccountCenterTab>(normalizeTab(route.query.tab))
+const accountPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
+const accountGroupPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
+const activeConfig = computed(() => (activeTab.value === 'groups' ? accountGroupConfig.value : accountConfig.value))
+const activePage = computed(() => (activeTab.value === 'groups' ? accountGroupPageRef.value : accountPageRef.value))
+const activeCreateLabel = computed(() => activeConfig.value.createLabel || '新增')
 
 function normalizeTab(value: unknown): AccountCenterTab {
   return value === 'groups' ? 'groups' : 'accounts'
@@ -25,6 +30,14 @@ function handleTabChange(value: string | number) {
   if (tab === 'groups') query.tab = 'groups'
   else delete query.tab
   router.replace({ path: '/accounts', query })
+}
+
+function refreshActivePage() {
+  activePage.value?.loadRows()
+}
+
+function openActiveCreate() {
+  activePage.value?.openCreate()
 }
 
 watch(
@@ -48,6 +61,14 @@ watch(
             <p>统一维护账号、分组和组内成员。</p>
           </div>
         </div>
+        <div class="account-center__actions">
+          <el-tooltip content="刷新" placement="bottom">
+            <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
+          </el-tooltip>
+          <el-button type="primary" :icon="Plus" @click="openActiveCreate">
+            {{ activeCreateLabel }}
+          </el-button>
+        </div>
       </div>
 
       <el-tabs v-model="activeTab" class="account-center__tabs" @tab-change="handleTabChange">
@@ -58,7 +79,7 @@ watch(
               账号列表
             </span>
           </template>
-          <CrudPage :config="accountConfig" embedded />
+          <CrudPage ref="accountPageRef" :config="accountConfig" embedded hide-header-actions />
         </el-tab-pane>
         <el-tab-pane name="groups" lazy>
           <template #label>
@@ -67,7 +88,7 @@ watch(
               账号分组
             </span>
           </template>
-          <CrudPage :config="accountGroupConfig" embedded />
+          <CrudPage ref="accountGroupPageRef" :config="accountGroupConfig" embedded hide-header-actions />
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -99,6 +120,13 @@ watch(
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+.account-center__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
 }
 
 .account-center__icon {
@@ -163,6 +191,11 @@ watch(
   .account-center__header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .account-center__actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .account-center__tabs :deep(.el-tabs__content) {

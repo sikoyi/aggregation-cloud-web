@@ -45,6 +45,7 @@ import { getErrorMessage, notifyError } from '@/utils/notify'
 const props = defineProps<{
   config: ResourceConfig
   embedded?: boolean
+  hideHeaderActions?: boolean
 }>()
 
 const iconMap: IconMap = {
@@ -488,6 +489,11 @@ function openCreate() {
   formState.value = buildFormState(props.config.createFields || [])
 }
 
+defineExpose({
+  loadRows,
+  openCreate,
+})
+
 async function openEdit(record: AnyRecord) {
   loading.value = true
   error.value = ''
@@ -845,7 +851,10 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="resource-page space-y-4" :class="{ 'resource-page--embedded': props.embedded }">
-    <div class="resource-page__header flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div
+      v-if="!props.hideHeaderActions"
+      class="resource-page__header flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+    >
       <div>
         <h1 v-if="!props.embedded" class="text-xl font-semibold text-ink">{{ config.title }}</h1>
       </div>
