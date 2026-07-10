@@ -21,6 +21,15 @@ interface CommentNode extends AnyRecord {
   children: CommentNode[]
 }
 
+type MetricKey = 'comment_count' | 'like_count' | 'share_count' | 'view_count'
+
+const metricDefs: Array<{ key: MetricKey; label: string; color: string }> = [
+  { key: 'comment_count', label: '评论', color: '#2563eb' },
+  { key: 'like_count', label: '点赞', color: '#16a34a' },
+  { key: 'share_count', label: '分享', color: '#f97316' },
+  { key: 'view_count', label: '浏览', color: '#9333ea' },
+]
+
 const visible = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit('update:modelValue', value),
@@ -36,6 +45,16 @@ const content = computed<AnyRecord | null>(() => {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : null
 })
 const metrics = computed<AnyRecord[]>(() => Array.isArray(detail.value?.latest_metrics) ? detail.value.latest_metrics : [])
+const metricCurve = computed<AnyRecord | null>(() => {
+  const value = detail.value?.metric_curve
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : null
+})
+const curvePoints = computed<AnyRecord[]>(() => {
+  const points = metricCurve.value?.points
+  if (Array.isArray(points)) return points as AnyRecord[]
+  return [...metrics.value].sort((a, b) => new Date(String(a.captured_at || '')).getTime() - new Date(String(b.captured_at || '')).getTime())
+})
+const trendItems = computed<AnyRecord[]>(() => Array.isArray(metricCurve.value?.trends) ? metricCurve.value.trends as AnyRecord[] : [])
 const comments = computed<AnyRecord[]>(() => Array.isArray(detail.value?.comments) ? detail.value.comments : [])
 const actions = computed<AnyRecord[]>(() => Array.isArray(detail.value?.actions) ? detail.value.actions : [])
 const contentMediaUrls = computed<string[]>(() => {
@@ -75,6 +94,74 @@ function numberText(value: unknown) {
 
 function metricValue(key: string) {
   return numberText(content.value?.[key])
+}
+
+function metricNumber(value: unknown) {
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+function trendFor(key: MetricKey) {
+  return trendItems.value.find((item) => item.metric_key === key) || {}
+}
+
+function trendRate(value: unknown) {
+  const numberValue = metricNumber(value)
+  if (numberValue === null) return '-'
+  return `${(numberValue * 100).toFixed(1)}%`
+}
+
+function deltaText(value: unknown) {
+  const numberValue = metricNumber(value)
+  if (numberValue === null) return '-'
+  if (numberValue > 0) return `+${numberValue}`
+  return String(numberValue)
+}
+
+function trendType(value: unknown) {
+  const direction = String(value || '')
+  if (direction === 'up') return 'success'
+  if (direction === 'down') return 'danger'
+  if (direction === 'flat') return 'info'
+  return 'info'
+}
+
+function trendLabel(value: unknown) {
+  const direction = String(value || '')
+  const labels: Record<string, string> = {
+    up: '上升',
+    down: '下降',
+    flat: '持平',
+    unknown: '暂无趋势',
+  }
+  return labels[direction] || '暂无趋势'
+}
+
+function chartPolyline(key: MetricKey) {
+  const points = curvePoints.value
+  if (points.length < 2) return ''
+  const values = points.map((point) => metricNumber(point[key]))
+  const validValues = values.filter((value): value is number => value !== null)
+  if (!validValues.length) return ''
+  const min = Math.min(...validValues)
+  const max = Math.max(...validValues)
+  const range = max - min || 1
+  return values
+    .map((value, index) => {
+      const x = 36 + (index * 648) / Math.max(points.length - 1, 1)
+      const normalized = value === null ? min : value
+      const y = 176 - ((normalized - min) * 136) / range
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+}
+
+function chartDateRange() {
+  const points = curvePoints.value
+  if (!points.length) return '暂无采集数据'
+  const first = formatDate(points[0]?.captured_at)
+  const last = formatDate(points[points.length - 1]?.captured_at)
+  return first === last ? first : `${first} ~ ${last}`
 }
 
 function mediaUrl(value: unknown) {
@@ -204,7 +291,59 @@ watch(
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="指标快照" name="metrics">
+          <el-tab-pane label="趋势分析" name="metrics">
+            <div class="trend-grid">
+              <div v-for="metric in metricDefs" :key="metric.key" class="trend-card">
+                <div class="trend-card__head">
+                  <span>{{ metric.label }}</span>
+                  <el-tag size="small" :type="trendType(trendFor(metric.key).direction)" effect="light">
+                    {{ trendLabel(trendFor(metric.key).direction) }}
+                  </el-tag>
+                </div>
+                <strong>{{ numberText(trendFor(metric.key).latest_value ?? content?.[metric.key]) }}</strong>
+                <div class="trend-card__meta">
+                  <span>总增长 {{ deltaText(trendFor(metric.key).total_delta) }}</span>
+                  <span>最近 {{ deltaText(trendFor(metric.key).latest_delta) }}</span>
+                  <span>增长率 {{ trendRate(trendFor(metric.key).growth_rate) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="trend-chart">
+              <div class="trend-chart__header">
+                <div>
+                  <strong>指标走势</strong>
+                  <span>{{ chartDateRange() }}</span>
+                </div>
+                <div class="trend-chart__legend">
+                  <span v-for="metric in metricDefs" :key="metric.key">
+                    <i :style="{ backgroundColor: metric.color }" />
+                    {{ metric.label }}
+                  </span>
+                </div>
+              </div>
+              <el-empty v-if="curvePoints.length < 2" description="至少需要 2 次指标采集才能形成曲线" :image-size="70" />
+              <svg v-else viewBox="0 0 720 220" role="img" class="trend-chart__svg">
+                <line x1="36" y1="40" x2="36" y2="176" class="axis-line" />
+                <line x1="36" y1="176" x2="684" y2="176" class="axis-line" />
+                <line v-for="y in [74, 108, 142]" :key="y" x1="36" :y1="y" x2="684" :y2="y" class="grid-line" />
+                <polyline
+                  v-for="metric in metricDefs"
+                  :key="metric.key"
+                  :points="chartPolyline(metric.key)"
+                  fill="none"
+                  :stroke="metric.color"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <text x="36" y="204" class="chart-label">{{ formatDate(curvePoints[0]?.captured_at) }}</text>
+                <text x="684" y="204" text-anchor="end" class="chart-label">
+                  {{ formatDate(curvePoints[curvePoints.length - 1]?.captured_at) }}
+                </text>
+              </svg>
+            </div>
+
             <el-table :data="metrics" border stripe empty-text="暂无指标快照">
               <el-table-column label="采集时间" min-width="170" align="center">
                 <template #default="{ row }">{{ formatDate(row.captured_at) }}</template>
@@ -315,6 +454,111 @@ watch(
   font-size: 20px;
 }
 
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.trend-card {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.trend-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.trend-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #0f172a;
+  font-size: 22px;
+}
+
+.trend-card__meta {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.trend-chart {
+  margin-bottom: 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.trend-chart__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.trend-chart__header strong {
+  display: block;
+  color: #0f172a;
+}
+
+.trend-chart__header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.trend-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.trend-chart__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #475569;
+}
+
+.trend-chart__legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.trend-chart__svg {
+  width: 100%;
+  height: 240px;
+}
+
+.axis-line {
+  stroke: #cbd5e1;
+  stroke-width: 1.5;
+}
+
+.grid-line {
+  stroke: #e2e8f0;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.chart-label {
+  fill: #64748b;
+  font-size: 12px;
+}
+
 .detail-section {
   margin-top: 16px;
 }
@@ -404,6 +648,15 @@ watch(
 @media (max-width: 768px) {
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trend-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trend-chart__header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

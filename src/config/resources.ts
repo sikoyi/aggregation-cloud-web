@@ -1588,6 +1588,14 @@ export const resources: Record<string, ResourceConfig> = {
         span: 2,
       },
       {
+        key: "step_count",
+        label: "互动次数",
+        type: "number",
+        defaultValue: 3,
+        required: true,
+        placeholder: "默认 3 次，按主号和评论号交替回复",
+      },
+      {
         key: "runtime_platform",
         label: "执行平台",
         type: "select",
