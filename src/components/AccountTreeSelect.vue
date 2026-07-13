@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
+import { statusLabel, statusTagType } from '@/utils/format'
 
 const props = defineProps<{
   modelValue: unknown
@@ -19,6 +20,7 @@ interface AccountTreeNode {
   id: string
   accountId?: string
   label: string
+  loginStatus?: string
   disabled?: boolean
   children?: AccountTreeNode[]
 }
@@ -97,6 +99,7 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
     id: accountNodeId(String(account.id)),
     accountId: String(account.id),
     label: hasSlot ? label : `${label}（未绑定设备）`,
+    loginStatus: String(account.login_status || 'unknown'),
     disabled: !hasSlot,
   }
 }
@@ -223,7 +226,22 @@ watch(
       :disabled="disabled"
       :empty-text="emptyMessage || '暂无已登录账号'"
       @check="emitChecked"
-    />
+    >
+      <template #default="{ data }">
+        <span class="account-tree-node">
+          <span class="account-tree-node__label">{{ data.label }}</span>
+          <el-tag
+            v-if="data.accountId"
+            size="small"
+            :type="statusTagType(data.loginStatus)"
+            effect="light"
+            round
+          >
+            {{ statusLabel(data.loginStatus) }}
+          </el-tag>
+        </span>
+      </template>
+    </el-tree>
   </div>
 </template>
 
@@ -245,5 +263,26 @@ watch(
 
 .account-tree-select :deep(.el-tree) {
   background: transparent;
+}
+
+.account-tree-select :deep(.el-tree-node__content) {
+  min-width: 0;
+}
+
+.account-tree-node {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-right: 8px;
+}
+
+.account-tree-node__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -215,7 +215,8 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       labelKeys: ['login_username', 'username', 'display_name', 'platform_account_id'],
       valueKey: 'id',
       detailPath: (value: string) => `/api/accounts/${encodeURIComponent(value)}`,
-      secondaryKeys: ['country', 'login_status'],
+      secondaryKey: 'country',
+      statusKey: 'login_status',
       searchParam: 'keyword',
       pageSize: 50,
     }
@@ -248,7 +249,8 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       labelKeys: ['display_name', 'provider_slot_id', 'provider_slot_no', 'id'],
       valueKey: 'id',
       detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
-      secondaryKeys: ['provider', 'status'],
+      secondaryKey: 'provider',
+      statusKey: 'status',
       searchParam: 'keyword',
       pageSize: 50,
     }

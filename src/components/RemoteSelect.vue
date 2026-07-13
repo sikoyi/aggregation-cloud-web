@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
+import { statusLabel, statusTagType } from '@/utils/format'
 
 const props = defineProps<{
   modelValue: unknown
@@ -52,6 +53,10 @@ function optionValue(option: AnyRecord) {
 function optionSecondary(option: AnyRecord) {
   const keys = props.config.secondaryKeys || (props.config.secondaryKey ? [props.config.secondaryKey] : [])
   return fieldValue(option, keys)
+}
+
+function optionStatus(option: AnyRecord) {
+  return props.config.statusKey ? option[props.config.statusKey] : undefined
 }
 
 function selectedValues() {
@@ -208,10 +213,21 @@ function updateSelected(value: string | string[]) {
       :label="optionLabel(option)"
       :value="optionValue(option)"
     >
-      <div class="flex items-center justify-between gap-4">
-        <span class="truncate">{{ optionLabel(option) }}</span>
-        <span v-if="optionSecondary(option)" class="font-mono text-xs text-slate-400">
-          {{ optionSecondary(option) }}
+      <div class="remote-select-option">
+        <span class="remote-select-option__label">{{ optionLabel(option) }}</span>
+        <span class="remote-select-option__meta">
+          <span v-if="optionSecondary(option)" class="font-mono text-xs text-slate-400">
+            {{ optionSecondary(option) }}
+          </span>
+          <el-tag
+            v-if="optionStatus(option)"
+            size="small"
+            :type="statusTagType(optionStatus(option))"
+            effect="light"
+            round
+          >
+            {{ statusLabel(optionStatus(option)) }}
+          </el-tag>
         </span>
       </div>
     </el-option>
@@ -224,6 +240,28 @@ function updateSelected(value: string | string[]) {
 </template>
 
 <style scoped>
+.remote-select-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.remote-select-option__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remote-select-option__meta {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
 .remote-select-empty {
   padding: 16px 18px;
   color: #64748b;

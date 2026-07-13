@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
+import { statusLabel, statusTagType } from '@/utils/format'
 
 const props = defineProps<{
   modelValue: unknown
@@ -18,6 +19,7 @@ interface SlotTreeNode {
   id: string
   slotId?: string
   label: string
+  status?: string
   disabled?: boolean
   children?: SlotTreeNode[]
 }
@@ -65,6 +67,7 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
     id: slotNodeId(String(slot.id)),
     slotId: String(slot.id),
     label: slotLabel(slot),
+    status: String(slot.status || 'offline'),
     disabled: slot.status === 'disabled',
   }
 }
@@ -159,7 +162,22 @@ watch(
       :disabled="disabled"
       empty-text="暂无可选设备"
       @check="emitChecked"
-    />
+    >
+      <template #default="{ data }">
+        <span class="slot-tree-node">
+          <span class="slot-tree-node__label">{{ data.label }}</span>
+          <el-tag
+            v-if="data.slotId"
+            size="small"
+            :type="statusTagType(data.status)"
+            effect="light"
+            round
+          >
+            {{ statusLabel(data.status) }}
+          </el-tag>
+        </span>
+      </template>
+    </el-tree>
   </div>
 </template>
 
@@ -176,5 +194,26 @@ watch(
 
 .slot-tree-select :deep(.el-tree) {
   background: transparent;
+}
+
+.slot-tree-select :deep(.el-tree-node__content) {
+  min-width: 0;
+}
+
+.slot-tree-node {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-right: 8px;
+}
+
+.slot-tree-node__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
