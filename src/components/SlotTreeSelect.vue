@@ -183,6 +183,8 @@ watch(
 
 <style scoped>
 .slot-tree-select {
+  width: 100%;
+  box-sizing: border-box;
   min-height: 260px;
   max-height: 420px;
   overflow: auto;
