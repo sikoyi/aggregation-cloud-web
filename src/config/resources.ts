@@ -1594,14 +1594,13 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "keyword", label: "关键词", placeholder: "会话名称 / 目标帖子 / ID" },
     ],
     createFields: [
-      { key: "title", label: "会话名称", required: true, span: 2 },
+      { key: "title", label: "会话名称", required: true },
       {
         key: "business_platform",
         label: "业务 App",
         type: "select",
         options: businessPlatformOptions,
         defaultValue: "threads",
-        span: 2,
       },
       {
         key: "main_account_id",
@@ -1636,7 +1635,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: runtimePlatformOptions,
         defaultValue: "fingerprint_browser",
-        span: 2,
       },
       {
         key: "provider",
@@ -1644,7 +1642,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: providerOptions,
         defaultValue: "adspower",
-        span: 2,
       },
       {
         key: "target_content_id",
@@ -1652,7 +1649,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "remoteSelect",
         remote: interactionTargetContentRemoteSelect,
         required: true,
-        span: 2,
         placeholder: "从主号已发布内容中选择目标帖子",
       },
       {
@@ -1661,9 +1657,8 @@ export const resources: Record<string, ResourceConfig> = {
         type: "remoteSelect",
         remote: scriptRemoteSelect,
         required: true,
-        span: 2,
       },
-      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true, span: 2 },
+      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
       {
         key: "ai_config",
         label: "AI 配置",

@@ -1238,15 +1238,15 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div v-else-if="isInteractionSessionCreateModal" class="interaction-session-create-layout">
-        <div class="interaction-session-create-layout__panel">
+        <div class="interaction-session-create-layout__panel interaction-session-create-layout__panel--account">
           <div class="edit-panel-title">主号</div>
           <DynamicForm v-model="formState" :fields="interactionMainFields" :context="modal.record || undefined" />
         </div>
-        <div class="interaction-session-create-layout__panel">
+        <div class="interaction-session-create-layout__panel interaction-session-create-layout__panel--account">
           <div class="edit-panel-title">评论账号</div>
           <DynamicForm v-model="formState" :fields="interactionCommentFields" :context="modal.record || undefined" />
         </div>
-        <div class="interaction-session-create-layout__panel">
+        <div class="interaction-session-create-layout__panel interaction-session-create-layout__panel--params">
           <div class="edit-panel-title">参数填写</div>
           <DynamicForm v-model="formState" :fields="interactionParamFields" :context="modal.record || undefined" />
         </div>
@@ -1604,7 +1604,7 @@ onBeforeUnmount(() => {
   background: #fbfdff;
 }
 
-.interaction-session-create-layout__panel :deep(.el-col) {
+.interaction-session-create-layout__panel--account :deep(.el-col) {
   max-width: 100%;
   flex: 0 0 100%;
 }
