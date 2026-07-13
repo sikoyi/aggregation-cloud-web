@@ -67,6 +67,9 @@ export interface FieldConfig {
   remote?: RemoteSelectConfig
   multiple?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
+  min?: number
+  max?: number
+  step?: number
   span?: 1 | 2
   readonly?: boolean
   hidden?: boolean

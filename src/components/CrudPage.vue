@@ -151,7 +151,7 @@ const interactionCommentFields = computed(() => {
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const interactionParamFields = computed(() => {
-  const keys = new Set(['title', 'business_platform', 'runtime_platform', 'provider', 'target_content_id', 'script_key', 'scheduled_at', 'ai_config'])
+  const keys = new Set(['title', 'business_platform', 'step_count', 'runtime_platform', 'provider', 'target_content_id', 'script_key', 'scheduled_at', 'ai_config'])
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const showModalSaveButton = computed(() => {
@@ -165,7 +165,13 @@ const groupMembersTabLabel = computed(() => {
   if (props.config.contentGroupMembers) return '组内内容'
   return '组内设备'
 })
-const modalSubmitLabel = computed(() => (isTaskDispatchModal.value ? '确认执行' : isPublishedContentDispatchModal.value ? '确认下发' : '保存'))
+const modalSubmitLabel = computed(() => (
+  isTaskDispatchModal.value
+    ? '确认执行'
+    : isPublishedContentDispatchModal.value || isInteractionSessionCreateModal.value
+      ? '确认下发'
+      : '保存'
+))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 const statusSwitchActionKeys = computed(() => {
   const keys = new Set(['enable', 'disable'])

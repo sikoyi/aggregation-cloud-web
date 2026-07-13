@@ -151,7 +151,7 @@ watch(
           <el-descriptions-item label="主号">{{ text(session.main_account_name || session.main_account_id) }}</el-descriptions-item>
           <el-descriptions-item label="脚本">{{ text(session.script_key) }}</el-descriptions-item>
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
-          <el-descriptions-item label="每号互动次数">{{ text(stepCount) }}</el-descriptions-item>
+          <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
           <el-descriptions-item label="父任务">
             <span class="font-mono text-xs" :title="String(session.task_run_id || '')">{{ truncateId(session.task_run_id) }}</span>
           </el-descriptions-item>
