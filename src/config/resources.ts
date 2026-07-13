@@ -2588,6 +2588,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "runtime_platform", label: "执行平台" },
       { key: "provider", label: "供应商" },
       { key: "status", label: "状态", type: "status" },
+      { key: "max_concurrent_slots", label: "并发上限" },
       { key: "slot_total", label: "设备总数" },
       { key: "slot_idle", label: "空闲设备" },
       { key: "slot_running", label: "运行中设备" },
