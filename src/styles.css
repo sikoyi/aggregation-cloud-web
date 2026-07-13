@@ -16,12 +16,52 @@
     --el-text-color-regular: #52606d;
     --el-bg-color-page: #f8fafc;
     --el-border-radius-base: 6px;
+    --app-scrollbar-thumb: #bdc9d5;
+    --app-scrollbar-thumb-hover: #8fa1b2;
+    --app-scrollbar-track: transparent;
   }
 
   html {
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--app-scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    min-width: 32px;
+    min-height: 32px;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-color: var(--app-scrollbar-thumb);
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--app-scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   body {
@@ -170,5 +210,28 @@
   .el-dropdown-menu__item {
     display: flex;
     align-items: center;
+  }
+
+  .el-scrollbar__bar.is-vertical {
+    width: 8px;
+    right: 2px;
+  }
+
+  .el-scrollbar__bar.is-horizontal {
+    height: 8px;
+    bottom: 2px;
+  }
+
+  .el-scrollbar__thumb {
+    border: 2px solid transparent;
+    background-color: var(--app-scrollbar-thumb);
+    background-clip: content-box;
+    opacity: 0.72;
+    transition: background-color 160ms ease, opacity 160ms ease;
+  }
+
+  .el-scrollbar__thumb:hover {
+    background-color: var(--app-scrollbar-thumb-hover);
+    opacity: 0.9;
   }
 }
