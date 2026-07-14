@@ -25,7 +25,6 @@ const loading = ref(false)
 const saving = ref(false)
 const testing = ref(false)
 const tokenConfigured = ref(false)
-const tokenMasked = ref('')
 const updatedAt = ref('')
 const form = reactive({
   business_platform: 'threads',
@@ -44,9 +43,8 @@ async function loadConfig() {
     const data = await http.get<AnyRecord>(endpoint())
     form.actor_id = String(data.actor_id || 'scrapeengine/threads-search-post-scraper')
     form.enabled = data.enabled !== false
-    form.api_token = ''
-    tokenConfigured.value = data.token_configured === true
-    tokenMasked.value = String(data.token_masked || '')
+    form.api_token = String(data.api_token || '')
+    tokenConfigured.value = Boolean(form.api_token || data.token_configured)
     updatedAt.value = String(data.updated_at || '')
   } catch (err) {
     notifyError(err, '加载失败', '加载 Apify 配置失败')
@@ -90,10 +88,9 @@ async function saveConfig() {
       actor_id: form.actor_id.trim(),
       enabled: form.enabled,
     })
-    tokenConfigured.value = data.token_configured === true
-    tokenMasked.value = String(data.token_masked || '')
+    form.api_token = String(data.api_token || form.api_token)
+    tokenConfigured.value = Boolean(form.api_token || data.token_configured)
     updatedAt.value = String(data.updated_at || '')
-    form.api_token = ''
     ElNotification.success({ title: '保存成功', message: 'Apify 监听配置已更新' })
   } catch (err) {
     notifyError(err, '保存失败', 'Apify 配置保存失败')
@@ -141,21 +138,27 @@ watch(
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="启用状态">
+          <el-form-item label="监听状态">
             <div class="enabled-field">
-              <el-switch v-model="form.enabled" inline-prompt active-text="启用" inactive-text="停用" />
-              <el-tag v-if="tokenConfigured" size="small" type="success" effect="light">
-                <CheckCircle2 :size="13" /> Token 已配置
-              </el-tag>
+              <el-switch v-model="form.enabled" />
+              <span>{{ form.enabled ? '已启用' : '已停用' }}</span>
             </div>
           </el-form-item>
-          <el-form-item label="Apify Token" class="config-grid__full">
+          <el-form-item class="config-grid__full">
+            <template #label>
+              <div class="token-label">
+                <span>Apify Token</span>
+                <el-tag v-if="tokenConfigured" size="small" type="success" effect="light">
+                  <CheckCircle2 :size="13" /> 已配置
+                </el-tag>
+              </div>
+            </template>
             <el-input
               v-model="form.api_token"
               type="password"
               show-password
               autocomplete="new-password"
-              :placeholder="tokenConfigured ? `已保存 ${tokenMasked}，留空保持不变` : '请输入 Apify API Token'"
+              placeholder="请输入 Apify API Token"
             />
           </el-form-item>
           <el-form-item label="Actor" class="config-grid__full">
@@ -221,7 +224,7 @@ watch(
 
 .config-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) 180px;
   gap: 2px 16px;
 }
 
@@ -233,10 +236,19 @@ watch(
   display: flex;
   min-height: 32px;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  color: #526273;
+  font-size: 13px;
 }
 
-.enabled-field :deep(.el-tag) {
+.token-label {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-label :deep(.el-tag) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
