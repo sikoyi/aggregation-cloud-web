@@ -157,17 +157,30 @@ const provider = computed(() => optionLabel(providerOptions, props.row.bound_slo
   display: inline-flex;
   max-width: 100%;
   align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.account-group-tag :deep(.el-tag__content) {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
   gap: 4px;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .account-group-tag__icon {
   width: 12px;
   height: 12px;
+  flex: 0 0 12px;
 }
 
 .account-group-tag span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .account-credentials {
