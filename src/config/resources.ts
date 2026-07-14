@@ -554,6 +554,28 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     filters: [
       {
+        key: "account_id",
+        label: "账号 ID",
+        placeholder: "请输入账号 ID",
+      },
+      {
+        key: "login_username",
+        label: "登录账号",
+        placeholder: "请输入登录账号",
+      },
+      {
+        key: "group_id",
+        label: "所属分组",
+        type: "remoteSelect",
+        remote: accountGroupRemoteSelect,
+        placeholder: "全部分组",
+      },
+      {
+        key: "bound_slot_id",
+        label: "设备 ID",
+        placeholder: "请输入设备 ID",
+      },
+      {
         key: "business_platform",
         label: "业务平台",
         type: "select",
@@ -585,8 +607,8 @@ export const resources: Record<string, ResourceConfig> = {
       },
       {
         key: "keyword",
-        label: "关键词",
-        placeholder: "登录账号 / 用户名 / 昵称",
+        label: "用户信息",
+        placeholder: "公开用户名 / 昵称",
       },
     ],
     createFields: [
