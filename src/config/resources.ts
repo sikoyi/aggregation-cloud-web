@@ -27,6 +27,7 @@ import {
   runtimePlatformOptions,
   runtimeStatusOptions,
   scriptParamTypeOptions,
+  scriptPurposeOptions,
   scriptStatusOptions,
   slotStatusOptions,
   slotTypeOptions,
@@ -73,6 +74,18 @@ const scriptRemoteSelect = {
   clearWhenMissing: true,
   matchesContext: scriptMatchesContext,
   emptyText: "当前业务 App / 执行平台 / 供应商下暂无可用脚本，请先在脚本管理中确认脚本支持范围",
+};
+
+const taskTemplateScriptRemoteSelect = {
+  ...scriptRemoteSelect,
+  params: (context?: AnyRecord) => ({
+    ...scriptRemoteSelect.params(context),
+    purpose: "general_task",
+  }),
+  matchesContext: (script: AnyRecord, context?: AnyRecord) => (
+    script.purpose === "general_task" && scriptMatchesContext(script, context)
+  ),
+  emptyText: "当前范围暂无可用于任务模板的普通任务脚本",
 };
 
 // 常见关联资源统一用远程下拉，表单提交仍然使用后端需要的 id/key。
@@ -278,6 +291,7 @@ const scriptCreateKeys = [
   "script_key",
   "name",
   "description",
+  "purpose",
   "supported_runtime_platforms",
   "supported_providers",
   "supported_business_platforms",
@@ -383,7 +397,6 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "business_platform",
     "runtime_platform",
     "provider",
-    "script_key",
     "account_ids",
     "content_source_type",
     "content_status",
@@ -1651,13 +1664,6 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
         placeholder: "从主号已发布内容中选择目标帖子",
       },
-      {
-        key: "script_key",
-        label: "互动脚本",
-        type: "remoteSelect",
-        remote: scriptRemoteSelect,
-        required: true,
-      },
       { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
       {
         key: "ai_config",
@@ -1757,14 +1763,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: providerOptions,
         defaultValue: "adspower",
-      },
-      {
-        key: "script_key",
-        label: "发布脚本",
-        type: "remoteSelect",
-        remote: scriptRemoteSelect,
-        required: true,
-        placeholder: "请选择发布脚本",
       },
       {
         key: "account_ids",
@@ -1935,6 +1933,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "script_key", label: "脚本 Key", type: "tag", width: 200, align: "center" },
       { key: "name", label: "名称", minWidth: 250, align: "center" },
+      { key: "purpose", label: "适配用途", options: scriptPurposeOptions, align: "center" },
       {
         key: "supported_business_platforms",
         label: "业务 App 范围",
@@ -1951,6 +1950,12 @@ export const resources: Record<string, ResourceConfig> = {
         label: "状态",
         type: "select",
         options: scriptStatusOptions,
+      },
+      {
+        key: "purpose",
+        label: "适配用途",
+        type: "select",
+        options: scriptPurposeOptions,
       },
       {
         key: "runtime_platform",
@@ -1975,6 +1980,14 @@ export const resources: Record<string, ResourceConfig> = {
     createFields: [
       { key: "script_key", label: "脚本 Key", required: true },
       { key: "name", label: "脚本名称", required: true },
+      {
+        key: "purpose",
+        label: "适配用途",
+        type: "select",
+        options: scriptPurposeOptions,
+        defaultValue: "general_task",
+        required: true,
+      },
       {
         key: "status",
         label: "状态",
@@ -2029,6 +2042,12 @@ export const resources: Record<string, ResourceConfig> = {
     afterUpdate: updateScriptParams,
     updateFields: [
       { key: "name", label: "脚本名称" },
+      {
+        key: "purpose",
+        label: "适配用途",
+        type: "select",
+        options: scriptPurposeOptions,
+      },
       {
         key: "status",
         label: "状态",
@@ -2129,7 +2148,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "script_key",
         label: "脚本",
         type: "remoteSelect",
-        remote: scriptRemoteSelect,
+        remote: taskTemplateScriptRemoteSelect,
         placeholder: "全部脚本",
       },
       {
@@ -2147,7 +2166,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "脚本",
         type: "remoteSelect",
         required: true,
-        remote: scriptRemoteSelect,
+        remote: taskTemplateScriptRemoteSelect,
         placeholder: "请选择脚本",
       },
       {
@@ -2263,7 +2282,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "script_key",
         label: "脚本",
         type: "remoteSelect",
-        remote: scriptRemoteSelect,
+        remote: taskTemplateScriptRemoteSelect,
         placeholder: "请选择脚本",
       },
       {

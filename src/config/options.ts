@@ -360,6 +360,12 @@ export const scriptStatusOptions: SelectOption[] = [
   { label: '禁用', value: 'disabled' },
 ]
 
+export const scriptPurposeOptions: SelectOption[] = [
+  { label: '普通任务', value: 'general_task' },
+  { label: '发布内容', value: 'content_publish' },
+  { label: '互动会话', value: 'interaction' },
+]
+
 export const slotStatusOptions: SelectOption[] = [
   { label: '空闲', value: 'idle' },
   { label: '启动中', value: 'starting' },
