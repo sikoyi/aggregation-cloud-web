@@ -781,7 +781,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "id", label: "ID", type: "id" },
       { key: "display_name", label: "名称" },
       { key: "provider_slot_id", label: "Provider ID" },
-      { key: "runtime_platform", label: "执行平台" },
+      { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
       { key: "status", label: "状态", type: "status" },
       {
@@ -907,7 +907,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
-      { key: "runtime_platform", label: "执行平台" },
+      { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
       { key: "business_platform", label: "平台" },
       { key: "member_count", label: "成员数" },
@@ -2604,7 +2604,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "runtime_id", label: "Runtime ID" },
-      { key: "runtime_platform", label: "执行平台" },
+      { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
       { key: "status", label: "状态", type: "status" },
       { key: "max_concurrent_slots", label: "并发上限" },

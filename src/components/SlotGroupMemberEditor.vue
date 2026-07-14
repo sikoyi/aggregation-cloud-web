@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, truncateId } from '@/utils/format'
@@ -205,6 +206,11 @@ function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
 }
 
+function runtimePlatformLabel(value: unknown) {
+  const option = runtimePlatformOptions.find((item) => item.value === String(value || ''))
+  return option?.label || text(value)
+}
+
 function resetSearch() {
   keyword.value = ''
   searchMembers()
@@ -346,7 +352,7 @@ onMounted(loadMembers)
           <el-descriptions-item label="Provider 编号">{{ text(slotDetail.provider_slot_no) }}</el-descriptions-item>
           <el-descriptions-item label="供应商">{{ text(slotDetail.provider) }}</el-descriptions-item>
           <el-descriptions-item label="业务 App">{{ text(slotDetail.business_platform) }}</el-descriptions-item>
-          <el-descriptions-item label="执行平台">{{ text(slotDetail.runtime_platform) }}</el-descriptions-item>
+          <el-descriptions-item label="执行平台">{{ runtimePlatformLabel(slotDetail.runtime_platform) }}</el-descriptions-item>
           <el-descriptions-item label="账号 ID">
             <span class="font-mono text-xs">{{ text(slotDetail.bound_account_id) }}</span>
           </el-descriptions-item>
