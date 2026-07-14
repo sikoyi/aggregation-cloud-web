@@ -24,6 +24,11 @@ export type FieldType =
 
 export type ColumnType =
   | 'text'
+  | 'accountIdentity'
+  | 'accountGroup'
+  | 'accountCredentials'
+  | 'accountPlatform'
+  | 'accountEnvironment'
   | 'status'
   | 'statusSwitch'
   | 'datetime'

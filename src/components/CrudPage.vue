@@ -25,6 +25,7 @@ import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
+import AccountTableCell from '@/components/AccountTableCell.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
@@ -1040,7 +1041,7 @@ onBeforeUnmount(() => {
         border
         highlight-current-row
         :scrollbar-always-on="!props.embedded"
-        class="resource-table"
+        :class="['resource-table', `resource-table--${config.key}`]"
         table-layout="auto"
         @selection-change="handleSelectionChange"
       >
@@ -1058,7 +1059,13 @@ onBeforeUnmount(() => {
           show-overflow-tooltip
         >
           <template #default="{ row }">
-            <div v-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
+            <AccountTableCell
+              v-if="column.type && ['accountIdentity', 'accountGroup', 'accountCredentials', 'accountPlatform', 'accountEnvironment'].includes(column.type)"
+              :kind="column.type as 'accountIdentity' | 'accountGroup' | 'accountCredentials' | 'accountPlatform' | 'accountEnvironment'"
+              :row="row"
+              :column="column"
+            />
+            <div v-else-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
               <el-switch
                 :model-value="isEnabledStatus(row[column.key], column)"
                 :active-text="defaultStatusSwitchConfig(column).activeText"
@@ -1524,6 +1531,38 @@ onBeforeUnmount(() => {
 .resource-table :deep(.el-button.is-circle) {
   width: 30px;
   height: 30px;
+}
+
+.resource-table--accounts :deep(th.el-table__cell) {
+  color: #526477;
+  background: #f3f7fa;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resource-table--accounts :deep(td.el-table__cell) {
+  padding: 11px 0;
+}
+
+.resource-table--accounts :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #f4f9fd;
+}
+
+.resource-table--accounts :deep(.el-button.is-circle) {
+  border: 1px solid transparent;
+  color: #52677a;
+  background: #f4f7fa;
+}
+
+.resource-table--accounts :deep(.el-button.is-circle:hover) {
+  border-color: #bfd5e6;
+  color: #1f668f;
+  background: #edf7fd;
+}
+
+.resource-table--accounts :deep(.el-button--danger.is-circle) {
+  color: #c94c4c;
+  background: #fff5f5;
 }
 
 .table-pagination {
