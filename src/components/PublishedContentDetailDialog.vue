@@ -81,6 +81,17 @@ const monitorSetting = computed<AnyRecord | null>(() => {
   const value = detail.value?.monitor_setting
   return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : null
 })
+const monitorIsAbnormal = computed(() => monitorSetting.value?.monitor_status === 'abnormal')
+const monitorStatusLabel = computed(() => {
+  if (monitorIsAbnormal.value) return '监听异常'
+  if (monitorSetting.value?.enabled === false) return '已暂停'
+  return '监听中'
+})
+const monitorStatusType = computed(() => {
+  if (monitorIsAbnormal.value) return 'danger'
+  if (monitorSetting.value?.enabled === false) return 'info'
+  return 'success'
+})
 const comments = computed<AnyRecord[]>(() => Array.isArray(detail.value?.comments) ? detail.value.comments : [])
 const actions = computed<AnyRecord[]>(() => Array.isArray(detail.value?.actions) ? detail.value.actions : [])
 const contentMediaUrls = computed<string[]>(() => {
@@ -264,6 +275,11 @@ async function saveMonitorSetting() {
   }
 }
 
+async function recoverMonitor() {
+  monitorForm.value.enabled = true
+  await saveMonitorSetting()
+}
+
 async function loadMetricCurve(contentId: string) {
   curveLoading.value = true
   try {
@@ -383,6 +399,19 @@ watch(metricPeriod, () => {
 
           <el-tab-pane label="监听配置" name="monitor">
             <div class="monitor-panel">
+              <div v-if="monitorIsAbnormal" class="monitor-abnormal">
+                <el-alert
+                  type="error"
+                  :closable="false"
+                  show-icon
+                  title="监听已因连续三轮失败自动停止"
+                  :description="String(monitorSetting?.last_error_message || '请检查 Runtime、监听脚本和目标帖子后再恢复监听。')"
+                />
+                <el-button type="danger" plain :loading="monitorSaving" @click="recoverMonitor">
+                  恢复监听
+                </el-button>
+              </div>
+
               <div class="monitor-summary">
                 <div>
                   <span>当前模式</span>
@@ -391,13 +420,18 @@ watch(metricPeriod, () => {
                 </div>
                 <div>
                   <span>监听状态</span>
-                  <strong>{{ monitorSetting?.enabled === false ? '已暂停' : '监听中' }}</strong>
+                  <strong><el-tag :type="monitorStatusType" effect="light">{{ monitorStatusLabel }}</el-tag></strong>
                   <small>下次监听：{{ formatDate(monitorSetting?.next_run_at) }}</small>
                 </div>
                 <div>
                   <span>生效间隔</span>
                   <strong>{{ numberText(monitorSetting?.effective_interval_minutes) }} 分钟</strong>
                   <small>上次监听：{{ formatDate(monitorSetting?.last_run_at) }}</small>
+                </div>
+                <div>
+                  <span>运行健康</span>
+                  <strong>{{ numberText(monitorSetting?.consecutive_failed_rounds) }} 轮失败</strong>
+                  <small>最近成功：{{ formatDate(monitorSetting?.last_success_at) }}</small>
                 </div>
               </div>
 
@@ -436,7 +470,7 @@ watch(metricPeriod, () => {
                     type="info"
                     :closable="false"
                     show-icon
-                    title="第一版会先保存监听规则和下次监听时间；后续采集调度器会按 next_run_at 自动生成采集任务。"
+                    title="每轮失败后会间隔 10 分钟重试，最多重试 3 次；连续 3 轮全部失败后自动停止监听。"
                   />
                   <el-button type="primary" :loading="monitorSaving" @click="saveMonitorSetting">
                     保存监听配置
@@ -624,8 +658,18 @@ watch(metricPeriod, () => {
 
 .monitor-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
+}
+
+.monitor-abnormal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.monitor-abnormal .el-alert {
+  flex: 1;
 }
 
 .monitor-summary > div {
@@ -907,6 +951,11 @@ watch(metricPeriod, () => {
   .monitor-summary,
   .monitor-form__row {
     grid-template-columns: 1fr;
+  }
+
+  .monitor-abnormal {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .monitor-actions {

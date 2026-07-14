@@ -17,8 +17,13 @@ import {
 } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElNotification } from 'element-plus'
 
-import { useRealtimeEvents } from '@/composables/useRealtimeEvents'
+import {
+  REALTIME_EVENT_NAME,
+  useRealtimeEvents,
+  type RealtimeEventPayload,
+} from '@/composables/useRealtimeEvents'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -106,11 +111,31 @@ async function logout() {
   router.push('/login')
 }
 
+function handleRealtimeEvent(event: Event) {
+  const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (payload?.type !== 'content_monitor.abnormal') return
+  const data = payload.data && typeof payload.data === 'object'
+    ? payload.data as Record<string, unknown>
+    : {}
+  const notification = ElNotification({
+    title: '帖子监听异常',
+    message: String(data.message || '帖子监听连续失败，已自动停止。'),
+    type: 'error',
+    duration: 0,
+    onClick: () => {
+      router.push('/published-contents')
+      notification.close()
+    },
+  })
+}
+
 onMounted(() => {
+  window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   realtime.connect()
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   realtime.disconnect()
 })
 
