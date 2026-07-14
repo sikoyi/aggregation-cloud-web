@@ -13,6 +13,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Settings,
   Trash2,
   Unlink,
   Upload,
@@ -26,6 +27,7 @@ import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTableCell from '@/components/AccountTableCell.vue'
+import ApifyMonitorConfigDialog from '@/components/ApifyMonitorConfigDialog.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
@@ -60,6 +62,7 @@ const iconMap: IconMap = {
   power: Power,
   powerOff: PowerOff,
   rotate: RotateCcw,
+  settings: Settings,
   trash: Trash2,
   unlink: Unlink,
   upload: Upload,
@@ -86,6 +89,7 @@ const interactionSessionDetailVisible = ref(false)
 const interactionSessionDetailId = ref<string | null>(null)
 const publishedContentDetailVisible = ref(false)
 const publishedContentDetailId = ref<string | null>(null)
+const apifyMonitorConfigVisible = ref(false)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -697,6 +701,10 @@ function openHeaderAction(action: RowActionConfig) {
 }
 
 async function runHeaderAction(action: RowActionConfig) {
+  if (props.config.key === 'publishedContents' && action.key === 'configureMonitor') {
+    apifyMonitorConfigVisible.value = true
+    return
+  }
   if (action.fields?.length) {
     openHeaderAction(action)
     return
@@ -1380,6 +1388,10 @@ onBeforeUnmount(() => {
       v-if="config.key === 'publishedContents'"
       v-model="publishedContentDetailVisible"
       :content-id="publishedContentDetailId"
+    />
+    <ApifyMonitorConfigDialog
+      v-if="config.key === 'publishedContents'"
+      v-model="apifyMonitorConfigVisible"
     />
   </section>
 </template>

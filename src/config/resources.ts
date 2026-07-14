@@ -1709,6 +1709,14 @@ export const resources: Record<string, ResourceConfig> = {
     createSuccessMessage: (data) => formatPublishedContentDispatchSuccess(data),
     headerActions: [
       {
+        key: "configureMonitor",
+        label: "Apify 配置",
+        method: "GET",
+        icon: "settings",
+        path: () => "/api/interaction-center/content-monitor/provider-config/threads",
+        refresh: false,
+      },
+      {
         key: "createMonitor",
         label: "接入帖子监听",
         method: "POST",
@@ -1716,7 +1724,7 @@ export const resources: Record<string, ResourceConfig> = {
         path: () => "/api/interaction-center/published-contents/monitor",
         successTitle: "帖子监听已创建",
         successMessage: (data) =>
-          `帖子已接入监听，首次监听任务 ID：${(data.task as AnyRecord | undefined)?.id || "-"}`,
+          `帖子已接入监听，监听执行记录 ID：${(data.monitor_run as AnyRecord | undefined)?.id || "-"}`,
         body: (payload) => ({
           business_platform: payload.business_platform,
           author_account_id: payload.author_account_id,
