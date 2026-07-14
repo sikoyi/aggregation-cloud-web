@@ -300,7 +300,7 @@ onMounted(loadMembers)
       <el-table-column prop="login_username" label="登录账号" min-width="180" />
       <el-table-column prop="username" label="公开用户名" min-width="160" />
       <el-table-column prop="country" label="国家" min-width="110" align="center" header-align="center" />
-      <el-table-column prop="login_status" label="登录状态" min-width="120" align="center" header-align="center">
+      <el-table-column prop="login_status" label="登录状态" min-width="170" align="center" header-align="center">
         <template #default="{ row }">
           <StatusBadge :value="row.login_status" />
         </template>

@@ -542,7 +542,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "group_name", label: "所属分组", type: "accountGroup", minWidth: 120 },
       { key: "password_secret_ref", label: "登录凭证", type: "accountCredentials", minWidth: 235 },
       { key: "business_platform", label: "平台 / 国家", type: "accountPlatform", minWidth: 125 },
-      { key: "login_status", label: "登录状态", type: "status", width: 100, align: "center" },
+      { key: "login_status", label: "登录状态", type: "status", width: 170, align: "center" },
       {
         key: "bound_slot_id",
         label: "设备环境",

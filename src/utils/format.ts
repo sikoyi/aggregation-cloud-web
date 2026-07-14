@@ -22,6 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
   idle: '空闲',
   login_required: '未登录',
   logged_in: '已登录',
+  logged_in_dm_unavailable: '已登录（私信不可用）',
   locked: '待前置步骤',
   lost: '已丢失',
   normal: '正常',

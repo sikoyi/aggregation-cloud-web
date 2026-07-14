@@ -67,7 +67,7 @@ function queryParams(extra: AnyRecord = {}) {
     business_platform: filters.business_platform || undefined,
     runtime_platform: filters.runtime_platform || undefined,
     provider: filters.provider || undefined,
-    login_status: 'logged_in',
+    login_status: 'logged_in,logged_in_dm_unavailable',
     page: 1,
     page_size: 100,
     ...extra,
