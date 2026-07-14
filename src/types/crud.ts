@@ -72,6 +72,7 @@ export interface FieldConfig {
   options?: SelectOption[]
   remote?: RemoteSelectConfig
   multiple?: boolean
+  accountAssociationOnly?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   min?: number
   max?: number

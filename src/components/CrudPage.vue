@@ -171,6 +171,8 @@ const modalSubmitLabel = computed(() => (
     ? '确认执行'
     : isPublishedContentDispatchModal.value || isInteractionSessionCreateModal.value
       ? '确认下发'
+      : modal.type === 'action' && modal.action?.key === 'createMonitor'
+        ? '开始监听'
       : '保存'
 ))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。

@@ -255,6 +255,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :model-value="modelValue[field.key]"
             :disabled="isFieldDisabled(field)"
             :multiple="field.multiple !== false"
+            :association-only="field.accountAssociationOnly"
             :filters="{
               business_platform: modelValue.business_platform,
               runtime_platform: modelValue.runtime_platform,

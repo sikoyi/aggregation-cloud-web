@@ -10,6 +10,7 @@ const props = defineProps<{
   disabled?: boolean
   filters?: AnyRecord
   multiple?: boolean
+  associationOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -42,6 +43,9 @@ const selectedAccountIds = computed(() => {
   return props.modelValue ? [String(props.modelValue)] : []
 })
 const emptyMessage = computed(() => {
+  if (props.associationOnly) {
+    return loggedInCount.value === 0 ? '当前业务 App 暂无可关联账号' : ''
+  }
   const filters = props.filters || {}
   const hasRuntimeFilter = Boolean(filters.runtime_platform || filters.provider)
   if (loggedInCount.value === 0) {
@@ -67,7 +71,7 @@ function queryParams(extra: AnyRecord = {}) {
     business_platform: filters.business_platform || undefined,
     runtime_platform: filters.runtime_platform || undefined,
     provider: filters.provider || undefined,
-    login_status: 'logged_in,logged_in_dm_unavailable',
+    login_status: props.associationOnly ? undefined : 'logged_in,logged_in_dm_unavailable',
     page: 1,
     page_size: 100,
     ...extra,
@@ -77,6 +81,7 @@ function queryParams(extra: AnyRecord = {}) {
 function accountMatchesRuntime(account: AnyRecord) {
   const filters = props.filters || {}
   if (filters.exclude_account_id && String(account.id) === String(filters.exclude_account_id)) return false
+  if (props.associationOnly) return true
   if (filters.runtime_platform && account.bound_slot_runtime_platform !== filters.runtime_platform) return false
   if (filters.provider && account.bound_slot_provider !== filters.provider) return false
   return true
@@ -95,12 +100,13 @@ function accountLabel(account: AnyRecord) {
 function toAccountNode(account: AnyRecord): AccountTreeNode {
   const label = accountLabel(account)
   const hasSlot = Boolean(account.bound_slot_id)
+  const selectable = props.associationOnly || hasSlot
   return {
     id: accountNodeId(String(account.id)),
     accountId: String(account.id),
-    label: hasSlot ? label : `${label}（未绑定设备）`,
+    label: selectable ? label : `${label}（未绑定设备）`,
     loginStatus: String(account.login_status || 'unknown'),
-    disabled: !hasSlot,
+    disabled: !selectable,
   }
 }
 
@@ -134,7 +140,9 @@ async function loadTree() {
           return true
         })
         items.forEach((account) => groupedAccountIds.add(String(account.id)))
-        items.filter((account) => account.bound_slot_id).forEach((account) => availableAccountIds.add(String(account.id)))
+        items
+          .filter((account) => props.associationOnly || account.bound_slot_id)
+          .forEach((account) => availableAccountIds.add(String(account.id)))
         return {
           id: `group:${group.id}`,
           label: String(group.name || group.id),
@@ -148,7 +156,9 @@ async function loadTree() {
       if (groupedAccountIds.has(String(account.id))) return false
       return accountMatchesRuntime(account)
     })
-    ungroupedAccounts.filter((account) => account.bound_slot_id).forEach((account) => availableAccountIds.add(String(account.id)))
+    ungroupedAccounts
+      .filter((account) => props.associationOnly || account.bound_slot_id)
+      .forEach((account) => availableAccountIds.add(String(account.id)))
     loggedInCount.value = accountsPage.items.filter(accountMatchesRuntime).length
     selectableCount.value = availableAccountIds.size
     treeData.value = [
