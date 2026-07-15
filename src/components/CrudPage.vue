@@ -23,8 +23,6 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
-import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
-import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTableCell from '@/components/AccountTableCell.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
@@ -93,7 +91,6 @@ const assetViewerKind = ref<'image' | 'video'>('image')
 const assetViewerFilename = ref('')
 const assetViewerRecord = ref<AnyRecord | null>(null)
 const tableRef = ref()
-const accountEditTab = ref('base')
 const slotGroupEditTab = ref('base')
 let realtimeRefreshTimer: number | undefined
 
@@ -130,8 +127,7 @@ const modalWidth = computed(() => {
   if (
     modal.type === 'edit'
     && (
-      props.config.accountPublishedContents
-      || props.config.accountGroupMembers
+      props.config.accountGroupMembers
       || props.config.slotGroupMembers
       || props.config.proxyGroupMembers
       || props.config.contentGroupMembers
@@ -157,7 +153,6 @@ const interactionParamFields = computed(() => {
 })
 const showModalSaveButton = computed(() => {
   if (modal.type !== 'edit') return true
-  if (props.config.accountPublishedContents && ['metrics', 'publishedContents'].includes(accountEditTab.value)) return false
   if ((props.config.slotGroupMembers || props.config.proxyGroupMembers || props.config.contentGroupMembers) && slotGroupEditTab.value === 'members') return false
   return true
 })
@@ -527,7 +522,6 @@ function openCreate() {
   modal.type = 'create'
   modal.record = null
   modal.action = null
-  accountEditTab.value = 'base'
   slotGroupEditTab.value = 'base'
   formState.value = buildFormState(props.config.createFields || [])
 }
@@ -546,7 +540,6 @@ async function openEdit(record: AnyRecord) {
     modal.type = 'edit'
     modal.record = editRecord
     modal.action = null
-    accountEditTab.value = 'base'
     slotGroupEditTab.value = 'base'
     formState.value = buildFormState(props.config.updateFields || [], editRecord)
   } catch (err) {
@@ -561,7 +554,6 @@ function closeModal() {
   modal.type = null
   modal.record = null
   modal.action = null
-  accountEditTab.value = 'base'
   slotGroupEditTab.value = 'base'
   formState.value = {}
   submitting.value = false
@@ -1258,23 +1250,6 @@ onBeforeUnmount(() => {
           <div class="edit-panel-title">参数填写</div>
           <DynamicForm v-model="formState" :fields="interactionParamFields" :context="modal.record || undefined" />
         </div>
-      </div>
-      <div
-        v-else-if="modal.type === 'edit' && config.accountPublishedContents && modal.record"
-      >
-        <el-tabs v-model="accountEditTab" class="account-edit-tabs">
-          <el-tab-pane label="基础信息" name="base">
-            <div class="slot-group-edit-tabs__panel">
-              <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
-            </div>
-          </el-tab-pane>
-          <el-tab-pane label="趋势分析" name="metrics">
-            <AccountMetricsPanel :account="modal.record" />
-          </el-tab-pane>
-          <el-tab-pane label="账号内容" name="publishedContents">
-            <AccountPublishedContentPanel :account="modal.record" />
-          </el-tab-pane>
-        </el-tabs>
       </div>
       <div
         v-else-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"

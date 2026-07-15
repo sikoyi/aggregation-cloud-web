@@ -552,9 +552,8 @@ export const resources: Record<string, ResourceConfig> = {
         "twofa_type",
         "totp_secret_ref",
         "display_name",
-      ]),
+    ]),
     afterUpdate: updateAccountGroups,
-    accountPublishedContents: true,
     columns: [
       { key: "id", label: "ID", type: "id", width: 68, align: "center" },
       { key: "login_username", label: "账号信息", type: "accountIdentity", minWidth: 180 },

@@ -14,6 +14,7 @@ import { ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { getAllPages, http } from '@/api/http'
+import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -452,6 +453,9 @@ onBeforeUnmount(() => {
               <el-alert :title="String(detailAccount.last_error_message)" type="error" :closable="false" show-icon />
             </el-descriptions-item>
           </el-descriptions>
+        </el-tab-pane>
+        <el-tab-pane label="趋势分析" name="metrics" lazy>
+          <AccountMetricsPanel :account="accountPanelRecord(detailAccount)" />
         </el-tab-pane>
         <el-tab-pane label="账号内容" name="contents" lazy>
           <AccountPublishedContentPanel :account="accountPanelRecord(detailAccount)" />
