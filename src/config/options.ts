@@ -364,7 +364,8 @@ export const scriptStatusOptions: SelectOption[] = [
 export const scriptPurposeOptions: SelectOption[] = [
   { label: '普通任务', value: 'general_task' },
   { label: '发布内容', value: 'content_publish' },
-  { label: '互动会话', value: 'interaction' },
+  { label: '互动首次评论', value: 'interaction_initial_comment' },
+  { label: '互动后续回复', value: 'interaction_reply' },
 ]
 
 export const slotStatusOptions: SelectOption[] = [

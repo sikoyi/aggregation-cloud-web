@@ -138,7 +138,12 @@ watch(
             {{ text(session.target_content_title || session.target_platform_content_id || session.target_content_url) }}
           </el-descriptions-item>
           <el-descriptions-item label="主号">{{ text(session.main_account_name || session.main_account_id) }}</el-descriptions-item>
-          <el-descriptions-item label="脚本">{{ text(session.script_key) }}</el-descriptions-item>
+          <el-descriptions-item label="首次评论脚本">
+            <el-tag size="small" effect="plain">{{ text(session.initial_comment_script_key) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="后续回复脚本">
+            <el-tag size="small" effect="plain">{{ text(session.reply_script_key) }}</el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
           <el-descriptions-item label="AI 供应商">
@@ -169,6 +174,10 @@ watch(
                     <StatusBadge :value="step.status" />
                   </div>
                   <div class="step-card__action">{{ stepActionLabel(step.action_type) }}</div>
+                  <div v-if="step.script_key" class="step-card__relation">
+                    <span>执行脚本</span>
+                    <el-tag size="small" type="info" effect="plain">{{ step.script_key }}</el-tag>
+                  </div>
                   <div class="step-card__meta">执行账号：{{ text(step.operator_account_name || step.operator_account_id) }}</div>
                   <div class="step-card__meta">
                     任务：<span class="font-mono" :title="String(step.task_run_id || '')">{{ truncateId(step.task_run_id) }}</span>
