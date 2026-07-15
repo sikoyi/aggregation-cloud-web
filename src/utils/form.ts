@@ -170,7 +170,12 @@ export function buildPayload(
       return payload
     }
     if ((rawValue === '' || rawValue === undefined || rawValue === null) && !field.required) {
-      if (field.allowEmpty) payload[field.key] = rawValue === undefined || rawValue === null ? '' : rawValue
+      // 可选日期时间清空时使用 null，避免后端把空字符串当作无效日期解析。
+      if (field.allowEmpty) {
+        payload[field.key] = field.type === 'datetime'
+          ? null
+          : rawValue === undefined || rawValue === null ? '' : rawValue
+      }
       if (mode === 'create' && field.type === 'json') payload[field.key] = {}
       return payload
     }
