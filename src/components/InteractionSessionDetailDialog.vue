@@ -57,6 +57,15 @@ function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
 }
 
+function aiProviderLabel(value: string) {
+  const labels: Record<string, string> = {
+    gemini: 'Gemini',
+    openai: 'GPT / OpenAI',
+    claude: 'Claude',
+  }
+  return labels[value] || value
+}
+
 function stepActionLabel(value: unknown) {
   const action = String(value || '')
   const labels: Record<string, string> = {
@@ -148,7 +157,7 @@ watch(
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
           <el-descriptions-item label="AI 供应商">
             <el-tag size="small" type="primary" effect="light">
-              {{ aiProvider === 'openai' ? 'OpenAI' : 'Gemini' }}
+              {{ aiProviderLabel(aiProvider) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="父任务">

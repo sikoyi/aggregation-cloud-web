@@ -8,7 +8,7 @@ import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
-type AiProvider = 'gemini' | 'openai'
+type AiProvider = 'gemini' | 'openai' | 'claude'
 
 const providerSpecs = {
   gemini: {
@@ -24,15 +24,37 @@ const providerSpecs = {
     ],
   },
   openai: {
-    label: 'OpenAI',
-    apiKeyLabel: 'OpenAI API Key',
-    placeholder: '请输入 OpenAI API Key',
+    label: 'GPT / OpenAI',
+    apiKeyLabel: 'GPT / OpenAI API Key',
+    placeholder: '请输入 OpenAI 或兼容中转站 API Key',
     baseUrl: 'https://api.openai.com/v1',
     primaryModel: 'gpt-5.6-luna',
     fallbackModel: 'gpt-5.6-terra',
     models: [
+      { label: 'GPT-5.4', value: 'gpt-5.4' },
+      { label: 'GPT-5.4 Mini', value: 'gpt-5.4-mini' },
+      { label: 'GPT-5.5', value: 'gpt-5.5' },
       { label: 'GPT-5.6 Luna', value: 'gpt-5.6-luna' },
+      { label: 'GPT-5.6 Sol', value: 'gpt-5.6-sol' },
       { label: 'GPT-5.6 Terra', value: 'gpt-5.6-terra' },
+    ],
+  },
+  claude: {
+    label: 'Claude',
+    apiKeyLabel: 'Claude API Key',
+    placeholder: '请输入 Anthropic 或兼容中转站 API Key',
+    baseUrl: 'https://api.anthropic.com/v1',
+    primaryModel: 'claude-sonnet-4-6',
+    fallbackModel: 'claude-haiku-4-5',
+    models: [
+      { label: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6' },
+      { label: 'Claude Haiku 4.5', value: 'claude-haiku-4-5' },
+      { label: 'Claude Opus 4.6', value: 'claude-opus-4-6' },
+      { label: 'Claude Sonnet 4.5', value: 'claude-sonnet-4-5-20250929' },
+      { label: 'Claude Sonnet 5', value: 'claude-sonnet-5' },
+      { label: 'Claude 3.7 Sonnet', value: 'claude-3-7-sonnet-20250219' },
+      { label: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20241022' },
+      { label: 'Claude 3.5 Haiku', value: 'claude-3-5-haiku-20241022' },
     ],
   },
 } as const
@@ -143,7 +165,15 @@ watch(provider, loadConfig)
       <el-tag :type="form.enabled ? 'success' : 'info'" effect="light">{{ form.enabled ? '已启用' : '已停用' }}</el-tag>
     </div>
 
-    <el-segmented v-model="provider" :options="[{ label: 'Gemini', value: 'gemini' }, { label: 'OpenAI', value: 'openai' }]" class="provider-segment" />
+    <el-segmented
+      v-model="provider"
+      :options="[
+        { label: 'Gemini', value: 'gemini' },
+        { label: 'GPT / OpenAI', value: 'openai' },
+        { label: 'Claude', value: 'claude' },
+      ]"
+      class="provider-segment"
+    />
 
     <el-form label-position="top" class="config-form">
       <div class="config-grid">

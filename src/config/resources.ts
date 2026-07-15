@@ -1700,7 +1700,8 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "gemini",
         options: [
           { label: "Gemini", value: "gemini" },
-          { label: "OpenAI", value: "openai" },
+          { label: "GPT / OpenAI", value: "openai" },
+          { label: "Claude", value: "claude" },
         ],
       },
       {
