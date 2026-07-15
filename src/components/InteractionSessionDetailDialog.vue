@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord } from '@/types/api'
 import { formatDate, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -24,6 +25,7 @@ const visible = computed({
 const loading = ref(false)
 const error = ref('')
 const detail = ref<AnyRecord | null>(null)
+let realtimeRefreshTimer: number | undefined
 
 const session = computed<AnyRecord | null>(() => {
   const value = detail.value?.session
@@ -79,8 +81,15 @@ function stepActionLabel(value: unknown) {
 function stepProgressText(step: AnyRecord) {
   if (step.status === 'generating') return 'AI 文案生成中'
   if (step.status === 'locked') return '等待解锁'
-  if (step.status === 'queued' || step.status === 'running') return '等待执行'
+  if (step.status === 'queued') return '排队中'
+  if (step.status === 'dispatching') return '下发中'
+  if (step.status === 'running') return '执行中'
   if (step.status === 'succeeded') return '执行成功'
+  if (step.status === 'failed') return '执行失败'
+  if (step.status === 'blocked') return '后续已阻断'
+  if (step.status === 'expired') return '已超时'
+  if (step.status === 'lost') return '已失联'
+  if (step.status === 'canceled') return '已取消'
   if (step.generated_content) return '文案已生成'
   return '等待处理'
 }
@@ -97,6 +106,13 @@ async function loadDetail(sessionId: string) {
   }
 }
 
+function handleRealtimeEvent(event: Event) {
+  const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (!visible.value || !props.sessionId || payload?.topic !== 'task') return
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+  realtimeRefreshTimer = window.setTimeout(() => loadDetail(props.sessionId as string), 500)
+}
+
 watch(
   () => [props.modelValue, props.sessionId] as const,
   ([open, sessionId]) => {
@@ -108,6 +124,12 @@ watch(
   },
   { immediate: true },
 )
+
+onMounted(() => window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent))
+onBeforeUnmount(() => {
+  window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+})
 </script>
 
 <template>

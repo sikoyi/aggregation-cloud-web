@@ -489,6 +489,7 @@ function shouldRefreshForRealtime(event: RealtimeEventPayload) {
   if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'publishedContents') return event.topic === 'content_monitor'
+  if (props.config.key === 'interactionSessions') return event.topic === 'task'
   return false
 }
 
