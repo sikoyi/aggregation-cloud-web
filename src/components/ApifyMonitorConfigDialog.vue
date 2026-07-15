@@ -29,7 +29,6 @@ const updatedAt = ref('')
 const form = reactive({
   business_platform: 'threads',
   api_token: '',
-  actor_id: 'scrapeengine/threads-search-post-scraper',
   enabled: true,
 })
 
@@ -41,7 +40,6 @@ async function loadConfig() {
   loading.value = true
   try {
     const data = await http.get<AnyRecord>(endpoint())
-    form.actor_id = String(data.actor_id || 'scrapeengine/threads-search-post-scraper')
     form.enabled = data.enabled !== false
     form.api_token = String(data.api_token || '')
     tokenConfigured.value = Boolean(form.api_token || data.token_configured)
@@ -56,13 +54,12 @@ async function loadConfig() {
 async function testConnection() {
   testing.value = true
   try {
-    const data = await http.post<AnyRecord>(endpoint('/test'), {
+    await http.post<AnyRecord>(endpoint('/test'), {
       api_token: form.api_token.trim() || null,
-      actor_id: form.actor_id.trim(),
     })
     ElNotification.success({
       title: '连接成功',
-      message: `Actor ${String(data.actor_name || data.actor_id || form.actor_id)} 可正常访问`,
+      message: 'Token 可以访问服务端固定的 Threads 采集适配器',
       duration: 5000,
     })
   } catch (err) {
@@ -73,10 +70,6 @@ async function testConnection() {
 }
 
 async function saveConfig() {
-  if (!form.actor_id.trim()) {
-    ElNotification.warning({ title: '请检查配置', message: 'Actor 不能为空' })
-    return
-  }
   if (form.enabled && !form.api_token.trim() && !tokenConfigured.value) {
     ElNotification.warning({ title: '请检查配置', message: '启用监听前需要填写 Apify Token' })
     return
@@ -85,7 +78,6 @@ async function saveConfig() {
   try {
     const data = await http.put<AnyRecord>(endpoint(), {
       api_token: form.api_token.trim() || null,
-      actor_id: form.actor_id.trim(),
       enabled: form.enabled,
     })
     form.api_token = String(data.api_token || form.api_token)
@@ -161,9 +153,6 @@ watch(
               placeholder="请输入 Apify API Token"
             />
           </el-form-item>
-          <el-form-item label="Actor" class="config-grid__full">
-            <el-input v-model="form.actor_id" placeholder="username/actor-name" />
-          </el-form-item>
         </div>
       </el-form>
     </div>
@@ -218,7 +207,7 @@ watch(
 }
 
 .config-body {
-  min-height: 230px;
+  min-height: 150px;
   padding-top: 4px;
 }
 
