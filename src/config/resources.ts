@@ -1604,14 +1604,6 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/interaction-center/sessions",
     createLabel: "新建互动会话",
     createBody: (payload) => buildInteractionSessionBody(payload),
-    headerActions: [
-      {
-        key: "configureAi",
-        label: "AI 配置",
-        method: "GET",
-        icon: "settings",
-      },
-    ],
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "会话名称", minWidth: 220 },
@@ -1770,77 +1762,6 @@ export const resources: Record<string, ResourceConfig> = {
     createBody: (payload) => buildPublishedContentDispatchBody(payload),
     createSuccessTitle: "发布任务已下发",
     createSuccessMessage: (data) => formatPublishedContentDispatchSuccess(data),
-    headerActions: [
-      {
-        key: "configureMonitor",
-        label: "Apify 配置",
-        method: "GET",
-        icon: "settings",
-        path: () => "/api/interaction-center/content-monitor/provider-config/threads",
-        refresh: false,
-      },
-      {
-        key: "createMonitor",
-        label: "添加账号监听",
-        method: "POST",
-        icon: "link",
-        path: () => "/api/interaction-center/content-monitor/accounts",
-        successTitle: "账号监听已保存",
-        successMessage: (data) =>
-          `首次同步已启动，完成后内容列表将自动更新。执行记录 ID：${(data.monitor_run as AnyRecord | undefined)?.id || "-"}`,
-        body: (payload) => ({
-          business_platform: payload.business_platform,
-          account_id: payload.account_id,
-          profile_url: payload.profile_url,
-          monitor_mode: payload.monitor_mode,
-          interval_minutes: payload.monitor_mode === "custom" ? payload.interval_minutes : null,
-        }),
-        fields: [
-          {
-            key: "business_platform",
-            label: "业务 App",
-            type: "select",
-            options: businessPlatformOptions,
-            defaultValue: "threads",
-          },
-          {
-            key: "monitor_mode",
-            label: "监听规则",
-            type: "select",
-            options: [
-              { label: "系统默认（每 60 分钟）", value: "system" },
-              { label: "自定义间隔", value: "custom" },
-            ],
-            defaultValue: "system",
-          },
-          {
-            key: "account_id",
-            label: "监听账号",
-            type: "accountTree",
-            required: true,
-            multiple: false,
-            accountAssociationOnly: true,
-            span: 2,
-          },
-          {
-            key: "profile_url",
-            label: "账号主页链接",
-            required: true,
-            span: 2,
-            placeholder: "例如：https://www.threads.net/@username",
-          },
-          {
-            key: "interval_minutes",
-            label: "监听间隔（分钟）",
-            type: "number",
-            min: 1,
-            max: 1440,
-            defaultValue: 60,
-            disabledWhen: { key: "monitor_mode", value: "system" },
-          },
-        ],
-      },
-    ],
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "标题", minWidth: 220 },

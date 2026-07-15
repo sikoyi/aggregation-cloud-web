@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AppShell from '@/layouts/AppShell.vue'
 import { useAuthStore } from '@/stores/auth'
 import AccountCenterView from '@/views/AccountCenterView.vue'
+import AccountDataView from '@/views/AccountDataView.vue'
 import ContentCenterView from '@/views/ContentCenterView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import DeviceCenterView from '@/views/DeviceCenterView.vue'
@@ -10,6 +11,7 @@ import LoginView from '@/views/LoginView.vue'
 import ProxyCenterView from '@/views/ProxyCenterView.vue'
 import ReportView from '@/views/ReportView.vue'
 import ResourceView from '@/views/ResourceView.vue'
+import SystemSettingsView from '@/views/SystemSettingsView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -22,7 +24,9 @@ export const router = createRouter({
       children: [
         { path: '', name: 'dashboard', component: DashboardView },
         { path: 'reports', component: ReportView },
+        { path: 'settings', component: SystemSettingsView },
         { path: 'accounts', component: AccountCenterView },
+        { path: 'account-data', component: AccountDataView },
         { path: 'account-groups', redirect: { path: '/accounts', query: { tab: 'groups' } } },
         { path: 'slots', component: DeviceCenterView },
         { path: 'slot-groups', redirect: { path: '/slots', query: { tab: 'groups' } } },

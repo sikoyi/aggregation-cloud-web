@@ -2,6 +2,7 @@
 import {
   Boxes,
   BarChart3,
+  Activity,
   ClipboardList,
   FileText,
   Gauge,
@@ -12,6 +13,7 @@ import {
   PlaySquare,
   ScrollText,
   Server,
+  Settings,
   ShieldCheck,
   Users,
 } from 'lucide-vue-next'
@@ -39,13 +41,17 @@ const navGroups = [
     children: [
       { label: '总览', to: '/', icon: LayoutDashboard },
       { label: '运营报表', to: '/reports', icon: BarChart3 },
+      { label: '系统配置', to: '/settings', icon: Settings },
     ],
   },
   {
     label: '账号中心',
     index: 'account',
     icon: Users,
-    children: [{ label: '账号管理', to: '/accounts', icon: Users }],
+    children: [
+      { label: '账号管理', to: '/accounts', icon: Users },
+      { label: '账号数据', to: '/account-data', icon: Activity },
+    ],
   },
   {
     label: '设备管理',
@@ -124,7 +130,7 @@ function handleRealtimeEvent(event: Event) {
     type: 'error',
     duration: 0,
     onClick: () => {
-      router.push('/published-contents')
+      router.push(isAccountMonitor ? '/account-data' : '/published-contents')
       notification.close()
     },
   })

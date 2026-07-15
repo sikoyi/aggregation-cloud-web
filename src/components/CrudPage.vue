@@ -13,7 +13,6 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  Settings,
   Trash2,
   Unlink,
   Upload,
@@ -27,12 +26,10 @@ import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTableCell from '@/components/AccountTableCell.vue'
-import ApifyMonitorConfigDialog from '@/components/ApifyMonitorConfigDialog.vue'
 import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import InteractionSessionDetailDialog from '@/components/InteractionSessionDetailDialog.vue'
-import InteractionAiConfigDialog from '@/components/InteractionAiConfigDialog.vue'
 import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
 import PublishedContentDetailDialog from '@/components/PublishedContentDetailDialog.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -63,7 +60,6 @@ const iconMap: IconMap = {
   power: Power,
   powerOff: PowerOff,
   rotate: RotateCcw,
-  settings: Settings,
   trash: Trash2,
   unlink: Unlink,
   upload: Upload,
@@ -90,8 +86,6 @@ const interactionSessionDetailVisible = ref(false)
 const interactionSessionDetailId = ref<string | null>(null)
 const publishedContentDetailVisible = ref(false)
 const publishedContentDetailId = ref<string | null>(null)
-const apifyMonitorConfigVisible = ref(false)
-const interactionAiConfigVisible = ref(false)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -177,8 +171,6 @@ const modalSubmitLabel = computed(() => (
     ? '确认执行'
     : isPublishedContentDispatchModal.value || isInteractionSessionCreateModal.value
       ? '确认下发'
-      : modal.type === 'action' && modal.action?.key === 'createMonitor'
-        ? '开始监听'
       : '保存'
 ))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
@@ -704,14 +696,6 @@ function openHeaderAction(action: RowActionConfig) {
 }
 
 async function runHeaderAction(action: RowActionConfig) {
-  if (props.config.key === 'publishedContents' && action.key === 'configureMonitor') {
-    apifyMonitorConfigVisible.value = true
-    return
-  }
-  if (props.config.key === 'interactionSessions' && action.key === 'configureAi') {
-    interactionAiConfigVisible.value = true
-    return
-  }
   if (action.fields?.length) {
     openHeaderAction(action)
     return
@@ -1395,14 +1379,6 @@ onBeforeUnmount(() => {
       v-if="config.key === 'publishedContents'"
       v-model="publishedContentDetailVisible"
       :content-id="publishedContentDetailId"
-    />
-    <ApifyMonitorConfigDialog
-      v-if="config.key === 'publishedContents'"
-      v-model="apifyMonitorConfigVisible"
-    />
-    <InteractionAiConfigDialog
-      v-if="config.key === 'interactionSessions'"
-      v-model="interactionAiConfigVisible"
     />
   </section>
 </template>
