@@ -23,7 +23,7 @@ interface CommentNode extends AnyRecord {
 
 type MetricKey = 'comment_count' | 'like_count' | 'share_count' | 'view_count'
 type PeriodValue = '24h' | '7d' | '30d' | 'all'
-type MonitorMode = 'system' | 'high_frequency' | 'low_frequency' | 'custom'
+type MonitorMode = 'system' | 'custom'
 
 const metricDefs: Array<{ key: MetricKey; label: string; color: string }> = [
   { key: 'comment_count', label: '评论', color: '#2563eb' },
@@ -38,9 +38,7 @@ const periodOptions: Array<{ label: string; value: PeriodValue }> = [
   { label: '全部', value: 'all' },
 ]
 const monitorModeOptions: Array<{ label: string; value: MonitorMode; description: string }> = [
-  { label: '系统默认', value: 'system', description: '按发布时间自动调整监听频率' },
-  { label: '高频监听', value: 'high_frequency', description: '适合重点内容，约 5 分钟一次' },
-  { label: '低频监听', value: 'low_frequency', description: '适合普通内容，约 6 小时一次' },
+  { label: '系统默认', value: 'system', description: '固定每 60 分钟监听一次' },
   { label: '自定义', value: 'custom', description: '运营手动设置固定监听间隔' },
 ]
 
@@ -59,7 +57,7 @@ const detail = ref<AnyRecord | null>(null)
 const monitorForm = ref<{ mode: MonitorMode; enabled: boolean; interval_minutes: number }>({
   mode: 'system',
   enabled: true,
-  interval_minutes: 30,
+  interval_minutes: 60,
 })
 
 const content = computed<AnyRecord | null>(() => {
@@ -103,7 +101,12 @@ const contentUrl = computed(() => String(content.value?.content_url || '').trim(
 const dialogTitle = computed(() => {
   const item = content.value
   if (!item) return '发布内容详情'
-  return `发布内容详情：${text(item.title || item.platform_content_id || truncateId(item.id))}`
+  return text(
+    item.author_display_name
+    || item.author_username
+    || item.author_account_name
+    || item.author_login_username,
+  )
 })
 
 const commentTree = computed<CommentNode[]>(() => {
@@ -188,7 +191,7 @@ function resetMonitorForm(setting: AnyRecord | null) {
   monitorForm.value = {
     mode: String(setting?.mode || 'system') as MonitorMode,
     enabled: setting?.enabled !== false,
-    interval_minutes: Number(setting?.interval_minutes || setting?.effective_interval_minutes || 30),
+    interval_minutes: Number(setting?.interval_minutes || setting?.effective_interval_minutes || 60),
   }
 }
 
