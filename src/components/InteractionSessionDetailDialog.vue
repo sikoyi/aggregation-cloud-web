@@ -29,6 +29,7 @@ const session = computed<AnyRecord | null>(() => {
   const value = detail.value?.session
   return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : null
 })
+const aiProvider = computed(() => String((session.value?.ai_config as AnyRecord | undefined)?.provider || 'gemini'))
 const steps = computed<AnyRecord[]>(() => Array.isArray(detail.value?.steps) ? detail.value.steps : [])
 const dialogTitle = computed(() => `互动会话详情：${String(session.value?.title || props.sessionId || '')}`)
 const stepCount = computed(() => {
@@ -140,6 +141,11 @@ watch(
           <el-descriptions-item label="脚本">{{ text(session.script_key) }}</el-descriptions-item>
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
+          <el-descriptions-item label="AI 供应商">
+            <el-tag size="small" type="primary" effect="light">
+              {{ aiProvider === 'openai' ? 'OpenAI' : 'Gemini' }}
+            </el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="父任务">
             <span class="font-mono text-xs" :title="String(session.task_run_id || '')">{{ truncateId(session.task_run_id) }}</span>
           </el-descriptions-item>

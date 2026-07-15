@@ -158,7 +158,7 @@ const interactionCommentFields = computed(() => {
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const interactionParamFields = computed(() => {
-  const keys = new Set(['title', 'business_platform', 'step_count', 'runtime_platform', 'provider', 'target_content_id', 'scheduled_at', 'ai_language', 'ai_tone', 'ai_max_length'])
+  const keys = new Set(['title', 'business_platform', 'step_count', 'runtime_platform', 'provider', 'target_content_id', 'scheduled_at', 'ai_provider', 'ai_language', 'ai_tone', 'ai_max_length'])
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const showModalSaveButton = computed(() => {

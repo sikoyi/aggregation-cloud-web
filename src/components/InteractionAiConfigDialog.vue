@@ -7,40 +7,94 @@ import { http } from '@/api/http'
 import type { AnyRecord } from '@/types/api'
 import { notifyError } from '@/utils/notify'
 
+type AiProvider = 'gemini' | 'openai'
+
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
+
+const providerSpecs = {
+  gemini: {
+    label: 'Gemini',
+    apiKeyLabel: 'Gemini API Key',
+    placeholder: '请输入 Gemini API Key',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    primaryModel: 'gemini-3.5-flash',
+    fallbackModel: 'gemini-2.5-flash',
+    models: [
+      { label: 'Gemini 3.5 Flash', value: 'gemini-3.5-flash' },
+      { label: 'Gemini 2.5 Flash', value: 'gemini-2.5-flash' },
+    ],
+  },
+  openai: {
+    label: 'OpenAI',
+    apiKeyLabel: 'OpenAI API Key',
+    placeholder: '请输入 OpenAI API Key',
+    baseUrl: 'https://api.openai.com/v1',
+    primaryModel: 'gpt-5.6-luna',
+    fallbackModel: 'gpt-5.6-terra',
+    models: [
+      { label: 'GPT-5.6 Luna', value: 'gpt-5.6-luna' },
+      { label: 'GPT-5.6 Terra', value: 'gpt-5.6-terra' },
+    ],
+  },
+} as const
 
 const visible = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit('update:modelValue', value),
 })
-const endpoint = '/api/interaction-center/ai/provider-config'
+const provider = ref<AiProvider>('gemini')
+const providerSpec = computed(() => providerSpecs[provider.value])
+const endpoint = computed(() => `/api/interaction-center/ai/provider-config/${provider.value}`)
+const strategyText = computed(() => {
+  const primary = providerSpec.value.models.find((item) => item.value === form.primary_model)?.label || form.primary_model
+  const fallback = providerSpec.value.models.find((item) => item.value === form.fallback_model)?.label || form.fallback_model
+  return `${primary} 主用，${fallback} 自动兜底`
+})
 const loading = ref(false)
 const saving = ref(false)
 const testingModel = ref('')
 const keyConfigured = ref(false)
 const updatedAt = ref('')
-const form = reactive({
+const form = reactive<{
+  api_key: string
+  base_url: string
+  primary_model: string
+  fallback_model: string
+  enabled: boolean
+}>({
   api_key: '',
-  base_url: 'https://api.openai.com/v1',
-  primary_model: 'gpt-5.6-luna',
-  fallback_model: 'gpt-5.6-terra',
+  base_url: providerSpecs.gemini.baseUrl,
+  primary_model: providerSpecs.gemini.primaryModel,
+  fallback_model: providerSpecs.gemini.fallbackModel,
   enabled: true,
 })
 
+function applyDefaults() {
+  const spec = providerSpec.value
+  form.api_key = ''
+  form.base_url = spec.baseUrl
+  form.primary_model = spec.primaryModel
+  form.fallback_model = spec.fallbackModel
+  form.enabled = true
+  keyConfigured.value = false
+  updatedAt.value = ''
+}
+
 async function loadConfig() {
+  applyDefaults()
   loading.value = true
   try {
-    const data = await http.get<AnyRecord>(endpoint)
+    const data = await http.get<AnyRecord>(endpoint.value)
     form.api_key = String(data.api_key || '')
-    form.base_url = String(data.base_url || 'https://api.openai.com/v1')
-    form.primary_model = String(data.primary_model || 'gpt-5.6-luna')
-    form.fallback_model = String(data.fallback_model || 'gpt-5.6-terra')
+    form.base_url = String(data.base_url || providerSpec.value.baseUrl)
+    form.primary_model = String(data.primary_model || providerSpec.value.primaryModel)
+    form.fallback_model = String(data.fallback_model || providerSpec.value.fallbackModel)
     form.enabled = data.enabled !== false
     keyConfigured.value = Boolean(form.api_key || data.key_configured)
     updatedAt.value = String(data.updated_at || '')
   } catch (err) {
-    notifyError(err, '加载失败', '加载互动 AI 配置失败')
+    notifyError(err, '加载失败', `加载 ${providerSpec.value.label} 配置失败`)
   } finally {
     loading.value = false
   }
@@ -49,7 +103,7 @@ async function loadConfig() {
 async function testConnection(model: string) {
   testingModel.value = model
   try {
-    const data = await http.post<AnyRecord>(`${endpoint}/test`, {
+    const data = await http.post<AnyRecord>(`${endpoint.value}/test`, {
       api_key: form.api_key.trim() || null,
       base_url: form.base_url.trim(),
       model,
@@ -68,12 +122,15 @@ async function testConnection(model: string) {
 
 async function saveConfig() {
   if (form.enabled && !form.api_key.trim() && !keyConfigured.value) {
-    ElNotification.warning({ title: '请检查配置', message: '启用互动 AI 前需要填写 OpenAI API Key' })
+    ElNotification.warning({
+      title: '请检查配置',
+      message: `启用互动 AI 前需要填写 ${providerSpec.value.apiKeyLabel}`,
+    })
     return
   }
   saving.value = true
   try {
-    const data = await http.put<AnyRecord>(endpoint, {
+    const data = await http.put<AnyRecord>(endpoint.value, {
       api_key: form.api_key.trim() || null,
       base_url: form.base_url.trim(),
       primary_model: form.primary_model,
@@ -83,15 +140,15 @@ async function saveConfig() {
     form.api_key = String(data.api_key || form.api_key)
     keyConfigured.value = Boolean(form.api_key || data.key_configured)
     updatedAt.value = String(data.updated_at || '')
-    ElNotification.success({ title: '保存成功', message: '互动文案模型配置已更新' })
+    ElNotification.success({ title: '保存成功', message: `${providerSpec.value.label} 配置已更新` })
   } catch (err) {
-    notifyError(err, '保存失败', '互动 AI 配置保存失败')
+    notifyError(err, '保存失败', `${providerSpec.value.label} 配置保存失败`)
   } finally {
     saving.value = false
   }
 }
 
-watch(() => props.modelValue, (value) => value && loadConfig())
+watch([() => props.modelValue, provider], ([open]) => open && loadConfig())
 </script>
 
 <template>
@@ -113,6 +170,15 @@ watch(() => props.modelValue, (value) => value && loadConfig())
     </template>
 
     <div v-loading="loading" class="config-body">
+      <el-segmented
+        v-model="provider"
+        :options="[
+          { label: 'Gemini', value: 'gemini' },
+          { label: 'OpenAI', value: 'openai' },
+        ]"
+        block
+        class="provider-segment"
+      />
       <el-form label-position="top">
         <div class="config-grid">
           <el-form-item label="启用状态">
@@ -122,12 +188,12 @@ watch(() => props.modelValue, (value) => value && loadConfig())
             </div>
           </el-form-item>
           <el-form-item label="调用策略">
-            <el-tag type="primary" effect="light">Luna 主用，Terra 自动兜底</el-tag>
+            <el-tag type="primary" effect="light">{{ strategyText }}</el-tag>
           </el-form-item>
           <el-form-item class="config-grid__full">
             <template #label>
               <div class="token-label">
-                <span>OpenAI API Key</span>
+                <span>{{ providerSpec.apiKeyLabel }}</span>
                 <el-tag v-if="keyConfigured" size="small" type="success" effect="light">
                   <CheckCircle2 :size="13" /> 已配置
                 </el-tag>
@@ -138,15 +204,20 @@ watch(() => props.modelValue, (value) => value && loadConfig())
               type="password"
               show-password
               autocomplete="new-password"
-              placeholder="请输入 OpenAI API Key"
+              :placeholder="providerSpec.placeholder"
             />
           </el-form-item>
           <el-form-item label="API 地址" class="config-grid__full">
-            <el-input v-model="form.base_url" placeholder="https://api.openai.com/v1" />
+            <el-input v-model="form.base_url" :placeholder="providerSpec.baseUrl" />
           </el-form-item>
           <el-form-item label="主模型">
-            <el-select v-model="form.primary_model" disabled class="w-full">
-              <el-option label="GPT-5.6 Luna" value="gpt-5.6-luna" />
+            <el-select v-model="form.primary_model" class="w-full">
+              <el-option
+                v-for="item in providerSpec.models"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
             </el-select>
             <el-button
               text
@@ -154,11 +225,16 @@ watch(() => props.modelValue, (value) => value && loadConfig())
               :icon="PlugZap"
               :loading="testingModel === form.primary_model"
               @click="testConnection(form.primary_model)"
-            >测试 Luna</el-button>
+            >测试主模型</el-button>
           </el-form-item>
           <el-form-item label="兜底模型">
-            <el-select v-model="form.fallback_model" disabled class="w-full">
-              <el-option label="GPT-5.6 Terra" value="gpt-5.6-terra" />
+            <el-select v-model="form.fallback_model" class="w-full">
+              <el-option
+                v-for="item in providerSpec.models"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
             </el-select>
             <el-button
               text
@@ -166,7 +242,7 @@ watch(() => props.modelValue, (value) => value && loadConfig())
               :icon="PlugZap"
               :loading="testingModel === form.fallback_model"
               @click="testConnection(form.fallback_model)"
-            >测试 Terra</el-button>
+            >测试兜底模型</el-button>
           </el-form-item>
         </div>
       </el-form>
@@ -174,7 +250,7 @@ watch(() => props.modelValue, (value) => value && loadConfig())
 
     <template #footer>
       <div class="config-footer">
-        <span class="config-footer__meta">{{ updatedAt ? '配置已保存' : '尚未保存配置' }}</span>
+        <span class="config-footer__meta">{{ updatedAt ? `${providerSpec.label} 配置已保存` : `尚未保存 ${providerSpec.label} 配置` }}</span>
         <el-space>
           <el-button @click="visible = false">取消</el-button>
           <el-button type="primary" :icon="Save" :loading="saving" @click="saveConfig">保存配置</el-button>
@@ -208,7 +284,8 @@ watch(() => props.modelValue, (value) => value && loadConfig())
 .config-title span { display: block; }
 .config-title strong { color: #172333; font-size: 15px; }
 .config-title div > span { margin-top: 2px; color: #718096; font-size: 12px; }
-.config-body { min-height: 320px; padding-top: 4px; }
+.config-body { min-height: 360px; padding-top: 4px; }
+.provider-segment { margin-bottom: 18px; }
 .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; }
 .config-grid__full { grid-column: 1 / -1; }
 .enabled-field { min-height: 32px; gap: 8px; color: #526273; font-size: 13px; }

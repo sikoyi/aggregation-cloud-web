@@ -227,6 +227,7 @@ const interactionTargetContentRemoteSelect = {
 
 function buildInteractionSessionBody(payload: AnyRecord) {
   const {
+    ai_provider,
     ai_language,
     ai_tone,
     ai_max_length,
@@ -235,6 +236,7 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   return {
     ...sessionPayload,
     ai_config: {
+      provider: String(ai_provider || "gemini"),
       language: String(ai_language || "auto"),
       tone: String(ai_tone || "natural"),
       max_length: Number(ai_max_length || 120),
@@ -1697,6 +1699,16 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "从主号已发布内容中选择目标帖子",
       },
       { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
+      {
+        key: "ai_provider",
+        label: "AI 供应商",
+        type: "select",
+        defaultValue: "gemini",
+        options: [
+          { label: "Gemini", value: "gemini" },
+          { label: "OpenAI", value: "openai" },
+        ],
+      },
       {
         key: "ai_language",
         label: "生成语言",
