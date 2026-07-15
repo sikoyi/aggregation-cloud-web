@@ -25,7 +25,7 @@ const KEY_LABELS: Record<string, string> = {
   runtime_instance_id: 'Runtime 实例',
   slot_id: '设备',
   display_name: '名称',
-  provider_slot_id: 'Provider ID',
+  provider_slot_id: '设备 ID',
   provider_slot_no: 'Provider 编号',
   runtime_platform: '执行平台',
   provider: '供应商',
@@ -56,7 +56,10 @@ function isRecord(value: unknown): value is AnyRecord {
 }
 
 function visibleResultEntries(value: AnyRecord) {
-  return Object.entries(value).filter(([key]) => !['proxy', 'detail'].includes(key))
+  return Object.entries(value).filter(([key]) => {
+    if (['proxy', 'detail'].includes(key)) return false
+    return !(key === 'id' && value.provider_slot_id)
+  })
 }
 
 const rawItems = computed(() => {
@@ -77,7 +80,10 @@ function inferColumnType(key: string): ColumnConfig['type'] {
 
 function inferColumns(row: AnyRecord): ColumnConfig[] {
   return Object.keys(row)
-    .filter((key) => !['tenant_id', 'metadata', 'metadata_json'].includes(key))
+    .filter((key) => {
+      if (['tenant_id', 'metadata', 'metadata_json'].includes(key)) return false
+      return !(key === 'id' && row.provider_slot_id)
+    })
     .slice(0, 8)
     .map((key) => ({
       key,

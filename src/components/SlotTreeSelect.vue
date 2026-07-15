@@ -58,7 +58,7 @@ function slotLabel(slot: AnyRecord) {
     slot.display_name ||
       slot.provider_slot_no ||
       slot.provider_slot_id ||
-      slot.id,
+      '未命名设备',
   )
 }
 

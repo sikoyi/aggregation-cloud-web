@@ -374,8 +374,9 @@ onMounted(loadMembers)
           <el-descriptions-item label="代理 ID">
             <span class="font-mono text-xs">{{ text(accountDetail.proxy_id) }}</span>
           </el-descriptions-item>
+          <el-descriptions-item label="设备名称">{{ text(accountDetail.bound_slot_name) }}</el-descriptions-item>
           <el-descriptions-item label="设备 ID">
-            <span class="font-mono text-xs">{{ text(accountDetail.bound_slot_id) }}</span>
+            <span class="font-mono text-xs">{{ text(accountDetail.bound_slot_provider_id) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="最近登录">{{ formatDate(accountDetail.last_login_at) }}</el-descriptions-item>
           <el-descriptions-item label="更新时间">{{ formatDate(accountDetail.updated_at) }}</el-descriptions-item>

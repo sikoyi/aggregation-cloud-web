@@ -563,10 +563,9 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "business_platform", label: "平台 / 国家", type: "accountPlatform", minWidth: 125 },
       { key: "login_status", label: "登录状态", type: "status", width: 170, align: "center" },
       {
-        key: "bound_slot_id",
+        key: "bound_slot_provider_id",
         label: "设备环境",
         type: "accountEnvironment",
-        relation: slotRemoteSelect,
         minWidth: 205,
       },
       { key: "updated_at", label: "更新时间", type: "datetime", width: 155, align: "center" },
@@ -590,7 +589,12 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "全部分组",
       },
       {
-        key: "bound_slot_id",
+        key: "bound_slot_name",
+        label: "设备名称",
+        placeholder: "请输入设备名称",
+      },
+      {
+        key: "provider_slot_id",
         label: "设备 ID",
         placeholder: "请输入设备 ID",
       },
@@ -803,9 +807,8 @@ export const resources: Record<string, ResourceConfig> = {
     deleteConfirm: "确认删除该设备？运行中的设备不能删除，删除后会解绑分组和账号关联。",
     createLabel: "新增设备",
     columns: [
-      { key: "id", label: "ID", type: "id" },
+      { key: "provider_slot_id", label: "设备 ID" },
       { key: "display_name", label: "名称" },
-      { key: "provider_slot_id", label: "Provider ID" },
       { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
       { key: "status", label: "状态", type: "status" },
@@ -845,7 +848,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "keyword",
         label: "关键词",
-        placeholder: "Profile ID / 编号 / 名称",
+        placeholder: "设备 ID / 编号 / 名称",
       },
     ],
     createFields: [
@@ -870,7 +873,7 @@ export const resources: Record<string, ResourceConfig> = {
         options: slotTypeOptions,
         defaultValue: "fingerprint_profile",
       },
-      { key: "provider_slot_id", label: "Provider 设备 ID", required: true },
+      { key: "provider_slot_id", label: "设备 ID", required: true, placeholder: "请输入供应商侧 Provider ID" },
       { key: "provider_slot_no", label: "Provider 编号" },
       { key: "display_name", label: "显示名称" },
       {
@@ -2790,9 +2793,8 @@ export const resources: Record<string, ResourceConfig> = {
         path: (record) => `/api/runtimes/${record.id}/slots`,
         refresh: false,
         resultColumns: [
-          { key: "id", label: "ID", type: "id", minWidth: 110 },
+          { key: "provider_slot_id", label: "设备 ID", minWidth: 170 },
           { key: "display_name", label: "名称", minWidth: 160 },
-          { key: "provider_slot_id", label: "Provider ID", minWidth: 170 },
           { key: "status", label: "状态", type: "status", width: 120 },
           { key: "bound_account_id", label: "账号", type: "id", minWidth: 120 },
           {

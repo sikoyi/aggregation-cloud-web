@@ -2,7 +2,6 @@
 import { KeyRound, MapPin, MonitorSmartphone, ShieldCheck, Users } from 'lucide-vue-next'
 import { computed } from 'vue'
 
-import RelationCell from '@/components/RelationCell.vue'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
@@ -38,6 +37,9 @@ const groupName = computed(() => String(props.row.group_name || '').trim())
 const businessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.business_platform))
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.bound_slot_runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.bound_slot_provider))
+const deviceName = computed(() => String(props.row.bound_slot_name || '').trim())
+const deviceId = computed(() => String(props.row.bound_slot_provider_id || '').trim())
+const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value))
 </script>
 
 <template>
@@ -89,12 +91,15 @@ const provider = computed(() => optionLabel(providerOptions, props.row.bound_slo
   </div>
 
   <div v-else-if="kind === 'accountEnvironment'" class="account-cell account-environment">
-    <div v-if="row.bound_slot_id && column.relation" class="account-environment__device">
+    <div v-if="hasBoundDevice" class="account-environment__device">
       <MonitorSmartphone />
-      <RelationCell :value="row.bound_slot_id" :config="column.relation" :row="row" />
+      <span class="account-environment__device-copy">
+        <strong>{{ deviceName || deviceId }}</strong>
+        <span v-if="deviceName && deviceId">{{ deviceId }}</span>
+      </span>
     </div>
     <span v-else class="account-environment__empty">未绑定设备</span>
-    <div v-if="row.bound_slot_id" class="account-environment__tags">
+    <div v-if="hasBoundDevice" class="account-environment__tags">
       <el-tag size="small" effect="plain" type="info">{{ runtimePlatform }}</el-tag>
       <el-tag size="small" effect="plain">{{ provider }}</el-tag>
     </div>
@@ -273,6 +278,31 @@ const provider = computed(() => optionLabel(providerOptions, props.row.bound_slo
   height: 14px;
   flex: 0 0 auto;
   color: #527a98;
+}
+
+.account-environment__device-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.account-environment__device-copy strong,
+.account-environment__device-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-environment__device-copy strong {
+  color: #334e68;
+  font-size: 12px;
+}
+
+.account-environment__device-copy span {
+  color: #8293a5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
 }
 
 .account-environment__tags {
