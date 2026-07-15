@@ -161,8 +161,13 @@ async function loadResourceLabel(id: string, type: string) {
     const resource = await http.get<AnyRecord>(resourceDetailPath(id, type))
     const name = resourceDisplayName(resource, type)
     if (type === 'account_group' || type === 'proxy_group') return name
+    if (type === 'execution_slot') {
+      const deviceId = text(resource.provider_slot_id)
+      return name === deviceId ? deviceId : `${name}（设备 ID：${deviceId}）`
+    }
     return `${name}（${truncateId(id)}）`
   } catch {
+    if (type === 'execution_slot') return '设备信息加载失败'
     return truncateId(id)
   }
 }
@@ -303,8 +308,11 @@ watch(
               <el-descriptions-item v-if="isChildTask" label="账号">
                 <span class="font-mono text-xs" :title="String(task.account_id || '')">{{ truncateId(task.account_id) }}</span>
               </el-descriptions-item>
-              <el-descriptions-item v-if="isChildTask" label="设备">
-                <span class="font-mono text-xs" :title="String(task.slot_id || '')">{{ truncateId(task.slot_id) }}</span>
+              <el-descriptions-item v-if="isChildTask" label="设备名称">
+                {{ text(task.slot_name) }}
+              </el-descriptions-item>
+              <el-descriptions-item v-if="isChildTask" label="设备 ID">
+                <span class="font-mono text-xs">{{ text(task.provider_slot_id) }}</span>
               </el-descriptions-item>
               <el-descriptions-item v-if="isChildTask" label="错误信息">
                 {{ text(task.error_message) }}
@@ -351,9 +359,12 @@ watch(
                   <span class="font-mono text-xs" :title="String(row.id || '')">{{ truncateId(row.id) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="设备" min-width="130">
+              <el-table-column label="设备" min-width="190">
                 <template #default="{ row }">
-                  <span class="font-mono text-xs" :title="String(row.slot_id || '')">{{ truncateId(row.slot_id) }}</span>
+                  <div class="task-device-cell">
+                    <span>{{ text(row.slot_name) }}</span>
+                    <code>{{ text(row.provider_slot_id) }}</code>
+                  </div>
                 </template>
               </el-table-column>
               <el-table-column prop="status" label="状态" width="120">
@@ -401,7 +412,14 @@ watch(
           <el-tab-pane label="分配记录" name="assignments">
             <el-table :data="assignments" border stripe empty-text="暂无分配记录">
               <el-table-column prop="runtime_id" label="Runtime" min-width="160" show-overflow-tooltip />
-              <el-table-column prop="slot_id" label="设备" min-width="160" show-overflow-tooltip />
+              <el-table-column label="设备" min-width="190">
+                <template #default="{ row }">
+                  <div class="task-device-cell">
+                    <span>{{ text(row.slot_name) }}</span>
+                    <code>{{ text(row.provider_slot_id) }}</code>
+                  </div>
+                </template>
+              </el-table-column>
               <el-table-column prop="status" label="状态" width="120">
                 <template #default="{ row }">
                   <StatusBadge :value="row.status" />
@@ -445,5 +463,25 @@ watch(
   color: #1f2937;
   font-size: 13px;
   font-weight: 700;
+}
+
+.task-device-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.35;
+}
+
+.task-device-cell span,
+.task-device-cell code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-device-cell code {
+  color: #64748b;
+  font-size: 11px;
 }
 </style>

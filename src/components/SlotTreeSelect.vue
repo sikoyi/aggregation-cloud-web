@@ -18,6 +18,7 @@ const emit = defineEmits<{
 interface SlotTreeNode {
   id: string
   slotId?: string
+  providerSlotId?: string
   label: string
   status?: string
   disabled?: boolean
@@ -66,6 +67,7 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
   return {
     id: slotNodeId(String(slot.id)),
     slotId: String(slot.id),
+    providerSlotId: String(slot.provider_slot_id || ''),
     label: slotLabel(slot),
     status: String(slot.status || 'offline'),
     disabled: slot.status === 'disabled',
@@ -165,7 +167,10 @@ watch(
     >
       <template #default="{ data }">
         <span class="slot-tree-node">
-          <span class="slot-tree-node__label">{{ data.label }}</span>
+          <span class="slot-tree-node__copy">
+            <span class="slot-tree-node__label">{{ data.label }}</span>
+            <span v-if="data.providerSlotId" class="slot-tree-node__id">{{ data.providerSlotId }}</span>
+          </span>
           <el-tag
             v-if="data.slotId"
             size="small"
@@ -215,6 +220,22 @@ watch(
 .slot-tree-node__label {
   min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-tree-node__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.slot-tree-node__id {
+  overflow: hidden;
+  color: #7b8da1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -249,7 +249,7 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       labelKeys: ['display_name', 'provider_slot_id', 'provider_slot_no'],
       valueKey: 'id',
       detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
-      secondaryKey: 'provider',
+      secondaryKeys: ['provider_slot_id', 'provider'],
       statusKey: 'status',
       searchParam: 'keyword',
       pageSize: 50,

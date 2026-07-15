@@ -41,7 +41,7 @@ const availableSlotSelect = computed<RemoteSelectConfig>(() => ({
   labelKeys: ['display_name', 'provider_slot_id', 'provider_slot_no'],
   valueKey: 'id',
   detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
-  secondaryKeys: ['provider', 'status'],
+  secondaryKeys: ['provider_slot_id', 'provider', 'status'],
   searchParam: 'keyword',
   pageSize: 50,
   multiple: true,
