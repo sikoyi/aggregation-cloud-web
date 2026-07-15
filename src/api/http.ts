@@ -1,4 +1,4 @@
-import type { ApiResponse, AnyRecord } from '@/types/api'
+import type { ApiResponse, AnyRecord, PageResult } from '@/types/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const API_BASE_ORIGIN = API_BASE_URL.replace(/\/$/, '')
@@ -78,6 +78,29 @@ async function request<T>(
     throw error
   }
   return payload.data
+}
+
+export async function getAllPages<T>(
+  path: string,
+  params: AnyRecord = {},
+  pageSize = 100,
+): Promise<T[]> {
+  const firstPage = await request<PageResult<T>>('GET', path, {
+    params: { ...params, page: 1, page_size: pageSize },
+  })
+  const effectivePageSize = Math.max(1, Number(firstPage.page_size || pageSize))
+  const pageCount = Math.ceil(Number(firstPage.total || 0) / effectivePageSize)
+  if (pageCount <= 1) return firstPage.items
+
+  // 选择器必须拿到完整候选集，后续页并行请求可避免设备较多时逐页等待。
+  const remainingPages = await Promise.all(
+    Array.from({ length: pageCount - 1 }, (_, index) =>
+      request<PageResult<T>>('GET', path, {
+        params: { ...params, page: index + 2, page_size: effectivePageSize },
+      }),
+    ),
+  )
+  return [firstPage, ...remainingPages].flatMap((page) => page.items)
 }
 
 export const http = {

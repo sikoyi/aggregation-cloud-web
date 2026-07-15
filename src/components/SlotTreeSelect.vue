@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
-import { http } from '@/api/http'
-import type { AnyRecord, PageResult } from '@/types/api'
+import { getAllPages } from '@/api/http'
+import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
 
 const props = defineProps<{
@@ -21,6 +21,7 @@ interface SlotTreeNode {
   providerSlotId?: string
   label: string
   status?: string
+  deviceCount?: number
   disabled?: boolean
   children?: SlotTreeNode[]
 }
@@ -28,6 +29,9 @@ interface SlotTreeNode {
 const treeRef = ref()
 const loading = ref(false)
 const treeData = ref<SlotTreeNode[]>([])
+const groupedSlotCount = ref(0)
+const totalSlotCount = ref(0)
+const loadedSlotIds = ref<Set<string>>(new Set())
 const treeProps = {
   label: 'label',
   children: 'children',
@@ -36,6 +40,9 @@ const treeProps = {
 
 const selectedSlotIds = computed(() =>
   Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
+)
+const selectedSlotCount = computed(() =>
+  selectedSlotIds.value.filter((slotId) => loadedSlotIds.value.has(slotId)).length,
 )
 
 function slotNodeId(slotId: string) {
@@ -48,8 +55,6 @@ function queryParams(extra: AnyRecord = {}) {
     provider: filters.provider || undefined,
     business_platform: filters.business_platform || undefined,
     runtime_platform: filters.runtime_platform || undefined,
-    page: 1,
-    page_size: 100,
     ...extra,
   }
 }
@@ -86,36 +91,43 @@ async function loadTree() {
     const slotParams = queryParams()
     delete slotParams.runtime_platform
 
-    const [groupsPage, slotsPage] = await Promise.all([
-      http.get<PageResult<AnyRecord>>('/api/slot-groups', groupParams),
-      http.get<PageResult<AnyRecord>>('/api/execution-slots', slotParams),
+    const [groups, slots] = await Promise.all([
+      getAllPages<AnyRecord>('/api/slot-groups', groupParams),
+      getAllPages<AnyRecord>('/api/execution-slots', slotParams),
     ])
 
+    const eligibleSlotIds = new Set(slots.map((slot) => String(slot.id)))
     const groupedSlotIds = new Set<string>()
     const groupNodes = await Promise.all(
-      groupsPage.items.map(async (group) => {
-        const slots = await http.get<PageResult<AnyRecord>>(
+      groups.map(async (group) => {
+        const groupSlots = await getAllPages<AnyRecord>(
           `/api/slot-groups/${encodeURIComponent(String(group.id))}/slots`,
-          { page: 1, page_size: 100 },
+          {},
         )
-        slots.items.forEach((slot) => groupedSlotIds.add(String(slot.id)))
+        const items = groupSlots.filter((slot) => eligibleSlotIds.has(String(slot.id)))
+        items.forEach((slot) => groupedSlotIds.add(String(slot.id)))
         return {
           id: `group:${group.id}`,
           label: String(group.name || group.id),
-          disabled: !slots.items.length,
-          children: slots.items.map(toSlotNode),
+          deviceCount: items.length,
+          disabled: !items.length,
+          children: items.map(toSlotNode),
         }
       }),
     )
 
-    const ungroupedSlots = slotsPage.items.filter((slot) => !groupedSlotIds.has(String(slot.id)))
+    const ungroupedSlots = slots.filter((slot) => !groupedSlotIds.has(String(slot.id)))
+    loadedSlotIds.value = eligibleSlotIds
+    groupedSlotCount.value = groupedSlotIds.size
+    totalSlotCount.value = slots.length
     treeData.value = [
-      ...groupNodes,
+      ...groupNodes.filter((node) => node.children.length),
       ...(ungroupedSlots.length
         ? [
             {
               id: 'group:ungrouped',
               label: '未分组设备',
+              deviceCount: ungroupedSlots.length,
               children: ungroupedSlots.map(toSlotNode),
             },
           ]
@@ -152,6 +164,11 @@ watch(
 
 <template>
   <div class="slot-tree-select" v-loading="loading">
+    <div class="slot-tree-summary">
+      <span>分组设备 <strong>{{ groupedSlotCount }}</strong></span>
+      <span>已选设备 <strong>{{ selectedSlotCount }}</strong></span>
+      <span>设备总数 <strong>{{ totalSlotCount }}</strong></span>
+    </div>
     <el-tree
       ref="treeRef"
       :data="treeData"
@@ -180,6 +197,9 @@ watch(
           >
             {{ statusLabel(data.status) }}
           </el-tag>
+          <el-tag v-else-if="data.deviceCount !== undefined" size="small" type="info" effect="plain" round>
+            {{ data.deviceCount }} 台
+          </el-tag>
         </span>
       </template>
     </el-tree>
@@ -201,6 +221,29 @@ watch(
 
 .slot-tree-select :deep(.el-tree) {
   background: transparent;
+}
+
+.slot-tree-summary {
+  position: sticky;
+  z-index: 2;
+  top: -10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: -10px -12px 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #dbe4f0;
+  background: rgb(248 250 252 / 96%);
+  color: #65778a;
+  font-size: 12px;
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.slot-tree-summary strong {
+  margin-left: 3px;
+  color: #1f668f;
+  font-size: 13px;
 }
 
 .slot-tree-select :deep(.el-tree-node__content) {

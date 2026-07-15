@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
-import { http } from '@/api/http'
-import type { AnyRecord, PageResult } from '@/types/api'
+import { getAllPages } from '@/api/http'
+import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
 
 const props = defineProps<{
@@ -72,8 +72,6 @@ function queryParams(extra: AnyRecord = {}) {
     runtime_platform: filters.runtime_platform || undefined,
     provider: filters.provider || undefined,
     login_status: props.associationOnly ? undefined : 'logged_in,logged_in_dm_unavailable',
-    page: 1,
-    page_size: 100,
     ...extra,
   }
 }
@@ -121,20 +119,22 @@ function emitSelection(accountIds: string[]) {
 async function loadTree() {
   loading.value = true
   try {
-    const [groupsPage, accountsPage] = await Promise.all([
-      http.get<PageResult<AnyRecord>>('/api/account-groups', queryParams()),
-      http.get<PageResult<AnyRecord>>('/api/accounts', queryParams()),
+    const [groups, accounts] = await Promise.all([
+      getAllPages<AnyRecord>('/api/account-groups', queryParams()),
+      getAllPages<AnyRecord>('/api/accounts', queryParams()),
     ])
 
+    const eligibleAccountIds = new Set(accounts.map((account) => String(account.id)))
     const groupedAccountIds = new Set<string>()
     const availableAccountIds = new Set<string>()
     const groupNodes = await Promise.all(
-      groupsPage.items.map(async (group) => {
-        const accounts = await http.get<PageResult<AnyRecord>>(
+      groups.map(async (group) => {
+        const groupAccounts = await getAllPages<AnyRecord>(
           `/api/account-groups/${encodeURIComponent(String(group.id))}/accounts`,
-          queryParams({ page: 1, page_size: 100 }),
+          queryParams(),
         )
-        const items = accounts.items.filter((account) => {
+        const items = groupAccounts.filter((account) => {
+          if (!eligibleAccountIds.has(String(account.id))) return false
           if (props.filters?.business_platform && account.business_platform !== props.filters.business_platform) return false
           if (!accountMatchesRuntime(account)) return false
           return true
@@ -152,14 +152,14 @@ async function loadTree() {
       }),
     )
 
-    const ungroupedAccounts = accountsPage.items.filter((account) => {
+    const ungroupedAccounts = accounts.filter((account) => {
       if (groupedAccountIds.has(String(account.id))) return false
       return accountMatchesRuntime(account)
     })
     ungroupedAccounts
       .filter((account) => props.associationOnly || account.bound_slot_id)
       .forEach((account) => availableAccountIds.add(String(account.id)))
-    loggedInCount.value = accountsPage.items.filter(accountMatchesRuntime).length
+    loggedInCount.value = accounts.filter(accountMatchesRuntime).length
     selectableCount.value = availableAccountIds.size
     treeData.value = [
       ...groupNodes.filter((node) => node.children?.length),
