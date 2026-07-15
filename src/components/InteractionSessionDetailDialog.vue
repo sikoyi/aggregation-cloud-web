@@ -66,25 +66,13 @@ function stepActionLabel(value: unknown) {
   return labels[action] || action || '-'
 }
 
-function compactId(value: unknown) {
-  const id = String(value || '').trim()
-  if (!id) return ''
-  if (id.length <= 18) return id
-  return `${id.slice(0, 10)}...${id.slice(-5)}`
-}
-
-function targetCommentText(step: AnyRecord) {
-  if (step.target_platform_comment_id) return `平台评论 ${compactId(step.target_platform_comment_id)}`
-  if (step.target_comment_id) return `评论 ${compactId(step.target_comment_id)}`
-  return Number(step.step_no || 0) <= 1 ? '目标帖子' : '等待上一步结果'
-}
-
-function resultCommentText(step: AnyRecord) {
-  if (step.result_platform_comment_id) return `平台评论 ${compactId(step.result_platform_comment_id)}`
-  if (step.result_comment_id) return `评论 ${compactId(step.result_comment_id)}`
+function stepProgressText(step: AnyRecord) {
+  if (step.status === 'generating') return 'AI 文案生成中'
   if (step.status === 'locked') return '等待解锁'
   if (step.status === 'queued' || step.status === 'running') return '等待执行'
-  return '等待上报'
+  if (step.status === 'succeeded') return '执行成功'
+  if (step.generated_content) return '文案已生成'
+  return '等待处理'
 }
 
 async function loadDetail(sessionId: string) {
@@ -165,9 +153,7 @@ watch(
               <div class="chain-strip">
                 <div v-for="step in row.steps" :key="`${step.id}-chain`" class="chain-node">
                   <span>第 {{ step.step_no }} 步</span>
-                  <strong :title="String(step.result_platform_comment_id || step.result_comment_id || '')">
-                    {{ resultCommentText(step) }}
-                  </strong>
+                  <strong>{{ stepProgressText(step) }}</strong>
                 </div>
               </div>
               <div class="step-grid">
@@ -181,20 +167,19 @@ watch(
                   <div class="step-card__meta">
                     任务：<span class="font-mono" :title="String(step.task_run_id || '')">{{ truncateId(step.task_run_id) }}</span>
                   </div>
-                  <div class="step-card__relation">
-                    <span>回复目标</span>
-                    <strong :title="String(step.target_platform_comment_id || step.target_comment_id || '')">
-                      {{ targetCommentText(step) }}
-                    </strong>
+                  <div v-if="step.ai_model" class="step-card__relation">
+                    <span>生成模型</span>
+                    <el-tag size="small" effect="plain">{{ step.ai_model }}</el-tag>
                   </div>
-                  <div class="step-card__relation">
-                    <span>产出评论</span>
-                    <strong :title="String(step.result_platform_comment_id || step.result_comment_id || '')">
-                      {{ resultCommentText(step) }}
-                    </strong>
+                  <div v-if="step.generated_content" class="step-card__content">
+                    <span>服务端生成稿</span>
+                    <p>{{ step.generated_content }}</p>
                   </div>
-                  <div v-if="step.result_content" class="step-card__content">{{ step.result_content }}</div>
-                  <div v-if="step.error_message" class="step-card__error">{{ step.error_message }}</div>
+                  <div v-if="step.generation_error" class="step-card__error">{{ step.generation_error }}</div>
+                  <div
+                    v-if="step.error_message && step.error_message !== step.generation_error"
+                    class="step-card__error"
+                  >{{ step.error_message }}</div>
                 </div>
               </div>
             </template>
@@ -341,6 +326,16 @@ watch(
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.step-card__content span {
+  display: block;
+  margin-bottom: 4px;
+  color: #64748b;
+}
+
+.step-card__content p {
+  margin: 0;
 }
 
 .step-card__error {

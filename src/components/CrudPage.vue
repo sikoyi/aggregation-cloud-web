@@ -32,6 +32,7 @@ import ActionResultDialog from '@/components/ActionResultDialog.vue'
 import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import InteractionSessionDetailDialog from '@/components/InteractionSessionDetailDialog.vue'
+import InteractionAiConfigDialog from '@/components/InteractionAiConfigDialog.vue'
 import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
 import PublishedContentDetailDialog from '@/components/PublishedContentDetailDialog.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -90,6 +91,7 @@ const interactionSessionDetailId = ref<string | null>(null)
 const publishedContentDetailVisible = ref(false)
 const publishedContentDetailId = ref<string | null>(null)
 const apifyMonitorConfigVisible = ref(false)
+const interactionAiConfigVisible = ref(false)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -156,7 +158,7 @@ const interactionCommentFields = computed(() => {
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const interactionParamFields = computed(() => {
-  const keys = new Set(['title', 'business_platform', 'step_count', 'runtime_platform', 'provider', 'target_content_id', 'script_key', 'scheduled_at', 'ai_config'])
+  const keys = new Set(['title', 'business_platform', 'step_count', 'runtime_platform', 'provider', 'target_content_id', 'scheduled_at', 'ai_language', 'ai_tone', 'ai_max_length'])
   return modalFields.value.filter((field) => keys.has(field.key))
 })
 const showModalSaveButton = computed(() => {
@@ -703,6 +705,10 @@ function openHeaderAction(action: RowActionConfig) {
 async function runHeaderAction(action: RowActionConfig) {
   if (props.config.key === 'publishedContents' && action.key === 'configureMonitor') {
     apifyMonitorConfigVisible.value = true
+    return
+  }
+  if (props.config.key === 'interactionSessions' && action.key === 'configureAi') {
+    interactionAiConfigVisible.value = true
     return
   }
   if (action.fields?.length) {
@@ -1392,6 +1398,10 @@ onBeforeUnmount(() => {
     <ApifyMonitorConfigDialog
       v-if="config.key === 'publishedContents'"
       v-model="apifyMonitorConfigVisible"
+    />
+    <InteractionAiConfigDialog
+      v-if="config.key === 'interactionSessions'"
+      v-model="interactionAiConfigVisible"
     />
   </section>
 </template>

@@ -10,6 +10,7 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: '已取消',
   challenge: '封禁',
   connecting: '连接中',
+  generating: '文案生成中',
   all_failed: '全部失败',
   completed: '已完成',
   disabled: '已禁用',
@@ -49,7 +50,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used']
-const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting']
+const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'generating']
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked']
 const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked']
 

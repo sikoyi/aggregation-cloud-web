@@ -225,6 +225,23 @@ const interactionTargetContentRemoteSelect = {
       : "请先选择主号，再选择目标内容",
 };
 
+function buildInteractionSessionBody(payload: AnyRecord) {
+  const {
+    ai_language,
+    ai_tone,
+    ai_max_length,
+    ...sessionPayload
+  } = payload;
+  return {
+    ...sessionPayload,
+    ai_config: {
+      language: String(ai_language || "auto"),
+      tone: String(ai_tone || "natural"),
+      max_length: Number(ai_max_length || 120),
+    },
+  };
+}
+
 const accountGroupRemoteSelect = {
   endpoint: "/api/account-groups",
   labelKey: "name",
@@ -1581,6 +1598,15 @@ export const resources: Record<string, ResourceConfig> = {
     title: "互动会话",
     endpoint: "/api/interaction-center/sessions",
     createLabel: "新建互动会话",
+    createBody: (payload) => buildInteractionSessionBody(payload),
+    headerActions: [
+      {
+        key: "configureAi",
+        label: "AI 配置",
+        method: "GET",
+        icon: "settings",
+      },
+    ],
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "会话名称", minWidth: 220 },
@@ -1672,16 +1698,38 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
       {
-        key: "ai_config",
-        label: "AI 配置",
-        type: "json",
-        span: 2,
-        allowEmpty: true,
-        defaultValue: {
-          language: "en",
-          tone: "natural",
-          max_length: 120,
-        },
+        key: "ai_language",
+        label: "生成语言",
+        type: "select",
+        defaultValue: "auto",
+        options: [
+          { label: "跟随帖子与对话", value: "auto" },
+          { label: "英文", value: "en" },
+          { label: "韩文", value: "ko" },
+        ],
+      },
+      {
+        key: "ai_tone",
+        label: "文案语气",
+        type: "select",
+        defaultValue: "natural",
+        options: [
+          { label: "自然交流", value: "natural" },
+          { label: "友好亲切", value: "friendly" },
+          { label: "好奇提问", value: "curious" },
+          { label: "支持认同", value: "supportive" },
+          { label: "观点讨论", value: "discussion" },
+        ],
+      },
+      {
+        key: "ai_max_length",
+        label: "单条最大长度",
+        type: "number",
+        defaultValue: 120,
+        min: 20,
+        max: 500,
+        step: 10,
+        required: true,
       },
     ],
     inlineActionKeys: ["detail"],
