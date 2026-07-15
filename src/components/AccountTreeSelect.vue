@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { Search } from 'lucide-vue-next'
 
 import { getAllPages } from '@/api/http'
 import type { AnyRecord } from '@/types/api'
@@ -21,6 +22,8 @@ interface AccountTreeNode {
   id: string
   accountId?: string
   label: string
+  searchText?: string
+  deviceLabel?: string
   loginStatus?: string
   disabled?: boolean
   children?: AccountTreeNode[]
@@ -28,6 +31,7 @@ interface AccountTreeNode {
 
 const treeRef = ref()
 const loading = ref(false)
+const searchKeyword = ref('')
 const treeData = ref<AccountTreeNode[]>([])
 const loggedInCount = ref(0)
 const selectableCount = ref(0)
@@ -97,15 +101,35 @@ function accountLabel(account: AnyRecord) {
 
 function toAccountNode(account: AnyRecord): AccountTreeNode {
   const label = accountLabel(account)
+  const providerSlotId = String(account.bound_slot_provider_id || '')
+  const slotName = String(account.bound_slot_name || '')
   const hasSlot = Boolean(account.bound_slot_id)
   const selectable = props.associationOnly || hasSlot
   return {
     id: accountNodeId(String(account.id)),
     accountId: String(account.id),
     label: selectable ? label : `${label}（未绑定设备）`,
+    searchText: [
+      label,
+      account.username,
+      account.login_username,
+      account.display_name,
+      account.platform_account_id,
+      slotName,
+      providerSlotId,
+    ].filter(Boolean).join(' ').toLowerCase(),
+    deviceLabel: slotName || providerSlotId
+      ? [slotName, providerSlotId].filter(Boolean).join(' / ')
+      : undefined,
     loginStatus: String(account.login_status || 'unknown'),
     disabled: !selectable,
   }
+}
+
+function filterNode(value: string, data: AnyRecord) {
+  const keyword = value.trim().toLowerCase()
+  if (!keyword) return true
+  return String(data.searchText || data.label).toLowerCase().includes(keyword)
 }
 
 function syncCheckedKeys() {
@@ -143,9 +167,11 @@ async function loadTree() {
         items
           .filter((account) => props.associationOnly || account.bound_slot_id)
           .forEach((account) => availableAccountIds.add(String(account.id)))
+        const label = String(group.name || group.id)
         return {
           id: `group:${group.id}`,
-          label: String(group.name || group.id),
+          label,
+          searchText: label.toLowerCase(),
           disabled: !items.length,
           children: items.map(toAccountNode),
         }
@@ -168,6 +194,7 @@ async function loadTree() {
             {
               id: 'group:ungrouped',
               label: '未分组账号',
+              searchText: '未分组账号',
               children: ungroupedAccounts.map(toAccountNode),
             },
           ]
@@ -176,6 +203,7 @@ async function loadTree() {
 
     await nextTick()
     syncCheckedKeys()
+    treeRef.value?.filter?.(searchKeyword.value)
     const nextSelected = selectedAccountIds.value.filter((accountId) => availableAccountIds.has(accountId))
     if (nextSelected.length !== selectedAccountIds.value.length) {
       emitSelection(nextSelected)
@@ -207,6 +235,8 @@ onMounted(loadTree)
 
 watch(selectedAccountIds, () => nextTick(syncCheckedKeys))
 
+watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
+
 watch(
   () => props.filters,
   () => loadTree(),
@@ -216,6 +246,14 @@ watch(
 
 <template>
   <div class="account-tree-select" v-loading="loading">
+    <div class="account-tree-select__toolbar">
+      <el-input
+        v-model="searchKeyword"
+        :prefix-icon="Search"
+        clearable
+        placeholder="搜索账号 / 设备名称 / Provider ID"
+      />
+    </div>
     <el-alert
       v-if="!loading && emptyMessage"
       class="account-tree-select__alert"
@@ -234,12 +272,16 @@ watch(
       :check-strictly="!isMultiple"
       :expand-on-click-node="false"
       :disabled="disabled"
+      :filter-node-method="filterNode"
       :empty-text="emptyMessage || '暂无已登录账号'"
       @check="emitChecked"
     >
       <template #default="{ data }">
         <span class="account-tree-node">
-          <span class="account-tree-node__label">{{ data.label }}</span>
+          <span class="account-tree-node__copy">
+            <span class="account-tree-node__label">{{ data.label }}</span>
+            <span v-if="data.deviceLabel" class="account-tree-node__device">{{ data.deviceLabel }}</span>
+          </span>
           <el-tag
             v-if="data.accountId"
             size="small"
@@ -271,6 +313,17 @@ watch(
   margin-bottom: 10px;
 }
 
+.account-tree-select__toolbar {
+  position: sticky;
+  z-index: 2;
+  top: -10px;
+  margin: -10px -12px 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #dbe4f0;
+  background: rgb(248 250 252 / 96%);
+  backdrop-filter: blur(4px);
+}
+
 .account-tree-select :deep(.el-tree) {
   background: transparent;
 }
@@ -292,6 +345,21 @@ watch(
 .account-tree-node__label {
   min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-tree-node__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.account-tree-node__device {
+  overflow: hidden;
+  color: #7b8da1;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

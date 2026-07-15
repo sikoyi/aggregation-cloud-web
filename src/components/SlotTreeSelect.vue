@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { Search } from 'lucide-vue-next'
 
 import { getAllPages } from '@/api/http'
 import type { AnyRecord } from '@/types/api'
@@ -20,6 +21,7 @@ interface SlotTreeNode {
   slotId?: string
   providerSlotId?: string
   label: string
+  searchText?: string
   status?: string
   deviceCount?: number
   disabled?: boolean
@@ -28,6 +30,7 @@ interface SlotTreeNode {
 
 const treeRef = ref()
 const loading = ref(false)
+const searchKeyword = ref('')
 const treeData = ref<SlotTreeNode[]>([])
 const groupedSlotCount = ref(0)
 const totalSlotCount = ref(0)
@@ -69,14 +72,26 @@ function slotLabel(slot: AnyRecord) {
 }
 
 function toSlotNode(slot: AnyRecord): SlotTreeNode {
+  const label = slotLabel(slot)
+  const providerSlotId = String(slot.provider_slot_id || '')
   return {
     id: slotNodeId(String(slot.id)),
     slotId: String(slot.id),
-    providerSlotId: String(slot.provider_slot_id || ''),
-    label: slotLabel(slot),
+    providerSlotId,
+    label,
+    searchText: [label, providerSlotId, slot.provider_slot_no]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase(),
     status: String(slot.status || 'offline'),
     disabled: slot.status === 'disabled',
   }
+}
+
+function filterNode(value: string, data: AnyRecord) {
+  const keyword = value.trim().toLowerCase()
+  if (!keyword) return true
+  return String(data.searchText || data.label).toLowerCase().includes(keyword)
 }
 
 function syncCheckedKeys() {
@@ -106,9 +121,11 @@ async function loadTree() {
         )
         const items = groupSlots.filter((slot) => eligibleSlotIds.has(String(slot.id)))
         items.forEach((slot) => groupedSlotIds.add(String(slot.id)))
+        const label = String(group.name || group.id)
         return {
           id: `group:${group.id}`,
-          label: String(group.name || group.id),
+          label,
+          searchText: label.toLowerCase(),
           deviceCount: items.length,
           disabled: !items.length,
           children: items.map(toSlotNode),
@@ -127,6 +144,7 @@ async function loadTree() {
             {
               id: 'group:ungrouped',
               label: '未分组设备',
+              searchText: '未分组设备',
               deviceCount: ungroupedSlots.length,
               children: ungroupedSlots.map(toSlotNode),
             },
@@ -136,6 +154,7 @@ async function loadTree() {
 
     await nextTick()
     syncCheckedKeys()
+    treeRef.value?.filter?.(searchKeyword.value)
   } finally {
     loading.value = false
   }
@@ -155,6 +174,8 @@ onMounted(loadTree)
 
 watch(selectedSlotIds, () => nextTick(syncCheckedKeys))
 
+watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
+
 watch(
   () => props.filters,
   () => loadTree(),
@@ -164,10 +185,18 @@ watch(
 
 <template>
   <div class="slot-tree-select" v-loading="loading">
-    <div class="slot-tree-summary">
-      <span>分组设备 <strong>{{ groupedSlotCount }}</strong></span>
-      <span>已选设备 <strong>{{ selectedSlotCount }}</strong></span>
-      <span>设备总数 <strong>{{ totalSlotCount }}</strong></span>
+    <div class="slot-tree-toolbar">
+      <div class="slot-tree-summary">
+        <span>分组设备 <strong>{{ groupedSlotCount }}</strong></span>
+        <span>已选设备 <strong>{{ selectedSlotCount }}</strong></span>
+        <span>设备总数 <strong>{{ totalSlotCount }}</strong></span>
+      </div>
+      <el-input
+        v-model="searchKeyword"
+        :prefix-icon="Search"
+        clearable
+        placeholder="搜索设备名称 / Provider ID"
+      />
     </div>
     <el-tree
       ref="treeRef"
@@ -179,6 +208,7 @@ watch(
       :check-strictly="false"
       :expand-on-click-node="false"
       :disabled="disabled"
+      :filter-node-method="filterNode"
       empty-text="暂无可选设备"
       @check="emitChecked"
     >
@@ -223,21 +253,25 @@ watch(
   background: transparent;
 }
 
-.slot-tree-summary {
+.slot-tree-toolbar {
   position: sticky;
   z-index: 2;
   top: -10px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
   margin: -10px -12px 10px;
   padding: 10px 12px;
   border-bottom: 1px solid #dbe4f0;
   background: rgb(248 250 252 / 96%);
+  backdrop-filter: blur(4px);
+}
+
+.slot-tree-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
   color: #65778a;
   font-size: 12px;
   text-align: center;
-  backdrop-filter: blur(4px);
 }
 
 .slot-tree-summary strong {
