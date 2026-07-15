@@ -1787,7 +1787,7 @@ export const resources: Record<string, ResourceConfig> = {
         path: () => "/api/interaction-center/content-monitor/accounts",
         successTitle: "账号监听已保存",
         successMessage: (data) =>
-          `账号主页已接入监听，首次执行记录 ID：${(data.monitor_run as AnyRecord | undefined)?.id || "-"}`,
+          `首次同步已启动，完成后内容列表将自动更新。执行记录 ID：${(data.monitor_run as AnyRecord | undefined)?.id || "-"}`,
         body: (payload) => ({
           business_platform: payload.business_platform,
           account_id: payload.account_id,

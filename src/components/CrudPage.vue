@@ -501,6 +501,7 @@ function shouldRefreshForRealtime(event: RealtimeEventPayload) {
   if (props.config.key === 'tasks') return event.topic === 'task'
   if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
+  if (props.config.key === 'publishedContents') return event.topic === 'content_monitor'
   return false
 }
 
@@ -1286,7 +1287,7 @@ onBeforeUnmount(() => {
           <el-tab-pane label="趋势分析" name="metrics">
             <AccountMetricsPanel :account="modal.record" />
           </el-tab-pane>
-          <el-tab-pane label="发布内容" name="publishedContents">
+          <el-tab-pane label="账号内容" name="publishedContents">
             <AccountPublishedContentPanel :account="modal.record" />
           </el-tab-pane>
         </el-tabs>

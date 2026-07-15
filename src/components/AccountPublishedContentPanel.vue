@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Eye, RefreshCw } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import PublishedContentDetailDialog from '@/components/PublishedContentDetailDialog.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import {
   businessPlatformOptions,
   publishedContentStatusOptions,
@@ -25,6 +26,7 @@ const total = ref(0)
 const rows = ref<AnyRecord[]>([])
 const detailVisible = ref(false)
 const detailId = ref<string | null>(null)
+let realtimeRefreshTimer: number | undefined
 
 const accountId = computed(() => String(props.account?.id || ''))
 const accountName = computed(() =>
@@ -71,6 +73,14 @@ function handleSizeChange(size: number) {
   loadRows()
 }
 
+function handleRealtimeEvent(event: Event) {
+  const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (!payload || payload.topic !== 'content_monitor') return
+  if (payload.resource_type === 'social_account' && String(payload.resource_id || '') !== accountId.value) return
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+  realtimeRefreshTimer = window.setTimeout(loadRows, 500)
+}
+
 watch(
   accountId,
   () => {
@@ -81,13 +91,20 @@ watch(
   },
   { immediate: true },
 )
+
+onMounted(() => window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent))
+
+onBeforeUnmount(() => {
+  window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+})
 </script>
 
 <template>
   <div class="account-published-content">
     <div class="account-published-content__header">
       <div>
-        <div class="account-published-content__title">账号发布内容</div>
+        <div class="account-published-content__title">账号内容</div>
         <div class="account-published-content__subtitle">
           当前账号：{{ accountName }}
         </div>
@@ -101,7 +118,7 @@ watch(
       border
       stripe
       table-layout="auto"
-      empty-text="该账号暂无发布内容"
+      empty-text="该账号暂无内容"
     >
       <el-table-column label="ID" width="82" align="center">
         <template #default="{ row }">
