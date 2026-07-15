@@ -751,7 +751,7 @@ export const resources: Record<string, ResourceConfig> = {
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm:
-      "确认删除该账号？删除后会释放设备绑定、分组成员关系、指标快照和任务记录里的账号引用，请谨慎操作。",
+      "确认删除该账号？该账号的发布内容、评论、指标快照、监听记录会一并删除，同时释放设备、分组和任务引用，此操作不可恢复，请谨慎操作。",
   },
 
   accountGroups: {
