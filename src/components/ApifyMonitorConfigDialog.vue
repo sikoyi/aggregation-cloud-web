@@ -120,7 +120,7 @@ watch(
         <span class="config-title__icon"><Settings2 :size="18" /></span>
         <div>
           <strong>Apify 监听配置</strong>
-          <span>服务端帖子监听</span>
+          <span>服务端账号与帖子监听</span>
         </div>
       </div>
     </template>

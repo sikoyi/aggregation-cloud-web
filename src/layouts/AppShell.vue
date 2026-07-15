@@ -113,13 +113,14 @@ async function logout() {
 
 function handleRealtimeEvent(event: Event) {
   const payload = (event as CustomEvent<RealtimeEventPayload>).detail
-  if (payload?.type !== 'content_monitor.abnormal') return
+  if (!['content_monitor.abnormal', 'account_content_monitor.abnormal'].includes(String(payload?.type || ''))) return
   const data = payload.data && typeof payload.data === 'object'
     ? payload.data as Record<string, unknown>
     : {}
+  const isAccountMonitor = payload.type === 'account_content_monitor.abnormal'
   const notification = ElNotification({
-    title: '帖子监听异常',
-    message: String(data.message || '帖子监听连续失败，已自动停止。'),
+    title: isAccountMonitor ? '账号监听异常' : '帖子监听异常',
+    message: String(data.message || '内容监听连续失败，已自动停止。'),
     type: 'error',
     duration: 0,
     onClick: () => {
