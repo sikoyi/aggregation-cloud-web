@@ -47,6 +47,12 @@ const selectedSlotIds = computed(() =>
 const selectedSlotCount = computed(() =>
   selectedSlotIds.value.filter((slotId) => loadedSlotIds.value.has(slotId)).length,
 )
+const filterSignature = computed(() => JSON.stringify({
+  business_platform: String(props.filters?.business_platform || ''),
+  runtime_platform: String(props.filters?.runtime_platform || ''),
+  provider: String(props.filters?.provider || ''),
+}))
+let loadRequestId = 0
 
 function slotNodeId(slotId: string) {
   return `slot:${slotId}`
@@ -100,6 +106,7 @@ function syncCheckedKeys() {
 }
 
 async function loadTree() {
+  const requestId = ++loadRequestId
   loading.value = true
   try {
     const groupParams = queryParams()
@@ -110,6 +117,7 @@ async function loadTree() {
       getAllPages<AnyRecord>('/api/slot-groups', groupParams),
       getAllPages<AnyRecord>('/api/execution-slots', slotParams),
     ])
+    if (requestId !== loadRequestId) return
 
     const eligibleSlotIds = new Set(slots.map((slot) => String(slot.id)))
     const groupedSlotIds = new Set<string>()
@@ -132,6 +140,7 @@ async function loadTree() {
         }
       }),
     )
+    if (requestId !== loadRequestId) return
 
     const ungroupedSlots = slots.filter((slot) => !groupedSlotIds.has(String(slot.id)))
     loadedSlotIds.value = eligibleSlotIds
@@ -156,7 +165,7 @@ async function loadTree() {
     syncCheckedKeys()
     treeRef.value?.filter?.(searchKeyword.value)
   } finally {
-    loading.value = false
+    if (requestId === loadRequestId) loading.value = false
   }
 }
 
@@ -177,9 +186,8 @@ watch(selectedSlotIds, () => nextTick(syncCheckedKeys))
 watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
 
 watch(
-  () => props.filters,
+  filterSignature,
   () => loadTree(),
-  { deep: true },
 )
 </script>
 

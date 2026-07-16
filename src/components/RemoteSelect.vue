@@ -21,6 +21,25 @@ const emit = defineEmits<{
 const loading = ref(false)
 const options = ref<AnyRecord[]>([])
 const suppressNextModelReload = ref(false)
+let loadRequestId = 0
+
+function resolvedEndpoint() {
+  return typeof props.config.endpoint === 'function'
+    ? props.config.endpoint(props.context)
+    : props.config.endpoint
+}
+
+function resolvedBaseParams() {
+  return typeof props.config.params === 'function'
+    ? props.config.params(props.context)
+    : props.config.params || {}
+}
+
+// 表单对象每次输入都会产生新引用，只比较真正影响候选数据的请求参数。
+const requestSignature = computed(() => JSON.stringify({
+  endpoint: resolvedEndpoint(),
+  params: resolvedBaseParams(),
+}))
 
 const selectValue = computed(() => {
   if (props.config.multiple) {
@@ -106,14 +125,11 @@ async function mergeDetailsForCurrentSelection(items: AnyRecord[]) {
 }
 
 async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
+  const requestId = ++loadRequestId
   loading.value = true
   try {
-    const endpoint = typeof props.config.endpoint === 'function'
-      ? props.config.endpoint(props.context)
-      : props.config.endpoint
-    const baseParams = typeof props.config.params === 'function'
-      ? props.config.params(props.context)
-      : props.config.params || {}
+    const endpoint = resolvedEndpoint()
+    const baseParams = resolvedBaseParams()
     const params: AnyRecord = {
       ...baseParams,
       page: 1,
@@ -121,11 +137,13 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
     }
     if (keyword && props.config.searchParam) params[props.config.searchParam] = keyword
     const data = await http.get<PageResult<AnyRecord>>(endpoint, params)
+    if (requestId !== loadRequestId) return
     const matchedItems = props.config.matchesContext
       ? data.items.filter((item) => props.config.matchesContext?.(item, props.context))
       : data.items
     if (behavior.clearMissing && props.config.clearWhenMissing) {
       const items = await mergeDetailsForCurrentSelection(matchedItems)
+      if (requestId !== loadRequestId) return
       const availableItems = props.config.matchesContext
         ? items.filter((item) => props.config.matchesContext?.(item, props.context))
         : items
@@ -142,9 +160,10 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
       }
       return
     }
-    options.value = await mergeSelectedDetails(matchedItems)
+    const mergedItems = await mergeSelectedDetails(matchedItems)
+    if (requestId === loadRequestId) options.value = mergedItems
   } finally {
-    loading.value = false
+    if (requestId === loadRequestId) loading.value = false
   }
 }
 
@@ -171,12 +190,11 @@ watch(
 )
 
 watch(
-  () => props.context,
+  requestSignature,
   () => {
     options.value = []
     loadOptions('', { clearMissing: Boolean(props.config.clearWhenMissing) })
   },
-  { deep: true },
 )
 
 function updateSelected(value: string | string[]) {

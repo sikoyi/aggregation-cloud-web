@@ -46,6 +46,14 @@ const selectedAccountIds = computed(() => {
   if (Array.isArray(props.modelValue)) return props.modelValue.filter(Boolean).map(String)
   return props.modelValue ? [String(props.modelValue)] : []
 })
+const filterSignature = computed(() => JSON.stringify({
+  association_only: Boolean(props.associationOnly),
+  business_platform: String(props.filters?.business_platform || ''),
+  runtime_platform: String(props.filters?.runtime_platform || ''),
+  provider: String(props.filters?.provider || ''),
+  exclude_account_id: String(props.filters?.exclude_account_id || ''),
+}))
+let loadRequestId = 0
 const emptyMessage = computed(() => {
   if (props.associationOnly) {
     return loggedInCount.value === 0 ? '当前业务 App 暂无可关联账号' : ''
@@ -141,12 +149,14 @@ function emitSelection(accountIds: string[]) {
 }
 
 async function loadTree() {
+  const requestId = ++loadRequestId
   loading.value = true
   try {
     const [groups, accounts] = await Promise.all([
       getAllPages<AnyRecord>('/api/account-groups', queryParams()),
       getAllPages<AnyRecord>('/api/accounts', queryParams()),
     ])
+    if (requestId !== loadRequestId) return
 
     const eligibleAccountIds = new Set(accounts.map((account) => String(account.id)))
     const groupedAccountIds = new Set<string>()
@@ -177,6 +187,7 @@ async function loadTree() {
         }
       }),
     )
+    if (requestId !== loadRequestId) return
 
     const ungroupedAccounts = accounts.filter((account) => {
       if (groupedAccountIds.has(String(account.id))) return false
@@ -209,7 +220,7 @@ async function loadTree() {
       emitSelection(nextSelected)
     }
   } finally {
-    loading.value = false
+    if (requestId === loadRequestId) loading.value = false
   }
 }
 
@@ -238,9 +249,8 @@ watch(selectedAccountIds, () => nextTick(syncCheckedKeys))
 watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
 
 watch(
-  () => props.filters,
+  filterSignature,
   () => loadTree(),
-  { deep: true },
 )
 </script>
 
