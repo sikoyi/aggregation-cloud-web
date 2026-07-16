@@ -231,10 +231,22 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     ai_language,
     ai_tone,
     ai_max_length,
+    target_source_type,
     ...sessionPayload
   } = payload;
+  const sourceType = String(target_source_type || "system_content");
+  const targetContentId = String(sessionPayload.target_content_id || "").trim();
+  const targetContentUrl = String(sessionPayload.target_content_url || "").trim();
+  if (sourceType === "direct_url" && !targetContentUrl) {
+    throw new Error("请填写目标帖子链接");
+  }
+  if (sourceType === "system_content" && !targetContentId) {
+    throw new Error("请选择目标内容");
+  }
   return {
     ...sessionPayload,
+    target_content_id: sourceType === "system_content" ? targetContentId : null,
+    target_content_url: sourceType === "direct_url" ? targetContentUrl : null,
     ai_config: {
       provider: String(ai_provider || "gemini"),
       language: String(ai_language || "auto"),
@@ -1685,12 +1697,28 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "adspower",
       },
       {
+        key: "target_source_type",
+        label: "目标来源",
+        type: "select",
+        defaultValue: "system_content",
+        options: [
+          { label: "系统已发布内容", value: "system_content" },
+          { label: "直接填写帖子链接", value: "direct_url" },
+        ],
+      },
+      {
         key: "target_content_id",
         label: "目标内容",
         type: "remoteSelect",
         remote: interactionTargetContentRemoteSelect,
-        required: true,
+        disabledWhen: { key: "target_source_type", value: "direct_url" },
         placeholder: "从主号已发布内容中选择目标帖子",
+      },
+      {
+        key: "target_content_url",
+        label: "目标帖子链接",
+        disabledWhen: { key: "target_source_type", value: "system_content" },
+        placeholder: "填写运营指定的帖子完整链接",
       },
       { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
       {
