@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ElMessage, type UploadFile } from 'element-plus'
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
-import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
-import ScriptParamEditor from '@/components/ScriptParamEditor.vue'
-import SlotTreeSelect from '@/components/SlotTreeSelect.vue'
-import TemplateParamsEditor from '@/components/TemplateParamsEditor.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
+
+const AccountTreeSelect = defineAsyncComponent(() => import('@/components/AccountTreeSelect.vue'))
+const ScriptParamEditor = defineAsyncComponent(() => import('@/components/ScriptParamEditor.vue'))
+const SlotTreeSelect = defineAsyncComponent(() => import('@/components/SlotTreeSelect.vue'))
+const TemplateParamsEditor = defineAsyncComponent(() => import('@/components/TemplateParamsEditor.vue'))
 
 const props = defineProps<{
   fields: FieldConfig[]

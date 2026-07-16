@@ -19,28 +19,30 @@ import {
   Users,
 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
-import AccountGroupMemberEditor from '@/components/AccountGroupMemberEditor.vue'
 import AccountTableCell from '@/components/AccountTableCell.vue'
-import ActionResultDialog from '@/components/ActionResultDialog.vue'
-import ContentGroupMemberEditor from '@/components/ContentGroupMemberEditor.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
-import InteractionSessionDetailDialog from '@/components/InteractionSessionDetailDialog.vue'
-import ProxyGroupMemberEditor from '@/components/ProxyGroupMemberEditor.vue'
-import PublishedContentDetailDialog from '@/components/PublishedContentDetailDialog.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
-import SlotGroupMemberEditor from '@/components/SlotGroupMemberEditor.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
 import { formatCell, getCellValue, truncateId } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
+
+const AccountGroupMemberEditor = defineAsyncComponent(() => import('@/components/AccountGroupMemberEditor.vue'))
+const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
+const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
+const ContentGroupMemberEditor = defineAsyncComponent(() => import('@/components/ContentGroupMemberEditor.vue'))
+const InteractionSessionDetailDialog = defineAsyncComponent(() => import('@/components/InteractionSessionDetailDialog.vue'))
+const ProxyGroupMemberEditor = defineAsyncComponent(() => import('@/components/ProxyGroupMemberEditor.vue'))
+const PublishedContentDetailDialog = defineAsyncComponent(() => import('@/components/PublishedContentDetailDialog.vue'))
+const SlotGroupMemberEditor = defineAsyncComponent(() => import('@/components/SlotGroupMemberEditor.vue'))
+const TaskDetailDrawer = defineAsyncComponent(() => import('@/components/TaskDetailDrawer.vue'))
 
 const props = defineProps<{
   config: ResourceConfig
@@ -135,21 +137,11 @@ const modalWidth = computed(() => {
   ) return '1180px'
   return '760px'
 })
-const taskDispatchDeviceFields = computed(() => modalFields.value.filter((field) => field.type === 'slotTree'))
-const taskDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'slotTree'))
-const publishedDispatchAccountFields = computed(() => modalFields.value.filter((field) => field.type === 'accountTree'))
-const publishedDispatchConfigFields = computed(() => modalFields.value.filter((field) => field.type !== 'accountTree'))
-const interactionMainFields = computed(() => {
-  const keys = new Set(['main_account_id'])
-  return modalFields.value.filter((field) => keys.has(field.key))
-})
-const interactionCommentFields = computed(() => {
-  const keys = new Set(['comment_account_ids'])
-  return modalFields.value.filter((field) => keys.has(field.key))
-})
-const interactionParamFields = computed(() => {
-  const keys = new Set(['title', 'business_platform', 'step_count', 'runtime_platform', 'provider', 'target_content_id', 'scheduled_at', 'ai_provider', 'ai_language', 'ai_tone', 'ai_max_length'])
-  return modalFields.value.filter((field) => keys.has(field.key))
+const dispatchFormMode = computed<'task' | 'published' | 'interaction' | null>(() => {
+  if (isTaskDispatchModal.value) return 'task'
+  if (isPublishedContentDispatchModal.value) return 'published'
+  if (isInteractionSessionCreateModal.value) return 'interaction'
+  return null
 })
 const showModalSaveButton = computed(() => {
   if (modal.type !== 'edit') return true
@@ -1218,40 +1210,13 @@ onBeforeUnmount(() => {
       append-to-body
       @close="closeModal"
     >
-      <div v-if="isTaskDispatchModal" class="task-dispatch-layout">
-        <div class="task-dispatch-layout__devices">
-          <div class="edit-panel-title">设备组 / 设备</div>
-          <DynamicForm v-model="formState" :fields="taskDispatchDeviceFields" :context="modal.record || undefined" />
-        </div>
-        <div class="task-dispatch-layout__params">
-          <div class="edit-panel-title">任务参数</div>
-          <DynamicForm v-model="formState" :fields="taskDispatchConfigFields" :context="modal.record || undefined" />
-        </div>
-      </div>
-      <div v-else-if="isPublishedContentDispatchModal" class="task-dispatch-layout task-dispatch-layout--published">
-        <div class="task-dispatch-layout__devices">
-          <div class="edit-panel-title">账号分组 / 已登录账号</div>
-          <DynamicForm v-model="formState" :fields="publishedDispatchAccountFields" :context="modal.record || undefined" />
-        </div>
-        <div class="task-dispatch-layout__params">
-          <div class="edit-panel-title">发布配置</div>
-          <DynamicForm v-model="formState" :fields="publishedDispatchConfigFields" :context="modal.record || undefined" />
-        </div>
-      </div>
-      <div v-else-if="isInteractionSessionCreateModal" class="interaction-session-create-layout">
-        <div class="interaction-session-create-layout__panel interaction-session-create-layout__panel--account">
-          <div class="edit-panel-title">主号</div>
-          <DynamicForm v-model="formState" :fields="interactionMainFields" :context="modal.record || undefined" />
-        </div>
-        <div class="interaction-session-create-layout__panel interaction-session-create-layout__panel--account">
-          <div class="edit-panel-title">评论账号</div>
-          <DynamicForm v-model="formState" :fields="interactionCommentFields" :context="modal.record || undefined" />
-        </div>
-        <div class="interaction-session-create-layout__panel interaction-session-create-layout__panel--params">
-          <div class="edit-panel-title">参数填写</div>
-          <DynamicForm v-model="formState" :fields="interactionParamFields" :context="modal.record || undefined" />
-        </div>
-      </div>
+      <BusinessDispatchForm
+        v-if="dispatchFormMode"
+        v-model="formState"
+        :mode="dispatchFormMode"
+        :fields="modalFields"
+        :context="modal.record || undefined"
+      />
       <div
         v-else-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"
         class="account-group-edit-layout"
@@ -1564,70 +1529,12 @@ onBeforeUnmount(() => {
   align-items: start;
 }
 
-.task-dispatch-layout {
-  display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(620px, 1fr);
-  gap: 18px;
-  align-items: start;
-}
-
-.task-dispatch-layout--published {
-  grid-template-columns: minmax(240px, 300px) minmax(660px, 1fr);
-  gap: 14px;
-}
-
-.task-dispatch-layout__devices,
-.task-dispatch-layout__params,
 .slot-group-edit-tabs__panel {
   min-width: 0;
   padding: 14px;
   border: 1px solid #e6edf3;
   border-radius: 8px;
   background: #fbfdff;
-}
-
-.task-dispatch-layout__devices :deep(.el-col) {
-  max-width: 100%;
-  flex: 0 0 100%;
-}
-
-.task-dispatch-layout__devices :deep(.slot-tree-select) {
-  min-height: 480px;
-  max-height: 58vh;
-}
-
-.task-dispatch-layout--published .task-dispatch-layout__devices {
-  padding: 12px;
-}
-
-.task-dispatch-layout--published :deep(.account-tree-select) {
-  min-height: 240px;
-  max-height: 44vh;
-}
-
-.interaction-session-create-layout {
-  display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(260px, 340px) minmax(560px, 1fr);
-  gap: 14px;
-  align-items: start;
-}
-
-.interaction-session-create-layout__panel {
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid #e6edf3;
-  border-radius: 8px;
-  background: #fbfdff;
-}
-
-.interaction-session-create-layout__panel--account :deep(.el-col) {
-  max-width: 100%;
-  flex: 0 0 100%;
-}
-
-.interaction-session-create-layout__panel :deep(.account-tree-select) {
-  min-height: 430px;
-  max-height: 58vh;
 }
 
 .slot-group-edit-tabs :deep(.el-tabs__header) {
@@ -1747,14 +1654,6 @@ onBeforeUnmount(() => {
   }
 
   .account-group-edit-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .task-dispatch-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .interaction-session-create-layout {
     grid-template-columns: 1fr;
   }
 

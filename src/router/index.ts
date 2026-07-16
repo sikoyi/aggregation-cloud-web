@@ -1,17 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import AppShell from '@/layouts/AppShell.vue'
 import { useAuthStore } from '@/stores/auth'
-import AccountCenterView from '@/views/AccountCenterView.vue'
-import AccountDataView from '@/views/AccountDataView.vue'
-import ContentCenterView from '@/views/ContentCenterView.vue'
-import DashboardView from '@/views/DashboardView.vue'
-import DeviceCenterView from '@/views/DeviceCenterView.vue'
-import LoginView from '@/views/LoginView.vue'
-import ProxyCenterView from '@/views/ProxyCenterView.vue'
-import ReportView from '@/views/ReportView.vue'
-import ResourceView from '@/views/ResourceView.vue'
-import SystemSettingsView from '@/views/SystemSettingsView.vue'
+
+const AppShell = () => import('@/layouts/AppShell.vue')
+const AccountCenterView = () => import('@/views/AccountCenterView.vue')
+const AccountDataView = () => import('@/views/AccountDataView.vue')
+const ContentCenterView = () => import('@/views/ContentCenterView.vue')
+const DashboardView = () => import('@/views/DashboardView.vue')
+const DeviceCenterView = () => import('@/views/DeviceCenterView.vue')
+const LoginView = () => import('@/views/LoginView.vue')
+const ProxyCenterView = () => import('@/views/ProxyCenterView.vue')
+const ReportView = () => import('@/views/ReportView.vue')
+const ResourceView = () => import('@/views/ResourceView.vue')
+const SystemSettingsView = () => import('@/views/SystemSettingsView.vue')
 
 export const router = createRouter({
   history: createWebHistory(),
