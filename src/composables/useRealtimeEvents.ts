@@ -14,12 +14,11 @@ export interface RealtimeEventPayload {
   data?: unknown
 }
 
-let source: EventSource | null = null
+let controller: AbortController | null = null
 let currentToken = ''
 
-function buildStreamUrl(token: string) {
+function buildStreamUrl() {
   const url = new URL('/api/events/stream', http.apiBaseUrl)
-  url.searchParams.set('token', token)
   url.searchParams.set('topics', 'task,runtime,conversation,content_monitor')
   return url.toString()
 }
@@ -28,9 +27,74 @@ function emitRealtimeEvent(payload: RealtimeEventPayload) {
   window.dispatchEvent(new CustomEvent<RealtimeEventPayload>(REALTIME_EVENT_NAME, { detail: payload }))
 }
 
-function parseSseMessage(event: MessageEvent<string>) {
-  const wrapper = JSON.parse(event.data) as ApiResponse<RealtimeEventPayload>
+function parseSseData(data: string) {
+  const wrapper = JSON.parse(data) as ApiResponse<RealtimeEventPayload>
   if (wrapper?.code === 0 && wrapper.data) emitRealtimeEvent(wrapper.data)
+}
+
+function consumeEventBlock(block: string) {
+  const lines = block.split(/\r?\n/)
+  const eventName = lines
+    .find((line) => line.startsWith('event:'))
+    ?.slice('event:'.length)
+    .trim()
+  if (eventName !== 'realtime') return
+
+  const data = lines
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice('data:'.length).trimStart())
+    .join('\n')
+  if (!data) return
+
+  try {
+    parseSseData(data)
+  } catch {
+    // 单条事件解析失败不影响后续实时消息。
+  }
+}
+
+async function waitBeforeReconnect(signal: AbortSignal) {
+  await new Promise<void>((resolve) => {
+    const timer = window.setTimeout(resolve, 3000)
+    signal.addEventListener('abort', () => {
+      window.clearTimeout(timer)
+      resolve()
+    }, { once: true })
+  })
+}
+
+async function runStream(token: string, signal: AbortSignal) {
+  while (!signal.aborted && currentToken === token) {
+    try {
+      const response = await fetch(buildStreamUrl(), {
+        headers: {
+          Accept: 'text/event-stream',
+          Authorization: `Bearer ${token}`,
+        },
+        signal,
+      })
+      if (response.status === 401) return
+      if (!response.ok || !response.body) throw new Error(`SSE connection failed: ${response.status}`)
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (!signal.aborted) {
+        const { done, value } = await reader.read()
+        buffer += decoder.decode(value, { stream: !done })
+        const blocks = buffer.split(/\r?\n\r?\n/)
+        buffer = blocks.pop() || ''
+        blocks.forEach(consumeEventBlock)
+        if (done) break
+      }
+    } catch {
+      if (signal.aborted) return
+    }
+
+    if (!signal.aborted && currentToken === token) {
+      await waitBeforeReconnect(signal)
+    }
+  }
 }
 
 export function useRealtimeEvents() {
@@ -38,25 +102,16 @@ export function useRealtimeEvents() {
 
   function connect() {
     if (!auth.token) return
-    if (source && currentToken === auth.token) return
+    if (controller && currentToken === auth.token) return
     disconnect()
     currentToken = auth.token
-    source = new EventSource(buildStreamUrl(auth.token))
-    source.addEventListener('realtime', (event) => {
-      try {
-        parseSseMessage(event as MessageEvent<string>)
-      } catch {
-        // 单条实时事件解析失败不影响长连接，下一条事件继续处理。
-      }
-    })
-    source.onerror = () => {
-      if (!auth.token) disconnect()
-    }
+    controller = new AbortController()
+    void runStream(auth.token, controller.signal)
   }
 
   function disconnect() {
-    if (source) source.close()
-    source = null
+    controller?.abort()
+    controller = null
     currentToken = ''
   }
 

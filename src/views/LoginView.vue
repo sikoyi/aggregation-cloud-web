@@ -3,7 +3,6 @@ import { LockKeyhole, ServerCog } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { notifyError } from '@/utils/notify'
 
@@ -11,8 +10,8 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const username = ref('admin')
-const password = ref('admin123456')
+const username = ref('')
+const password = ref('')
 
 async function submit() {
   try {
@@ -31,7 +30,7 @@ async function submit() {
         <ServerCog class="h-8 w-8 text-brand-600" />
         <div>
           <div class="text-lg font-semibold text-ink">Aggregation Cloud</div>
-          <div class="text-sm text-slate-500">{{ http.apiBaseUrl }}</div>
+          <div class="text-sm text-slate-500">统一运营控制台</div>
         </div>
       </div>
       <div class="max-w-lg space-y-4">

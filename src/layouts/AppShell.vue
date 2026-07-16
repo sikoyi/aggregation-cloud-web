@@ -187,7 +187,7 @@ watch(
             <Gauge class="h-5 w-5 text-brand-600" />
             <span class="truncate text-sm font-semibold text-ink">社媒聚合云控系统</span>
           </div>
-          <div class="hidden text-sm text-slate-500 lg:block">后端 API：127.0.0.1:8000</div>
+          <div class="hidden text-sm text-slate-500 lg:block">运营管理工作台</div>
           <div class="flex items-center gap-3">
             <el-avatar :size="28">{{ userInitial }}</el-avatar>
             <span class="max-w-40 truncate text-sm text-slate-600">{{ auth.displayName }}</span>
