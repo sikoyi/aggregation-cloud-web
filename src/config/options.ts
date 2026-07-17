@@ -4,10 +4,6 @@ export const businessPlatformOptions: SelectOption[] = [
   { label: 'Threads', value: 'threads' },
   { label: 'X', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
-  { label: 'Facebook', value: 'facebook' },
-  { label: 'TikTok', value: 'tiktok' },
-  { label: 'YouTube', value: 'youtube' },
-  { label: '其他', value: 'other' },
 ]
 
 const accountCountryNames = [
@@ -389,12 +385,8 @@ export const runtimePlatformOptions: SelectOption[] = [
 ]
 
 export const providerOptions: SelectOption[] = [
-  { label: 'AdsPower', value: 'adspower' },
-  { label: 'BitBrowser', value: 'bitbrowser' },
-  { label: 'Dolphin Anty', value: 'dolphin' },
   { label: 'MoreLogin', value: 'morelogin' },
-  { label: '云手机供应商', value: 'cloud_phone_provider' },
-  { label: '自定义', value: 'custom' },
+  { label: 'AdsPower', value: 'adspower' },
 ]
 
 export const executionModeOptions: SelectOption[] = [

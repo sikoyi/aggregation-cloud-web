@@ -77,6 +77,15 @@ function isFieldRequired(field: FieldConfig) {
   return values.includes(current)
 }
 
+function isVisibleByRule(field: FieldConfig) {
+  if (!field.visibleWhen) return true
+  const current = String(props.modelValue[field.visibleWhen.key] ?? '')
+  const values = Array.isArray(field.visibleWhen.value)
+    ? field.visibleWhen.value.map(String)
+    : [String(field.visibleWhen.value)]
+  return values.includes(current)
+}
+
 function isFieldDisabled(field: FieldConfig) {
   return Boolean(
     field.readonly
@@ -203,7 +212,7 @@ function updateSelectValue(field: FieldConfig, value: string | string[]) {
   )
 }
 
-const visibleFields = computed(() => props.fields.filter((field) => !field.hidden))
+const visibleFields = computed(() => props.fields.filter((field) => !field.hidden && isVisibleByRule(field)))
 const fieldContext = computed(() => ({
   ...(props.context || {}),
   ...props.modelValue,
@@ -359,7 +368,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             collapse-tags-tooltip
             filterable
             class="w-full"
-            placeholder="请选择"
+            :placeholder="field.placeholder || '请选择'"
             @update:model-value="updateSelectValue(field, $event)"
           >
             <el-option
@@ -369,6 +378,15 @@ watch(() => props.modelValue.execution_mode, (mode) => {
               :value="String(option.value)"
             />
           </el-select>
+
+          <el-segmented
+            v-else-if="field.type === 'segmented'"
+            :model-value="String(modelValue[field.key] ?? '')"
+            :disabled="isFieldDisabled(field)"
+            :options="fieldOptions(field).map((option) => ({ label: option.label, value: String(option.value) }))"
+            class="w-full"
+            @update:model-value="updateValue(field.key, $event)"
+          />
 
           <el-switch
             v-else-if="field.type === 'boolean'"

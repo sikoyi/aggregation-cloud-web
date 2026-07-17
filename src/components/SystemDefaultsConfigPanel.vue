@@ -3,6 +3,7 @@ import { Save } from 'lucide-vue-next'
 import { ElNotification } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 
+import { getEnabledAiProviderOptions, resolveEnabledAiProvider, type EnabledAiProviderOption } from '@/api/interactionAi'
 import { cacheSystemDefaults, getSystemDefaults } from '@/api/systemSettings'
 import { http } from '@/api/http'
 import {
@@ -13,11 +14,7 @@ import {
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
-const aiProviderOptions = [
-  { label: 'Gemini', value: 'gemini' },
-  { label: 'GPT / OpenAI', value: 'openai' },
-  { label: 'Claude', value: 'claude' },
-]
+const aiProviderOptions = ref<EnabledAiProviderOption[]>([])
 
 const loading = ref(false)
 const saving = ref(false)
@@ -25,15 +22,20 @@ const updatedAt = ref('')
 const form = reactive({
   default_business_platform: 'threads',
   default_runtime_platform: 'fingerprint_browser',
-  default_provider: 'adspower',
+  default_provider: 'morelogin',
   default_ai_provider: 'gemini',
 })
 
 async function loadConfig() {
   loading.value = true
   try {
-    const data = await getSystemDefaults(true)
+    const [data, enabledAiOptions] = await Promise.all([
+      getSystemDefaults(true),
+      getEnabledAiProviderOptions(true),
+    ])
+    aiProviderOptions.value = enabledAiOptions
     Object.assign(form, data)
+    form.default_ai_provider = resolveEnabledAiProvider(data.default_ai_provider, enabledAiOptions)
     updatedAt.value = String(data.updated_at || '')
   } catch (err) {
     notifyError(err, '加载失败', '加载系统默认选项失败')
@@ -43,6 +45,10 @@ async function loadConfig() {
 }
 
 async function saveConfig() {
+  if (!form.default_ai_provider) {
+    ElNotification.warning({ title: '无法保存', message: '请先在互动 AI 中至少启用一个模型供应商' })
+    return
+  }
   saving.value = true
   try {
     const data = await http.put('/api/system-settings/defaults', { ...form })
@@ -62,6 +68,7 @@ async function saveConfig() {
 }
 
 onMounted(loadConfig)
+defineExpose({ loadConfig })
 </script>
 
 <template>
@@ -92,9 +99,10 @@ onMounted(loadConfig)
           </el-select>
         </el-form-item>
         <el-form-item label="默认 AI 供应商" required>
-          <el-select v-model="form.default_ai_provider" class="w-full">
+          <el-select v-if="aiProviderOptions.length" v-model="form.default_ai_provider" class="w-full">
             <el-option v-for="item in aiProviderOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
+          <el-input v-else disabled placeholder="暂无已启用的互动 AI" />
         </el-form-item>
       </div>
     </el-form>

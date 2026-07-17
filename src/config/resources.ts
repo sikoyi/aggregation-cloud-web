@@ -237,18 +237,22 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   const sourceType = String(target_source_type || "system_content");
   const targetContentId = String(sessionPayload.target_content_id || "").trim();
   const targetContentUrl = String(sessionPayload.target_content_url || "").trim();
+  const aiProvider = String(ai_provider || "").trim();
   if (sourceType === "direct_url" && !targetContentUrl) {
     throw new Error("请填写目标帖子链接");
   }
   if (sourceType === "system_content" && !targetContentId) {
     throw new Error("请选择目标内容");
   }
+  if (!aiProvider) {
+    throw new Error("暂无已启用的互动 AI，请先到系统配置中启用");
+  }
   return {
     ...sessionPayload,
     target_content_id: sourceType === "system_content" ? targetContentId : null,
     target_content_url: sourceType === "direct_url" ? targetContentUrl : null,
     ai_config: {
-      provider: String(ai_provider || "gemini"),
+      provider: aiProvider,
       language: String(ai_language || "auto"),
       tone: String(ai_tone || "natural"),
       max_length: Number(ai_max_length || 120),
@@ -1719,15 +1723,16 @@ export const resources: Record<string, ResourceConfig> = {
         label: "供应商",
         type: "select",
         options: providerOptions,
-        defaultValue: "adspower",
+        defaultValue: "morelogin",
         required: true,
       },
       {
         key: "target_source_type",
-        label: "目标来源",
-        type: "select",
+        label: "目标选择方式",
+        type: "segmented",
         defaultValue: "system_content",
         required: true,
+        span: 2,
         options: [
           { label: "系统已发布内容", value: "system_content" },
           { label: "直接填写帖子链接", value: "direct_url" },
@@ -1738,29 +1743,27 @@ export const resources: Record<string, ResourceConfig> = {
         label: "目标内容",
         type: "remoteSelect",
         remote: interactionTargetContentRemoteSelect,
-        disabledWhen: { key: "target_source_type", value: "direct_url" },
+        visibleWhen: { key: "target_source_type", value: "system_content" },
         requiredWhen: { key: "target_source_type", value: "system_content" },
+        span: 2,
         placeholder: "从主号已发布内容中选择目标帖子",
       },
       {
         key: "target_content_url",
         label: "目标帖子链接",
-        disabledWhen: { key: "target_source_type", value: "system_content" },
+        visibleWhen: { key: "target_source_type", value: "direct_url" },
         requiredWhen: { key: "target_source_type", value: "direct_url" },
+        span: 2,
         placeholder: "填写运营指定的帖子完整链接",
       },
-      { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true },
       {
         key: "ai_provider",
         label: "AI 供应商",
         type: "select",
-        defaultValue: "gemini",
+        defaultValue: "",
         required: true,
-        options: [
-          { label: "Gemini", value: "gemini" },
-          { label: "GPT / OpenAI", value: "openai" },
-          { label: "Claude", value: "claude" },
-        ],
+        options: [],
+        placeholder: "仅展示系统配置中已启用的 AI",
       },
       {
         key: "ai_language",

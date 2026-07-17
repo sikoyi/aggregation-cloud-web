@@ -22,6 +22,7 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import { getEnabledAiProviderOptions, resolveEnabledAiProvider } from '@/api/interactionAi'
 import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import AccountTableCell from '@/components/AccountTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
@@ -544,6 +545,19 @@ async function openCreate() {
     defaults = await getSystemDefaults()
   } catch {
     // 配置接口异常时仍允许打开表单，回退值与后端默认值保持一致。
+  }
+  if (props.config.key === 'interactionSessions') {
+    try {
+      const aiOptions = await getEnabledAiProviderOptions(true)
+      const aiField = (props.config.createFields || []).find((field) => field.key === 'ai_provider')
+      if (aiField) aiField.options = aiOptions
+      defaults = {
+        ...defaults,
+        default_ai_provider: resolveEnabledAiProvider(defaults.default_ai_provider, aiOptions),
+      }
+    } catch (err) {
+      notifyError(err, '加载失败', '加载已启用的互动 AI 失败')
+    }
   }
   formState.value = applySystemDefaults(
     buildFormState(props.config.createFields || []),

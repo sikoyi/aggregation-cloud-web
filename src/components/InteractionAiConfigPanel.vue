@@ -4,12 +4,15 @@ import { ElNotification } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import { invalidateEnabledAiProviderOptions } from '@/api/interactionAi'
 import { getSystemDefaults } from '@/api/systemSettings'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
 type AiProvider = 'gemini' | 'openai' | 'claude'
+
+const emit = defineEmits<{ 'config-saved': [] }>()
 
 const providerSpecs = {
   gemini: {
@@ -145,6 +148,8 @@ async function saveConfig() {
     form.api_key = String(data.api_key || form.api_key)
     keyConfigured.value = Boolean(form.api_key || data.key_configured)
     updatedAt.value = String(data.updated_at || '')
+    invalidateEnabledAiProviderOptions()
+    emit('config-saved')
     ElNotification.success({ title: '保存成功', message: `${providerSpec.value.label} 配置已更新` })
   } catch (err) {
     notifyError(err, '保存失败', `${providerSpec.value.label} 配置保存失败`)

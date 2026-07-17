@@ -9,6 +9,7 @@ export type FieldType =
   | 'file'
   | 'number'
   | 'select'
+  | 'segmented'
   | 'json'
   | 'tags'
   | 'boolean'
@@ -85,6 +86,7 @@ export interface FieldConfig {
   scriptScopeKey?: string
   disabledWhen?: { key: string; value: string | string[] }
   requiredWhen?: { key: string; value: string | string[] }
+  visibleWhen?: { key: string; value: string | string[] }
   allowEmpty?: boolean
 }
 

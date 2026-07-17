@@ -11,7 +11,7 @@ export interface SystemDefaults {
 export const FALLBACK_SYSTEM_DEFAULTS: SystemDefaults = {
   default_business_platform: 'threads',
   default_runtime_platform: 'fingerprint_browser',
-  default_provider: 'adspower',
+  default_provider: 'morelogin',
   default_ai_provider: 'gemini',
 }
 

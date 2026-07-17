@@ -7,6 +7,11 @@ import InteractionAiConfigPanel from '@/components/InteractionAiConfigPanel.vue'
 import SystemDefaultsConfigPanel from '@/components/SystemDefaultsConfigPanel.vue'
 
 const activeTab = ref('defaults')
+const defaultsPanel = ref<{ loadConfig: () => Promise<void> } | null>(null)
+
+function refreshDefaults() {
+  void defaultsPanel.value?.loadConfig()
+}
 </script>
 
 <template>
@@ -25,7 +30,7 @@ const activeTab = ref('defaults')
       <el-tabs v-model="activeTab" class="system-settings__tabs">
         <el-tab-pane name="defaults" lazy>
           <template #label><span class="tab-label"><SlidersHorizontal :size="16" />默认选项</span></template>
-          <SystemDefaultsConfigPanel />
+          <SystemDefaultsConfigPanel ref="defaultsPanel" />
         </el-tab-pane>
         <el-tab-pane name="monitor" lazy>
           <template #label><span class="tab-label"><Radar :size="16" />内容监听</span></template>
@@ -33,7 +38,7 @@ const activeTab = ref('defaults')
         </el-tab-pane>
         <el-tab-pane name="ai" lazy>
           <template #label><span class="tab-label"><Bot :size="16" />互动 AI</span></template>
-          <InteractionAiConfigPanel />
+          <InteractionAiConfigPanel @config-saved="refreshDefaults" />
         </el-tab-pane>
       </el-tabs>
     </el-card>
