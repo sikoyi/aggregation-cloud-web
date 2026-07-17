@@ -205,7 +205,10 @@ watch(provider, () => {
           <template #label>
             <div class="secret-label">
               <span>{{ providerSpec.apiKeyLabel }}</span>
-              <el-tag v-if="keyConfigured" size="small" type="success" effect="light"><CheckCircle2 :size="13" />已配置</el-tag>
+              <el-tag v-if="keyConfigured" class="configured-tag" size="small" type="success" effect="light">
+                <CheckCircle2 :size="13" />
+                <span>已配置</span>
+              </el-tag>
             </div>
           </template>
           <el-input v-model="form.api_key" type="password" show-password autocomplete="new-password" :placeholder="providerSpec.placeholder" />
@@ -248,7 +251,9 @@ watch(provider, () => {
 .config-grid__full { grid-column: 1 / -1; }
 .enabled-field { min-height: 32px; gap: 9px; color: #526273; font-size: 13px; }
 .secret-label { width: 100%; gap: 8px; }
-.secret-label :deep(.el-tag) { display: inline-flex; align-items: center; gap: 4px; }
+.configured-tag { flex: 0 0 auto; white-space: nowrap; }
+.configured-tag :deep(.el-tag__content) { display: inline-flex; align-items: center; gap: 4px; line-height: 1; white-space: nowrap; }
+.configured-tag :deep(svg) { display: block; flex: 0 0 auto; }
 .config-panel__footer { justify-content: space-between; gap: 16px; padding-top: 14px; border-top: 1px solid #e5ebf1; color: #8793a3; font-size: 12px; }
 @media (max-width: 720px) {
   .config-grid { grid-template-columns: 1fr; }
