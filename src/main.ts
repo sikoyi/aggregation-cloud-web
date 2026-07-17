@@ -1,6 +1,9 @@
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import { ElMessage } from 'element-plus'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/message-box/style/css'
+import 'element-plus/es/components/notification/style/css'
 
 import App from './App.vue'
 import { setUnauthorizedHandler } from './api/http'

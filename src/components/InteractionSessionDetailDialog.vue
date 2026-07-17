@@ -177,6 +177,8 @@ onBeforeUnmount(() => {
           </el-descriptions-item>
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
+          <el-descriptions-item label="评论间隔">{{ text(session.step_interval_minutes) }} 分钟</el-descriptions-item>
+          <el-descriptions-item label="随机点赞概率">{{ text(session.like_probability) }}%</el-descriptions-item>
           <el-descriptions-item label="AI 供应商">
             <el-tag size="small" type="primary" effect="light">
               {{ aiProviderLabel(aiProvider) }}

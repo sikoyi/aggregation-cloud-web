@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { Bot, Radar, Settings } from 'lucide-vue-next'
+import { Bot, Radar, Settings, SlidersHorizontal } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 import ApifyMonitorConfigPanel from '@/components/ApifyMonitorConfigPanel.vue'
 import InteractionAiConfigPanel from '@/components/InteractionAiConfigPanel.vue'
+import SystemDefaultsConfigPanel from '@/components/SystemDefaultsConfigPanel.vue'
 
-const activeTab = ref('monitor')
+const activeTab = ref('defaults')
 </script>
 
 <template>
@@ -16,12 +17,16 @@ const activeTab = ref('monitor')
           <div class="system-settings__icon"><Settings :size="20" /></div>
           <div>
             <h1>系统配置</h1>
-            <p>集中维护服务端采集能力和 AI 模型供应商。</p>
+            <p>集中维护业务默认选项、服务端采集能力和 AI 模型供应商。</p>
           </div>
         </div>
       </div>
 
       <el-tabs v-model="activeTab" class="system-settings__tabs">
+        <el-tab-pane name="defaults" lazy>
+          <template #label><span class="tab-label"><SlidersHorizontal :size="16" />默认选项</span></template>
+          <SystemDefaultsConfigPanel />
+        </el-tab-pane>
         <el-tab-pane name="monitor" lazy>
           <template #label><span class="tab-label"><Radar :size="16" />内容监听</span></template>
           <ApifyMonitorConfigPanel />

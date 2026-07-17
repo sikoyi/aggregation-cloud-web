@@ -4,6 +4,7 @@ import { ElNotification } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import { getSystemDefaults } from '@/api/systemSettings'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -67,6 +68,7 @@ const saving = ref(false)
 const testingModel = ref('')
 const keyConfigured = ref(false)
 const updatedAt = ref('')
+const initialized = ref(false)
 const form = reactive({
   api_key: '',
   base_url: providerSpecs.gemini.baseUrl as string,
@@ -151,8 +153,21 @@ async function saveConfig() {
   }
 }
 
-onMounted(loadConfig)
-watch(provider, loadConfig)
+onMounted(async () => {
+  try {
+    const defaults = await getSystemDefaults()
+    if (defaults.default_ai_provider in providerSpecs) {
+      provider.value = defaults.default_ai_provider as AiProvider
+    }
+  } catch {
+    // 默认配置加载失败时继续使用 Gemini，不影响模型配置本身。
+  }
+  initialized.value = true
+  await loadConfig()
+})
+watch(provider, () => {
+  if (initialized.value) void loadConfig()
+})
 </script>
 
 <template>

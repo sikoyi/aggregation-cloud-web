@@ -22,6 +22,7 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import AccountTableCell from '@/components/AccountTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -511,12 +512,43 @@ function resetFilters() {
   loadRows()
 }
 
-function openCreate() {
+function applySystemDefaults(state: AnyRecord, defaults: SystemDefaults) {
+  const scalarDefaults: Record<string, string> = {
+    business_platform: defaults.default_business_platform,
+    runtime_platform: defaults.default_runtime_platform,
+    provider: defaults.default_provider,
+    ai_provider: defaults.default_ai_provider,
+  }
+  Object.entries(scalarDefaults).forEach(([key, value]) => {
+    if (Object.prototype.hasOwnProperty.call(state, key)) state[key] = value
+  })
+
+  const listDefaults: Record<string, string[]> = {
+    supported_business_platforms: [defaults.default_business_platform],
+    supported_runtime_platforms: [defaults.default_runtime_platform],
+    supported_providers: [defaults.default_provider],
+  }
+  Object.entries(listDefaults).forEach(([key, value]) => {
+    if (Object.prototype.hasOwnProperty.call(state, key)) state[key] = value
+  })
+  return state
+}
+
+async function openCreate() {
   modal.type = 'create'
   modal.record = null
   modal.action = null
   slotGroupEditTab.value = 'base'
-  formState.value = buildFormState(props.config.createFields || [])
+  let defaults = FALLBACK_SYSTEM_DEFAULTS
+  try {
+    defaults = await getSystemDefaults()
+  } catch {
+    // 配置接口异常时仍允许打开表单，回退值与后端默认值保持一致。
+  }
+  formState.value = applySystemDefaults(
+    buildFormState(props.config.createFields || []),
+    defaults,
+  )
 }
 
 defineExpose({

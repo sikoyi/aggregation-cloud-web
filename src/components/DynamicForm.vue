@@ -67,6 +67,16 @@ function isDisabledByRule(field: FieldConfig) {
   return values.includes(current)
 }
 
+function isFieldRequired(field: FieldConfig) {
+  if (field.required) return true
+  if (!field.requiredWhen) return false
+  const current = String(props.modelValue[field.requiredWhen.key] ?? '')
+  const values = Array.isArray(field.requiredWhen.value)
+    ? field.requiredWhen.value.map(String)
+    : [String(field.requiredWhen.value)]
+  return values.includes(current)
+}
+
 function isFieldDisabled(field: FieldConfig) {
   return Boolean(
     field.readonly
@@ -224,7 +234,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
         :xs="24"
         :md="fieldColumnSpan(field)"
       >
-        <el-form-item :required="field.required" :label="field.label">
+        <el-form-item :required="isFieldRequired(field)" :label="field.label">
           <ScriptParamEditor
             v-if="field.type === 'scriptParams'"
             :model-value="modelValue[field.key]"
