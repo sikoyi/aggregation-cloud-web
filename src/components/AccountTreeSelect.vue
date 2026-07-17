@@ -109,6 +109,12 @@ function accountLabel(account: AnyRecord) {
   )
 }
 
+function compactStatusLabel(status: unknown) {
+  return String(status || '') === 'logged_in_dm_unavailable'
+    ? '私信不可用'
+    : statusLabel(status)
+}
+
 function toAccountNode(account: AnyRecord): AccountTreeNode {
   const label = accountLabel(account)
   const providerSlotId = String(account.bound_slot_provider_id || '')
@@ -404,15 +410,22 @@ watch(
             <span class="account-tree-node__label">{{ data.label }}</span>
             <span v-if="data.deviceLabel" class="account-tree-node__device">{{ data.deviceLabel }}</span>
           </span>
-          <el-tag
+          <el-tooltip
             v-if="data.accountId"
-            size="small"
-            :type="statusTagType(data.loginStatus)"
-            effect="light"
-            round
+            :content="statusLabel(data.loginStatus)"
+            placement="top"
+            :disabled="compactStatusLabel(data.loginStatus) === statusLabel(data.loginStatus)"
           >
-            {{ statusLabel(data.loginStatus) }}
-          </el-tag>
+            <el-tag
+              class="account-tree-node__status"
+              size="small"
+              :type="statusTagType(data.loginStatus)"
+              effect="light"
+              round
+            >
+              {{ compactStatusLabel(data.loginStatus) }}
+            </el-tag>
+          </el-tooltip>
         </span>
       </template>
     </el-tree>
@@ -483,6 +496,11 @@ watch(
   color: #7b8da1;
   font-size: 10px;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-tree-node__status {
+  flex: 0 0 auto;
   white-space: nowrap;
 }
 </style>
