@@ -74,6 +74,7 @@ export interface FieldConfig {
   remote?: RemoteSelectConfig
   multiple?: boolean
   accountAssociationOnly?: boolean
+  accountTreeGroupByDevice?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   min?: number
   max?: number

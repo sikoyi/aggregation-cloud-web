@@ -92,7 +92,7 @@ function updateValue(value: AnyRecord) {
 
   <div v-else class="interaction-layout">
     <div class="dispatch-panel dispatch-panel--account">
-      <div class="dispatch-panel__title">主号</div>
+      <div class="dispatch-panel__title">主号设备</div>
       <DynamicForm
         :model-value="modelValue"
         :fields="interactionMainFields"
@@ -101,7 +101,7 @@ function updateValue(value: AnyRecord) {
       />
     </div>
     <div class="dispatch-panel dispatch-panel--account">
-      <div class="dispatch-panel__title">评论账号</div>
+      <div class="dispatch-panel__title">评论设备</div>
       <DynamicForm
         :model-value="modelValue"
         :fields="interactionCommentFields"
