@@ -87,8 +87,8 @@ const mode = computed(() => optionLabel(proxyModeOptions, props.row.proxy_mode))
   </div>
 
   <div v-else class="proxy-cell proxy-profile">
-    <el-tag type="primary" effect="light" round>{{ protocol }}</el-tag>
-    <el-tag type="info" effect="plain" round>{{ mode }}</el-tag>
+    <el-tag size="small" type="primary" effect="light" round>{{ protocol }}</el-tag>
+    <el-tag size="small" type="info" effect="plain" round>{{ mode }}</el-tag>
   </div>
 </template>
 
@@ -113,5 +113,5 @@ const mode = computed(() => optionLabel(proxyModeOptions, props.row.proxy_mode))
 .proxy-endpoint__url { display: flex; min-width: 0; align-items: center; gap: 7px; }
 .proxy-endpoint__url svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
 .proxy-endpoint__url code { min-width: 0; overflow: hidden; color: #334e68; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.proxy-profile { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+.proxy-profile { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; }
 </style>
