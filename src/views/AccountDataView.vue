@@ -441,10 +441,12 @@ onBeforeUnmount(() => {
             <el-table-column label="最近采集" min-width="165" align="center">
               <template #default="{ row }">{{ formatDate(row.metrics_captured_at || row.last_success_at) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="176" align="center" fixed="right">
+            <el-table-column label="操作" width="164" align="center" fixed="right">
               <template #default="{ row }">
-                <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
-                <el-button text type="primary" :icon="Activity" @click="openMonitor(row)">{{ row.monitor_state === 'paused' ? '重新开启' : row.monitor_setting_id ? '配置' : '监听' }}</el-button>
+                <div class="table-actions">
+                  <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
+                  <el-button text type="primary" :icon="Activity" @click="openMonitor(row)">监听</el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -647,6 +649,7 @@ onBeforeUnmount(() => {
 .account-data__actions,
 .monitor-dialog-footer,
 .monitor-dialog-footer__actions,
+.table-actions,
 .filter-title,
 .filter-actions,
 .account-cell,
@@ -668,6 +671,15 @@ onBeforeUnmount(() => {
 }
 
 .monitor-dialog-footer__actions { gap: 8px; margin-left: auto; }
+
+.table-actions {
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.table-actions :deep(.el-button) { margin-left: 0; }
 
 .account-data__title { gap: 10px; }
 .account-data__icon {
