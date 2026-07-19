@@ -1139,11 +1139,11 @@ export const resources: Record<string, ResourceConfig> = {
     loadEditRecord: loadProxyForEdit,
     updateBody: buildProxyUpdateBody,
     columns: [
-      { key: "name", label: "代理信息", type: "proxyIdentity", minWidth: 160 },
-      { key: "group_names", label: "所属分组", type: "proxyGroup", minWidth: 105 },
-      { key: "source_proxy_url", label: "链接元数据", type: "proxyEndpoint", minWidth: 260 },
-      { key: "proxy_type", label: "代理属性", type: "proxyProfile", width: 120, align: "center" },
-      { key: "status", label: "使用状态", type: "status", width: 90, align: "center" },
+      { key: "name", label: "代理信息", type: "proxyIdentity", minWidth: 145 },
+      { key: "group_names", label: "所属分组", type: "proxyGroup", minWidth: 90 },
+      { key: "source_proxy_url", label: "代理元数据", type: "proxyEndpoint", minWidth: 282 },
+      { key: "proxy_type", label: "代理属性", type: "proxyProfile", width: 136, align: "center" },
+      { key: "status", label: "使用状态", type: "status", width: 85, align: "center" },
     ],
     filters: [
       {

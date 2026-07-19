@@ -111,7 +111,7 @@ const mode = computed(() => optionLabel(proxyModeOptions, props.row.proxy_mode))
 .proxy-group-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proxy-endpoint { min-width: 0; }
 .proxy-endpoint__url { display: flex; min-width: 0; align-items: center; gap: 7px; }
-.proxy-endpoint__url svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
-.proxy-endpoint__url code { min-width: 0; overflow: hidden; color: #334e68; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.proxy-profile { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; }
+.proxy-endpoint__url svg { width: 15px; height: 15px; flex: 0 0 15px; color: #39759b; }
+.proxy-endpoint__url code { min-width: 0; overflow: hidden; color: #243b53; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.proxy-profile { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 8px; padding: 0 4px; white-space: nowrap; }
 </style>
