@@ -38,8 +38,8 @@ const periodOptions: Array<{ label: string; value: PeriodValue }> = [
   { label: '全部', value: 'all' },
 ]
 const monitorModeOptions: Array<{ label: string; value: MonitorMode; description: string }> = [
-  { label: '系统默认', value: 'system', description: '固定每 60 分钟监听一次' },
-  { label: '自定义', value: 'custom', description: '运营手动设置固定监听间隔' },
+  { label: '跟随账号', value: 'system', description: '跟随所属账号的监听间隔；账号未配置时默认 60 分钟' },
+  { label: '帖子自定义', value: 'custom', description: '该帖子使用独立间隔，不再跟随账号设置' },
 ]
 
 const visible = computed({
@@ -456,7 +456,7 @@ watch(metricPeriod, () => {
                       inactive-text="暂停监听"
                     />
                   </el-form-item>
-                  <el-form-item label="自定义间隔">
+                  <el-form-item :label="monitorForm.mode === 'custom' ? '帖子监听间隔' : '当前继承间隔'">
                     <el-input-number
                       v-model="monitorForm.interval_minutes"
                       :min="1"
@@ -465,6 +465,9 @@ watch(metricPeriod, () => {
                       controls-position="right"
                     />
                     <span class="monitor-form__unit">分钟</span>
+                    <span v-if="monitorForm.mode === 'system'" class="monitor-form__inherited">
+                      修改账号监听间隔后会自动同步
+                    </span>
                   </el-form-item>
                 </div>
 
@@ -718,6 +721,14 @@ watch(metricPeriod, () => {
 
 .monitor-form__unit {
   margin-left: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.monitor-form__inherited {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
   color: #64748b;
   font-size: 12px;
 }
