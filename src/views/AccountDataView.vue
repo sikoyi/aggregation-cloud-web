@@ -271,6 +271,7 @@ async function disableMonitor(account: AnyRecord) {
   disablingAccountId.value = String(account.account_id)
   try {
     await http.post(`/api/interaction-center/content-monitor/accounts/${encodeURIComponent(String(account.account_id))}/disable`)
+    monitorVisible.value = false
     ElNotification.success({ title: '监听已关闭', message: '历史数据和监听配置已保留' })
     await loadRows()
   } catch (err) {
@@ -440,18 +441,10 @@ onBeforeUnmount(() => {
             <el-table-column label="最近采集" min-width="165" align="center">
               <template #default="{ row }">{{ formatDate(row.metrics_captured_at || row.last_success_at) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="242" align="center" fixed="right">
+            <el-table-column label="操作" width="176" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
                 <el-button text type="primary" :icon="Activity" @click="openMonitor(row)">{{ row.monitor_state === 'paused' ? '重新开启' : row.monitor_setting_id ? '配置' : '监听' }}</el-button>
-                <el-button
-                  v-if="row.monitor_enabled"
-                  text
-                  type="danger"
-                  :icon="CircleOff"
-                  :loading="disablingAccountId === String(row.account_id)"
-                  @click="disableMonitor(row)"
-                >关闭</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -579,8 +572,20 @@ onBeforeUnmount(() => {
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="monitorVisible = false">取消</el-button>
-        <el-button type="primary" :icon="Play" :loading="submitting" @click="saveMonitor">{{ monitorSubmitLabel }}</el-button>
+        <div class="monitor-dialog-footer">
+          <el-button
+            v-if="monitorAccountLocked && monitorTargetAccount?.monitor_enabled"
+            type="danger"
+            plain
+            :icon="CircleOff"
+            :loading="disablingAccountId === String(monitorTargetAccount.account_id)"
+            @click="disableMonitor(monitorTargetAccount)"
+          >关闭监听</el-button>
+          <div class="monitor-dialog-footer__actions">
+            <el-button @click="monitorVisible = false">取消</el-button>
+            <el-button type="primary" :icon="Play" :loading="submitting" @click="saveMonitor">{{ monitorSubmitLabel }}</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
 
@@ -640,6 +645,8 @@ onBeforeUnmount(() => {
 .account-data__header,
 .account-data__title,
 .account-data__actions,
+.monitor-dialog-footer,
+.monitor-dialog-footer__actions,
 .filter-title,
 .filter-actions,
 .account-cell,
@@ -653,6 +660,14 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #e6edf3;
   background: #fff;
 }
+
+.monitor-dialog-footer {
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+.monitor-dialog-footer__actions { gap: 8px; margin-left: auto; }
 
 .account-data__title { gap: 10px; }
 .account-data__icon {
