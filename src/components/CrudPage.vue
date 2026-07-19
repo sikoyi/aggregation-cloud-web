@@ -27,9 +27,11 @@ import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from
 import AccountTableCell from '@/components/AccountTableCell.vue'
 import DeviceTableCell from '@/components/DeviceTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
+import ProxyTableCell from '@/components/ProxyTableCell.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import TaskTableCell from '@/components/TaskTableCell.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
@@ -1195,6 +1197,18 @@ onBeforeUnmount(() => {
               :status-loading="submitting"
               @toggle-status="(value) => toggleEnabledStatus(row, column, value)"
             />
+            <ProxyTableCell
+              v-else-if="column.type && ['proxyIdentity', 'proxyGroup', 'proxyEndpoint', 'proxyProfile'].includes(column.type)"
+              :kind="column.type as 'proxyIdentity' | 'proxyGroup' | 'proxyEndpoint' | 'proxyProfile'"
+              :row="row"
+              :column="column"
+            />
+            <TaskTableCell
+              v-else-if="column.type && ['taskIdentity', 'taskPlatform', 'taskTimeline'].includes(column.type)"
+              :kind="column.type as 'taskIdentity' | 'taskPlatform' | 'taskTimeline'"
+              :row="row"
+              :column="column"
+            />
             <div v-else-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
               <el-switch
                 :model-value="isEnabledStatus(row[column.key], column)"
@@ -1647,6 +1661,44 @@ onBeforeUnmount(() => {
 }
 
 .resource-table--accounts :deep(.el-button--danger.is-circle) {
+  color: #c94c4c;
+  background: #fff5f5;
+}
+
+.resource-table--proxies :deep(th.el-table__cell),
+.resource-table--tasks :deep(th.el-table__cell) {
+  color: #526477;
+  background: #f3f7fa;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resource-table--proxies :deep(td.el-table__cell),
+.resource-table--tasks :deep(td.el-table__cell) {
+  padding: 11px 0;
+}
+
+.resource-table--proxies :deep(.el-table__row:hover > td.el-table__cell),
+.resource-table--tasks :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #f4f9fd;
+}
+
+.resource-table--proxies :deep(.el-button.is-circle),
+.resource-table--tasks :deep(.el-button.is-circle) {
+  border: 1px solid transparent;
+  color: #52677a;
+  background: #f4f7fa;
+}
+
+.resource-table--proxies :deep(.el-button.is-circle:hover),
+.resource-table--tasks :deep(.el-button.is-circle:hover) {
+  border-color: #bfd5e6;
+  color: #1f668f;
+  background: #edf7fd;
+}
+
+.resource-table--proxies :deep(.el-button--danger.is-circle),
+.resource-table--tasks :deep(.el-button--danger.is-circle) {
   color: #c94c4c;
   background: #fff5f5;
 }

@@ -1139,19 +1139,10 @@ export const resources: Record<string, ResourceConfig> = {
     loadEditRecord: loadProxyForEdit,
     updateBody: buildProxyUpdateBody,
     columns: [
-      { key: "id", label: "ID", type: "id", width: 76, align: "center" },
-      { key: "name", label: "名称", minWidth: 130 },
-      { key: "group_names", label: "所属分组", type: "list", minWidth: 120 },
-      { key: "proxy_type", label: "协议", options: proxyProtocolOptions, width: 82, align: "center" },
-      { key: "proxy_mode", label: "类型", options: proxyModeOptions, width: 92, align: "center" },
-      { key: "source_proxy_url", label: "代理链接", minWidth: 320 },
-      {
-        key: "status",
-        label: "使用状态",
-        type: "status",
-        width: 96,
-      },
-      { key: "created_at", label: "创建时间", type: "datetime", width: 160, align: "center" },
+      { key: "name", label: "代理信息", type: "proxyIdentity", minWidth: 175 },
+      { key: "group_names", label: "所属分组", type: "proxyGroup", minWidth: 125 },
+      { key: "source_proxy_url", label: "连接地址", type: "proxyEndpoint", minWidth: 285 },
+      { key: "proxy_type", label: "属性 / 状态", type: "proxyProfile", width: 145, align: "center" },
     ],
     filters: [
       {
@@ -2668,21 +2659,10 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "下发任务",
     createBody: (payload) => buildTaskDispatchBody(payload),
     columns: [
-      { key: "id", label: "ID", type: "id" },
-      { key: "title", label: "任务名称" },
-      {
-        key: "script_key",
-        label: "脚本",
-        type: "relation",
-        relation: scriptRemoteSelect,
-      },
-      { key: "business_platform", label: "平台" },
-      { key: "status", label: "状态", type: "status" },
-      { key: "child_succeeded", label: "成功", align: "center" },
-      { key: "child_failed", label: "失败", align: "center" },
-      { key: "child_canceled", label: "取消", align: "center" },
-      { key: "finished_at", label: "结束时间", type: "datetime" },
-      { key: "created_at", label: "创建时间", type: "datetime" },
+      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 235 },
+      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 180 },
+      { key: "status", label: "状态", type: "status", width: 110, align: "center" },
+      { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 210 },
     ],
     filters: [
       {

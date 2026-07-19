@@ -14,6 +14,7 @@ const ProxyCenterView = () => import('@/views/ProxyCenterView.vue')
 const ReportView = () => import('@/views/ReportView.vue')
 const ResourceView = () => import('@/views/ResourceView.vue')
 const SystemSettingsView = () => import('@/views/SystemSettingsView.vue')
+const TaskRecordsView = () => import('@/views/TaskRecordsView.vue')
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -44,7 +45,7 @@ export const router = createRouter({
         { path: 'interaction-actions', component: ResourceView, meta: { resource: 'interactionActions' } },
         { path: 'scripts', component: ResourceView, meta: { resource: 'scripts' } },
         { path: 'task-templates', component: ResourceView, meta: { resource: 'taskTemplates' } },
-        { path: 'tasks', component: ResourceView, meta: { resource: 'tasks' } },
+        { path: 'tasks', component: TaskRecordsView },
         { path: 'runtimes', component: ResourceView, meta: { resource: 'runtimes' } },
         { path: 'operation-logs', component: ResourceView, meta: { resource: 'operationLogs' } },
       ],
