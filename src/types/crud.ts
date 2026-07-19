@@ -43,7 +43,7 @@ export type ColumnType =
   | 'deviceActivity'
   | 'taskIdentity'
   | 'taskPlatform'
-  | 'taskState'
+  | 'taskResult'
   | 'taskTimeline'
   | 'status'
   | 'statusSwitch'

@@ -2,13 +2,11 @@
 import { Ban, CalendarClock, CheckCircle2, CheckSquare2, CircleX, Clock3, Cpu } from 'lucide-vue-next'
 import { computed } from 'vue'
 
-import StatusBadge from '@/components/StatusBadge.vue'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
-import { formatDate } from '@/utils/format'
 
-type TaskCellKind = 'taskIdentity' | 'taskPlatform' | 'taskState' | 'taskTimeline'
+type TaskCellKind = 'taskIdentity' | 'taskPlatform' | 'taskResult' | 'taskTimeline'
 
 const props = defineProps<{
   kind: TaskCellKind
@@ -22,6 +20,14 @@ function text(value: unknown) {
 
 function optionLabel(options: Array<{ label: string; value: unknown }>, value: unknown) {
   return options.find((item) => String(item.value) === String(value))?.label || text(value)
+}
+
+function compactDate(value: unknown) {
+  if (!value) return '-'
+  const date = new Date(String(value))
+  if (Number.isNaN(date.getTime())) return String(value)
+  const part = (number: number) => String(number).padStart(2, '0')
+  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())} ${part(date.getHours())}:${part(date.getMinutes())}`
 }
 
 const taskTitle = computed(() => text(props.row.title))
@@ -53,16 +59,15 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
     </div>
   </div>
 
-  <div v-else-if="kind === 'taskState'" class="task-cell task-state">
-    <StatusBadge :value="row.status" />
-    <div class="task-state__counts">
-      <span class="task-state__count task-state__count--success" title="成功数量">
+  <div v-else-if="kind === 'taskResult'" class="task-cell task-result">
+    <div class="task-result__counts">
+      <span class="task-result__count task-result__count--success" title="成功数量">
         <CheckCircle2 />成功 <strong>{{ Number(row.child_succeeded || 0) }}</strong>
       </span>
-      <span class="task-state__count task-state__count--failed" title="失败数量">
+      <span class="task-result__count task-result__count--failed" title="失败数量">
         <CircleX />失败 <strong>{{ Number(row.child_failed || 0) }}</strong>
       </span>
-      <span class="task-state__count task-state__count--canceled" title="取消数量">
+      <span class="task-result__count task-result__count--canceled" title="取消数量">
         <Ban />取消 <strong>{{ Number(row.child_canceled || 0) }}</strong>
       </span>
     </div>
@@ -71,11 +76,11 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
   <div v-else class="task-cell task-timeline">
     <div class="task-timeline__row">
       <CalendarClock />
-      <span><small>创建</small><strong>{{ formatDate(row.created_at) }}</strong></span>
+      <span><small>创建</small><strong>{{ compactDate(row.created_at) }}</strong></span>
     </div>
     <div class="task-timeline__row task-timeline__row--secondary">
       <Clock3 />
-      <span><small>结束</small><strong>{{ formatDate(row.finished_at) }}</strong></span>
+      <span><small>结束</small><strong>{{ compactDate(row.finished_at) }}</strong></span>
     </div>
   </div>
 </template>
@@ -95,14 +100,14 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
 .task-platform__primary svg { width: 14px; height: 14px; color: #527a98; }
 .task-platform__primary strong { font-size: 12px; }
 .task-platform__tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.task-state { display: flex; flex-direction: column; align-items: center; gap: 7px; }
-.task-state__counts { display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
-.task-state__count { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; }
-.task-state__count svg { width: 11px; height: 11px; }
-.task-state__count strong { font-size: 11px; }
-.task-state__count--success { color: #3e7c55; }
-.task-state__count--failed { color: #c04b4b; }
-.task-state__count--canceled { color: #7c8794; }
+.task-result { display: flex; align-items: center; justify-content: center; }
+.task-result__counts { display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.task-result__count { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; }
+.task-result__count svg { width: 11px; height: 11px; }
+.task-result__count strong { font-size: 11px; }
+.task-result__count--success { color: #3e7c55; }
+.task-result__count--failed { color: #c04b4b; }
+.task-result__count--canceled { color: #7c8794; }
 .task-timeline { display: flex; flex-direction: column; gap: 6px; }
 .task-timeline__row { display: flex; min-width: 0; align-items: center; gap: 7px; }
 .task-timeline__row > svg { width: 13px; height: 13px; flex: 0 0 13px; color: #4f8b68; }

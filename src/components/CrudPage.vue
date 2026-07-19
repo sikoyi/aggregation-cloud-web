@@ -1204,8 +1204,8 @@ onBeforeUnmount(() => {
               :column="column"
             />
             <TaskTableCell
-              v-else-if="column.type && ['taskIdentity', 'taskPlatform', 'taskState', 'taskTimeline'].includes(column.type)"
-              :kind="column.type as 'taskIdentity' | 'taskPlatform' | 'taskState' | 'taskTimeline'"
+              v-else-if="column.type && ['taskIdentity', 'taskPlatform', 'taskResult', 'taskTimeline'].includes(column.type)"
+              :kind="column.type as 'taskIdentity' | 'taskPlatform' | 'taskResult' | 'taskTimeline'"
               :row="row"
               :column="column"
             />
