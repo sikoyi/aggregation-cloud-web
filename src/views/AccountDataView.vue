@@ -70,6 +70,8 @@ const filters = reactive({
   keyword: '',
 })
 const monitorVisible = ref(false)
+const monitorAccountLocked = ref(false)
+const monitorTargetAccount = ref<AnyRecord | null>(null)
 const detailVisible = ref(false)
 const detailTab = ref('overview')
 const detailAccount = ref<AnyRecord | null>(null)
@@ -92,6 +94,13 @@ const hasFilters = computed(() => Object.values(filters).some(Boolean))
 const monitorAccountFilters = computed(() => ({
   business_platform: monitorForm.business_platform,
 }))
+const monitorDialogTitle = computed(() => {
+  if (!monitorAccountLocked.value) return '开启账号监听'
+  return monitorTargetAccount.value?.monitor_setting_id ? '配置账号监听' : '开启账号监听'
+})
+const monitorSubmitLabel = computed(() => (
+  monitorTargetAccount.value?.monitor_setting_id ? '保存配置' : '确认开启'
+))
 
 function optionLabel(options: Array<{ label: string; value: unknown }>, value: unknown) {
   return options.find((item) => String(item.value) === String(value || ''))?.label || String(value || '-')
@@ -181,6 +190,8 @@ function handleSizeChange(size: number) {
 }
 
 function openMonitor(account?: AnyRecord) {
+  monitorAccountLocked.value = Boolean(account)
+  monitorTargetAccount.value = account || null
   const aiConfig = (account?.comment_reply_ai_config || {}) as AnyRecord
   Object.assign(monitorForm, {
     business_platform: String(account?.business_platform || 'threads'),
@@ -262,7 +273,7 @@ function handleRealtimeEvent(event: Event) {
 watch(
   () => monitorForm.account_id,
   async (accountId, previousAccountId) => {
-    if (!monitorVisible.value || !accountId || accountId === previousAccountId) return
+    if (monitorAccountLocked.value || !monitorVisible.value || !accountId || accountId === previousAccountId) return
     monitorForm.profile_url = ''
     const requestId = ++accountProfileRequest
     try {
@@ -422,9 +433,15 @@ onBeforeUnmount(() => {
       </div>
     </el-card>
 
-    <el-dialog v-model="monitorVisible" title="开启账号监听" width="min(92vw, 860px)" destroy-on-close :close-on-click-modal="false">
-      <div class="monitor-dialog-grid">
-        <div class="monitor-dialog-account">
+    <el-dialog
+      v-model="monitorVisible"
+      :title="monitorDialogTitle"
+      :width="monitorAccountLocked ? 'min(92vw, 680px)' : 'min(92vw, 860px)'"
+      destroy-on-close
+      :close-on-click-modal="false"
+    >
+      <div class="monitor-dialog-grid" :class="{ 'monitor-dialog-grid--locked': monitorAccountLocked }">
+        <div v-if="!monitorAccountLocked" class="monitor-dialog-account">
           <div class="dialog-section-title">选择账号</div>
           <AccountTreeSelect
             v-model="monitorForm.account_id"
@@ -435,7 +452,18 @@ onBeforeUnmount(() => {
         </div>
         <el-form label-position="top" class="monitor-dialog-form">
           <div class="dialog-section-title">监听配置</div>
-          <el-form-item label="业务 App">
+          <div v-if="monitorAccountLocked && monitorTargetAccount" class="monitor-target-account">
+            <span class="monitor-target-account__icon"><el-icon><Users /></el-icon></span>
+            <span class="monitor-target-account__content">
+              <strong>{{ monitorTargetAccount.account_name || monitorTargetAccount.login_username || '-' }}</strong>
+              <small>
+                {{ optionLabel(businessPlatformOptions, monitorTargetAccount.business_platform) }}
+                · {{ monitorTargetAccount.group_name || '未分组' }}
+              </small>
+            </span>
+            <StatusBadge :value="monitorTargetAccount.login_status" />
+          </div>
+          <el-form-item v-if="!monitorAccountLocked" label="业务 App">
             <el-select v-model="monitorForm.business_platform" disabled class="w-full">
               <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
@@ -514,7 +542,7 @@ onBeforeUnmount(() => {
       </div>
       <template #footer>
         <el-button @click="monitorVisible = false">取消</el-button>
-        <el-button type="primary" :icon="Play" :loading="submitting" @click="saveMonitor">确认开启</el-button>
+        <el-button type="primary" :icon="Play" :loading="submitting" @click="saveMonitor">{{ monitorSubmitLabel }}</el-button>
       </template>
     </el-dialog>
 
@@ -674,10 +702,16 @@ onBeforeUnmount(() => {
 .text-muted { color: #94a3b8; font-size: 12px; }
 
 .monitor-dialog-grid { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(0, 1.15fr); gap: 14px; }
+.monitor-dialog-grid--locked { grid-template-columns: minmax(0, 1fr); }
 .monitor-dialog-account,
 .monitor-dialog-form { min-width: 0; padding: 12px; border: 1px solid #dbe4ed; border-radius: 6px; background: #f8fafc; }
 .monitor-dialog-account { max-height: 510px; overflow: auto; }
 .dialog-section-title { margin-bottom: 12px; color: #26384a; font-size: 14px; font-weight: 700; }
+.monitor-target-account { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid #d6e3ef; border-radius: 6px; background: #fff; }
+.monitor-target-account__icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 6px; color: #23699a; background: #eaf4fb; }
+.monitor-target-account__content { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.monitor-target-account__content strong { overflow: hidden; color: #203346; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.monitor-target-account__content small { overflow: hidden; color: #718096; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .monitor-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .reply-config { margin: 2px 0 14px; padding-top: 12px; border-top: 1px solid #dbe4ed; }
 .reply-config__fields { margin-top: 12px; }
