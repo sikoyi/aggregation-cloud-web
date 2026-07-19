@@ -14,6 +14,8 @@ import { ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { getAllPages, http } from '@/api/http'
+import { getEnabledAiProviderOptions, resolveEnabledAiProvider, type EnabledAiProviderOption } from '@/api/interactionAi'
+import { getSystemDefaults } from '@/api/systemSettings'
 import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
@@ -52,6 +54,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const groups = ref<AnyRecord[]>([])
+const aiProviderOptions = ref<EnabledAiProviderOption[]>([])
 const summary = reactive({
   total_accounts: 0,
   monitoring_accounts: 0,
@@ -76,6 +79,11 @@ const monitorForm = reactive({
   profile_url: '',
   monitor_mode: 'system',
   interval_minutes: 60,
+  comment_reply_mode: 'disabled',
+  ai_provider: '',
+  ai_language: 'auto',
+  ai_tone: 'natural',
+  ai_max_length: 120,
 })
 let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
@@ -111,6 +119,19 @@ async function loadGroups() {
     groups.value = await getAllPages<AnyRecord>('/api/account-groups')
   } catch (err) {
     notifyError(err, '加载失败', '加载账号分组失败')
+  }
+}
+
+async function loadReplyOptions() {
+  try {
+    const [defaults, options] = await Promise.all([
+      getSystemDefaults(),
+      getEnabledAiProviderOptions(),
+    ])
+    aiProviderOptions.value = options
+    monitorForm.ai_provider = resolveEnabledAiProvider(defaults.default_ai_provider, options)
+  } catch (err) {
+    notifyError(err, '加载失败', '无法加载可用的互动 AI 供应商')
   }
 }
 
@@ -160,12 +181,18 @@ function handleSizeChange(size: number) {
 }
 
 function openMonitor(account?: AnyRecord) {
+  const aiConfig = (account?.comment_reply_ai_config || {}) as AnyRecord
   Object.assign(monitorForm, {
     business_platform: String(account?.business_platform || 'threads'),
     account_id: String(account?.account_id || ''),
     profile_url: String(account?.profile_url || ''),
     monitor_mode: String(account?.monitor_mode || 'system'),
     interval_minutes: Number(account?.monitor_interval_minutes || 60),
+    comment_reply_mode: String(account?.comment_reply_mode || 'disabled'),
+    ai_provider: String(aiConfig.provider || monitorForm.ai_provider || ''),
+    ai_language: String(aiConfig.language || 'auto'),
+    ai_tone: String(aiConfig.tone || 'natural'),
+    ai_max_length: Number(aiConfig.max_length || 120),
   })
   monitorVisible.value = true
 }
@@ -179,6 +206,10 @@ async function saveMonitor() {
     ElNotification.warning({ title: '请填写主页链接', message: '主页链接用于服务端发现该账号的全部内容' })
     return
   }
+  if (monitorForm.comment_reply_mode !== 'disabled' && !monitorForm.ai_provider) {
+    ElNotification.warning({ title: '暂无可用 AI', message: '请先在系统配置中启用至少一个互动 AI 供应商' })
+    return
+  }
   submitting.value = true
   try {
     const data = await http.post<AnyRecord>('/api/interaction-center/content-monitor/accounts', {
@@ -187,6 +218,13 @@ async function saveMonitor() {
       profile_url: monitorForm.profile_url.trim(),
       monitor_mode: monitorForm.monitor_mode,
       interval_minutes: monitorForm.monitor_mode === 'custom' ? monitorForm.interval_minutes : null,
+      comment_reply_mode: monitorForm.comment_reply_mode,
+      comment_reply_ai_config: {
+        provider: monitorForm.ai_provider || 'gemini',
+        language: monitorForm.ai_language,
+        tone: monitorForm.ai_tone,
+        max_length: monitorForm.ai_max_length,
+      },
     })
     monitorVisible.value = false
     ElNotification.success({
@@ -241,6 +279,7 @@ watch(
 
 onMounted(() => {
   loadGroups()
+  loadReplyOptions()
   loadRows()
   window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
 })
@@ -415,6 +454,61 @@ onBeforeUnmount(() => {
               <el-input-number v-model="monitorForm.interval_minutes" :min="1" :max="1440" :disabled="monitorForm.monitor_mode !== 'custom'" controls-position="right" class="w-full" />
             </el-form-item>
           </div>
+          <div class="reply-config">
+            <div class="dialog-section-title">新评论回复</div>
+            <el-form-item label="回复方式">
+              <el-segmented
+                v-model="monitorForm.comment_reply_mode"
+                :options="[
+                  { label: '不自动回复', value: 'disabled' },
+                  { label: '自动回复', value: 'automatic' },
+                  { label: '审核后回复', value: 'review' },
+                ]"
+                class="w-full"
+              />
+            </el-form-item>
+            <template v-if="monitorForm.comment_reply_mode !== 'disabled'">
+              <el-alert
+                :title="monitorForm.comment_reply_mode === 'automatic'
+                  ? '仅对监听开启后发现的新一级评论生成文案并自动下发。'
+                  : '仅对监听开启后发现的新一级评论生成文案，运营确认或修改后再下发。'"
+                type="info"
+                :closable="false"
+                show-icon
+              />
+              <div class="monitor-form-row reply-config__fields">
+                <el-form-item label="AI 供应商" required>
+                  <el-select v-model="monitorForm.ai_provider" class="w-full" placeholder="请选择已启用模型">
+                    <el-option
+                      v-for="option in aiProviderOptions"
+                      :key="option.value"
+                      :label="option.label"
+                      :value="option.value"
+                    />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="回复语言">
+                  <el-select v-model="monitorForm.ai_language" class="w-full">
+                    <el-option label="跟随帖子与评论" value="auto" />
+                    <el-option label="英文" value="en" />
+                    <el-option label="韩文" value="ko" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="回复语气">
+                  <el-select v-model="monitorForm.ai_tone" class="w-full">
+                    <el-option label="自然交流" value="natural" />
+                    <el-option label="友好" value="friendly" />
+                    <el-option label="好奇" value="curious" />
+                    <el-option label="支持认同" value="supportive" />
+                    <el-option label="讨论式" value="discussion" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="最大长度">
+                  <el-input-number v-model="monitorForm.ai_max_length" :min="20" :max="500" controls-position="right" class="w-full" />
+                </el-form-item>
+              </div>
+            </template>
+          </div>
           <el-alert title="保存后服务端会立即同步一次，后续按监听规则自动采集账号资料、内容、指标和评论。" type="info" :closable="false" show-icon />
         </el-form>
       </div>
@@ -439,6 +533,9 @@ onBeforeUnmount(() => {
             <el-descriptions-item label="登录状态"><StatusBadge :value="detailAccount.login_status" /></el-descriptions-item>
             <el-descriptions-item label="监听状态"><el-tag :type="monitorStateType(detailAccount.monitor_state)">{{ monitorStateLabel(detailAccount.monitor_state) }}</el-tag></el-descriptions-item>
             <el-descriptions-item label="监听间隔">{{ detailAccount.monitor_interval_minutes ? `${detailAccount.monitor_interval_minutes} 分钟` : '-' }}</el-descriptions-item>
+            <el-descriptions-item label="新评论回复">
+              {{ detailAccount.comment_reply_mode === 'automatic' ? '自动回复' : detailAccount.comment_reply_mode === 'review' ? '审核后回复' : '未开启' }}
+            </el-descriptions-item>
             <el-descriptions-item label="粉丝">{{ formatNumber(detailAccount.followers_count) }}</el-descriptions-item>
             <el-descriptions-item label="关注">{{ formatNumber(detailAccount.following_count) }}</el-descriptions-item>
             <el-descriptions-item label="发帖">{{ formatNumber(detailAccount.posts_count) }}</el-descriptions-item>
@@ -582,6 +679,9 @@ onBeforeUnmount(() => {
 .monitor-dialog-account { max-height: 510px; overflow: auto; }
 .dialog-section-title { margin-bottom: 12px; color: #26384a; font-size: 14px; font-weight: 700; }
 .monitor-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.reply-config { margin: 2px 0 14px; padding-top: 12px; border-top: 1px solid #dbe4ed; }
+.reply-config__fields { margin-top: 12px; }
+.reply-config :deep(.el-segmented) { min-height: 34px; }
 .account-detail-tabs :deep(.el-tabs__header) { margin-bottom: 14px; }
 
 @media (max-width: 1100px) {

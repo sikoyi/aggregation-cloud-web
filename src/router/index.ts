@@ -6,6 +6,7 @@ const AppShell = () => import('@/layouts/AppShell.vue')
 const AccountCenterView = () => import('@/views/AccountCenterView.vue')
 const AccountDataView = () => import('@/views/AccountDataView.vue')
 const ContentCenterView = () => import('@/views/ContentCenterView.vue')
+const CommentReplyReviewView = () => import('@/views/CommentReplyReviewView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
 const DeviceCenterView = () => import('@/views/DeviceCenterView.vue')
 const LoginView = () => import('@/views/LoginView.vue')
@@ -37,6 +38,7 @@ export const router = createRouter({
         { path: 'content-groups', redirect: { path: '/contents', query: { tab: 'groups' } } },
         { path: 'media-assets', component: ResourceView, meta: { resource: 'mediaAssets' } },
         { path: 'interaction-sessions', component: ResourceView, meta: { resource: 'interactionSessions' } },
+        { path: 'comment-replies', component: CommentReplyReviewView },
         { path: 'published-contents', component: ResourceView, meta: { resource: 'publishedContents' } },
         { path: 'content-comments', component: ResourceView, meta: { resource: 'contentComments' } },
         { path: 'interaction-actions', component: ResourceView, meta: { resource: 'interactionActions' } },

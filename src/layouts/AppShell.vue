@@ -10,6 +10,7 @@ import {
   Image,
   LayoutDashboard,
   LogOut,
+  MessageSquareReply,
   PlaySquare,
   ScrollText,
   Server,
@@ -80,6 +81,7 @@ const navGroups = [
     icon: ScrollText,
     children: [
       { label: '互动会话', to: '/interaction-sessions', icon: PlaySquare },
+      { label: '回复审核', to: '/comment-replies', icon: MessageSquareReply },
       { label: '发布内容', to: '/published-contents', icon: FileText },
       { label: '评论记录', to: '/content-comments', icon: ScrollText },
       { label: '互动动作', to: '/interaction-actions', icon: PlaySquare },
@@ -119,6 +121,25 @@ async function logout() {
 
 function handleRealtimeEvent(event: Event) {
   const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (payload?.topic === 'comment_reply') {
+    const data = payload.data && typeof payload.data === 'object'
+      ? payload.data as Record<string, unknown>
+      : {}
+    const status = String(data.status || '')
+    if (!['pending_review', 'failed', 'blocked'].includes(status)) return
+    const needsReview = status === 'pending_review'
+    const notification = ElNotification({
+      title: needsReview ? '有新的评论回复待审核' : '评论回复处理异常',
+      message: needsReview ? 'AI 文案已经生成，请确认或修改后下发。' : String(data.error_message || '回复任务暂时无法继续，请查看处理。'),
+      type: needsReview ? 'warning' : 'error',
+      duration: needsReview ? 8000 : 0,
+      onClick: () => {
+        router.push('/comment-replies')
+        notification.close()
+      },
+    })
+    return
+  }
   if (!['content_monitor.abnormal', 'account_content_monitor.abnormal'].includes(String(payload?.type || ''))) return
   const data = payload.data && typeof payload.data === 'object'
     ? payload.data as Record<string, unknown>
