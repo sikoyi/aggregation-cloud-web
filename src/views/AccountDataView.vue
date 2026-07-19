@@ -10,7 +10,7 @@ import {
   Search,
   Users,
 } from 'lucide-vue-next'
-import { ElNotification } from 'element-plus'
+import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { getAllPages, http } from '@/api/http'
@@ -43,12 +43,13 @@ interface AccountDataPage {
 const monitorStateOptions = [
   { label: '未开启', value: 'not_configured' },
   { label: '监听中', value: 'monitoring' },
-  { label: '已暂停', value: 'paused' },
+  { label: '已关闭', value: 'paused' },
   { label: '监听异常', value: 'abnormal' },
 ]
 
 const loading = ref(false)
 const submitting = ref(false)
+const disablingAccountId = ref('')
 const rows = ref<AnyRecord[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -99,7 +100,9 @@ const monitorDialogTitle = computed(() => {
   return monitorTargetAccount.value?.monitor_setting_id ? '配置账号监听' : '开启账号监听'
 })
 const monitorSubmitLabel = computed(() => (
-  monitorTargetAccount.value?.monitor_setting_id ? '保存配置' : '确认开启'
+  monitorTargetAccount.value?.monitor_state === 'paused'
+    ? '重新开启'
+    : monitorTargetAccount.value?.monitor_setting_id ? '保存配置' : '确认开启'
 ))
 
 function optionLabel(options: Array<{ label: string; value: unknown }>, value: unknown) {
@@ -250,6 +253,33 @@ async function saveMonitor() {
   }
 }
 
+async function disableMonitor(account: AnyRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `关闭后将停止采集“${String(account.account_name || account.login_username || account.account_id)}”的新数据，历史数据和监听配置会保留。`,
+      '确认关闭监听',
+      {
+        confirmButtonText: '确认关闭',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  disablingAccountId.value = String(account.account_id)
+  try {
+    await http.post(`/api/interaction-center/content-monitor/accounts/${encodeURIComponent(String(account.account_id))}/disable`)
+    ElNotification.success({ title: '监听已关闭', message: '历史数据和监听配置已保留' })
+    await loadRows()
+  } catch (err) {
+    notifyError(err, '关闭失败', '账号监听关闭失败')
+  } finally {
+    disablingAccountId.value = ''
+  }
+}
+
 function openDetail(account: AnyRecord) {
   detailAccount.value = account
   detailTab.value = 'overview'
@@ -309,7 +339,7 @@ onBeforeUnmount(() => {
           <div class="account-data__icon"><Activity :size="20" /></div>
           <div>
             <h1>账号数据</h1>
-            <p>集中查看账号监听、增长指标和已采集内容。</p>
+            <p>集中查看账号监听、增长指标和采集记录。</p>
           </div>
         </div>
         <div class="account-data__actions">
@@ -332,7 +362,7 @@ onBeforeUnmount(() => {
           </button>
           <button type="button" class="summary-item summary-item--paused" :class="{ 'is-active': filters.monitor_state === 'paused' }" @click="useMonitorFilter('paused')">
             <span class="summary-item__icon"><Clock :size="17" /></span>
-            <span><small>已暂停</small><strong>{{ formatNumber(summary.paused_accounts) }}</strong></span>
+            <span><small>已关闭</small><strong>{{ formatNumber(summary.paused_accounts) }}</strong></span>
           </button>
           <button type="button" class="summary-item summary-item--danger" :class="{ 'is-active': filters.monitor_state === 'abnormal' }" @click="useMonitorFilter('abnormal')">
             <span class="summary-item__icon"><AlertTriangle :size="17" /></span>
@@ -402,18 +432,26 @@ onBeforeUnmount(() => {
                 <div class="metric-grid">
                   <span><small>粉丝</small><strong>{{ formatNumber(row.followers_count) }}</strong></span>
                   <span><small>关注</small><strong>{{ formatNumber(row.following_count) }}</strong></span>
-                  <span><small>发帖</small><strong>{{ formatNumber(row.posts_count) }}</strong></span>
-                  <span><small>已采集</small><strong>{{ formatNumber(row.collected_content_count) }}</strong></span>
+                  <span><small>帖子</small><strong>{{ formatNumber(row.posts_count) }}</strong></span>
+                  <span><small>采集次数</small><strong>{{ formatNumber(row.collection_count) }}</strong></span>
                 </div>
               </template>
             </el-table-column>
             <el-table-column label="最近采集" min-width="165" align="center">
               <template #default="{ row }">{{ formatDate(row.metrics_captured_at || row.last_success_at) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="176" align="center" fixed="right">
+            <el-table-column label="操作" width="242" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
-                <el-button text type="primary" :icon="Activity" @click="openMonitor(row)">{{ row.monitor_setting_id ? '配置' : '监听' }}</el-button>
+                <el-button text type="primary" :icon="Activity" @click="openMonitor(row)">{{ row.monitor_state === 'paused' ? '重新开启' : row.monitor_setting_id ? '配置' : '监听' }}</el-button>
+                <el-button
+                  v-if="row.monitor_enabled"
+                  text
+                  type="danger"
+                  :icon="CircleOff"
+                  :loading="disablingAccountId === String(row.account_id)"
+                  @click="disableMonitor(row)"
+                >关闭</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -566,10 +604,10 @@ onBeforeUnmount(() => {
             </el-descriptions-item>
             <el-descriptions-item label="粉丝">{{ formatNumber(detailAccount.followers_count) }}</el-descriptions-item>
             <el-descriptions-item label="关注">{{ formatNumber(detailAccount.following_count) }}</el-descriptions-item>
-            <el-descriptions-item label="发帖">{{ formatNumber(detailAccount.posts_count) }}</el-descriptions-item>
+            <el-descriptions-item label="帖子">{{ formatNumber(detailAccount.posts_count) }}</el-descriptions-item>
             <el-descriptions-item label="总点赞">{{ formatNumber(detailAccount.total_likes_count) }}</el-descriptions-item>
             <el-descriptions-item label="总回复">{{ formatNumber(detailAccount.total_replies_count) }}</el-descriptions-item>
-            <el-descriptions-item label="系统内容">{{ formatNumber(detailAccount.collected_content_count) }}</el-descriptions-item>
+            <el-descriptions-item label="采集次数">{{ formatNumber(detailAccount.collection_count) }}</el-descriptions-item>
             <el-descriptions-item label="主页链接" :span="3">{{ detailAccount.profile_url || '-' }}</el-descriptions-item>
             <el-descriptions-item label="最近成功" :span="1">{{ formatDate(detailAccount.last_success_at) }}</el-descriptions-item>
             <el-descriptions-item label="下次监听" :span="1">{{ formatDate(detailAccount.next_run_at) }}</el-descriptions-item>

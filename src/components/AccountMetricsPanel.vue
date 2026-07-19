@@ -24,7 +24,7 @@ const periodOptions: Array<{ label: string; value: PeriodValue }> = [
 const metricDefs: Array<{ key: MetricKey; label: string; color: string }> = [
   { key: 'followers_count', label: '粉丝', color: '#2563eb' },
   { key: 'following_count', label: '关注', color: '#16a34a' },
-  { key: 'posts_count', label: '发帖', color: '#f97316' },
+  { key: 'posts_count', label: '帖子', color: '#f97316' },
   { key: 'total_likes_count', label: '总点赞', color: '#9333ea' },
   { key: 'total_replies_count', label: '总回复', color: '#dc2626' },
 ]
@@ -201,7 +201,7 @@ watch([accountId, period], loadCurve, { immediate: true })
       </el-table-column>
       <el-table-column prop="followers_count" label="粉丝" width="100" align="center" />
       <el-table-column prop="following_count" label="关注" width="100" align="center" />
-      <el-table-column prop="posts_count" label="发帖" width="100" align="center" />
+      <el-table-column prop="posts_count" label="帖子" width="100" align="center" />
       <el-table-column prop="total_likes_count" label="总点赞" width="110" align="center" />
       <el-table-column prop="total_replies_count" label="总回复" width="110" align="center" />
     </el-table>
