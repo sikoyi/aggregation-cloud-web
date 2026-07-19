@@ -30,8 +30,10 @@ import DynamicForm from '@/components/DynamicForm.vue'
 import ProxyTableCell from '@/components/ProxyTableCell.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
+import ScriptTableCell from '@/components/ScriptTableCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import TaskTableCell from '@/components/TaskTableCell.vue'
+import TemplateTableCell from '@/components/TemplateTableCell.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
@@ -1209,6 +1211,18 @@ onBeforeUnmount(() => {
               :row="row"
               :column="column"
             />
+            <ScriptTableCell
+              v-else-if="column.type && ['scriptIdentity', 'scriptScope', 'scriptTimeout', 'scriptTimeline'].includes(column.type)"
+              :kind="column.type as 'scriptIdentity' | 'scriptScope' | 'scriptTimeout' | 'scriptTimeline'"
+              :row="row"
+              :column="column"
+            />
+            <TemplateTableCell
+              v-else-if="column.type && ['templateIdentity', 'templateConfig', 'templateTimeline'].includes(column.type)"
+              :kind="column.type as 'templateIdentity' | 'templateConfig' | 'templateTimeline'"
+              :row="row"
+              :column="column"
+            />
             <div v-else-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
               <el-switch
                 :model-value="isEnabledStatus(row[column.key], column)"
@@ -1666,7 +1680,9 @@ onBeforeUnmount(() => {
 }
 
 .resource-table--proxies :deep(th.el-table__cell),
-.resource-table--tasks :deep(th.el-table__cell) {
+.resource-table--tasks :deep(th.el-table__cell),
+.resource-table--scripts :deep(th.el-table__cell),
+.resource-table--taskTemplates :deep(th.el-table__cell) {
   color: #526477;
   background: #f3f7fa;
   font-size: 12px;
@@ -1674,31 +1690,41 @@ onBeforeUnmount(() => {
 }
 
 .resource-table--proxies :deep(td.el-table__cell),
-.resource-table--tasks :deep(td.el-table__cell) {
+.resource-table--tasks :deep(td.el-table__cell),
+.resource-table--scripts :deep(td.el-table__cell),
+.resource-table--taskTemplates :deep(td.el-table__cell) {
   padding: 11px 0;
 }
 
 .resource-table--proxies :deep(.el-table__row:hover > td.el-table__cell),
-.resource-table--tasks :deep(.el-table__row:hover > td.el-table__cell) {
+.resource-table--tasks :deep(.el-table__row:hover > td.el-table__cell),
+.resource-table--scripts :deep(.el-table__row:hover > td.el-table__cell),
+.resource-table--taskTemplates :deep(.el-table__row:hover > td.el-table__cell) {
   background: #f4f9fd;
 }
 
 .resource-table--proxies :deep(.el-button.is-circle),
-.resource-table--tasks :deep(.el-button.is-circle) {
+.resource-table--tasks :deep(.el-button.is-circle),
+.resource-table--scripts :deep(.el-button.is-circle),
+.resource-table--taskTemplates :deep(.el-button.is-circle) {
   border: 1px solid transparent;
   color: #52677a;
   background: #f4f7fa;
 }
 
 .resource-table--proxies :deep(.el-button.is-circle:hover),
-.resource-table--tasks :deep(.el-button.is-circle:hover) {
+.resource-table--tasks :deep(.el-button.is-circle:hover),
+.resource-table--scripts :deep(.el-button.is-circle:hover),
+.resource-table--taskTemplates :deep(.el-button.is-circle:hover) {
   border-color: #bfd5e6;
   color: #1f668f;
   background: #edf7fd;
 }
 
 .resource-table--proxies :deep(.el-button--danger.is-circle),
-.resource-table--tasks :deep(.el-button--danger.is-circle) {
+.resource-table--tasks :deep(.el-button--danger.is-circle),
+.resource-table--scripts :deep(.el-button--danger.is-circle),
+.resource-table--taskTemplates :deep(.el-button--danger.is-circle) {
   color: #c94c4c;
   background: #fff5f5;
 }

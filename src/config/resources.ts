@@ -2168,19 +2168,11 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/scripts",
     createLabel: "新增脚本",
     columns: [
-      { key: "id", label: "ID", type: "id", width: 80, align: "center" },
-      { key: "script_key", label: "脚本 Key", type: "tag", width: 200, align: "center" },
-      { key: "name", label: "名称", minWidth: 250, align: "center" },
-      { key: "purpose", label: "适配用途", options: scriptPurposeOptions, align: "center" },
-      {
-        key: "supported_business_platforms",
-        label: "业务 App 范围",
-        type: "list",
-        width: 160,
-        align: "center",
-      },
+      { key: "name", label: "脚本信息", type: "scriptIdentity", minWidth: 220 },
+      { key: "purpose", label: "适配范围", type: "scriptScope", minWidth: 270 },
+      { key: "max_timeout_seconds", label: "运行限制", type: "scriptTimeout", width: 90, align: "center" },
       { key: "status", label: "状态", type: "status", width: 80, align: "center" },
-      { key: "updated_at", label: "更新时间", type: "datetime", width: 180, align: "center" },
+      { key: "updated_at", label: "更新时间", type: "scriptTimeline", width: 148, align: "center" },
     ],
     filters: [
       {
@@ -2363,17 +2355,17 @@ export const resources: Record<string, ResourceConfig> = {
     }),
     updateBody: (payload, record) => buildTaskTemplateBody(payload, record),
     columns: [
-      { key: "id", label: "ID", type: "id" },
-      { key: "name", label: "名称" },
+      { key: "name", label: "模板信息", type: "templateIdentity", minWidth: 155 },
       {
         key: "script_key",
-        label: "脚本",
+        label: "关联脚本",
         type: "relation",
         relation: scriptRemoteSelect,
+        minWidth: 175,
       },
-      { key: "business_platform", label: "平台" },
-      { key: "status", label: "状态", type: "status" },
-      { key: "updated_at", label: "更新时间", type: "datetime" },
+      { key: "business_platform", label: "执行配置", type: "templateConfig", minWidth: 220 },
+      { key: "status", label: "状态", type: "status", width: 80, align: "center" },
+      { key: "updated_at", label: "更新时间", type: "templateTimeline", width: 152, align: "center" },
     ],
     filters: [
       {
