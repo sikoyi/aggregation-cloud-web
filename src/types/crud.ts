@@ -180,6 +180,7 @@ export interface ResourceConfig {
   rowActions?: RowActionConfig[]
   headerActions?: RowActionConfig[]
   inlineActionKeys?: string[]
+  operationWidth?: number
   directDelete?: boolean
   batchActions?: RowActionConfig[]
   deleteLabel?: string

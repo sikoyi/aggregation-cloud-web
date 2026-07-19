@@ -2653,12 +2653,13 @@ export const resources: Record<string, ResourceConfig> = {
     createEndpoint: "/api/tasks/from-template",
     createLabel: "下发任务",
     createBody: (payload) => buildTaskDispatchBody(payload),
+    operationWidth: 140,
     columns: [
       { key: "id", label: "任务 ID", type: "id", width: 68, align: "center" },
-      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 140 },
-      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 110 },
-      { key: "status", label: "状态", type: "status", width: 95, align: "center" },
-      { key: "child_succeeded", label: "执行结果", type: "taskResult", width: 190, align: "center" },
+      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 135 },
+      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 105 },
+      { key: "status", label: "状态", type: "status", width: 105, align: "center" },
+      { key: "child_succeeded", label: "执行结果", type: "taskResult", width: 220, align: "center" },
       { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 125 },
     ],
     filters: [

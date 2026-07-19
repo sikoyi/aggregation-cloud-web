@@ -234,6 +234,7 @@ const showOperationColumn = computed(
     || Boolean(inlineRowActions.value.length || dropdownRowActions.value.length || showDirectDelete.value || showDropdownDelete.value),
 )
 const operationColumnWidth = computed(() => {
+  if (props.config.operationWidth) return props.config.operationWidth
   const actionCount =
     (canEditRow.value ? 1 : 0) +
     inlineRowActions.value.length +
@@ -1694,6 +1695,11 @@ onBeforeUnmount(() => {
 .resource-table--scripts :deep(td.el-table__cell),
 .resource-table--taskTemplates :deep(td.el-table__cell) {
   padding: 11px 0;
+}
+
+.resource-table--tasks :deep(.cell) {
+  padding-right: 10px;
+  padding-left: 10px;
 }
 
 .resource-table--proxies :deep(.el-table__row:hover > td.el-table__cell),
