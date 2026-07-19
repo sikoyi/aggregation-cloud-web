@@ -1139,10 +1139,11 @@ export const resources: Record<string, ResourceConfig> = {
     loadEditRecord: loadProxyForEdit,
     updateBody: buildProxyUpdateBody,
     columns: [
-      { key: "name", label: "代理信息", type: "proxyIdentity", minWidth: 175 },
-      { key: "group_names", label: "所属分组", type: "proxyGroup", minWidth: 125 },
-      { key: "source_proxy_url", label: "连接地址", type: "proxyEndpoint", minWidth: 285 },
-      { key: "proxy_type", label: "属性 / 状态", type: "proxyProfile", width: 145, align: "center" },
+      { key: "name", label: "代理信息", type: "proxyIdentity", minWidth: 160 },
+      { key: "group_names", label: "所属分组", type: "proxyGroup", minWidth: 105 },
+      { key: "source_proxy_url", label: "链接元数据", type: "proxyEndpoint", minWidth: 260 },
+      { key: "proxy_type", label: "代理属性", type: "proxyProfile", width: 120, align: "center" },
+      { key: "status", label: "使用状态", type: "status", width: 90, align: "center" },
     ],
     filters: [
       {
@@ -2659,10 +2660,10 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "下发任务",
     createBody: (payload) => buildTaskDispatchBody(payload),
     columns: [
-      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 235 },
-      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 180 },
-      { key: "status", label: "状态", type: "status", width: 110, align: "center" },
-      { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 210 },
+      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 190 },
+      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 150 },
+      { key: "status", label: "状态 / 结果", type: "taskState", width: 215, align: "center" },
+      { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 180 },
     ],
     filters: [
       {

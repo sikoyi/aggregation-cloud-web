@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { Globe2, Layers3, Network, ShieldCheck } from 'lucide-vue-next'
+import { Layers3, Network, ShieldCheck } from 'lucide-vue-next'
 import { computed } from 'vue'
 
-import StatusBadge from '@/components/StatusBadge.vue'
 import { proxyModeOptions, proxyProtocolOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
@@ -34,11 +33,6 @@ function compactDate(value: unknown) {
 const proxyName = computed(() => text(props.row.name))
 const proxyId = computed(() => text(props.row.id))
 const proxyUrl = computed(() => text(props.row.source_proxy_url))
-const endpoint = computed(() => {
-  const host = String(props.row.host || '').trim()
-  const port = String(props.row.port || '').trim()
-  return host ? `${host}${port ? `:${port}` : ''}` : '-'
-})
 const groupNames = computed(() => {
   if (Array.isArray(props.row.group_names)) {
     return props.row.group_names.map((item) => String(item).trim()).filter(Boolean)
@@ -50,7 +44,6 @@ const groupNames = computed(() => {
 })
 const protocol = computed(() => optionLabel(proxyProtocolOptions, props.row.proxy_type))
 const mode = computed(() => optionLabel(proxyModeOptions, props.row.proxy_mode))
-const hasAuthentication = computed(() => Boolean(String(props.row.username || '').trim()))
 </script>
 
 <template>
@@ -91,20 +84,11 @@ const hasAuthentication = computed(() => Boolean(String(props.row.username || ''
         <code>{{ proxyUrl }}</code>
       </div>
     </el-tooltip>
-    <div class="proxy-endpoint__meta">
-      <span><Globe2 />{{ endpoint }}</span>
-      <el-tag size="small" :type="hasAuthentication ? 'success' : 'info'" effect="plain">
-        {{ hasAuthentication ? '账号认证' : '无认证' }}
-      </el-tag>
-    </div>
   </div>
 
   <div v-else class="proxy-cell proxy-profile">
-    <div class="proxy-profile__tags">
-      <el-tag type="primary" effect="light" round>{{ protocol }}</el-tag>
-      <el-tag type="info" effect="plain" round>{{ mode }}</el-tag>
-    </div>
-    <StatusBadge :value="row.status" />
+    <el-tag type="primary" effect="light" round>{{ protocol }}</el-tag>
+    <el-tag type="info" effect="plain" round>{{ mode }}</el-tag>
   </div>
 </template>
 
@@ -125,13 +109,9 @@ const hasAuthentication = computed(() => Boolean(String(props.row.username || ''
 .proxy-group-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; }
 .proxy-group-tag svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .proxy-group-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.proxy-endpoint { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
+.proxy-endpoint { min-width: 0; }
 .proxy-endpoint__url { display: flex; min-width: 0; align-items: center; gap: 7px; }
 .proxy-endpoint__url svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
 .proxy-endpoint__url code { min-width: 0; overflow: hidden; color: #334e68; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.proxy-endpoint__meta { display: flex; min-width: 0; align-items: center; gap: 8px; padding-left: 21px; }
-.proxy-endpoint__meta > span { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; color: #8293a5; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.proxy-endpoint__meta svg { width: 11px; height: 11px; flex: 0 0 11px; }
-.proxy-profile { display: flex; flex-direction: column; align-items: center; gap: 7px; }
-.proxy-profile__tags { display: flex; justify-content: center; gap: 5px; }
+.proxy-profile { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
 </style>
