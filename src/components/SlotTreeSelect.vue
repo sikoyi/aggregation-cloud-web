@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Search } from 'lucide-vue-next'
 
 import { getAllPages } from '@/api/http'
@@ -53,6 +53,7 @@ const filterSignature = computed(() => JSON.stringify({
   provider: String(props.filters?.provider || ''),
 }))
 let loadRequestId = 0
+let filterReloadTimer: number | undefined
 
 function slotNodeId(slotId: string) {
   return `slot:${slotId}`
@@ -111,7 +112,6 @@ async function loadTree() {
   try {
     const groupParams = queryParams()
     const slotParams = queryParams()
-    delete slotParams.runtime_platform
 
     const [groups, slots] = await Promise.all([
       getAllPages<AnyRecord>('/api/slot-groups', groupParams),
@@ -120,27 +120,32 @@ async function loadTree() {
     if (requestId !== loadRequestId) return
 
     const eligibleSlotIds = new Set(slots.map((slot) => String(slot.id)))
+    const visibleGroupIds = new Set(groups.map((group) => String(group.id)))
+    const slotsByGroup = new Map<string, AnyRecord[]>()
     const groupedSlotIds = new Set<string>()
-    const groupNodes = await Promise.all(
-      groups.map(async (group) => {
-        const groupSlots = await getAllPages<AnyRecord>(
-          `/api/slot-groups/${encodeURIComponent(String(group.id))}/slots`,
-          {},
-        )
-        const items = groupSlots.filter((slot) => eligibleSlotIds.has(String(slot.id)))
-        items.forEach((slot) => groupedSlotIds.add(String(slot.id)))
-        const label = String(group.name || group.id)
-        return {
-          id: `group:${group.id}`,
-          label,
-          searchText: label.toLowerCase(),
-          deviceCount: items.length,
-          disabled: !items.length,
-          children: items.map(toSlotNode),
-        }
-      }),
-    )
-    if (requestId !== loadRequestId) return
+
+    // 设备列表已返回分组信息，直接组装树，避免每个分组再请求一次成员接口。
+    slots.forEach((slot) => {
+      const groupId = String(slot.group_id || '')
+      if (!groupId || !visibleGroupIds.has(groupId)) return
+      const items = slotsByGroup.get(groupId) || []
+      items.push(slot)
+      slotsByGroup.set(groupId, items)
+      groupedSlotIds.add(String(slot.id))
+    })
+
+    const groupNodes = groups.map((group) => {
+      const items = slotsByGroup.get(String(group.id)) || []
+      const label = String(group.name || group.id)
+      return {
+        id: `group:${group.id}`,
+        label,
+        searchText: label.toLowerCase(),
+        deviceCount: items.length,
+        disabled: !items.length,
+        children: items.map(toSlotNode),
+      }
+    })
 
     const ungroupedSlots = slots.filter((slot) => !groupedSlotIds.has(String(slot.id)))
     loadedSlotIds.value = eligibleSlotIds
@@ -181,13 +186,24 @@ function emitChecked() {
 
 onMounted(loadTree)
 
+onBeforeUnmount(() => {
+  loadRequestId += 1
+  if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
+})
+
 watch(selectedSlotIds, () => nextTick(syncCheckedKeys))
 
 watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
 
 watch(
   filterSignature,
-  () => loadTree(),
+  () => {
+    if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
+    filterReloadTimer = window.setTimeout(() => {
+      filterReloadTimer = undefined
+      loadTree()
+    }, 250)
+  },
 )
 </script>
 

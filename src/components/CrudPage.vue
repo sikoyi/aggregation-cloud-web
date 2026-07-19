@@ -96,8 +96,15 @@ const assetViewerKind = ref<'image' | 'video'>('image')
 const assetViewerFilename = ref('')
 const assetViewerRecord = ref<AnyRecord | null>(null)
 const tableRef = ref()
+const pageRootRef = ref<HTMLElement | null>(null)
 const slotGroupEditTab = ref('base')
 let realtimeRefreshTimer: number | undefined
+let realtimeRefreshPending = false
+let realtimeRefreshRunning = false
+let lastRealtimeRefreshAt = 0
+let listRequestId = 0
+let visibleLoadingRequestId = 0
+let pageVisibilityObserver: IntersectionObserver | undefined
 
 const modal = reactive<{
   type: 'create' | 'edit' | 'action' | 'batch' | null
@@ -110,6 +117,15 @@ const modal = reactive<{
 })
 
 const formState = ref<AnyRecord>({})
+
+const hasActiveUserOperation = computed(() => Boolean(
+  modal.type
+  || selectedRows.value.length
+  || taskDetailVisible.value
+  || interactionSessionDetailVisible.value
+  || publishedContentDetailVisible.value
+  || assetViewerVisible.value,
+))
 
 const idKey = computed(() => props.config.idKey || 'id')
 const modalFields = computed<FieldConfig[]>(() => {
@@ -464,18 +480,25 @@ function buildListParams() {
   return params
 }
 
-async function loadRows() {
-  loading.value = true
-  error.value = ''
+async function loadRows(options?: { silent?: boolean } | number) {
+  const silent = typeof options === 'object' && Boolean(options?.silent)
+  const requestId = ++listRequestId
+  if (!silent) {
+    visibleLoadingRequestId = requestId
+    loading.value = true
+    error.value = ''
+  }
   try {
     const data = await http.get<PageResult<AnyRecord>>(props.config.endpoint, buildListParams())
+    if (requestId !== listRequestId) return
     rows.value = data.items
     total.value = data.total
     selectedRows.value = []
   } catch (err) {
-    error.value = notifyError(err, '加载失败', '加载失败')
+    if (!silent) error.value = notifyError(err, '加载失败', '加载失败')
   } finally {
-    loading.value = false
+    if (!silent && visibleLoadingRequestId === requestId) loading.value = false
+    if (realtimeRefreshPending && !isRealtimeRefreshBlocked()) scheduleRealtimeRefresh()
   }
 }
 
@@ -488,16 +511,60 @@ function shouldRefreshForRealtime(event: RealtimeEventPayload) {
   return false
 }
 
+function realtimeRefreshInterval() {
+  if (props.config.key === 'slots' || props.config.key === 'runtimes') return 8000
+  if (props.config.key === 'tasks' || props.config.key === 'interactionSessions') return 3000
+  return 5000
+}
+
+function isRealtimeRefreshBlocked() {
+  return Boolean(
+    document.visibilityState !== 'visible'
+    || !pageRootRef.value
+    || pageRootRef.value.offsetParent === null
+    || hasActiveUserOperation.value
+    || loading.value
+    || submitting.value,
+  )
+}
+
+async function runRealtimeRefresh() {
+  realtimeRefreshTimer = undefined
+  if (isRealtimeRefreshBlocked() || realtimeRefreshRunning) {
+    realtimeRefreshPending = true
+    return
+  }
+  realtimeRefreshPending = false
+  realtimeRefreshRunning = true
+  lastRealtimeRefreshAt = Date.now()
+  try {
+    // SSE 刷新不展示整表 Loading，避免打断筛选、滚动和表单操作。
+    await loadRows({ silent: true })
+  } finally {
+    realtimeRefreshRunning = false
+    if (realtimeRefreshPending && !isRealtimeRefreshBlocked()) scheduleRealtimeRefresh()
+  }
+}
+
 function scheduleRealtimeRefresh() {
-  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
-  realtimeRefreshTimer = window.setTimeout(() => {
-    loadRows()
-  }, 500)
+  realtimeRefreshPending = true
+  if (isRealtimeRefreshBlocked() || realtimeRefreshRunning || realtimeRefreshTimer) return
+  const elapsed = Date.now() - lastRealtimeRefreshAt
+  const delay = Math.max(600, realtimeRefreshInterval() - elapsed)
+  realtimeRefreshTimer = window.setTimeout(runRealtimeRefresh, delay)
+}
+
+function flushPendingRealtimeRefresh() {
+  if (realtimeRefreshPending && !isRealtimeRefreshBlocked()) scheduleRealtimeRefresh()
 }
 
 function handleRealtimeEvent(event: Event) {
   const payload = (event as CustomEvent<RealtimeEventPayload>).detail
   if (payload && shouldRefreshForRealtime(payload)) scheduleRealtimeRefresh()
+}
+
+function handleDocumentVisibilityChange() {
+  if (document.visibilityState === 'visible') flushPendingRealtimeRefresh()
 }
 
 function handleSizeChange(size: number) {
@@ -597,6 +664,7 @@ function closeModal() {
   slotGroupEditTab.value = 'base'
   formState.value = {}
   submitting.value = false
+  window.setTimeout(flushPendingRealtimeRefresh, 0)
 }
 
 async function confirmAction(
@@ -688,6 +756,7 @@ function handleSelectionChange(selection: AnyRecord[]) {
 function clearSelection() {
   tableRef.value?.clearSelection?.()
   selectedRows.value = []
+  window.setTimeout(flushPendingRealtimeRefresh, 0)
 }
 
 async function requestAction(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
@@ -930,25 +999,43 @@ function initFilters() {
 watch(
   () => props.config.key,
   () => {
+    if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+    realtimeRefreshTimer = undefined
+    realtimeRefreshPending = false
+    lastRealtimeRefreshAt = 0
     initFilters()
     loadRows()
   },
 )
 
+watch(hasActiveUserOperation, (active) => {
+  if (!active) window.setTimeout(flushPendingRealtimeRefresh, 0)
+})
+
 onMounted(() => {
   initFilters()
   loadRows()
   window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+  document.addEventListener('visibilitychange', handleDocumentVisibilityChange)
+  if (pageRootRef.value && typeof IntersectionObserver !== 'undefined') {
+    // 二级栏目重新显示时只追一次最新数据，隐藏期间不发送列表请求。
+    pageVisibilityObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) flushPendingRealtimeRefresh()
+    })
+    pageVisibilityObserver.observe(pageRootRef.value)
+  }
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+  document.removeEventListener('visibilitychange', handleDocumentVisibilityChange)
+  pageVisibilityObserver?.disconnect()
   if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
 })
 </script>
 
 <template>
-  <section class="resource-page space-y-4" :class="{ 'resource-page--embedded': props.embedded }">
+  <section ref="pageRootRef" class="resource-page space-y-4" :class="{ 'resource-page--embedded': props.embedded }">
     <div
       v-if="!props.hideHeaderActions"
       class="resource-page__header flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
@@ -958,7 +1045,7 @@ onBeforeUnmount(() => {
       </div>
       <el-space wrap>
         <el-tooltip content="刷新" placement="bottom">
-          <el-button :icon="RefreshCw" circle :loading="loading" @click="loadRows" />
+          <el-button :icon="RefreshCw" circle :loading="loading" @click="loadRows()" />
         </el-tooltip>
         <el-button
           v-if="!config.readOnly"
