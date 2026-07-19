@@ -310,6 +310,15 @@ const slotGroupRemoteSelect = {
   pageSize: 50,
 };
 
+const slotGroupForSlotEditRemoteSelect = {
+  ...slotGroupRemoteSelect,
+  params: (context?: AnyRecord) => ({
+    runtime_platform: context?.runtime_platform,
+    provider: context?.provider,
+    business_platform: context?.business_platform,
+  }),
+};
+
 const taskTemplateRemoteSelect = {
   endpoint: "/api/task-templates",
   labelKey: "name",
@@ -516,6 +525,29 @@ async function updateAccountGroups(_updatedAccount: AnyRecord, payload: AnyRecor
 async function loadProxyForEdit(record: AnyRecord) {
   const proxy = await http.get<AnyRecord>(`/api/resource-center/proxies/${record.id}`);
   return { ...record, ...proxy, group_ids: Array.isArray(proxy.group_ids) ? proxy.group_ids : [] };
+}
+
+async function loadSlotForEdit(record: AnyRecord) {
+  const slot = await http.get<AnyRecord>(`/api/execution-slots/${record.id}`);
+  return { ...record, ...slot, slot_group_id: slot.group_id || "" };
+}
+
+async function updateSlotGroup(_updatedSlot: AnyRecord, payload: AnyRecord, record: AnyRecord) {
+  if (!Object.prototype.hasOwnProperty.call(payload, "slot_group_id")) return undefined;
+  const nextGroupId = String(payload.slot_group_id || "");
+  const currentGroupId = String(record.group_id || "");
+  if (nextGroupId === currentGroupId) return undefined;
+  if (nextGroupId) {
+    return http.post(`/api/slot-groups/${encodeURIComponent(nextGroupId)}/slots`, {
+      slot_id: String(record.id),
+    });
+  }
+  if (currentGroupId) {
+    return http.delete(
+      `/api/slot-groups/${encodeURIComponent(currentGroupId)}/slots/${encodeURIComponent(String(record.id))}`,
+    );
+  }
+  return undefined;
 }
 
 async function loadContentForEdit(record: AnyRecord) {
@@ -821,27 +853,43 @@ export const resources: Record<string, ResourceConfig> = {
     directDelete: true,
     deleteConfirm: "确认删除该设备？运行中的设备不能删除，删除后会解绑分组和账号关联。",
     createLabel: "新增设备",
+    loadEditRecord: loadSlotForEdit,
+    updateBody: (payload) =>
+      pickPayload(payload, ["provider_slot_no", "display_name", "business_platform"]),
+    afterUpdate: updateSlotGroup,
     columns: [
-      { key: "provider_slot_id", label: "设备 ID" },
-      { key: "display_name", label: "名称" },
-      { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
-      { key: "provider", label: "供应商" },
-      { key: "status", label: "状态", type: "status" },
-      {
-        key: "bound_account_id",
-        label: "账号",
-        type: "relation",
-        relation: accountRemoteSelect,
-      },
-      {
-        key: "proxy_id",
-        label: "代理",
-        type: "relation",
-        relation: proxyRemoteSelect,
-      },
-      { key: "last_seen_at", label: "心跳", type: "datetime" },
+      { key: "provider_slot_id", label: "设备信息", type: "deviceIdentity", minWidth: 220 },
+      { key: "group_name", label: "所属分组", type: "deviceGroup", minWidth: 125 },
+      { key: "runtime_platform", label: "运行环境", type: "devicePlatform", minWidth: 175 },
+      { key: "status", label: "状态", type: "deviceState", width: 150, align: "center" },
+      { key: "bound_account_id", label: "账号信息", type: "deviceAccount", minWidth: 170 },
+      { key: "proxy_id", label: "代理资源", type: "deviceProxy", minWidth: 180 },
+      { key: "last_seen_at", label: "最近活动", type: "deviceActivity", width: 175 },
     ],
     filters: [
+      {
+        key: "provider_slot_id",
+        label: "设备 ID",
+        placeholder: "请输入 Provider ID",
+      },
+      {
+        key: "display_name",
+        label: "设备名称",
+        placeholder: "请输入设备名称",
+      },
+      {
+        key: "group_id",
+        label: "所属分组",
+        type: "remoteSelect",
+        remote: slotGroupRemoteSelect,
+        placeholder: "全部分组",
+      },
+      {
+        key: "runtime_platform",
+        label: "执行平台",
+        type: "select",
+        options: runtimePlatformOptions,
+      },
       {
         key: "provider",
         label: "供应商",
@@ -861,9 +909,23 @@ export const resources: Record<string, ResourceConfig> = {
         options: slotStatusOptions,
       },
       {
+        key: "bound_account_id",
+        label: "绑定账号",
+        type: "remoteSelect",
+        remote: accountRemoteSelect,
+        placeholder: "全部账号",
+      },
+      {
+        key: "proxy_id",
+        label: "代理资源",
+        type: "remoteSelect",
+        remote: proxyRemoteSelect,
+        placeholder: "全部代理",
+      },
+      {
         key: "keyword",
-        label: "关键词",
-        placeholder: "设备 ID / 编号 / 名称",
+        label: "综合搜索",
+        placeholder: "编号 / 账号 / 分组",
       },
     ],
     createFields: [
@@ -900,20 +962,80 @@ export const resources: Record<string, ResourceConfig> = {
       },
     ],
     updateFields: [
+      { key: "provider_slot_id", label: "设备 ID（Provider ID）", readonly: true },
+      { key: "display_name", label: "设备名称", placeholder: "请输入运营识别名称" },
       { key: "provider_slot_no", label: "Provider 编号" },
-      { key: "display_name", label: "显示名称" },
+      {
+        key: "slot_group_id",
+        label: "所属分组",
+        type: "remoteSelect",
+        remote: slotGroupForSlotEditRemoteSelect,
+        allowEmpty: true,
+        placeholder: "未分组",
+      },
+      {
+        key: "runtime_platform",
+        label: "执行平台",
+        type: "select",
+        options: runtimePlatformOptions,
+        readonly: true,
+      },
+      {
+        key: "provider",
+        label: "设备供应商",
+        type: "select",
+        options: providerOptions,
+        readonly: true,
+      },
+      {
+        key: "slot_type",
+        label: "设备类型",
+        type: "select",
+        options: slotTypeOptions,
+        readonly: true,
+      },
       {
         key: "business_platform",
-        label: "业务平台",
+        label: "业务 App",
         type: "select",
         options: businessPlatformOptions,
       },
       {
         key: "status",
-        label: "状态",
+        label: "运行状态",
         type: "select",
         options: slotStatusOptions,
+        readonly: true,
       },
+      {
+        key: "login_status",
+        label: "账号登录状态",
+        type: "select",
+        options: loginStatusOptions,
+        readonly: true,
+      },
+      {
+        key: "bound_account_id",
+        label: "当前账号",
+        type: "remoteSelect",
+        remote: accountRemoteSelect,
+        readonly: true,
+        placeholder: "未绑定账号",
+      },
+      {
+        key: "proxy_id",
+        label: "当前代理",
+        type: "remoteSelect",
+        remote: proxyReadonlyRemoteSelect,
+        readonly: true,
+        placeholder: "未配置代理",
+      },
+      { key: "current_task_run_id", label: "当前任务 ID", readonly: true },
+      { key: "last_seen_at", label: "最近心跳", type: "datetime", readonly: true },
+      { key: "last_opened_at", label: "最近打开", type: "datetime", readonly: true },
+      { key: "last_login_check_at", label: "最近登录检测", type: "datetime", readonly: true },
+      { key: "created_at", label: "创建时间", type: "datetime", readonly: true },
+      { key: "updated_at", label: "更新时间", type: "datetime", readonly: true },
     ],
     rowActions: [
       {

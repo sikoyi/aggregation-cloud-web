@@ -25,6 +25,7 @@ import { http, resolveBackendUrl } from '@/api/http'
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider } from '@/api/interactionAi'
 import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import AccountTableCell from '@/components/AccountTableCell.vue'
+import DeviceTableCell from '@/components/DeviceTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
@@ -1096,6 +1097,16 @@ onBeforeUnmount(() => {
               :kind="column.type as 'accountIdentity' | 'accountGroup' | 'accountCredentials' | 'accountPlatform' | 'accountEnvironment'"
               :row="row"
               :column="column"
+            />
+            <DeviceTableCell
+              v-else-if="column.type && ['deviceIdentity', 'deviceGroup', 'devicePlatform', 'deviceState', 'deviceAccount', 'deviceProxy', 'deviceActivity'].includes(column.type)"
+              :kind="column.type as 'deviceIdentity' | 'deviceGroup' | 'devicePlatform' | 'deviceState' | 'deviceAccount' | 'deviceProxy' | 'deviceActivity'"
+              :row="row"
+              :column="column"
+              :status-switchable="isSwitchableStatusColumn(column)"
+              :status-enabled="isEnabledStatus(row[column.key], column)"
+              :status-loading="submitting"
+              @toggle-status="(value) => toggleEnabledStatus(row, column, value)"
             />
             <div v-else-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
               <el-switch
