@@ -2168,11 +2168,12 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/scripts",
     createLabel: "新增脚本",
     columns: [
-      { key: "name", label: "脚本信息", type: "scriptIdentity", minWidth: 220 },
-      { key: "purpose", label: "适配范围", type: "scriptScope", minWidth: 270 },
+      { key: "id", label: "脚本 ID", type: "id", width: 60, align: "center" },
+      { key: "name", label: "脚本信息", type: "scriptIdentity", minWidth: 180 },
+      { key: "purpose", label: "适配范围", type: "scriptScope", minWidth: 255 },
       { key: "max_timeout_seconds", label: "运行限制", type: "scriptTimeout", width: 90, align: "center" },
       { key: "status", label: "状态", type: "status", width: 80, align: "center" },
-      { key: "updated_at", label: "更新时间", type: "scriptTimeline", width: 148, align: "center" },
+      { key: "updated_at", label: "更新时间", type: "scriptTimeline", width: 143, align: "center" },
     ],
     filters: [
       {
@@ -2355,17 +2356,18 @@ export const resources: Record<string, ResourceConfig> = {
     }),
     updateBody: (payload, record) => buildTaskTemplateBody(payload, record),
     columns: [
-      { key: "name", label: "模板信息", type: "templateIdentity", minWidth: 155 },
+      { key: "id", label: "模板 ID", type: "id", width: 55, align: "center" },
+      { key: "name", label: "模板信息", type: "templateIdentity", minWidth: 145 },
       {
         key: "script_key",
         label: "关联脚本",
         type: "relation",
         relation: scriptRemoteSelect,
-        minWidth: 175,
+        minWidth: 160,
       },
-      { key: "business_platform", label: "执行配置", type: "templateConfig", minWidth: 220 },
+      { key: "business_platform", label: "执行配置", type: "templateConfig", minWidth: 200 },
       { key: "status", label: "状态", type: "status", width: 80, align: "center" },
-      { key: "updated_at", label: "更新时间", type: "templateTimeline", width: 152, align: "center" },
+      { key: "updated_at", label: "更新时间", type: "templateTimeline", width: 142, align: "center" },
     ],
     filters: [
       {
@@ -2652,11 +2654,12 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "下发任务",
     createBody: (payload) => buildTaskDispatchBody(payload),
     columns: [
-      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 165 },
-      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 125 },
-      { key: "status", label: "状态", type: "status", width: 105, align: "center" },
-      { key: "child_succeeded", label: "执行结果", type: "taskResult", width: 198, align: "center" },
-      { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 145 },
+      { key: "id", label: "任务 ID", type: "id", width: 68, align: "center" },
+      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 140 },
+      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 110 },
+      { key: "status", label: "状态", type: "status", width: 95, align: "center" },
+      { key: "child_succeeded", label: "执行结果", type: "taskResult", width: 190, align: "center" },
+      { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 125 },
     ],
     filters: [
       {

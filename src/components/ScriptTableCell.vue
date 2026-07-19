@@ -64,7 +64,6 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
       </el-tooltip>
       <span class="script-identity__meta">
         <code :title="text(row.script_key)">{{ text(row.script_key) }}</code>
-        <small>#{{ text(row.id) }}</small>
       </span>
     </span>
   </div>
@@ -113,7 +112,6 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
 .script-identity__content > strong { overflow: hidden; color: #243b53; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .script-identity__meta { display: flex; min-width: 0; align-items: center; gap: 7px; }
 .script-identity__meta code { overflow: hidden; padding: 2px 6px; border: 1px solid #cfe1f2; border-radius: 4px; color: #24658f; background: #f2f8fc; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.script-identity__meta small { flex: 0 0 auto; color: #91a0ae; font-size: 10px; }
 .script-scope { display: flex; flex-direction: column; gap: 7px; }
 .script-scope__purpose { display: flex; align-items: center; gap: 6px; color: #334e68; }
 .script-scope__purpose svg { width: 14px; height: 14px; color: #527a98; }

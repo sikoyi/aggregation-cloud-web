@@ -48,7 +48,6 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
       <el-tooltip :content="text(row.name)" placement="top" :show-after="500">
         <strong>{{ text(row.name) }}</strong>
       </el-tooltip>
-      <small>模板 #{{ text(row.id) }}</small>
     </span>
   </div>
 
@@ -80,7 +79,6 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
 .template-identity__icon svg { width: 17px; height: 17px; }
 .template-identity__content { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
 .template-identity__content strong { overflow: hidden; color: #243b53; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.template-identity__content small { color: #8798a8; font-size: 10px; }
 .template-config { display: flex; flex-direction: column; gap: 7px; }
 .template-config__environment,
 .template-config__execution { display: flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }

@@ -31,7 +31,6 @@ function compactDate(value: unknown) {
 }
 
 const taskTitle = computed(() => text(props.row.title))
-const taskId = computed(() => text(props.row.id))
 const businessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.business_platform))
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.provider))
@@ -44,7 +43,6 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
       <el-tooltip :content="taskTitle" placement="top" :show-after="500">
         <strong>{{ taskTitle }}</strong>
       </el-tooltip>
-      <span>任务 #{{ taskId }}</span>
     </span>
   </div>
 
