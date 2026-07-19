@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Search } from 'lucide-vue-next'
 
-import { getAllPages } from '@/api/http'
+import { loadSlotSelectionOptions } from '@/api/selectionOptions'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
 
@@ -39,7 +39,9 @@ const treeProps = {
   label: 'label',
   children: 'children',
   disabled: 'disabled',
+  value: 'id',
 }
+const treeHeight = 350
 
 const selectedSlotIds = computed(() =>
   Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
@@ -57,16 +59,6 @@ let filterReloadTimer: number | undefined
 
 function slotNodeId(slotId: string) {
   return `slot:${slotId}`
-}
-
-function queryParams(extra: AnyRecord = {}) {
-  const filters = props.filters || {}
-  return {
-    provider: filters.provider || undefined,
-    business_platform: filters.business_platform || undefined,
-    runtime_platform: filters.runtime_platform || undefined,
-    ...extra,
-  }
 }
 
 function slotLabel(slot: AnyRecord) {
@@ -91,7 +83,7 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
       .join(' ')
       .toLowerCase(),
     status: String(slot.status || 'offline'),
-    disabled: slot.status === 'disabled',
+    disabled: Boolean(props.disabled) || slot.status === 'disabled',
   }
 }
 
@@ -110,39 +102,33 @@ async function loadTree() {
   const requestId = ++loadRequestId
   loading.value = true
   try {
-    const groupParams = queryParams()
-    const slotParams = queryParams()
-
-    const [groups, slots] = await Promise.all([
-      getAllPages<AnyRecord>('/api/slot-groups', groupParams),
-      getAllPages<AnyRecord>('/api/execution-slots', slotParams),
-    ])
+    const slots = await loadSlotSelectionOptions(props.filters || {})
     if (requestId !== loadRequestId) return
 
     const eligibleSlotIds = new Set(slots.map((slot) => String(slot.id)))
-    const visibleGroupIds = new Set(groups.map((group) => String(group.id)))
     const slotsByGroup = new Map<string, AnyRecord[]>()
+    const groupNames = new Map<string, string>()
     const groupedSlotIds = new Set<string>()
 
-    // 设备列表已返回分组信息，直接组装树，避免每个分组再请求一次成员接口。
+    // 精简接口已带回分组信息，选择器只需一次请求即可组装完整设备树。
     slots.forEach((slot) => {
       const groupId = String(slot.group_id || '')
-      if (!groupId || !visibleGroupIds.has(groupId)) return
+      if (!groupId) return
       const items = slotsByGroup.get(groupId) || []
       items.push(slot)
       slotsByGroup.set(groupId, items)
+      groupNames.set(groupId, String(slot.group_name || groupId))
       groupedSlotIds.add(String(slot.id))
     })
 
-    const groupNodes = groups.map((group) => {
-      const items = slotsByGroup.get(String(group.id)) || []
-      const label = String(group.name || group.id)
+    const groupNodes = Array.from(slotsByGroup.entries()).map(([groupId, items]) => {
+      const label = groupNames.get(groupId) || groupId
       return {
-        id: `group:${group.id}`,
+        id: `group:${groupId}`,
         label,
         searchText: label.toLowerCase(),
         deviceCount: items.length,
-        disabled: !items.length,
+        disabled: Boolean(props.disabled) || !items.length,
         children: items.map(toSlotNode),
       }
     })
@@ -168,6 +154,7 @@ async function loadTree() {
 
     await nextTick()
     syncCheckedKeys()
+    treeRef.value?.setExpandedKeys?.(treeData.value.map((node) => node.id))
     treeRef.value?.filter?.(searchKeyword.value)
   } finally {
     if (requestId === loadRequestId) loading.value = false
@@ -222,17 +209,18 @@ watch(
         placeholder="搜索设备名称 / Provider ID"
       />
     </div>
-    <el-tree
+    <el-tree-v2
       ref="treeRef"
       :data="treeData"
       :props="treeProps"
-      node-key="id"
+      :height="treeHeight"
+      :item-size="38"
       show-checkbox
-      default-expand-all
+      :default-expanded-keys="treeData.map((node) => node.id)"
       :check-strictly="false"
       :expand-on-click-node="false"
-      :disabled="disabled"
-      :filter-node-method="filterNode"
+      :filter-method="filterNode"
+      scrollbar-always-on
       empty-text="暂无可选设备"
       @check="emitChecked"
     >
@@ -256,7 +244,7 @@ watch(
           </el-tag>
         </span>
       </template>
-    </el-tree>
+    </el-tree-v2>
   </div>
 </template>
 
@@ -273,7 +261,8 @@ watch(
   background: #f8fafc;
 }
 
-.slot-tree-select :deep(.el-tree) {
+.slot-tree-select :deep(.el-tree),
+.slot-tree-select :deep(.el-tree-v2) {
   background: transparent;
 }
 

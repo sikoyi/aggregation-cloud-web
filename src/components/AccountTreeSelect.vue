@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Search } from 'lucide-vue-next'
 
-import { getAllPages } from '@/api/http'
+import { loadAccountSelectionOptions } from '@/api/selectionOptions'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
 
@@ -40,7 +40,9 @@ const treeProps = {
   label: 'label',
   children: 'children',
   disabled: 'disabled',
+  value: 'id',
 }
+const treeHeight = 350
 
 const isMultiple = computed(() => props.multiple !== false)
 const selectedAccountIds = computed(() => {
@@ -77,17 +79,6 @@ const emptyMessage = computed(() => {
 
 function accountNodeId(accountId: string) {
   return `account:${accountId}`
-}
-
-function queryParams(extra: AnyRecord = {}) {
-  const filters = props.filters || {}
-  return {
-    business_platform: filters.business_platform || undefined,
-    runtime_platform: filters.runtime_platform || undefined,
-    provider: filters.provider || undefined,
-    login_status: props.associationOnly ? undefined : 'logged_in,logged_in_dm_unavailable',
-    ...extra,
-  }
 }
 
 function accountMatchesRuntime(account: AnyRecord) {
@@ -138,7 +129,7 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
       ? [slotName, providerSlotId].filter(Boolean).join(' / ')
       : undefined,
     loginStatus: String(account.login_status || 'unknown'),
-    disabled: !selectable,
+    disabled: Boolean(props.disabled) || !selectable,
   }
 }
 
@@ -172,57 +163,54 @@ async function loadTree() {
   loading.value = true
   try {
     if (props.groupByDevice) {
-      const accounts = await getAllPages<AnyRecord>('/api/accounts', queryParams())
-      if (requestId !== loadRequestId) return
-      await loadDeviceGroupedTree(accounts, requestId)
+      await loadDeviceGroupedTree(requestId)
       return
     }
 
-    const [groups, accounts] = await Promise.all([
-      getAllPages<AnyRecord>('/api/account-groups', queryParams()),
-      getAllPages<AnyRecord>('/api/accounts', queryParams()),
-    ])
-    if (requestId !== loadRequestId) return
-
-    const eligibleAccountIds = new Set(accounts.map((account) => String(account.id)))
-    const groupedAccountIds = new Set<string>()
-    const availableAccountIds = new Set<string>()
-    const groupNodes = await Promise.all(
-      groups.map(async (group) => {
-        const groupAccounts = await getAllPages<AnyRecord>(
-          `/api/account-groups/${encodeURIComponent(String(group.id))}/accounts`,
-          queryParams(),
-        )
-        const items = groupAccounts.filter((account) => {
-          if (!eligibleAccountIds.has(String(account.id))) return false
-          if (props.filters?.business_platform && account.business_platform !== props.filters.business_platform) return false
-          if (!accountMatchesRuntime(account)) return false
-          return true
-        })
-        items.forEach((account) => groupedAccountIds.add(String(account.id)))
-        items
-          .filter((account) => props.associationOnly || account.bound_slot_id)
-          .forEach((account) => availableAccountIds.add(String(account.id)))
-        const label = String(group.name || group.id)
-        return {
-          id: `group:${group.id}`,
-          label,
-          searchText: label.toLowerCase(),
-          disabled: !items.length,
-          children: items.map(toAccountNode),
-        }
-      }),
+    const accounts = await loadAccountSelectionOptions(
+      props.filters || {},
+      { associationOnly: props.associationOnly },
     )
     if (requestId !== loadRequestId) return
 
-    const ungroupedAccounts = accounts.filter((account) => {
+    const eligibleAccounts = accounts.filter(accountMatchesRuntime)
+    const accountsByGroup = new Map<string, AnyRecord[]>()
+    const groupNames = new Map<string, string>()
+    const groupedAccountIds = new Set<string>()
+    const availableAccountIds = new Set<string>()
+
+    eligibleAccounts.forEach((account) => {
+      const groupId = String(account.group_id || '')
+      if (!groupId) return
+      const items = accountsByGroup.get(groupId) || []
+      items.push(account)
+      accountsByGroup.set(groupId, items)
+      groupNames.set(groupId, String(account.group_name || groupId))
+      groupedAccountIds.add(String(account.id))
+    })
+
+    const groupNodes = Array.from(accountsByGroup.entries()).map(([groupId, items]) => {
+      items
+        .filter((account) => props.associationOnly || account.bound_slot_id)
+        .forEach((account) => availableAccountIds.add(String(account.id)))
+      const label = groupNames.get(groupId) || groupId
+      return {
+        id: `group:${groupId}`,
+        label,
+        searchText: label.toLowerCase(),
+        disabled: Boolean(props.disabled) || !items.length,
+        children: items.map(toAccountNode),
+      }
+    })
+
+    const ungroupedAccounts = eligibleAccounts.filter((account) => {
       if (groupedAccountIds.has(String(account.id))) return false
-      return accountMatchesRuntime(account)
+      return true
     })
     ungroupedAccounts
       .filter((account) => props.associationOnly || account.bound_slot_id)
       .forEach((account) => availableAccountIds.add(String(account.id)))
-    loggedInCount.value = accounts.filter(accountMatchesRuntime).length
+    loggedInCount.value = eligibleAccounts.length
     selectableCount.value = availableAccountIds.size
     treeData.value = [
       ...groupNodes.filter((node) => node.children?.length),
@@ -240,6 +228,7 @@ async function loadTree() {
 
     await nextTick()
     syncCheckedKeys()
+    treeRef.value?.setExpandedKeys?.(treeData.value.map((node) => node.id))
     treeRef.value?.filter?.(searchKeyword.value)
     const nextSelected = selectedAccountIds.value.filter((accountId) => availableAccountIds.has(accountId))
     if (nextSelected.length !== selectedAccountIds.value.length) {
@@ -250,76 +239,61 @@ async function loadTree() {
   }
 }
 
-async function loadDeviceGroupedTree(accounts: AnyRecord[], requestId: number) {
+async function loadDeviceGroupedTree(requestId: number) {
   const filters = props.filters || {}
-  const slotParams = {
-    business_platform: filters.business_platform || undefined,
-    provider: filters.provider || undefined,
-  }
-  const groupParams = {
-    business_platform: filters.business_platform || undefined,
-    runtime_platform: filters.runtime_platform || undefined,
-    provider: filters.provider || undefined,
-  }
-  const [groups, slots] = await Promise.all([
-    getAllPages<AnyRecord>('/api/slot-groups', groupParams),
-    getAllPages<AnyRecord>('/api/execution-slots', slotParams),
-  ])
+  const accounts = await loadAccountSelectionOptions(
+    filters,
+    { associationOnly: props.associationOnly },
+  )
   if (requestId !== loadRequestId) return
 
-  const accountById = new Map(accounts.map((account) => [String(account.id), account]))
-  const accountBySlotId = new Map(
-    accounts
-      .filter((account) => account.bound_slot_id)
-      .map((account) => [String(account.bound_slot_id), account]),
+  const eligibleAccounts = accounts.filter(
+    (account) => account.bound_slot_id && accountMatchesRuntime(account),
   )
-  const accountForSlot = (slot: AnyRecord) => {
-    const account = accountById.get(String(slot.bound_account_id || ''))
-      || accountBySlotId.get(String(slot.id))
-    return account && accountMatchesRuntime(account) ? account : undefined
-  }
-  const eligibleSlots = slots.filter((slot) => {
-    if (filters.runtime_platform && slot.runtime_platform !== filters.runtime_platform) return false
-    return Boolean(accountForSlot(slot))
-  })
-  const slotById = new Map(eligibleSlots.map((slot) => [String(slot.id), slot]))
-  const groupedSlotIds = new Set<string>()
+  const accountsByGroup = new Map<string, AnyRecord[]>()
+  const groupNames = new Map<string, string>()
+  const groupedAccountIds = new Set<string>()
   const availableAccountIds = new Set<string>()
-  const groupNodes = await Promise.all(
-    groups.map(async (group) => {
-      const groupSlots = await getAllPages<AnyRecord>(
-        `/api/slot-groups/${encodeURIComponent(String(group.id))}/slots`,
-      )
-      const items = groupSlots
-        .map((groupSlot) => slotById.get(String(groupSlot.id)))
-        .filter((slot): slot is AnyRecord => Boolean(slot))
-      items.forEach((slot) => groupedSlotIds.add(String(slot.id)))
-      const children = items.flatMap((slot) => {
-        const account = accountForSlot(slot)
-        if (!account) return []
-        availableAccountIds.add(String(account.id))
-        return [toDeviceAccountNode(slot, account)]
-      })
-      const label = String(group.name || group.id)
-      return {
-        id: `group:${group.id}`,
-        label,
-        searchText: label.toLowerCase(),
-        disabled: !children.length,
-        children,
-      }
-    }),
-  )
-  if (requestId !== loadRequestId) return
 
-  const ungroupedSlots = eligibleSlots.filter((slot) => !groupedSlotIds.has(String(slot.id)))
-  const ungroupedChildren = ungroupedSlots.flatMap((slot) => {
-    const account = accountForSlot(slot)
-    if (!account) return []
-    availableAccountIds.add(String(account.id))
-    return [toDeviceAccountNode(slot, account)]
+  eligibleAccounts.forEach((account) => {
+    const groupId = String(account.bound_slot_group_id || '')
+    if (!groupId) return
+    const items = accountsByGroup.get(groupId) || []
+    items.push(account)
+    accountsByGroup.set(groupId, items)
+    groupNames.set(groupId, String(account.bound_slot_group_name || groupId))
+    groupedAccountIds.add(String(account.id))
   })
-  loggedInCount.value = accounts.filter(accountMatchesRuntime).length
+
+  const groupNodes = Array.from(accountsByGroup.entries()).map(([groupId, items]) => {
+    const children = items.map((account) => {
+      availableAccountIds.add(String(account.id))
+      return toDeviceAccountNode({
+        display_name: account.bound_slot_name,
+        provider_slot_id: account.bound_slot_provider_id,
+      }, account)
+    })
+    const label = groupNames.get(groupId) || groupId
+    return {
+      id: `group:${groupId}`,
+      label,
+      searchText: label.toLowerCase(),
+      disabled: Boolean(props.disabled) || !children.length,
+      children,
+    }
+  })
+
+  const ungroupedAccounts = eligibleAccounts.filter(
+    (account) => !groupedAccountIds.has(String(account.id)),
+  )
+  const ungroupedChildren = ungroupedAccounts.map((account) => {
+    availableAccountIds.add(String(account.id))
+    return toDeviceAccountNode({
+      display_name: account.bound_slot_name,
+      provider_slot_id: account.bound_slot_provider_id,
+    }, account)
+  })
+  loggedInCount.value = eligibleAccounts.length
   selectableCount.value = availableAccountIds.size
   treeData.value = [
     ...groupNodes.filter((node) => node.children.length),
@@ -335,6 +309,7 @@ async function loadDeviceGroupedTree(accounts: AnyRecord[], requestId: number) {
 
   await nextTick()
   syncCheckedKeys()
+  treeRef.value?.setExpandedKeys?.(treeData.value.map((node) => node.id))
   treeRef.value?.filter?.(searchKeyword.value)
   const nextSelected = selectedAccountIds.value.filter((accountId) => availableAccountIds.has(accountId))
   if (nextSelected.length !== selectedAccountIds.value.length) {
@@ -342,7 +317,7 @@ async function loadDeviceGroupedTree(accounts: AnyRecord[], requestId: number) {
   }
 }
 
-function emitChecked(node?: AccountTreeNode) {
+function emitChecked(node?: AnyRecord) {
   const checkedNodes = (treeRef.value?.getCheckedNodes?.(true) || []) as AccountTreeNode[]
   let accountIds = checkedNodes
     .map((item) => item.accountId)
@@ -350,7 +325,7 @@ function emitChecked(node?: AccountTreeNode) {
 
   // 主号只允许选一个，避免传给后端时出现数组和单值混用。
   if (!isMultiple.value) {
-    const clickedAccountId = node?.accountId
+    const clickedAccountId = node?.accountId ? String(node.accountId) : ''
     accountIds = clickedAccountId && accountIds.includes(clickedAccountId)
       ? [clickedAccountId]
       : accountIds.slice(-1)
@@ -390,17 +365,18 @@ watch(
       :closable="false"
       show-icon
     />
-    <el-tree
+    <el-tree-v2
       ref="treeRef"
       :data="treeData"
       :props="treeProps"
-      node-key="id"
+      :height="treeHeight"
+      :item-size="46"
       show-checkbox
-      default-expand-all
+      :default-expanded-keys="treeData.map((node) => node.id)"
       :check-strictly="!isMultiple"
       :expand-on-click-node="false"
-      :disabled="disabled"
-      :filter-node-method="filterNode"
+      :filter-method="filterNode"
+      scrollbar-always-on
       :empty-text="emptyMessage || '暂无已登录账号'"
       @check="emitChecked"
     >
@@ -428,7 +404,7 @@ watch(
           </el-tooltip>
         </span>
       </template>
-    </el-tree>
+    </el-tree-v2>
   </div>
 </template>
 
@@ -459,7 +435,8 @@ watch(
   backdrop-filter: blur(4px);
 }
 
-.account-tree-select :deep(.el-tree) {
+.account-tree-select :deep(.el-tree),
+.account-tree-select :deep(.el-tree-v2) {
   background: transparent;
 }
 
