@@ -101,10 +101,10 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
 .task-platform__primary strong { font-size: 12px; }
 .task-platform__tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .task-result { display: flex; align-items: center; justify-content: center; }
-.task-result__counts { display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
-.task-result__count { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; }
-.task-result__count svg { width: 11px; height: 11px; }
-.task-result__count strong { font-size: 11px; }
+.task-result__counts { display: flex; align-items: center; justify-content: center; gap: 12px; white-space: nowrap; }
+.task-result__count { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 20px; }
+.task-result__count svg { width: 13px; height: 13px; flex: 0 0 13px; }
+.task-result__count strong { font-size: 13px; font-weight: 700; }
 .task-result__count--success { color: #3e7c55; }
 .task-result__count--failed { color: #c04b4b; }
 .task-result__count--canceled { color: #7c8794; }

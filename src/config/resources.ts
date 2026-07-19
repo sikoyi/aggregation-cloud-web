@@ -2660,11 +2660,11 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "下发任务",
     createBody: (payload) => buildTaskDispatchBody(payload),
     columns: [
-      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 175 },
-      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 135 },
-      { key: "status", label: "状态", type: "status", width: 90, align: "center" },
-      { key: "child_succeeded", label: "执行结果", type: "taskResult", width: 175, align: "center" },
-      { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 160 },
+      { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 165 },
+      { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 125 },
+      { key: "status", label: "状态", type: "status", width: 105, align: "center" },
+      { key: "child_succeeded", label: "执行结果", type: "taskResult", width: 198, align: "center" },
+      { key: "created_at", label: "任务时间", type: "taskTimeline", minWidth: 145 },
     ],
     filters: [
       {
