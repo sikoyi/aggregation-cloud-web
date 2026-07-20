@@ -33,6 +33,7 @@ const publicName = computed(() => {
   return value && value !== loginName.value ? `@${value}` : `账号 #${text(props.row.id)}`
 })
 const identityInitial = computed(() => loginName.value.slice(0, 1).toUpperCase())
+const avatarUrl = computed(() => String(props.row.avatar_url || '').trim() || undefined)
 const groupName = computed(() => String(props.row.group_name || '').trim())
 const businessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.business_platform))
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.bound_slot_runtime_platform))
@@ -44,7 +45,9 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
 
 <template>
   <div v-if="kind === 'accountIdentity'" class="account-cell account-identity">
-    <span class="account-identity__avatar">{{ identityInitial }}</span>
+    <el-avatar :size="34" :src="avatarUrl" fit="cover" class="account-identity__avatar">
+      {{ identityInitial }}
+    </el-avatar>
     <span class="account-identity__content">
       <el-tooltip :content="loginName" placement="top" :show-after="500">
         <strong class="account-identity__name">{{ loginName }}</strong>
@@ -118,14 +121,8 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
 }
 
 .account-identity__avatar {
-  display: inline-flex;
   flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
   border: 1px solid #cfe1f2;
-  border-radius: 50%;
   color: #245f87;
   background: #edf6fc;
   font-size: 13px;

@@ -403,7 +403,9 @@ onBeforeUnmount(() => {
             <el-table-column label="账号" min-width="230">
               <template #default="{ row }">
                 <div class="account-cell">
-                  <el-avatar :size="34" :src="row.avatar_url || undefined">{{ String(row.account_name || '-').slice(0, 1) }}</el-avatar>
+                  <el-avatar :size="36" :src="row.avatar_url || undefined" fit="cover" class="account-data__avatar">
+                    {{ String(row.account_name || '-').slice(0, 1) }}
+                  </el-avatar>
                   <div class="account-cell__copy">
                     <strong>{{ row.account_name }}</strong>
                     <div class="account-cell__meta">
@@ -752,6 +754,7 @@ onBeforeUnmount(() => {
 .account-data__pagination { display: flex; justify-content: flex-end; padding: 12px; border-top: 1px solid #e5ebf1; }
 
 .account-cell { min-width: 0; gap: 10px; }
+.account-data__avatar { flex: 0 0 auto; border: 1px solid #d5e2ec; color: #245f87; background: #edf6fc; }
 .account-cell__copy { min-width: 0; }
 .account-cell__copy strong { display: block; overflow: hidden; color: #243548; text-overflow: ellipsis; white-space: nowrap; }
 .account-cell__meta { gap: 6px; margin-top: 5px; }
