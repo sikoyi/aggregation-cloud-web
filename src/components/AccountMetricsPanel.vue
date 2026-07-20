@@ -38,6 +38,7 @@ const accountName = computed(() =>
   String(props.account?.login_username || props.account?.username || props.account?.display_name || props.account?.id || '-'),
 )
 const points = computed<AnyRecord[]>(() => Array.isArray(curve.value?.points) ? curve.value.points : [])
+const tablePoints = computed<AnyRecord[]>(() => [...points.value].reverse())
 const trends = computed<AnyRecord[]>(() => Array.isArray(curve.value?.trends) ? curve.value.trends : [])
 
 function metricNumber(value: unknown) {
@@ -195,7 +196,7 @@ watch([accountId, period], loadCurve, { immediate: true })
       </svg>
     </div>
 
-    <el-table :data="points" border stripe table-layout="auto" empty-text="暂无指标快照">
+    <el-table :data="tablePoints" border stripe table-layout="auto" empty-text="暂无指标快照">
       <el-table-column label="采集时间" min-width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.captured_at) }}</template>
       </el-table-column>
