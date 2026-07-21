@@ -2167,6 +2167,7 @@ export const resources: Record<string, ResourceConfig> = {
           { label: "好奇提问", value: "curious" },
           { label: "支持认同", value: "supportive" },
           { label: "观点讨论", value: "discussion" },
+          { label: "韩国财经互动（固定韩文）", value: "korean_finance" },
         ],
       },
       {

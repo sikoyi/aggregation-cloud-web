@@ -307,6 +307,10 @@ onBeforeUnmount(() => {
             placeholder="AI 文案生成后可在这里修改"
           />
         </section>
+        <section v-if="activeJob.generated_translation" class="review-block review-block--translation">
+          <header><span>中文意思</span><small>仅供运营审核，不会下发给脚本</small></header>
+          <p>{{ activeJob.generated_translation }}</p>
+        </section>
         <el-alert v-if="activeJob.error_message || activeJob.generation_error" :title="String(activeJob.error_message || activeJob.generation_error)" type="error" :closable="false" show-icon />
       </div>
       <template #footer>
@@ -356,6 +360,7 @@ onBeforeUnmount(() => {
 .review-dialog__meta small { margin-bottom: 5px; color: #7b8b9b; }
 .review-block { padding: 13px; border: 1px solid #dbe4ed; border-radius: 6px; }
 .review-block--comment { border-left: 3px solid #4e88ad; background: #f8fbfd; }
+.review-block--translation { border-left: 3px solid #d49b36; background: #fffbf2; }
 .review-block header { justify-content: space-between; gap: 12px; margin-bottom: 9px; color: #334155; }
 .review-block header span { font-weight: 700; }
 .review-block header small { color: #8a98a8; }

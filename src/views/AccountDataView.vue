@@ -564,6 +564,7 @@ onBeforeUnmount(() => {
                     <el-option label="好奇" value="curious" />
                     <el-option label="支持认同" value="supportive" />
                     <el-option label="讨论式" value="discussion" />
+                    <el-option label="韩国财经互动（固定韩文）" value="korean_finance" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="最大长度">
