@@ -639,33 +639,6 @@ function formatContentImportSuccess(data: AnyRecord) {
   return `共解析 ${total} 条内容，成功导入 ${created} 条${groupText}；本次重复 ${duplicate} 条，系统已存在 ${existed} 条，失败 ${failed} 条。`;
 }
 
-function appendFormValue(formData: FormData, key: string, value: unknown) {
-  if (value === undefined || value === null || value === "") return;
-  if (value instanceof File) {
-    formData.append(key, value);
-    return;
-  }
-  if (Array.isArray(value)) {
-    formData.append(key, value.join(","));
-    return;
-  }
-  formData.append(key, String(value));
-}
-
-function buildMediaUploadBody(payload: AnyRecord) {
-  const formData = new FormData();
-  [
-    "file",
-    "business_platform",
-    "name",
-    "asset_type",
-    "tags",
-    "status",
-    "remark",
-  ].forEach((key) => appendFormValue(formData, key, payload[key]));
-  return formData;
-}
-
 async function loadAccountForEdit(record: AnyRecord) {
   const account = await http.get<AnyRecord>(`/api/accounts/${record.id}`);
   return { ...record, ...account, account_group_id: account.group_id || "" };
@@ -1887,7 +1860,7 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/content-center/media-assets",
     createEndpoint: "/api/content-center/media-assets/upload",
     createLabel: "上传素材",
-    createBody: (payload) => buildMediaUploadBody(payload),
+    mediaAssetBatchUpload: true,
     columns: [
       { key: "id", label: "ID", type: "id", align: "center" },
       { key: "name", label: "素材名称", minWidth: 220 },
@@ -1918,39 +1891,6 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "tags", label: "标签", placeholder: "多个标签用逗号分隔" },
       { key: "keyword", label: "关键词", placeholder: "名称 / 地址 / 备注" },
-    ],
-    createFields: [
-      {
-        key: "file",
-        label: "素材文件",
-        type: "file",
-        required: true,
-        placeholder: "请选择图片、视频或文件",
-      },
-      {
-        key: "business_platform",
-        label: "业务 App",
-        type: "select",
-        options: businessPlatformOptions,
-        defaultValue: "threads",
-      },
-      { key: "name", label: "素材名称", placeholder: "不填时使用文件名" },
-      {
-        key: "asset_type",
-        label: "素材类型",
-        type: "select",
-        options: mediaAssetTypeOptions,
-        placeholder: "不选时自动识别",
-      },
-      {
-        key: "status",
-        label: "状态",
-        type: "select",
-        options: mediaAssetStatusOptions,
-        defaultValue: "enabled",
-      },
-      { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
-      { key: "remark", label: "备注", type: "textarea", span: 2 },
     ],
     updateFields: [
       {

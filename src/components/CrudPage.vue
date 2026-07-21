@@ -46,6 +46,7 @@ const ActionResultDialog = defineAsyncComponent(() => import('@/components/Actio
 const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
 const ContentGroupMemberEditor = defineAsyncComponent(() => import('@/components/ContentGroupMemberEditor.vue'))
 const InteractionSessionDetailDialog = defineAsyncComponent(() => import('@/components/InteractionSessionDetailDialog.vue'))
+const MediaAssetBatchUploader = defineAsyncComponent(() => import('@/components/MediaAssetBatchUploader.vue'))
 const ProxyGroupMemberEditor = defineAsyncComponent(() => import('@/components/ProxyGroupMemberEditor.vue'))
 const PublishedContentDetailDialog = defineAsyncComponent(() => import('@/components/PublishedContentDetailDialog.vue'))
 const SlotGroupMemberEditor = defineAsyncComponent(() => import('@/components/SlotGroupMemberEditor.vue'))
@@ -146,7 +147,9 @@ const modalTitle = computed(() => {
 const isTaskDispatchModal = computed(() => props.config.key === 'tasks' && modal.type === 'create')
 const isPublishedContentDispatchModal = computed(() => props.config.key === 'publishedContents' && modal.type === 'create')
 const isInteractionSessionCreateModal = computed(() => props.config.key === 'interactionSessions' && modal.type === 'create')
+const isMediaAssetBatchCreateModal = computed(() => Boolean(props.config.mediaAssetBatchUpload && modal.type === 'create'))
 const modalWidth = computed(() => {
+  if (isMediaAssetBatchCreateModal.value) return '900px'
   if (isInteractionSessionCreateModal.value) return '1240px'
   if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value) return '1120px'
   if (
@@ -167,6 +170,7 @@ const dispatchFormMode = computed<'task' | 'published' | 'interaction' | null>((
   return null
 })
 const showModalSaveButton = computed(() => {
+  if (isMediaAssetBatchCreateModal.value) return false
   if (modal.type !== 'edit') return true
   if ((props.config.slotGroupMembers || props.config.proxyGroupMembers || props.config.contentGroupMembers) && slotGroupEditTab.value === 'members') return false
   return true
@@ -749,6 +753,16 @@ async function submitEntity() {
   } finally {
     submitting.value = false
   }
+}
+
+async function handleMediaAssetBatchCompleted(summary: { total: number; succeeded: number; failed: number }) {
+  ElNotification({
+    type: summary.failed ? 'warning' : 'success',
+    title: summary.failed ? '批量上传已完成，部分文件失败' : '批量上传完成',
+    message: `本次处理 ${summary.total} 个文件，成功 ${summary.succeeded} 个，失败 ${summary.failed} 个。`,
+    duration: 7000,
+  })
+  await loadRows()
 }
 
 async function deleteRow(record: AnyRecord) {
@@ -1400,6 +1414,9 @@ onBeforeUnmount(() => {
       :width="modalWidth"
       destroy-on-close
       append-to-body
+      :close-on-click-modal="!submitting"
+      :close-on-press-escape="!submitting"
+      :show-close="!submitting"
       @close="closeModal"
     >
       <BusinessDispatchForm
@@ -1408,6 +1425,11 @@ onBeforeUnmount(() => {
         :mode="dispatchFormMode"
         :fields="modalFields"
         :context="modal.record || undefined"
+      />
+      <MediaAssetBatchUploader
+        v-else-if="isMediaAssetBatchCreateModal"
+        @uploading-change="submitting = $event"
+        @completed="handleMediaAssetBatchCompleted"
       />
       <div
         v-else-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"
@@ -1453,7 +1475,7 @@ onBeforeUnmount(() => {
       </el-tabs>
       <DynamicForm v-else v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
       <template #footer>
-        <el-button @click="closeModal">取消</el-button>
+        <el-button :disabled="submitting" @click="closeModal">{{ isMediaAssetBatchCreateModal ? '关闭' : '取消' }}</el-button>
         <el-button
           v-if="showModalSaveButton"
           type="primary"
