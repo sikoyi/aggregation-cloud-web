@@ -130,6 +130,27 @@ const slotMultiSelect = {
   multiple: true,
 };
 
+const onlineFingerprintRuntimeRemoteSelect = {
+  endpoint: "/api/runtimes",
+  labelKeys: ["runtime_id", "ip"],
+  valueKey: "id",
+  detailPath: (value: string) => `/api/runtimes/${encodeURIComponent(value)}`,
+  secondaryKeys: ["provider", "slot_running", "max_concurrent_slots"],
+  pageSize: 100,
+  clearWhenMissing: true,
+  params: (context?: AnyRecord) => ({
+    status: "online",
+    runtime_platform: "fingerprint_browser",
+    provider: context?.provider || undefined,
+  }),
+  matchesContext: (runtime: AnyRecord, context?: AnyRecord) => (
+    runtime.status === "online"
+    && runtime.runtime_platform === "fingerprint_browser"
+    && (!context?.provider || runtime.provider === context.provider)
+  ),
+  emptyText: "当前供应商暂无在线 Runtime，请先启动对应脚本端",
+};
+
 const proxyRemoteSelect = {
   endpoint: "/api/resource-center/proxies",
   labelKeys: ["name", "source_proxy_url", "host"],
@@ -469,7 +490,32 @@ function formatAccountImportSuccess(data: AnyRecord) {
   const failed = Number(data.failed_count || 0);
   const grouped = Number(data.grouped_count || 0);
   const groupText = data.group_id ? `，加入分组 ${grouped} 个` : "";
-  return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。`;
+  const queued = Number(data.onboarding_queued_count || 0);
+  const onboardingText = data.onboarding_status === "queued"
+    ? ` 已创建 ${queued} 条环境创建及上号任务，父任务 ID：${data.onboarding_task_id}。`
+    : data.onboarding_message ? ` ${data.onboarding_message}。` : "";
+  return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。${onboardingText}`;
+}
+
+function buildAccountImportPayload(payload: AnyRecord) {
+  const body = pickPayload(payload, [
+    "business_platform",
+    "country",
+    "group_id",
+    "raw_text",
+    "delimiter",
+    "custom_delimiter",
+    "post_import_action",
+    "provider",
+    "target_runtime_instance_id",
+    "environment_name_prefix",
+  ]);
+  if (body.post_import_action !== "create_environment_and_login") {
+    delete body.provider;
+    delete body.target_runtime_instance_id;
+    delete body.environment_name_prefix;
+  }
+  return body;
 }
 
 function formatContentImportSuccess(data: AnyRecord) {
@@ -590,6 +636,7 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "导入账号",
     createSuccessTitle: "账号导入完成",
     createSuccessMessage: (data) => formatAccountImportSuccess(data),
+    createBody: (payload) => buildAccountImportPayload(payload),
     loadEditRecord: loadAccountForEdit,
     updateBody: (payload) =>
       pickPayload(payload, [
@@ -712,6 +759,44 @@ export const resources: Record<string, ResourceConfig> = {
         type: "remoteSelect",
         remote: accountGroupRemoteSelect,
         placeholder: "可选，导入后自动加入分组",
+      },
+      {
+        key: "post_import_action",
+        label: "导入后动作",
+        type: "segmented",
+        options: [
+          { label: "仅导入账号", value: "import_only" },
+          { label: "创建环境并上号", value: "create_environment_and_login" },
+        ],
+        defaultValue: "import_only",
+        span: 2,
+        required: true,
+      },
+      {
+        key: "provider",
+        label: "设备供应商",
+        type: "select",
+        options: providerOptions,
+        visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        placeholder: "请选择 MoreLogin 或 AdsPower",
+      },
+      {
+        key: "target_runtime_instance_id",
+        label: "目标 Runtime",
+        type: "remoteSelect",
+        remote: onlineFingerprintRuntimeRemoteSelect,
+        visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        placeholder: "选择负责创建环境的在线 Runtime",
+      },
+      {
+        key: "environment_name_prefix",
+        label: "环境名称前缀",
+        visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        span: 2,
+        placeholder: "例如 韩国7-16-90，将生成 韩国7-16-90-001、002……",
       },
       {
         key: "raw_text",
