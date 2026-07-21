@@ -509,11 +509,13 @@ function buildAccountImportPayload(payload: AnyRecord) {
     "provider",
     "target_runtime_instance_id",
     "environment_name_prefix",
+    "proxy_id",
   ]);
   if (body.post_import_action !== "create_environment_and_login") {
     delete body.provider;
     delete body.target_runtime_instance_id;
     delete body.environment_name_prefix;
+    delete body.proxy_id;
   }
   return body;
 }
@@ -797,6 +799,15 @@ export const resources: Record<string, ResourceConfig> = {
         requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
         span: 2,
         placeholder: "例如 韩国7-16-90，将生成 韩国7-16-90-001、002……",
+      },
+      {
+        key: "proxy_id",
+        label: "上号代理",
+        type: "remoteSelect",
+        remote: proxyRemoteSelect,
+        visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        span: 2,
+        placeholder: "可选，从代理资源中选择创建环境时使用的代理",
       },
       {
         key: "raw_text",
