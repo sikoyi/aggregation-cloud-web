@@ -1,6 +1,6 @@
 import { http } from "@/api/http";
 import type { AnyRecord } from "@/types/api";
-import type { ResourceConfig } from "@/types/crud";
+import type { FieldConfig, ResourceConfig } from "@/types/crud";
 
 import {
   accountCountryOptions,
@@ -552,6 +552,82 @@ function buildAccountImportPayload(payload: AnyRecord) {
   return body;
 }
 
+const accountOnboardingFields: FieldConfig[] = [
+  {
+    key: "provider",
+    label: "设备供应商",
+    type: "select",
+    options: providerOptions,
+    required: true,
+    placeholder: "请选择 MoreLogin 或 AdsPower",
+  },
+  {
+    key: "target_runtime_instance_id",
+    label: "目标 Runtime",
+    type: "remoteSelect",
+    remote: onlineFingerprintRuntimeRemoteSelect,
+    required: true,
+    placeholder: "选择负责创建环境的在线 Runtime",
+  },
+  {
+    key: "environment_name_prefix",
+    label: "环境名称前缀",
+    required: true,
+    span: 2,
+    placeholder: "例如 韩国重试，将生成 韩国重试-001、002……",
+  },
+  {
+    key: "proxy_allocation_mode",
+    label: "上号代理方式",
+    type: "segmented",
+    options: [
+      { label: "不使用代理", value: "none" },
+      { label: "静态代理池", value: "static_group" },
+      { label: "动态代理模板", value: "dynamic_template" },
+    ],
+    defaultValue: "none",
+    span: 2,
+    required: true,
+  },
+  {
+    key: "proxy_group_id",
+    label: "静态代理组",
+    type: "remoteSelect",
+    remote: proxyGroupRemoteSelect,
+    visibleWhen: { key: "proxy_allocation_mode", value: "static_group" },
+    requiredWhen: { key: "proxy_allocation_mode", value: "static_group" },
+    span: 2,
+  },
+  {
+    key: "dynamic_proxy_id",
+    label: "动态代理模板",
+    type: "remoteSelect",
+    remote: dynamicProxyRemoteSelect,
+    visibleWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
+    requiredWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
+    span: 2,
+  },
+];
+
+function buildAccountOnboardingBody(payload: AnyRecord, records: AnyRecord[]) {
+  return {
+    account_ids: records.map((record) => String(record.id)),
+    business_platform: String(records[0]?.business_platform || ""),
+    provider: payload.provider,
+    target_runtime_instance_id: payload.target_runtime_instance_id,
+    environment_name_prefix: payload.environment_name_prefix,
+    proxy_allocation_mode: payload.proxy_allocation_mode,
+    proxy_group_id: payload.proxy_allocation_mode === "static_group" ? payload.proxy_group_id : undefined,
+    dynamic_proxy_id: payload.proxy_allocation_mode === "dynamic_template" ? payload.dynamic_proxy_id : undefined,
+  };
+}
+
+function canOnboardAccount(record: AnyRecord) {
+  return record.login_status === "not_logged_in"
+    && !String(record.bound_slot_id || "").trim()
+    && !String(record.bound_slot_provider_id || "").trim();
+}
+
 function formatContentImportSuccess(data: AnyRecord) {
   const total = Number(data.total_count || 0);
   const created = Number(data.created_count || 0);
@@ -932,7 +1008,34 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "display_name", label: "显示名称" },
     ],
+    rowActions: [
+      {
+        key: "account-onboarding",
+        label: "上号",
+        visible: canOnboardAccount,
+        method: "POST",
+        icon: "play",
+        path: () => "/api/accounts/onboarding",
+        body: (payload, record) => buildAccountOnboardingBody(payload, [record]),
+        successTitle: "上号任务已创建",
+        successMessage: (data) => `已创建上号任务，父任务 ID：${data.onboarding_task_id}`,
+        fields: accountOnboardingFields,
+      },
+    ],
+    inlineActionKeys: ["account-onboarding"],
     batchActions: [
+      {
+        key: "batch-account-onboarding",
+        label: "重新上号",
+        method: "POST",
+        icon: "rotate",
+        batchPath: () => "/api/accounts/onboarding",
+        batchBody: (payload, records) => buildAccountOnboardingBody(payload, records),
+        successTitle: "重新上号任务已创建",
+        successMessage: (data) =>
+          `已为 ${Number(data.onboarding_queued_count || 0)} 个账号创建上号任务，父任务 ID：${data.onboarding_task_id}`,
+        fields: accountOnboardingFields,
+      },
       {
         key: "batch-add-to-group",
         label: "设置分组",
@@ -1415,82 +1518,6 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     inlineActionKeys: ["check"],
     batchActions: [
-      {
-        key: "batch-account-onboarding",
-        label: "重新上号",
-        method: "POST",
-        icon: "rotate-ccw",
-        batchPath: () => "/api/accounts/onboarding",
-        batchBody: (payload, records) => ({
-          account_ids: records.map((record) => String(record.id)),
-          business_platform: String(records[0]?.business_platform || ""),
-          provider: payload.provider,
-          target_runtime_instance_id: payload.target_runtime_instance_id,
-          environment_name_prefix: payload.environment_name_prefix,
-          proxy_allocation_mode: payload.proxy_allocation_mode,
-          proxy_group_id: payload.proxy_allocation_mode === "static_group" ? payload.proxy_group_id : undefined,
-          dynamic_proxy_id: payload.proxy_allocation_mode === "dynamic_template" ? payload.dynamic_proxy_id : undefined,
-        }),
-        successTitle: "重新上号任务已创建",
-        successMessage: (data) =>
-          `已为 ${Number(data.onboarding_queued_count || 0)} 个账号创建上号任务，父任务 ID：${data.onboarding_task_id}`,
-        fields: [
-          {
-            key: "provider",
-            label: "设备供应商",
-            type: "select",
-            options: providerOptions,
-            required: true,
-            placeholder: "请选择 MoreLogin 或 AdsPower",
-          },
-          {
-            key: "target_runtime_instance_id",
-            label: "目标 Runtime",
-            type: "remoteSelect",
-            remote: onlineFingerprintRuntimeRemoteSelect,
-            required: true,
-            placeholder: "选择负责创建环境的在线 Runtime",
-          },
-          {
-            key: "environment_name_prefix",
-            label: "环境名称前缀",
-            required: true,
-            span: 2,
-            placeholder: "例如 韩国重试，将生成 韩国重试-001、002……",
-          },
-          {
-            key: "proxy_allocation_mode",
-            label: "上号代理方式",
-            type: "segmented",
-            options: [
-              { label: "不使用代理", value: "none" },
-              { label: "静态代理池", value: "static_group" },
-              { label: "动态代理模板", value: "dynamic_template" },
-            ],
-            defaultValue: "none",
-            span: 2,
-            required: true,
-          },
-          {
-            key: "proxy_group_id",
-            label: "静态代理组",
-            type: "remoteSelect",
-            remote: proxyGroupRemoteSelect,
-            visibleWhen: { key: "proxy_allocation_mode", value: "static_group" },
-            requiredWhen: { key: "proxy_allocation_mode", value: "static_group" },
-            span: 2,
-          },
-          {
-            key: "dynamic_proxy_id",
-            label: "动态代理模板",
-            type: "remoteSelect",
-            remote: dynamicProxyRemoteSelect,
-            visibleWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
-            requiredWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
-            span: 2,
-          },
-        ],
-      },
       {
         key: "batch-check",
         label: "批量检测",

@@ -137,6 +137,7 @@ export interface ColumnConfig {
 export interface RowActionConfig {
   key: string
   label: string
+  visible?: (record: AnyRecord) => boolean
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path?: (record: AnyRecord, payload?: AnyRecord) => string
   batchPath?: (records: AnyRecord[], payload?: AnyRecord) => string

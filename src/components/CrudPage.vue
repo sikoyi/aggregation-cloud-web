@@ -224,6 +224,15 @@ const headerActions = computed(() => props.config.headerActions || [])
 const inlineActionKeys = computed(() => new Set(props.config.inlineActionKeys || []))
 const inlineRowActions = computed(() => rowActionsForMenu.value.filter((action) => inlineActionKeys.value.has(action.key)))
 const dropdownRowActions = computed(() => rowActionsForMenu.value.filter((action) => !inlineActionKeys.value.has(action.key)))
+
+function visibleInlineRowActions(record: AnyRecord) {
+  return inlineRowActions.value.filter((action) => !action.visible || action.visible(record))
+}
+
+function visibleDropdownRowActions(record: AnyRecord) {
+  return dropdownRowActions.value.filter((action) => !action.visible || action.visible(record))
+}
+
 const canEditRow = computed(() => !props.config.readOnly && Boolean(props.config.updateFields?.length))
 const canDeleteRow = computed(() => !props.config.readOnly && Boolean(props.config.deleteLabel))
 const showDirectDelete = computed(() => canDeleteRow.value && (props.config.directDelete || !dropdownRowActions.value.length))
@@ -985,7 +994,7 @@ function handleDropdown(command: string, row: AnyRecord) {
     deleteRow(row)
     return
   }
-  const action = dropdownRowActions.value.find((item) => item.key === command)
+  const action = visibleDropdownRowActions(row).find((item) => item.key === command)
   if (action) runAction(action, row)
 }
 
@@ -1306,7 +1315,12 @@ onBeforeUnmount(() => {
               <el-tooltip v-if="canEditRow" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" :disabled="submitting" @click="openEdit(row)" />
               </el-tooltip>
-              <el-tooltip v-for="action in inlineRowActions" :key="action.key" :content="action.label" placement="top">
+              <el-tooltip
+                v-for="action in visibleInlineRowActions(row)"
+                :key="action.key"
+                :content="action.label"
+                placement="top"
+              >
                 <el-button
                   text
                   circle
@@ -1324,7 +1338,7 @@ onBeforeUnmount(() => {
                 <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="deleteRow(row)" />
               </el-tooltip>
               <el-dropdown
-                v-if="dropdownRowActions.length || showDropdownDelete"
+                v-if="visibleDropdownRowActions(row).length || showDropdownDelete"
                 trigger="click"
                 :disabled="submitting"
                 @command="(command) => handleDropdown(String(command), row)"
@@ -1333,7 +1347,7 @@ onBeforeUnmount(() => {
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
-                      v-for="action in dropdownRowActions"
+                      v-for="action in visibleDropdownRowActions(row)"
                       :key="action.key"
                       :command="action.key"
                       :class="action.variant === 'danger' ? 'text-red-600' : ''"
