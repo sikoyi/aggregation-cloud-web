@@ -198,6 +198,13 @@ const contentGroupRemoteSelect = {
   pageSize: 50,
 };
 
+const dynamicProxyRemoteSelect = {
+  ...proxyRemoteSelect,
+  params: { proxy_mode: "dynamic" },
+  matchesContext: (proxy: AnyRecord) => proxy.proxy_mode === "dynamic",
+  emptyText: "暂无动态代理，请先在代理资源中导入并标记为动态代理",
+};
+
 const contentGroupMultiSelect = {
   ...contentGroupRemoteSelect,
   multiple: true,
@@ -509,13 +516,20 @@ function buildAccountImportPayload(payload: AnyRecord) {
     "provider",
     "target_runtime_instance_id",
     "environment_name_prefix",
-    "proxy_id",
+    "proxy_allocation_mode",
+    "proxy_group_id",
+    "dynamic_proxy_id",
   ]);
   if (body.post_import_action !== "create_environment_and_login") {
     delete body.provider;
     delete body.target_runtime_instance_id;
     delete body.environment_name_prefix;
-    delete body.proxy_id;
+    delete body.proxy_allocation_mode;
+    delete body.proxy_group_id;
+    delete body.dynamic_proxy_id;
+  } else {
+    if (body.proxy_allocation_mode !== "static_group") delete body.proxy_group_id;
+    if (body.proxy_allocation_mode !== "dynamic_template") delete body.dynamic_proxy_id;
   }
   return body;
 }
@@ -801,13 +815,44 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "例如 韩国7-16-90，将生成 韩国7-16-90-001、002……",
       },
       {
-        key: "proxy_id",
-        label: "上号代理",
-        type: "remoteSelect",
-        remote: proxyRemoteSelect,
+        key: "proxy_allocation_mode",
+        label: "上号代理方式",
+        type: "segmented",
+        options: [
+          { label: "不使用代理", value: "none" },
+          { label: "静态代理池", value: "static_group" },
+          { label: "动态代理模板", value: "dynamic_template" },
+        ],
+        defaultValue: "none",
         visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
         span: 2,
-        placeholder: "可选，从代理资源中选择创建环境时使用的代理",
+        required: true,
+      },
+      {
+        key: "proxy_group_id",
+        label: "静态代理组",
+        type: "remoteSelect",
+        remote: proxyGroupRemoteSelect,
+        visibleWhen: { key: "proxy_allocation_mode", value: "static_group" },
+        visibleWhenAll: [
+          { key: "post_import_action", value: "create_environment_and_login" },
+        ],
+        requiredWhen: { key: "proxy_allocation_mode", value: "static_group" },
+        span: 2,
+        placeholder: "一账号分配一个组内未使用的静态代理",
+      },
+      {
+        key: "dynamic_proxy_id",
+        label: "动态代理模板",
+        type: "remoteSelect",
+        remote: dynamicProxyRemoteSelect,
+        visibleWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
+        visibleWhenAll: [
+          { key: "post_import_action", value: "create_environment_and_login" },
+        ],
+        requiredWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
+        span: 2,
+        placeholder: "每个账号会根据模板生成独立动态会话",
       },
       {
         key: "raw_text",

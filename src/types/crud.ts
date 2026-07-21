@@ -110,6 +110,7 @@ export interface FieldConfig {
   disabledWhen?: { key: string; value: string | string[] }
   requiredWhen?: { key: string; value: string | string[] }
   visibleWhen?: { key: string; value: string | string[] }
+  visibleWhenAll?: Array<{ key: string; value: string | string[] }>
   allowEmpty?: boolean
 }
 

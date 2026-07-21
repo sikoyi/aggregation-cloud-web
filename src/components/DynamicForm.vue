@@ -78,12 +78,17 @@ function isFieldRequired(field: FieldConfig) {
 }
 
 function isVisibleByRule(field: FieldConfig) {
-  if (!field.visibleWhen) return true
-  const current = String(props.modelValue[field.visibleWhen.key] ?? '')
-  const values = Array.isArray(field.visibleWhen.value)
-    ? field.visibleWhen.value.map(String)
-    : [String(field.visibleWhen.value)]
-  return values.includes(current)
+  const rules = [
+    ...(field.visibleWhen ? [field.visibleWhen] : []),
+    ...(field.visibleWhenAll || []),
+  ]
+  return rules.every((rule) => {
+    const current = String(props.modelValue[rule.key] ?? '')
+    const values = Array.isArray(rule.value)
+      ? rule.value.map(String)
+      : [String(rule.value)]
+    return values.includes(current)
+  })
 }
 
 function isFieldDisabled(field: FieldConfig) {
