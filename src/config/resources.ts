@@ -501,7 +501,25 @@ function formatAccountImportSuccess(data: AnyRecord) {
   const onboardingText = data.onboarding_status === "queued"
     ? ` 已创建 ${queued} 条环境创建及上号任务，父任务 ID：${data.onboarding_task_id}。`
     : data.onboarding_message ? ` ${data.onboarding_message}。` : "";
-  return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。${onboardingText}`;
+  const skipped = Array.isArray(data.skipped) ? data.skipped as AnyRecord[] : [];
+  const failureDetails = skipped
+    .filter((item) => item.reason_type === "failed")
+    .slice(0, 5)
+    .map((item) => `第 ${item.line_number} 行：${item.reason}`);
+  const hiddenFailureCount = Math.max(failed - failureDetails.length, 0);
+  const failureText = failureDetails.length
+    ? ` 失败原因：${failureDetails.join("；")}${hiddenFailureCount ? `；另有 ${hiddenFailureCount} 条` : ""}。`
+    : "";
+  return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。${onboardingText}${failureText}`;
+}
+
+function accountImportNotificationType(data: AnyRecord): "success" | "warning" | "error" {
+  const created = Number(data.created_count || 0);
+  const failed = Number(data.failed_count || 0);
+  const skipped = Number(data.skipped_count || 0);
+  if (created === 0 && failed > 0) return "error";
+  if (failed > 0 || skipped > 0) return "warning";
+  return "success";
 }
 
 function buildAccountImportPayload(payload: AnyRecord) {
@@ -652,6 +670,8 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "导入账号",
     createSuccessTitle: "账号导入完成",
     createSuccessMessage: (data) => formatAccountImportSuccess(data),
+    createNotificationType: (data) => accountImportNotificationType(data),
+    keepCreateOpenWhen: (data) => Number(data.created_count || 0) === 0 && Number(data.failed_count || 0) > 0,
     createBody: (payload) => buildAccountImportPayload(payload),
     loadEditRecord: loadAccountForEdit,
     updateBody: (payload) =>

@@ -168,6 +168,8 @@ export interface ResourceConfig {
   deletePath?: (record: AnyRecord) => string
   createSuccessMessage?: (createdRecord: AnyRecord, payload: AnyRecord) => string
   createSuccessTitle?: string
+  createNotificationType?: (createdRecord: AnyRecord, payload: AnyRecord) => 'success' | 'warning' | 'error'
+  keepCreateOpenWhen?: (createdRecord: AnyRecord, payload: AnyRecord) => boolean
   createBody?: (payload: AnyRecord) => unknown
   afterCreate?: (createdRecord: AnyRecord, payload: AnyRecord) => Promise<unknown>
   loadEditRecord?: (record: AnyRecord) => Promise<AnyRecord>

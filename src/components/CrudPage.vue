@@ -700,6 +700,8 @@ async function submitEntity() {
   let successMessage = '保存成功'
   let successTitle = '操作成功'
   let useSuccessNotification = false
+  let notificationType: 'success' | 'warning' | 'error' = 'success'
+  let keepCreateOpen = false
   try {
     if (modal.type === 'create') {
       const payload = buildPayload(props.config.createFields || [], formState.value, 'create')
@@ -712,6 +714,8 @@ async function submitEntity() {
         successTitle = props.config.createSuccessTitle || successTitle
         useSuccessNotification = true
       }
+      notificationType = props.config.createNotificationType?.(data, payload) || 'success'
+      keepCreateOpen = props.config.keepCreateOpenWhen?.(data, payload) || false
     }
     if (modal.type === 'edit' && modal.record) {
       const payload = buildPayload(props.config.updateFields || [], formState.value, 'update')
@@ -719,9 +723,10 @@ async function submitEntity() {
       const data = await http.put<AnyRecord>(`${props.config.endpoint}/${rowId(modal.record)}`, body)
       if (props.config.afterUpdate) await props.config.afterUpdate(data, payload, modal.record)
     }
-    closeModal()
+    if (!keepCreateOpen) closeModal()
     if (useSuccessNotification) {
-      ElNotification.success({
+      ElNotification({
+        type: notificationType,
         title: successTitle,
         message: successMessage,
         duration: 7000,
