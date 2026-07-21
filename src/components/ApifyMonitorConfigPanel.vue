@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Eye,
   EyeOff,
-  KeyRound,
   Pencil,
   PlugZap,
   Plus,
@@ -40,12 +39,13 @@ interface TokenUsage {
   token_name: string
   enabled: boolean
   available: boolean
+  account_id?: string | null
   account_username?: string | null
   plan_name?: string | null
-  monthly_credits_usd: number
+  monthly_quota_usd: number
+  included_credits_usd: number
   monthly_usage_usd: number
-  remaining_credits_usd: number
-  monthly_limit_usd?: number | null
+  remaining_quota_usd: number
   today_usage_usd: number
   cycle_start_at?: string | null
   cycle_end_at?: string | null
@@ -57,9 +57,10 @@ interface UsageSummary {
   token_count: number
   enabled_token_count: number
   available_token_count: number
-  total_monthly_credits_usd: number
+  account_count: number
+  total_monthly_quota_usd: number
   total_monthly_usage_usd: number
-  total_remaining_credits_usd: number
+  total_remaining_quota_usd: number
   total_today_usage_usd: number
   daily_usages: DailyUsage[]
   tokens: TokenUsage[]
@@ -94,9 +95,10 @@ function emptyUsage(): UsageSummary {
     token_count: 0,
     enabled_token_count: 0,
     available_token_count: 0,
-    total_monthly_credits_usd: 0,
+    account_count: 0,
+    total_monthly_quota_usd: 0,
     total_monthly_usage_usd: 0,
-    total_remaining_credits_usd: 0,
+    total_remaining_quota_usd: 0,
     total_today_usage_usd: 0,
     daily_usages: [],
     tokens: [],
@@ -264,8 +266,8 @@ function money(value?: number | null, digits = 2) {
 }
 
 function usageRate(item?: TokenUsage) {
-  if (!item || item.monthly_credits_usd <= 0) return 0
-  return Math.min(100, Math.round((item.monthly_usage_usd / item.monthly_credits_usd) * 100))
+  if (!item || item.monthly_quota_usd <= 0) return 0
+  return Math.min(100, Math.round((item.monthly_usage_usd / item.monthly_quota_usd) * 100))
 }
 
 function shortDate(value: string) {
@@ -291,12 +293,12 @@ onMounted(refreshAll)
 
     <div class="summary-strip" v-loading="usageLoading">
       <div class="summary-item">
-        <span class="summary-icon summary-icon--blue"><KeyRound :size="18" /></span>
-        <div><span>可用 Token</span><strong>{{ usage.enabled_token_count }} <small>/ {{ usage.token_count }}</small></strong></div>
+        <span class="summary-icon summary-icon--blue"><WalletCards :size="18" /></span>
+        <div><span>月度总额度</span><strong>{{ money(usage.total_monthly_quota_usd) }} <small>{{ usage.account_count }} 个账号</small></strong></div>
       </div>
       <div class="summary-item">
         <span class="summary-icon summary-icon--green"><WalletCards :size="18" /></span>
-        <div><span>剩余月度额度</span><strong>{{ money(usage.total_remaining_credits_usd) }}</strong></div>
+        <div><span>剩余可用额度</span><strong>{{ money(usage.total_remaining_quota_usd) }}</strong></div>
       </div>
       <div class="summary-item">
         <span class="summary-icon summary-icon--amber"><CalendarDays :size="18" /></span>
@@ -304,7 +306,7 @@ onMounted(refreshAll)
       </div>
       <div class="summary-item">
         <span class="summary-icon summary-icon--red"><Activity :size="18" /></span>
-        <div><span>今日消耗</span><strong>{{ money(usage.total_today_usage_usd, 4) }}</strong></div>
+        <div><span>今日消耗</span><strong>{{ money(usage.total_today_usage_usd, 6) }}</strong></div>
       </div>
     </div>
 
@@ -342,9 +344,9 @@ onMounted(refreshAll)
       <el-table-column label="额度 / 消耗" min-width="240">
         <template #default="{ row }">
           <div v-if="usageByTokenId.get(row.id)?.available" class="usage-cell">
-            <div><span>剩余 {{ money(usageByTokenId.get(row.id)?.remaining_credits_usd) }}</span><span>已用 {{ money(usageByTokenId.get(row.id)?.monthly_usage_usd) }}</span></div>
+            <div><span>额度 {{ money(usageByTokenId.get(row.id)?.monthly_quota_usd) }}</span><span>剩余 {{ money(usageByTokenId.get(row.id)?.remaining_quota_usd) }}</span></div>
             <el-progress :percentage="usageRate(usageByTokenId.get(row.id))" :stroke-width="6" :show-text="false" />
-            <small>今日 {{ money(usageByTokenId.get(row.id)?.today_usage_usd, 4) }}</small>
+            <small>账号共享额度 · 本账期已用 {{ money(usageByTokenId.get(row.id)?.monthly_usage_usd, 6) }} · 今日 {{ money(usageByTokenId.get(row.id)?.today_usage_usd, 6) }}</small>
           </div>
           <span v-else class="muted-text">暂无可用数据</span>
         </template>
@@ -375,7 +377,7 @@ onMounted(refreshAll)
         <span class="refresh-time">{{ usage.refreshed_at ? `更新于 ${formatDate(usage.refreshed_at)}` : '' }}</span>
       </div>
       <div class="daily-chart">
-        <el-tooltip v-for="item in recentDailyUsages" :key="item.date" :content="`${item.date} · ${money(item.usage_usd, 4)}`">
+        <el-tooltip v-for="item in recentDailyUsages" :key="item.date" :content="`${item.date} · ${money(item.usage_usd, 6)}`">
           <div class="daily-bar-item">
             <div class="daily-bar-track"><span :style="{ height: `${Math.max(4, (item.usage_usd / maxDailyUsage) * 100)}%` }" /></div>
             <small>{{ shortDate(item.date) }}</small>
