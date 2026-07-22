@@ -249,6 +249,7 @@ export const proxyModeOptions: SelectOption[] = [
 export const proxyProtocolOptions: SelectOption[] = [
   { label: 'Socks5', value: 'socks5' },
   { label: 'HTTP', value: 'http' },
+  { label: 'HTTPS', value: 'https' },
 ]
 
 export const proxyUsageStatusOptions: SelectOption[] = [

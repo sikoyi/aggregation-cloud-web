@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { proxyProtocolOptions } from './options'
 import { resources } from './resources'
 
 
@@ -13,5 +14,11 @@ describe('互动会话操作', () => {
     expect(retryAction?.visible?.({ status: 'failed' })).toBe(true)
     expect(retryAction?.visible?.({ status: 'running' })).toBe(false)
     expect(retryAction?.visible?.({ status: 'completed' })).toBe(false)
+  })
+})
+
+describe('代理协议选项', () => {
+  it('分别提供 Socks5、HTTP 和 HTTPS', () => {
+    expect(proxyProtocolOptions.map((option) => option.value)).toEqual(['socks5', 'http', 'https'])
   })
 })
