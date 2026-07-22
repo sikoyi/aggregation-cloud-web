@@ -168,11 +168,11 @@ const proxyReadonlyRemoteSelect = {
 };
 
 const mediaAssetRemoteSelect = {
-  endpoint: "/api/content-center/media-assets",
+  endpoint: "/api/resource-center/media-assets",
   labelKeys: ["name", "source_url", "storage_uri"],
   valueKey: "id",
   detailPath: (value: string) =>
-    `/api/content-center/media-assets/${encodeURIComponent(value)}`,
+    `/api/resource-center/media-assets/${encodeURIComponent(value)}`,
   secondaryKeys: ["asset_type", "status"],
   searchParam: "keyword",
   params: { status: "enabled" },
@@ -182,6 +182,17 @@ const mediaAssetRemoteSelect = {
 const mediaAssetMultiSelect = {
   ...mediaAssetRemoteSelect,
   multiple: true,
+};
+
+const mediaAssetGroupRemoteSelect = {
+  endpoint: "/api/resource-center/media-asset-groups",
+  labelKey: "name",
+  valueKey: "id",
+  detailPath: (value: string) =>
+    `/api/resource-center/media-asset-groups/${encodeURIComponent(value)}`,
+  secondaryKeys: ["business_platform", "member_count"],
+  searchParam: "keyword",
+  pageSize: 50,
 };
 
 const contentGroupRemoteSelect = {
@@ -1857,13 +1868,14 @@ export const resources: Record<string, ResourceConfig> = {
   mediaAssets: {
     key: "mediaAssets",
     title: "素材库",
-    endpoint: "/api/content-center/media-assets",
-    createEndpoint: "/api/content-center/media-assets/upload",
+    endpoint: "/api/resource-center/media-assets",
+    createEndpoint: "/api/resource-center/media-assets/upload",
     createLabel: "上传素材",
     mediaAssetBatchUpload: true,
     columns: [
       { key: "id", label: "ID", type: "id", align: "center" },
       { key: "name", label: "素材名称", minWidth: 220 },
+      { key: "group_names", label: "所属素材组", type: "list", minWidth: 180, align: "center" },
       { key: "business_platform", label: "业务 App", align: "center" },
       { key: "asset_type", label: "素材类型", options: mediaAssetTypeOptions, align: "center" },
       { key: "source_url", label: "素材预览", type: "assetPreview", options: mediaAssetTypeOptions, width: 180, align: "center" },
@@ -1927,9 +1939,80 @@ export const resources: Record<string, ResourceConfig> = {
       },
     ],
     inlineActionKeys: ["download"],
+    batchActions: [
+      {
+        key: "batch-add-group",
+        label: "批量加入素材组",
+        method: "POST",
+        icon: "users",
+        fields: [
+          {
+            key: "group_id",
+            label: "素材组",
+            type: "remoteSelect",
+            remote: mediaAssetGroupRemoteSelect,
+            required: true,
+          },
+        ],
+        batchPath: (_records, payload) => `/api/resource-center/media-asset-groups/${payload?.group_id}/assets`,
+        batchBody: (_payload, records) => ({ asset_ids: records.map((record) => String(record.id)) }),
+        successMessage: (data) =>
+          `已加入 ${Number(data.added_count || 0)} 个素材，跳过 ${Number(data.skipped_count || 0)} 个已在组内的素材`,
+      },
+    ],
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm: "确认删除该素材？仍被内容引用的素材后端会阻止删除。",
+  },
+
+  mediaAssetGroups: {
+    key: "mediaAssetGroups",
+    title: "素材分组",
+    endpoint: "/api/resource-center/media-asset-groups",
+    createLabel: "新增素材组",
+    mediaAssetGroupMembers: true,
+    columns: [
+      { key: "id", label: "ID", type: "id", align: "center" },
+      { key: "name", label: "名称", minWidth: 220 },
+      { key: "business_platform", label: "业务 App", align: "center" },
+      { key: "member_count", label: "素材数量", align: "center" },
+      { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170, align: "center" },
+    ],
+    filters: [
+      {
+        key: "business_platform",
+        label: "业务 App",
+        type: "select",
+        options: businessPlatformOptions,
+      },
+      { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
+    ],
+    createFields: [
+      {
+        key: "business_platform",
+        label: "业务 App",
+        type: "select",
+        options: businessPlatformOptions,
+        defaultValue: "threads",
+        required: true,
+      },
+      { key: "name", label: "名称", required: true },
+      { key: "description", label: "描述", type: "textarea", span: 2 },
+    ],
+    updateFields: [
+      {
+        key: "business_platform",
+        label: "业务 App",
+        type: "select",
+        options: businessPlatformOptions,
+      },
+      { key: "name", label: "名称" },
+      { key: "description", label: "描述", type: "textarea", span: 2 },
+    ],
+    deleteLabel: "删除",
+    deletePath: (record) => `/api/resource-center/media-asset-groups/${record.id}?force=true`,
+    directDelete: true,
+    deleteConfirm: "确认删除该素材组？删除后组内素材会自动解绑，素材文件本身不会被删除。",
   },
 
   interactionSessions: {

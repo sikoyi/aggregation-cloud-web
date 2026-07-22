@@ -193,6 +193,7 @@ export interface ResourceConfig {
   slotGroupMembers?: boolean
   proxyGroupMembers?: boolean
   contentGroupMembers?: boolean
+  mediaAssetGroupMembers?: boolean
   mediaAssetBatchUpload?: boolean
 }
 

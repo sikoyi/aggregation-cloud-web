@@ -64,16 +64,16 @@ const navGroups = [
     label: '资源中心',
     index: 'resource',
     icon: ShieldCheck,
-    children: [{ label: '代理资源', to: '/proxies', icon: ShieldCheck }],
+    children: [
+      { label: '代理资源', to: '/proxies', icon: ShieldCheck },
+      { label: '素材库', to: '/media-assets', icon: Image },
+    ],
   },
   {
     label: '内容中心',
     index: 'content',
     icon: FileText,
-    children: [
-      { label: '内容库', to: '/contents', icon: FileText },
-      { label: '素材库', to: '/media-assets', icon: Image },
-    ],
+    children: [{ label: '内容库', to: '/contents', icon: FileText }],
   },
   {
     label: '互动中心',

@@ -435,12 +435,7 @@ export const taskStatusOptions: SelectOption[] = [
 
 export const scriptParamTypeOptions: SelectOption[] = [
   { label: '字符串', value: 'string' },
-  { label: '长文本', value: 'textarea' },
-  { label: '数字', value: 'number' },
   { label: '布尔', value: 'bool' },
-  { label: '枚举', value: 'enum' },
-  { label: '日期时间', value: 'datetime' },
-  { label: 'JSON', value: 'json' },
   { label: '代理', value: 'proxy' },
   { label: '代理组', value: 'proxy_group' },
   { label: '资源', value: 'res' },
@@ -448,7 +443,7 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '账号组', value: 'account_group' },
   { label: '内容', value: 'content' },
   { label: '内容池', value: 'content_group' },
-  { label: '媒体资源', value: 'media_asset' },
+  { label: '素材', value: 'media_asset' },
+  { label: '素材组', value: 'media_asset_group' },
   { label: '设备', value: 'execution_slot' },
-  { label: '密钥', value: 'secret' },
 ]

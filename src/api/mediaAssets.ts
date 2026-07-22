@@ -36,7 +36,7 @@ export async function uploadMediaAssets(
   files: File[],
   options: MediaAssetUploadOptions,
   onProgress?: ProgressCallback,
-  upload: UploadRequest = (body) => http.post<AnyRecord>('/api/content-center/media-assets/upload', body),
+  upload: UploadRequest = (body) => http.post<AnyRecord>('/api/resource-center/media-assets/upload', body),
 ) {
   const results: MediaAssetUploadResult[] = []
   for (const file of files) {

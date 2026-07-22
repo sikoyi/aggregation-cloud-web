@@ -8,8 +8,6 @@ import { accountSelectionStrategyOptions, proxyUsageStatusFilterOptions } from '
 import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
 
-type ParamOption = Record<string, unknown>
-
 interface ScriptPublic {
   id: string
   script_key: string
@@ -23,7 +21,7 @@ interface ScriptParam {
   description?: string | null
   required: boolean
   default_value: unknown
-  options: ParamOption[]
+  options: Record<string, unknown>[]
   sort_order: number
 }
 
@@ -55,8 +53,6 @@ const values = computed<Record<string, unknown>>(() => {
 function defaultForParam(param: ScriptParam) {
   if (param.default_value !== undefined && param.default_value !== null) return param.default_value
   if (param.param_type === 'bool') return false
-  if (param.param_type === 'number') return 0
-  if (param.param_type === 'json') return {}
   if (isResourceParam(param)) return ''
   return ''
 }
@@ -66,7 +62,7 @@ function normalizeParamType(param: ScriptParam) {
 }
 
 function isResourceParam(param: ScriptParam) {
-  return ['proxy', 'res', 'proxy_group', 'account', 'account_group', 'content', 'content_group', 'media_asset', 'execution_slot'].includes(normalizeParamType(param))
+  return ['proxy', 'res', 'proxy_group', 'account', 'account_group', 'content', 'content_group', 'media_asset', 'media_asset_group', 'execution_slot'].includes(normalizeParamType(param))
 }
 
 function isAccountGroupParam(param: ScriptParam) {
@@ -202,7 +198,8 @@ function resourceTypeLabel(param: ScriptParam | null) {
   if (type === 'execution_slot') return '设备'
   if (type === 'content') return '内容'
   if (type === 'content_group') return '内容池'
-  if (type === 'media_asset') return '媒体资源'
+  if (type === 'media_asset') return '素材'
+  if (type === 'media_asset_group') return '素材组'
   return '代理'
 }
 
@@ -280,13 +277,24 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
   }
   if (type === 'media_asset') {
     return {
-      endpoint: '/api/content-center/media-assets',
+      endpoint: '/api/resource-center/media-assets',
       labelKeys: ['name', 'source_url', 'storage_uri'],
       valueKey: 'id',
-      detailPath: (value: string) => `/api/content-center/media-assets/${encodeURIComponent(value)}`,
+      detailPath: (value: string) => `/api/resource-center/media-assets/${encodeURIComponent(value)}`,
       secondaryKeys: ['asset_type', 'status'],
       searchParam: 'keyword',
       params: { status: 'enabled' },
+      pageSize: 50,
+    }
+  }
+  if (type === 'media_asset_group') {
+    return {
+      endpoint: '/api/resource-center/media-asset-groups',
+      labelKey: 'name',
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/resource-center/media-asset-groups/${encodeURIComponent(value)}`,
+      secondaryKeys: ['business_platform', 'member_count'],
+      searchParam: 'keyword',
       pageSize: 50,
     }
   }
@@ -302,16 +310,6 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
 }
 
 const activeResourceSelectConfig = computed(() => resourceSelectConfig(resourcePickerParam.value))
-
-function optionLabel(option: ParamOption) {
-  const label = option.label ?? option.name ?? option.value ?? option.key ?? option.id
-  return String(label ?? '')
-}
-
-function optionValue(option: ParamOption) {
-  const value = option.value ?? option.key ?? option.id ?? option.label ?? option.name
-  return String(value ?? '')
-}
 
 function sortedParams(items: ScriptParam[]) {
   return [...items].sort((left, right) => (left.sort_order || 0) - (right.sort_order || 0))
@@ -366,19 +364,6 @@ function confirmResourcePicker() {
   resourcePickerVisible.value = false
 }
 
-function jsonValue(param: ScriptParam) {
-  const value = values.value[param.param_key]
-  return typeof value === 'string' ? value : JSON.stringify(value ?? {}, null, 2)
-}
-
-function updateJsonValue(param: ScriptParam, value: string) {
-  try {
-    updateValue(param, value ? JSON.parse(value) : {})
-  } catch {
-    updateValue(param, value)
-  }
-}
-
 watch(
   () => props.scriptKey,
   (scriptKey) => {
@@ -423,61 +408,11 @@ watch(
           </div>
         </template>
 
-        <el-input
-          v-if="param.param_type === 'textarea'"
-          :model-value="String(values[param.param_key] ?? '')"
-          type="textarea"
-          :rows="4"
-          resize="vertical"
-          @update:model-value="updateValue(param, $event)"
-        />
-        <el-input-number
-          v-else-if="param.param_type === 'number'"
-          :model-value="Number(values[param.param_key] ?? 0)"
-          class="w-full"
-          controls-position="right"
-          @update:model-value="updateValue(param, $event)"
-        />
         <el-switch
-          v-else-if="param.param_type === 'bool'"
+          v-if="param.param_type === 'bool'"
           :model-value="Boolean(values[param.param_key])"
           active-text="是"
           inactive-text="否"
-          @update:model-value="updateValue(param, $event)"
-        />
-        <el-select
-          v-else-if="param.param_type === 'enum'"
-          :model-value="String(values[param.param_key] ?? '')"
-          class="w-full"
-          clearable
-          filterable
-          @update:model-value="updateValue(param, $event)"
-        >
-          <el-option
-            v-for="option in param.options || []"
-            :key="optionValue(option)"
-            :label="optionLabel(option)"
-            :value="optionValue(option)"
-          />
-        </el-select>
-        <el-input
-          v-else-if="param.param_type === 'json'"
-          :model-value="jsonValue(param)"
-          type="textarea"
-          :rows="5"
-          class="font-mono text-xs"
-          resize="vertical"
-          @update:model-value="updateJsonValue(param, $event)"
-        />
-        <el-date-picker
-          v-else-if="param.param_type === 'datetime'"
-          :model-value="String(values[param.param_key] ?? '')"
-          class="w-full"
-          type="datetime"
-          format="YYYY-MM-DD HH:mm:ss"
-          value-format="YYYY-MM-DDTHH:mm:ss"
-          placeholder="选择日期时间"
-          clearable
           @update:model-value="updateValue(param, $event)"
         />
         <div v-else-if="isResourceParam(param)" class="resource-param-field">

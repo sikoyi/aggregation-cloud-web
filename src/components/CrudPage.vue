@@ -47,6 +47,7 @@ const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/Bus
 const ContentGroupMemberEditor = defineAsyncComponent(() => import('@/components/ContentGroupMemberEditor.vue'))
 const InteractionSessionDetailDialog = defineAsyncComponent(() => import('@/components/InteractionSessionDetailDialog.vue'))
 const MediaAssetBatchUploader = defineAsyncComponent(() => import('@/components/MediaAssetBatchUploader.vue'))
+const MediaAssetGroupMemberEditor = defineAsyncComponent(() => import('@/components/MediaAssetGroupMemberEditor.vue'))
 const ProxyGroupMemberEditor = defineAsyncComponent(() => import('@/components/ProxyGroupMemberEditor.vue'))
 const PublishedContentDetailDialog = defineAsyncComponent(() => import('@/components/PublishedContentDetailDialog.vue'))
 const SlotGroupMemberEditor = defineAsyncComponent(() => import('@/components/SlotGroupMemberEditor.vue'))
@@ -159,6 +160,7 @@ const modalWidth = computed(() => {
       || props.config.slotGroupMembers
       || props.config.proxyGroupMembers
       || props.config.contentGroupMembers
+      || props.config.mediaAssetGroupMembers
     )
   ) return '1180px'
   return '760px'
@@ -172,12 +174,13 @@ const dispatchFormMode = computed<'task' | 'published' | 'interaction' | null>((
 const showModalSaveButton = computed(() => {
   if (isMediaAssetBatchCreateModal.value) return false
   if (modal.type !== 'edit') return true
-  if ((props.config.slotGroupMembers || props.config.proxyGroupMembers || props.config.contentGroupMembers) && slotGroupEditTab.value === 'members') return false
+  if ((props.config.slotGroupMembers || props.config.proxyGroupMembers || props.config.contentGroupMembers || props.config.mediaAssetGroupMembers) && slotGroupEditTab.value === 'members') return false
   return true
 })
 const groupMembersTabLabel = computed(() => {
   if (props.config.proxyGroupMembers) return '组内代理'
   if (props.config.contentGroupMembers) return '组内内容'
+  if (props.config.mediaAssetGroupMembers) return '组内素材'
   return '组内设备'
 })
 const modalSubmitLabel = computed(() => (
@@ -1446,7 +1449,7 @@ onBeforeUnmount(() => {
         />
       </div>
       <el-tabs
-        v-else-if="modal.type === 'edit' && (config.slotGroupMembers || config.proxyGroupMembers || config.contentGroupMembers) && modal.record"
+        v-else-if="modal.type === 'edit' && (config.slotGroupMembers || config.proxyGroupMembers || config.contentGroupMembers || config.mediaAssetGroupMembers) && modal.record"
         v-model="slotGroupEditTab"
         class="slot-group-edit-tabs"
       >
@@ -1467,6 +1470,11 @@ onBeforeUnmount(() => {
             @changed="loadRows"
           />
           <ContentGroupMemberEditor
+            v-else-if="config.contentGroupMembers"
+            :group="modal.record"
+            @changed="loadRows"
+          />
+          <MediaAssetGroupMemberEditor
             v-else
             :group="modal.record"
             @changed="loadRows"
