@@ -14,6 +14,8 @@ const username = ref('')
 const password = ref('')
 
 async function submit() {
+  if (auth.loading) return
+
   try {
     await auth.login(username.value, password.value)
     router.push(String(route.query.redirect || '/'))
@@ -52,14 +54,40 @@ async function submit() {
           </div>
         </div>
 
-        <el-form label-position="top" @submit.prevent="submit">
+        <el-form
+          name="login"
+          autocomplete="on"
+          label-position="top"
+          @keydown.enter.prevent="submit"
+          @submit.prevent="submit"
+        >
           <el-form-item label="账号">
-            <el-input v-model="username" autocomplete="username" size="large" />
+            <el-input
+              id="login-username"
+              v-model="username"
+              name="username"
+              autocomplete="username"
+              size="large"
+            />
           </el-form-item>
           <el-form-item label="密码">
-            <el-input v-model="password" type="password" autocomplete="current-password" size="large" show-password />
+            <el-input
+              id="login-password"
+              v-model="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              size="large"
+              show-password
+            />
           </el-form-item>
-          <el-button type="primary" size="large" class="w-full" :loading="auth.loading" @click="submit">
+          <el-button
+            type="primary"
+            native-type="submit"
+            size="large"
+            class="w-full"
+            :loading="auth.loading"
+          >
             登录
           </el-button>
         </el-form>
