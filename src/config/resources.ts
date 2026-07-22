@@ -1,5 +1,6 @@
 import { http } from "@/api/http";
 import type { AnyRecord } from "@/types/api";
+import { normalizeThreadsPostUrl } from "@/utils/platformUrls";
 import type { FieldConfig, ResourceConfig } from "@/types/crud";
 
 import {
@@ -275,13 +276,16 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   } = payload;
   const sourceType = String(target_source_type || "system_content");
   const targetContentId = String(sessionPayload.target_content_id || "").trim();
-  const targetContentUrl = String(sessionPayload.target_content_url || "").trim();
+  let targetContentUrl = String(sessionPayload.target_content_url || "").trim();
   const aiProvider = String(ai_provider || "").trim();
   if (sourceType === "direct_url" && !targetContentUrl) {
     throw new Error("请填写目标帖子链接");
   }
   if (sourceType === "system_content" && !targetContentId) {
     throw new Error("请选择目标内容");
+  }
+  if (sourceType === "direct_url" && String(sessionPayload.business_platform || "") === "threads") {
+    targetContentUrl = normalizeThreadsPostUrl(targetContentUrl);
   }
   if (!aiProvider) {
     throw new Error("暂无已启用的互动 AI，请先到系统配置中启用");
@@ -2169,7 +2173,7 @@ export const resources: Record<string, ResourceConfig> = {
         visibleWhen: { key: "target_source_type", value: "direct_url" },
         requiredWhen: { key: "target_source_type", value: "direct_url" },
         span: 2,
-        placeholder: "填写运营指定的帖子完整链接",
+        placeholder: "例如：https://www.threads.com/@用户名/post/帖子ID",
       },
       {
         key: "ai_provider",
@@ -2216,7 +2220,7 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
     ],
-    inlineActionKeys: ["detail", "retry"],
+    inlineActionKeys: ["detail", "cancel", "retry"],
     rowActions: [
       {
         key: "detail",
@@ -2225,6 +2229,24 @@ export const resources: Record<string, ResourceConfig> = {
         icon: "list",
         path: (record) => `/api/interaction-center/sessions/${record.id}`,
         refresh: false,
+      },
+      {
+        key: "cancel",
+        label: "取消会话",
+        method: "POST",
+        icon: "powerOff",
+        variant: "danger",
+        path: (record) => `/api/interaction-center/sessions/${record.id}/cancel`,
+        visible: (record) => ["queued", "running"].includes(String(record.status || "")),
+        confirm: "确认取消该互动会话？尚未开始的操作会被取消，已经下发或正在运行的操作会继续完成，但不会再执行后续轮次。",
+        successTitle: "互动会话已取消",
+        successMessage: (data) => {
+          const canceled = Number(data.canceled_steps || 0);
+          const active = Number(data.active_steps || 0);
+          return active
+            ? `已停止 ${canceled} 个未开始操作，${active} 个运行中操作完成后将停止。`
+            : `已停止 ${canceled} 个未开始操作。`;
+        },
       },
       {
         key: "retry",
