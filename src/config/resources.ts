@@ -2214,7 +2214,7 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
     ],
-    inlineActionKeys: ["detail"],
+    inlineActionKeys: ["detail", "retry"],
     rowActions: [
       {
         key: "detail",
@@ -2223,6 +2223,17 @@ export const resources: Record<string, ResourceConfig> = {
         icon: "list",
         path: (record) => `/api/interaction-center/sessions/${record.id}`,
         refresh: false,
+      },
+      {
+        key: "retry",
+        label: "重试失败操作",
+        method: "POST",
+        icon: "rotate",
+        path: (record) => `/api/interaction-center/sessions/${record.id}/retry`,
+        visible: (record) => ["partial_completed", "all_failed", "failed"].includes(String(record.status || "")),
+        confirm: "确认重试该会话中失败、超时或断连的操作吗？已成功的操作不会重复执行。",
+        successTitle: "失败操作已重新提交",
+        successMessage: (data) => `已重新提交 ${Number(data.retry_total || 0)} 个失败操作，系统将继续执行原互动会话。`,
       },
     ],
     readOnly: false,
