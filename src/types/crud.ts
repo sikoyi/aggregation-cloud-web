@@ -8,6 +8,7 @@ export type FieldType =
   | 'textImport'
   | 'file'
   | 'number'
+  | 'numberRange'
   | 'select'
   | 'segmented'
   | 'json'
@@ -98,6 +99,10 @@ export interface FieldConfig {
   accountAssociationOnly?: boolean
   accountTreeGroupByDevice?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
+  endKey?: string
+  endDefaultValue?: number
+  startPlaceholder?: string
+  endPlaceholder?: string
   min?: number
   max?: number
   step?: number

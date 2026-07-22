@@ -27,7 +27,7 @@ const interactionParamFields = computed(() => {
     'title',
     'business_platform',
     'step_count',
-    'step_interval_minutes',
+    'step_delay_min_minutes',
     'like_probability',
     'runtime_platform',
     'provider',

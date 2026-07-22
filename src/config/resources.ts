@@ -286,8 +286,15 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   if (!aiProvider) {
     throw new Error("暂无已启用的互动 AI，请先到系统配置中启用");
   }
+  const delayMinMinutes = Number(sessionPayload.step_delay_min_minutes ?? 0);
+  const delayMaxMinutes = Number(sessionPayload.step_delay_max_minutes ?? 1);
+  if (delayMinMinutes > delayMaxMinutes) {
+    throw new Error("最短延迟不能大于最长延迟");
+  }
   return {
     ...sessionPayload,
+    step_delay_min_minutes: delayMinMinutes,
+    step_delay_max_minutes: delayMaxMinutes,
     target_content_id: sourceType === "system_content" ? targetContentId : null,
     target_content_url: sourceType === "direct_url" ? targetContentUrl : null,
     ai_config: {
@@ -2092,15 +2099,18 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "默认 1 轮，增加轮次后按主号和评论号交替回复",
       },
       {
-        key: "step_interval_minutes",
-        label: "评论间隔（分钟）",
-        type: "number",
-        defaultValue: 1,
-        min: 1,
+        key: "step_delay_min_minutes",
+        endKey: "step_delay_max_minutes",
+        label: "延迟下发时间（分钟）",
+        type: "numberRange",
+        defaultValue: 0,
+        endDefaultValue: 1,
+        min: 0,
         max: 1440,
         step: 1,
         required: true,
-        placeholder: "前一轮成功后等待多久再执行下一轮",
+        startPlaceholder: "最小延迟",
+        endPlaceholder: "最大延迟",
       },
       {
         key: "like_probability",

@@ -39,6 +39,11 @@ const stepCount = computed(() => {
   if (configured > 0) return configured
   return Math.max(0, ...steps.value.map((step) => Number(step.step_no || 0)))
 })
+const dispatchDelayText = computed(() => {
+  const minimum = Number(session.value?.step_delay_min_minutes ?? 0)
+  const maximum = Number(session.value?.step_delay_max_minutes ?? minimum)
+  return minimum === maximum ? `${minimum} 分钟` : `${minimum} - ${maximum} 分钟`
+})
 
 const groupedSteps = computed(() => {
   const map = new Map<string, AnyRecord[]>()
@@ -177,7 +182,7 @@ onBeforeUnmount(() => {
           </el-descriptions-item>
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
-          <el-descriptions-item label="评论间隔">{{ text(session.step_interval_minutes) }} 分钟</el-descriptions-item>
+          <el-descriptions-item label="延迟下发范围">{{ dispatchDelayText }}</el-descriptions-item>
           <el-descriptions-item label="随机点赞概率">{{ text(session.like_probability) }}%</el-descriptions-item>
           <el-descriptions-item label="AI 供应商">
             <el-tag size="small" type="primary" effect="light">

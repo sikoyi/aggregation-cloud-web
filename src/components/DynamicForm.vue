@@ -415,6 +415,30 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             @update:model-value="updateValue(field.key, $event)"
           />
 
+          <div v-else-if="field.type === 'numberRange' && field.endKey" class="number-range-field">
+            <el-input-number
+              :model-value="Number(modelValue[field.key] ?? 0)"
+              :disabled="isFieldDisabled(field)"
+              :min="field.min"
+              :max="field.max"
+              :step="field.step"
+              :placeholder="field.startPlaceholder || '最小值'"
+              controls-position="right"
+              @update:model-value="updateValue(field.key, $event)"
+            />
+            <span class="number-range-field__separator">-</span>
+            <el-input-number
+              :model-value="Number(modelValue[field.endKey] ?? field.endDefaultValue ?? 0)"
+              :disabled="isFieldDisabled(field)"
+              :min="field.min"
+              :max="field.max"
+              :step="field.step"
+              :placeholder="field.endPlaceholder || '最大值'"
+              controls-position="right"
+              @update:model-value="updateValue(field.endKey, $event)"
+            />
+          </div>
+
           <el-date-picker
             v-else-if="field.type === 'datetime'"
             :model-value="String(modelValue[field.key] ?? '')"
@@ -493,5 +517,23 @@ watch(() => props.modelValue.execution_mode, (mode) => {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.number-range-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+}
+
+.number-range-field :deep(.el-input-number) {
+  width: 100%;
+  min-width: 0;
+}
+
+.number-range-field__separator {
+  color: #94a3b8;
+  font-size: 16px;
+  text-align: center;
 }
 </style>

@@ -44,6 +44,12 @@ export function buildFormState(fields: FieldConfig[], record?: AnyRecord) {
           : JSON.stringify(sourceValue ?? {}, null, 2)
       return state
     }
+    if (field.type === 'numberRange' && field.endKey) {
+      state[field.key] = Number(sourceValue ?? 0)
+      const endValue = record?.[field.endKey] ?? field.endDefaultValue ?? 0
+      state[field.endKey] = Number(endValue)
+      return state
+    }
     if (field.type === 'tags') {
       state[field.key] = Array.isArray(sourceValue) ? sourceValue.join(', ') : sourceValue || ''
       return state
@@ -182,6 +188,11 @@ export function buildPayload(
 
     if (field.type === 'number') {
       payload[field.key] = Number(rawValue)
+      return payload
+    }
+    if (field.type === 'numberRange' && field.endKey) {
+      payload[field.key] = Number(rawValue)
+      payload[field.endKey] = Number(state[field.endKey] ?? field.endDefaultValue ?? 0)
       return payload
     }
     if (field.type === 'file') {
