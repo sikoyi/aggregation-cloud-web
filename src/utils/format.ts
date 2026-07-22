@@ -31,7 +31,6 @@ const STATUS_LABELS: Record<string, string> = {
   offline: '离线',
   online: '在线',
   pending: '待处理',
-  partial_completed: '部分完成',
   queued: '排队中',
   rate_limited: '限流中',
   restricted: '封禁',

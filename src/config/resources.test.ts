@@ -10,11 +10,11 @@ describe('互动会话操作', () => {
 
   it('仅在会话结束且存在失败结果时提供重试入口', () => {
     expect(retryAction).toBeDefined()
-    expect(retryAction?.visible?.({ status: 'partial_completed' })).toBe(true)
+    expect(retryAction?.visible?.({ status: 'completed', step_failed: 1 })).toBe(true)
     expect(retryAction?.visible?.({ status: 'all_failed' })).toBe(true)
     expect(retryAction?.visible?.({ status: 'failed' })).toBe(true)
     expect(retryAction?.visible?.({ status: 'running' })).toBe(false)
-    expect(retryAction?.visible?.({ status: 'completed' })).toBe(false)
+    expect(retryAction?.visible?.({ status: 'completed', step_failed: 0 })).toBe(false)
   })
 
   it('仅允许取消排队中或运行中的会话', () => {
