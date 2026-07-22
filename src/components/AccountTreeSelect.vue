@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { Search } from 'lucide-vue-next'
+import { ListFilter, Search, X } from 'lucide-vue-next'
 
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
+import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
+import {
+  buildUserPreferenceKey,
+  readStringListPreference,
+  writeStringListPreference,
+} from '@/utils/localPreferences'
 
 const props = defineProps<{
   modelValue: unknown
@@ -13,6 +19,7 @@ const props = defineProps<{
   multiple?: boolean
   associationOnly?: boolean
   groupByDevice?: boolean
+  groupFilterPreferenceKey?: string
 }>()
 
 const emit = defineEmits<{
@@ -31,9 +38,11 @@ interface AccountTreeNode {
 }
 
 const treeRef = ref()
+const auth = useAuthStore()
 const loading = ref(false)
 const searchKeyword = ref('')
 const treeData = ref<AccountTreeNode[]>([])
+const selectedGroupNodeIds = ref<string[]>([])
 const loggedInCount = ref(0)
 const selectableCount = ref(0)
 const treeProps = {
@@ -45,6 +54,23 @@ const treeProps = {
 const treeHeight = 350
 
 const isMultiple = computed(() => props.multiple !== false)
+const groupFilterEnabled = computed(() => Boolean(props.groupFilterPreferenceKey))
+const groupFilterStorageKey = computed(() => buildUserPreferenceKey(
+  auth.user?.id,
+  props.groupFilterPreferenceKey,
+))
+const groupOptions = computed(() => treeData.value.map((node) => ({
+  value: node.id,
+  label: node.label,
+})))
+const visibleTreeData = computed(() => {
+  if (!selectedGroupNodeIds.value.length) return treeData.value
+  const selectedIds = new Set(selectedGroupNodeIds.value)
+  return treeData.value.filter((node) => selectedIds.has(node.id))
+})
+const groupFilterLabel = computed(() => selectedGroupNodeIds.value.length
+  ? `已筛 ${selectedGroupNodeIds.value.length} 组`
+  : '筛选分组')
 const selectedAccountIds = computed(() => {
   if (Array.isArray(props.modelValue)) return props.modelValue.filter(Boolean).map(String)
   return props.modelValue ? [String(props.modelValue)] : []
@@ -76,6 +102,22 @@ const emptyMessage = computed(() => {
   }
   return ''
 })
+const treeEmptyMessage = computed(() => {
+  if (selectedGroupNodeIds.value.length && !visibleTreeData.value.length) {
+    return props.groupByDevice ? '所选设备分组暂无符合条件的账号' : '所选账号分组暂无符合条件的账号'
+  }
+  return emptyMessage.value || '暂无已登录账号'
+})
+
+function loadGroupFilterPreference() {
+  selectedGroupNodeIds.value = groupFilterStorageKey.value
+    ? readStringListPreference(localStorage, groupFilterStorageKey.value)
+    : []
+}
+
+function clearGroupFilter() {
+  selectedGroupNodeIds.value = []
+}
 
 function accountNodeId(accountId: string) {
   return `account:${accountId}`
@@ -335,11 +377,29 @@ function emitChecked(node?: AnyRecord) {
   emitSelection(accountIds)
 }
 
-onMounted(loadTree)
+onMounted(() => {
+  loadGroupFilterPreference()
+  loadTree()
+})
 
 watch(selectedAccountIds, () => nextTick(syncCheckedKeys))
 
 watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
+
+watch(groupFilterStorageKey, loadGroupFilterPreference)
+
+watch(selectedGroupNodeIds, (value) => {
+  if (groupFilterStorageKey.value) {
+    writeStringListPreference(localStorage, groupFilterStorageKey.value, value)
+  }
+})
+
+watch(visibleTreeData, async () => {
+  await nextTick()
+  syncCheckedKeys()
+  treeRef.value?.setExpandedKeys?.(visibleTreeData.value.map((node) => node.id))
+  treeRef.value?.filter?.(searchKeyword.value)
+})
 
 watch(
   filterSignature,
@@ -356,6 +416,53 @@ watch(
         clearable
         placeholder="搜索账号 / 设备名称 / Provider ID"
       />
+      <el-popover
+        v-if="groupFilterEnabled"
+        placement="bottom-end"
+        :width="260"
+        trigger="click"
+      >
+        <template #reference>
+          <el-button
+            class="account-tree-select__filter-button"
+            :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
+            plain
+            :icon="ListFilter"
+          >
+            {{ groupFilterLabel }}
+          </el-button>
+        </template>
+        <div class="group-filter-popover">
+          <div class="group-filter-popover__header">
+            <span>显示设备分组</span>
+            <el-button
+              v-if="selectedGroupNodeIds.length"
+              link
+              type="primary"
+              :icon="X"
+              @click="clearGroupFilter"
+            >
+              显示全部
+            </el-button>
+          </div>
+          <el-scrollbar max-height="260px">
+            <el-checkbox-group v-model="selectedGroupNodeIds" class="group-filter-popover__options">
+              <el-checkbox
+                v-for="option in groupOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </el-scrollbar>
+          <el-empty
+            v-if="!groupOptions.length"
+            description="暂无可筛选分组"
+            :image-size="48"
+          />
+        </div>
+      </el-popover>
     </div>
     <el-alert
       v-if="!loading && emptyMessage"
@@ -367,17 +474,17 @@ watch(
     />
     <el-tree-v2
       ref="treeRef"
-      :data="treeData"
+      :data="visibleTreeData"
       :props="treeProps"
       :height="treeHeight"
       :item-size="46"
       show-checkbox
-      :default-expanded-keys="treeData.map((node) => node.id)"
+      :default-expanded-keys="visibleTreeData.map((node) => node.id)"
       :check-strictly="!isMultiple"
       :expand-on-click-node="false"
       :filter-method="filterNode"
       scrollbar-always-on
-      :empty-text="emptyMessage || '暂无已登录账号'"
+      :empty-text="treeEmptyMessage"
       @check="emitChecked"
     >
       <template #default="{ data }">
@@ -433,6 +540,13 @@ watch(
   border-bottom: 1px solid #dbe4f0;
   background: rgb(248 250 252 / 96%);
   backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-tree-select__filter-button {
+  flex: 0 0 auto;
 }
 
 .account-tree-select :deep(.el-tree),
@@ -479,5 +593,33 @@ watch(
 .account-tree-node__status {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+.group-filter-popover__header {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #27364a;
+  font-weight: 600;
+}
+
+.group-filter-popover__options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group-filter-popover__options :deep(.el-checkbox) {
+  width: 100%;
+  height: 34px;
+  margin-right: 0;
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.group-filter-popover__options :deep(.el-checkbox:hover) {
+  background: #f3f7fb;
 }
 </style>

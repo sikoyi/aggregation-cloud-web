@@ -98,6 +98,7 @@ export interface FieldConfig {
   multiple?: boolean
   accountAssociationOnly?: boolean
   accountTreeGroupByDevice?: boolean
+  accountTreeGroupFilterPreferenceKey?: string
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   endKey?: string
   endDefaultValue?: number
