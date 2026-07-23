@@ -33,5 +33,6 @@ export function normalizeThreadsPostUrl(value: unknown) {
     throw new Error('请输入 Threads 帖子链接，不能填写账号主页、短链接或其他平台链接')
   }
 
-  return `${parsed.protocol}//${parsed.hostname.toLowerCase()}/${pathParts.join('/')}`
+  // 校验只负责判断链接类型，查询参数必须原样保留并下发给脚本。
+  return rawValue
 }
