@@ -34,6 +34,8 @@ const interactionParamFields = computed(() => {
     'target_source_type',
     'target_content_id',
     'target_content_url',
+    'content_mode',
+    'custom_contents_text',
     'ai_provider',
     'ai_language',
     'ai_tone',

@@ -26,6 +26,20 @@ describe('互动会话操作', () => {
   })
 })
 
+describe('互动会话文案来源', () => {
+  const fields = resources.interactionSessions.createFields || []
+
+  it('支持 AI 生成与自定义内容两种模式', () => {
+    const modeField = fields.find((field) => field.key === 'content_mode')
+    const customField = fields.find((field) => field.key === 'custom_contents_text')
+    const aiField = fields.find((field) => field.key === 'ai_provider')
+
+    expect(modeField?.options?.map((option) => option.value)).toEqual(['ai', 'custom'])
+    expect(customField?.visibleWhen).toEqual({ key: 'content_mode', value: 'custom' })
+    expect(aiField?.visibleWhen).toEqual({ key: 'content_mode', value: 'ai' })
+  })
+})
+
 describe('代理协议选项', () => {
   it('分别提供 Socks5、HTTP 和 HTTPS', () => {
     expect(proxyProtocolOptions.map((option) => option.value)).toEqual(['socks5', 'http', 'https'])

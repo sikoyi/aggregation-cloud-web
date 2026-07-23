@@ -31,6 +31,7 @@ const session = computed<AnyRecord | null>(() => {
   const value = detail.value?.session
   return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : null
 })
+const contentMode = computed(() => String(session.value?.content_mode || 'ai'))
 const aiProvider = computed(() => String((session.value?.ai_config as AnyRecord | undefined)?.provider || 'gemini'))
 const steps = computed<AnyRecord[]>(() => Array.isArray(detail.value?.steps) ? detail.value.steps : [])
 const dialogTitle = computed(() => `互动会话详情：${String(session.value?.title || props.sessionId || '')}`)
@@ -84,7 +85,9 @@ function stepActionLabel(value: unknown) {
 }
 
 function stepProgressText(step: AnyRecord) {
-  if (step.status === 'generating') return 'AI 文案生成中'
+  if (step.status === 'generating') {
+    return contentMode.value === 'custom' ? '自定义文案准备中' : 'AI 文案生成中'
+  }
   if (step.status === 'locked') return '等待解锁'
   if (step.status === 'queued') return '排队中'
   if (step.status === 'dispatching') return '下发中'
@@ -184,7 +187,12 @@ onBeforeUnmount(() => {
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
           <el-descriptions-item label="延迟下发范围">{{ dispatchDelayText }}</el-descriptions-item>
           <el-descriptions-item label="随机点赞概率">{{ text(session.like_probability) }}%</el-descriptions-item>
-          <el-descriptions-item label="AI 供应商">
+          <el-descriptions-item label="文案来源">
+            <el-tag size="small" :type="contentMode === 'custom' ? 'success' : 'primary'" effect="light">
+              {{ contentMode === 'custom' ? '自定义内容' : 'AI 生成' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item v-if="contentMode === 'ai'" label="AI 供应商">
             <el-tag size="small" type="primary" effect="light">
               {{ aiProviderLabel(aiProvider) }}
             </el-tag>
@@ -225,7 +233,7 @@ onBeforeUnmount(() => {
                     <el-tag size="small" effect="plain">{{ step.ai_model }}</el-tag>
                   </div>
                   <div v-if="step.generated_content" class="step-card__content">
-                    <span>服务端生成稿</span>
+                    <span>{{ contentMode === 'custom' ? '自定义文案' : '服务端生成稿' }}</span>
                     <p>{{ step.generated_content }}</p>
                   </div>
                   <div v-if="step.generation_error" class="step-card__error">{{ step.generation_error }}</div>

@@ -271,13 +271,20 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     ai_language,
     ai_tone,
     ai_max_length,
+    content_mode,
+    custom_contents_text,
     target_source_type,
     ...sessionPayload
   } = payload;
   const sourceType = String(target_source_type || "system_content");
   const targetContentId = String(sessionPayload.target_content_id || "").trim();
   let targetContentUrl = String(sessionPayload.target_content_url || "").trim();
+  const contentMode = String(content_mode || "ai");
   const aiProvider = String(ai_provider || "").trim();
+  const customContents = String(custom_contents_text || "")
+    .split(/\r?\n\s*\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   if (sourceType === "direct_url" && !targetContentUrl) {
     throw new Error("请填写目标帖子链接");
   }
@@ -287,8 +294,11 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   if (sourceType === "direct_url" && String(sessionPayload.business_platform || "") === "threads") {
     targetContentUrl = normalizeThreadsPostUrl(targetContentUrl);
   }
-  if (!aiProvider) {
+  if (contentMode === "ai" && !aiProvider) {
     throw new Error("暂无已启用的互动 AI，请先到系统配置中启用");
+  }
+  if (contentMode === "custom" && !customContents.length) {
+    throw new Error("请至少填写一条自定义评论内容");
   }
   const delayMinMinutes = Number(sessionPayload.step_delay_min_minutes ?? 0);
   const delayMaxMinutes = Number(sessionPayload.step_delay_max_minutes ?? 1);
@@ -301,8 +311,10 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     step_delay_max_minutes: delayMaxMinutes,
     target_content_id: sourceType === "system_content" ? targetContentId : null,
     target_content_url: sourceType === "direct_url" ? targetContentUrl : null,
+    content_mode: contentMode,
+    custom_contents: contentMode === "custom" ? customContents : [],
     ai_config: {
-      provider: aiProvider,
+      provider: aiProvider || "gemini",
       language: String(ai_language || "auto"),
       tone: String(ai_tone || "natural"),
       max_length: Number(ai_max_length || 120),
@@ -2036,6 +2048,17 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "会话名称", minWidth: 220 },
       { key: "target_content_title", label: "目标内容", minWidth: 220 },
+      {
+        key: "content_mode",
+        label: "文案来源",
+        type: "status",
+        options: [
+          { label: "AI 生成", value: "ai" },
+          { label: "自定义内容", value: "custom" },
+        ],
+        width: 120,
+        align: "center",
+      },
       { key: "main_account_name", label: "主号", minWidth: 150, align: "center" },
       { key: "comment_account_count", label: "评论账号", width: 100, align: "center" },
       { key: "progress_text", label: "进度", width: 100, align: "center" },
@@ -2176,11 +2199,33 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "例如：https://www.threads.com/@用户名/post/帖子ID",
       },
       {
+        key: "content_mode",
+        label: "文案来源",
+        type: "segmented",
+        defaultValue: "ai",
+        required: true,
+        span: 2,
+        options: [
+          { label: "AI 生成", value: "ai" },
+          { label: "自定义内容", value: "custom" },
+        ],
+      },
+      {
+        key: "custom_contents_text",
+        label: "自定义评论内容",
+        type: "textarea",
+        visibleWhen: { key: "content_mode", value: "custom" },
+        requiredWhen: { key: "content_mode", value: "custom" },
+        span: 2,
+        placeholder: "每段一条文案，文案之间空一行。系统按评论账号和互动轮次依次分配，数量不足时循环使用。",
+      },
+      {
         key: "ai_provider",
         label: "AI 供应商",
         type: "select",
         defaultValue: "",
-        required: true,
+        visibleWhen: { key: "content_mode", value: "ai" },
+        requiredWhen: { key: "content_mode", value: "ai" },
         options: [],
         placeholder: "仅展示系统配置中已启用的 AI",
       },
@@ -2189,6 +2234,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "生成语言",
         type: "select",
         defaultValue: "auto",
+        visibleWhen: { key: "content_mode", value: "ai" },
         options: [
           { label: "跟随帖子与对话", value: "auto" },
           { label: "英文", value: "en" },
@@ -2200,6 +2246,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "文案语气",
         type: "select",
         defaultValue: "natural",
+        visibleWhen: { key: "content_mode", value: "ai" },
         options: [
           { label: "自然交流", value: "natural" },
           { label: "友好亲切", value: "friendly" },
@@ -2214,6 +2261,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "单条最大长度",
         type: "number",
         defaultValue: 120,
+        visibleWhen: { key: "content_mode", value: "ai" },
         min: 20,
         max: 500,
         step: 10,
