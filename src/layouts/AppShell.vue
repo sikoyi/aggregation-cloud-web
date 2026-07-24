@@ -16,6 +16,7 @@ import {
   Server,
   Settings,
   ShieldCheck,
+  ContactRound,
   Users,
 } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
@@ -67,6 +68,7 @@ const navGroups = [
     children: [
       { label: '代理资源', to: '/proxies', icon: ShieldCheck },
       { label: '素材库', to: '/media-assets', icon: Image },
+      { label: '注册资源', to: '/registration-resources', icon: ContactRound },
     ],
   },
   {
