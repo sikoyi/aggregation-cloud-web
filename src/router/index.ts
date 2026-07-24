@@ -12,7 +12,6 @@ const DeviceCenterView = () => import('@/views/DeviceCenterView.vue')
 const LoginView = () => import('@/views/LoginView.vue')
 const MediaAssetCenterView = () => import('@/views/MediaAssetCenterView.vue')
 const ProxyCenterView = () => import('@/views/ProxyCenterView.vue')
-const RegistrationCenterView = () => import('@/views/RegistrationCenterView.vue')
 const ReportView = () => import('@/views/ReportView.vue')
 const ResourceView = () => import('@/views/ResourceView.vue')
 const SystemSettingsView = () => import('@/views/SystemSettingsView.vue')
@@ -41,7 +40,6 @@ export const router = createRouter({
         { path: 'content-groups', redirect: { path: '/contents', query: { tab: 'groups' } } },
         { path: 'media-assets', component: MediaAssetCenterView },
         { path: 'media-asset-groups', redirect: { path: '/media-assets', query: { tab: 'groups' } } },
-        { path: 'registration-resources', component: RegistrationCenterView },
         { path: 'interaction-sessions', component: ResourceView, meta: { resource: 'interactionSessions' } },
         { path: 'comment-replies', component: CommentReplyReviewView },
         { path: 'published-contents', component: ResourceView, meta: { resource: 'publishedContents' } },
