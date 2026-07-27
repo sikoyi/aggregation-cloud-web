@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { proxyProtocolOptions } from './options'
+import { proxyProtocolOptions, scriptPurposeOptions } from './options'
 import { resources } from './resources'
 
 
@@ -43,5 +43,46 @@ describe('互动会话文案来源', () => {
 describe('代理协议选项', () => {
   it('分别提供 Socks5、HTTP 和 HTTPS', () => {
     expect(proxyProtocolOptions.map((option) => option.value)).toEqual(['socks5', 'http', 'https'])
+  })
+})
+
+describe('账号注册任务下发', () => {
+  const fields = resources.tasks.createFields || []
+
+  it('脚本用途包含账号注册', () => {
+    expect(scriptPurposeOptions.some((option) => option.value === 'account_registration')).toBe(true)
+  })
+
+  it('提供已有窗口和创建新窗口两种注册方式', () => {
+    const modeField = fields.find((field) => field.key === 'registration_target_mode')
+    const countField = fields.find((field) => field.key === 'concurrent_registration_count')
+    const slotField = fields.find((field) => field.key === 'slot_ids')
+
+    expect(modeField?.options?.map((option) => option.value)).toEqual([
+      'existing_slots',
+      'create_windows',
+    ])
+    expect(countField?.visibleWhenAll).toEqual([
+      { key: 'script_purpose', value: 'account_registration' },
+      { key: 'registration_target_mode', value: 'create_windows' },
+    ])
+    expect(slotField?.visibleWhen).toEqual({
+      key: 'registration_target_mode',
+      value: 'existing_slots',
+    })
+  })
+
+  it('下发请求保留注册调度参数', () => {
+    const body = resources.tasks.createBody?.({
+      template_id: '7',
+      slot_ids: [],
+      registration_target_mode: 'create_windows',
+      concurrent_registration_count: 10,
+      execution_count: 10,
+      params: { country: 'KOR' },
+    }) as Record<string, unknown>
+
+    expect(body.registration_target_mode).toBe('create_windows')
+    expect(body.concurrent_registration_count).toBe(10)
   })
 })

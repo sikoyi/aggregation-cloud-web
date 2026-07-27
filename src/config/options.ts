@@ -395,6 +395,7 @@ export const scriptPurposeOptions: SelectOption[] = [
   { label: '互动首次评论', value: 'interaction_initial_comment' },
   { label: '互动后续回复', value: 'interaction_reply' },
   { label: '账号环境创建及上号', value: 'account_onboarding' },
+  { label: '账号注册', value: 'account_registration' },
 ]
 
 export const slotStatusOptions: SelectOption[] = [

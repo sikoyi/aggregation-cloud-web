@@ -81,12 +81,13 @@ const taskTemplateScriptRemoteSelect = {
   ...scriptRemoteSelect,
   params: (context?: AnyRecord) => ({
     ...scriptRemoteSelect.params(context),
-    purpose: "general_task",
+    template_eligible: true,
   }),
   matchesContext: (script: AnyRecord, context?: AnyRecord) => (
-    script.purpose === "general_task" && scriptMatchesContext(script, context)
+    ["general_task", "account_registration"].includes(String(script.purpose))
+    && scriptMatchesContext(script, context)
   ),
-  emptyText: "当前范围暂无可用于任务模板的普通任务脚本",
+  emptyText: "当前范围暂无可用于任务模板的普通任务或账号注册脚本",
 };
 
 // 常见关联资源统一用远程下拉，表单提交仍然使用后端需要的 id/key。
@@ -492,6 +493,8 @@ function buildTaskDispatchBody(payload: AnyRecord) {
     "template_id",
     "title_prefix",
     "slot_ids",
+    "registration_target_mode",
+    "concurrent_registration_count",
     "execution_count",
     "params",
     "scheduled_at",
@@ -3088,6 +3091,12 @@ export const resources: Record<string, ResourceConfig> = {
         remote: taskTemplateRemoteSelect,
         placeholder: "请选择任务模板",
       },
+      {
+        key: "script_purpose",
+        label: "脚本用途",
+        hidden: true,
+        defaultValue: "general_task",
+      },
       { key: "title_prefix", label: "任务名称", placeholder: "为空时使用模板名称" },
       {
         key: "script_key",
@@ -3127,17 +3136,43 @@ export const resources: Record<string, ResourceConfig> = {
       },
       {
         key: "execution_count",
-        label: "每台设备执行次数",
+        label: "每个目标执行次数",
         type: "number",
         required: true,
         defaultValue: 1,
       },
       { key: "scheduled_at", label: "计划时间（计划模式必填）", type: "datetime" },
       {
+        key: "registration_target_mode",
+        label: "注册方式",
+        type: "segmented",
+        options: [
+          { label: "使用已有窗口", value: "existing_slots" },
+          { label: "创建新窗口", value: "create_windows" },
+        ],
+        defaultValue: "existing_slots",
+        required: true,
+        visibleWhen: { key: "script_purpose", value: "account_registration" },
+      },
+      {
+        key: "concurrent_registration_count",
+        label: "同时注册数量",
+        type: "number",
+        min: 1,
+        max: 1000,
+        defaultValue: 1,
+        requiredWhen: { key: "registration_target_mode", value: "create_windows" },
+        visibleWhenAll: [
+          { key: "script_purpose", value: "account_registration" },
+          { key: "registration_target_mode", value: "create_windows" },
+        ],
+      },
+      {
         key: "slot_ids",
         label: "设备组 / 设备",
         type: "slotTree",
-        required: true,
+        requiredWhen: { key: "registration_target_mode", value: "existing_slots" },
+        visibleWhen: { key: "registration_target_mode", value: "existing_slots" },
         defaultValue: [],
       },
       {

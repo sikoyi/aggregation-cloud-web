@@ -42,16 +42,23 @@ async function updateTemplateValue(field: FieldConfig, value: string | string[])
   templateLoading.value = true
   try {
     const template = await http.get<AnyRecord>(field.remote.detailPath(templateId))
+    const scriptKey = String(template.script_key || '')
+    const script = scriptKey
+      ? await http.get<AnyRecord>(`/api/scripts/by-key/${encodeURIComponent(scriptKey)}`)
+      : null
     emit('update:modelValue', {
       ...props.modelValue,
       [field.key]: templateId,
-      script_key: template.script_key || '',
+      script_key: scriptKey,
+      script_purpose: script?.purpose || 'general_task',
       business_platform: template.business_platform || '',
       runtime_platform: template.runtime_platform || '',
       provider: template.provider || '',
       execution_mode: template.execution_mode || '',
       execution_count: Number(template.execution_count || 1),
       params: template.default_params || {},
+      registration_target_mode: 'existing_slots',
+      concurrent_registration_count: 1,
     })
   } finally {
     templateLoading.value = false

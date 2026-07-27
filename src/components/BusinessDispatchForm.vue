@@ -16,8 +16,21 @@ const emit = defineEmits<{
   'update:modelValue': [value: AnyRecord]
 }>()
 
-const taskDeviceFields = computed(() => props.fields.filter((field) => field.type === 'slotTree'))
-const taskParamFields = computed(() => props.fields.filter((field) => field.type !== 'slotTree'))
+const taskSelectorKeys = new Set([
+  'registration_target_mode',
+  'concurrent_registration_count',
+  'slot_ids',
+])
+const taskDeviceFields = computed(() => props.fields.filter((field) => taskSelectorKeys.has(field.key)))
+const taskParamFields = computed(() => props.fields.filter((field) => !taskSelectorKeys.has(field.key)))
+const isCreateWindowRegistration = computed(() => (
+  props.modelValue.script_purpose === 'account_registration'
+  && props.modelValue.registration_target_mode === 'create_windows'
+))
+const registrationAttemptTotal = computed(() => (
+  Number(props.modelValue.concurrent_registration_count || 0)
+  * Number(props.modelValue.execution_count || 0)
+))
 const publishedAccountFields = computed(() => props.fields.filter((field) => field.type === 'accountTree'))
 const publishedParamFields = computed(() => props.fields.filter((field) => field.type !== 'accountTree'))
 const interactionMainFields = computed(() => props.fields.filter((field) => field.key === 'main_account_id'))
@@ -52,12 +65,21 @@ function updateValue(value: AnyRecord) {
 <template>
   <div v-if="mode === 'task'" class="dispatch-layout">
     <div class="dispatch-panel dispatch-panel--selector">
-      <div class="dispatch-panel__title">设备组 / 设备</div>
+      <div class="dispatch-panel__title">
+        {{ modelValue.script_purpose === 'account_registration' ? '注册目标' : '设备组 / 设备' }}
+      </div>
       <DynamicForm
         :model-value="modelValue"
         :fields="taskDeviceFields"
         :context="context"
         @update:model-value="updateValue"
+      />
+      <el-alert
+        v-if="isCreateWindowRegistration"
+        type="info"
+        :closable="false"
+        show-icon
+        :title="`将建立 ${Number(modelValue.concurrent_registration_count || 0)} 个并发通道，共执行 ${registrationAttemptTotal} 次注册尝试`"
       />
     </div>
     <div class="dispatch-panel">
