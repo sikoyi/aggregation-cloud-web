@@ -468,6 +468,7 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '字符串', value: 'string' },
   { label: '布尔', value: 'bool' },
   { label: '国家/地区', value: 'country' },
+  { label: '接码平台', value: 'registration_provider' },
   { label: '代理', value: 'proxy' },
   { label: '代理组', value: 'proxy_group' },
   { label: '资源', value: 'res' },
@@ -478,4 +479,9 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '素材', value: 'media_asset' },
   { label: '素材组', value: 'media_asset_group' },
   { label: '设备', value: 'execution_slot' },
+]
+
+export const registrationProviderOptions: SelectOption[] = [
+  { label: 'Hero SMS', value: 'hero_sms' },
+  { label: '火狐狸', value: 'firefox' },
 ]

@@ -8,6 +8,7 @@ import {
   accountSelectionStrategyOptions,
   proxyUsageStatusFilterOptions,
   registrationCountryOptions,
+  registrationProviderOptions,
 } from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
@@ -430,6 +431,22 @@ watch(
         >
           <el-option
             v-for="option in registrationCountryOptions"
+            :key="String(option.value)"
+            :label="option.label"
+            :value="option.value"
+          />
+        </el-select>
+        <el-select
+          v-else-if="param.param_type === 'registration_provider'"
+          :model-value="String(values[param.param_key] ?? '')"
+          class="w-full"
+          filterable
+          clearable
+          placeholder="请选择接码平台"
+          @update:model-value="updateValue(param, $event)"
+        >
+          <el-option
+            v-for="option in registrationProviderOptions"
             :key="String(option.value)"
             :label="option.label"
             :value="option.value"

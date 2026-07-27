@@ -2,7 +2,7 @@
 import { Plus, Trash2 } from 'lucide-vue-next'
 import { computed } from 'vue'
 
-import { registrationCountryOptions } from '@/config/options'
+import { registrationCountryOptions, registrationProviderOptions } from '@/config/options'
 import type { SelectOption } from '@/types/crud'
 import { normalizeScriptParams } from '@/utils/form'
 
@@ -59,7 +59,7 @@ function removeParam(index: number) {
 function updateParam(index: number, key: string, value: unknown) {
   const items = currentItems()
   items[index] = { ...items[index], [key]: value }
-  if (key === 'param_type' && value === 'country') {
+  if (key === 'param_type' && ['country', 'registration_provider'].includes(String(value))) {
     items[index].default_value = null
   }
   emitItems(items)
@@ -154,6 +154,22 @@ function updateParam(index: number, key: string, value: unknown) {
             >
               <el-option
                 v-for="option in registrationCountryOptions"
+                :key="String(option.value)"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+            <el-select
+              v-else-if="currentItems()[index].param_type === 'registration_provider'"
+              :model-value="String(currentItems()[index].default_value ?? '')"
+              class="w-full"
+              filterable
+              clearable
+              placeholder="请选择接码平台"
+              @update:model-value="updateParam(index, 'default_value', $event || null)"
+            >
+              <el-option
+                v-for="option in registrationProviderOptions"
                 :key="String(option.value)"
                 :label="option.label"
                 :value="option.value"

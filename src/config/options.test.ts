@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { registrationCountryOptions, scriptParamTypeOptions } from '@/config/options'
+import {
+  registrationCountryOptions,
+  registrationProviderOptions,
+  scriptParamTypeOptions,
+} from '@/config/options'
 
 describe('registration country options', () => {
   it('uses searchable display labels while preserving ISO alpha-3 values', () => {
@@ -16,5 +20,16 @@ describe('registration country options', () => {
       label: '国家/地区',
       value: 'country',
     })
+  })
+
+  it('exposes supported registration providers as a script parameter type', () => {
+    expect(scriptParamTypeOptions).toContainEqual({
+      label: '接码平台',
+      value: 'registration_provider',
+    })
+    expect(registrationProviderOptions).toEqual([
+      { label: 'Hero SMS', value: 'hero_sms' },
+      { label: '火狐狸', value: 'firefox' },
+    ])
   })
 })
