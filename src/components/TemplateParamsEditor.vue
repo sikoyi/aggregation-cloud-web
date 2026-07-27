@@ -4,7 +4,11 @@ import { computed, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
-import { accountSelectionStrategyOptions, proxyUsageStatusFilterOptions } from '@/config/options'
+import {
+  accountSelectionStrategyOptions,
+  proxyUsageStatusFilterOptions,
+  registrationCountryOptions,
+} from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
 
@@ -415,6 +419,22 @@ watch(
           inactive-text="否"
           @update:model-value="updateValue(param, $event)"
         />
+        <el-select
+          v-else-if="param.param_type === 'country'"
+          :model-value="String(values[param.param_key] ?? '')"
+          class="w-full"
+          filterable
+          clearable
+          placeholder="搜索并选择国家/地区"
+          @update:model-value="updateValue(param, $event)"
+        >
+          <el-option
+            v-for="option in registrationCountryOptions"
+            :key="String(option.value)"
+            :label="option.label"
+            :value="option.value"
+          />
+        </el-select>
         <div v-else-if="isResourceParam(param)" class="resource-param-field">
           <el-input
             :model-value="resourceDisplayValue(param)"

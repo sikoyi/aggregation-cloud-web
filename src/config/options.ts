@@ -212,6 +212,38 @@ export const accountCountryOptions: SelectOption[] = accountCountryNames.map((na
   value: name,
 }))
 
+// 注册任务统一使用 ISO 3166-1 alpha-3，数组顺序与上方中文国家名称一一对应。
+const registrationCountryCodes = [
+  'AFG', 'ALB', 'DZA', 'AND', 'AGO', 'ATG', 'ARG', 'ARM', 'AUS', 'AUT',
+  'AZE', 'BHS', 'BHR', 'BGD', 'BRB', 'BLR', 'BEL', 'BLZ', 'BEN', 'BTN',
+  'BOL', 'BIH', 'BWA', 'BRA', 'BRN', 'BGR', 'BFA', 'BDI', 'CPV', 'KHM',
+  'CMR', 'CAN', 'CAF', 'TCD', 'CHL', 'CHN', 'HKG', 'MAC', 'TWN', 'COL',
+  'COM', 'COG', 'COD', 'CRI', 'CIV', 'HRV', 'CUB', 'CYP', 'CZE', 'DNK',
+  'DJI', 'DMA', 'DOM', 'ECU', 'EGY', 'SLV', 'GNQ', 'ERI', 'EST', 'SWZ',
+  'ETH', 'FJI', 'FIN', 'FRA', 'GAB', 'GMB', 'GEO', 'DEU', 'GHA', 'GRC',
+  'GRD', 'GTM', 'GIN', 'GNB', 'GUY', 'HTI', 'HND', 'HUN', 'ISL', 'IND',
+  'IDN', 'IRN', 'IRQ', 'IRL', 'ISR', 'ITA', 'JAM', 'JPN', 'JOR', 'KAZ',
+  'KEN', 'KIR', 'PRK', 'KOR', 'KWT', 'KGZ', 'LAO', 'LVA', 'LBN', 'LSO',
+  'LBR', 'LBY', 'LIE', 'LTU', 'LUX', 'MDG', 'MWI', 'MYS', 'MDV', 'MLI',
+  'MLT', 'MHL', 'MRT', 'MUS', 'MEX', 'FSM', 'MDA', 'MCO', 'MNG', 'MNE',
+  'MAR', 'MOZ', 'MMR', 'NAM', 'NRU', 'NPL', 'NLD', 'NZL', 'NIC', 'NER',
+  'NGA', 'MKD', 'NOR', 'OMN', 'PAK', 'PLW', 'PSE', 'PAN', 'PNG', 'PRY',
+  'PER', 'PHL', 'POL', 'PRT', 'QAT', 'ROU', 'RUS', 'RWA', 'KNA', 'LCA',
+  'VCT', 'WSM', 'SMR', 'STP', 'SAU', 'SEN', 'SRB', 'SYC', 'SLE', 'SGP',
+  'SVK', 'SVN', 'SLB', 'SOM', 'ZAF', 'SSD', 'ESP', 'LKA', 'SDN', 'SUR',
+  'SWE', 'CHE', 'SYR', 'TJK', 'TZA', 'THA', 'TLS', 'TGO', 'TON', 'TTO',
+  'TUN', 'TUR', 'TKM', 'TUV', 'UGA', 'UKR', 'ARE', 'GBR', 'USA', 'URY',
+  'UZB', 'VUT', 'VAT', 'VEN', 'VNM', 'YEM', 'ZMB', 'ZWE',
+] as const
+
+export const registrationCountryOptions: SelectOption[] = accountCountryNames.map((name, index) => {
+  const code = registrationCountryCodes[index]
+  return {
+    label: `${name}（${code}）`,
+    value: code,
+  }
+})
+
 export const accountDelimiterOptions: SelectOption[] = [
   { label: '---', value: '---' },
   { label: ':', value: ':' },
@@ -435,6 +467,7 @@ export const taskStatusOptions: SelectOption[] = [
 export const scriptParamTypeOptions: SelectOption[] = [
   { label: '字符串', value: 'string' },
   { label: '布尔', value: 'bool' },
+  { label: '国家/地区', value: 'country' },
   { label: '代理', value: 'proxy' },
   { label: '代理组', value: 'proxy_group' },
   { label: '资源', value: 'res' },

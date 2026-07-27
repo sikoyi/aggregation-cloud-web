@@ -2,6 +2,7 @@
 import { Plus, Trash2 } from 'lucide-vue-next'
 import { computed } from 'vue'
 
+import { registrationCountryOptions } from '@/config/options'
 import type { SelectOption } from '@/types/crud'
 import { normalizeScriptParams } from '@/utils/form'
 
@@ -58,6 +59,9 @@ function removeParam(index: number) {
 function updateParam(index: number, key: string, value: unknown) {
   const items = currentItems()
   items[index] = { ...items[index], [key]: value }
+  if (key === 'param_type' && value === 'country') {
+    items[index].default_value = null
+  }
   emitItems(items)
 }
 </script>
@@ -139,7 +143,24 @@ function updateParam(index: number, key: string, value: unknown) {
         </el-col>
         <el-col :xs="24" :md="12">
           <el-form-item label="默认值">
+            <el-select
+              v-if="currentItems()[index].param_type === 'country'"
+              :model-value="String(currentItems()[index].default_value ?? '')"
+              class="w-full"
+              filterable
+              clearable
+              placeholder="搜索并选择国家/地区"
+              @update:model-value="updateParam(index, 'default_value', $event || null)"
+            >
+              <el-option
+                v-for="option in registrationCountryOptions"
+                :key="String(option.value)"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
             <el-input
+              v-else
               :model-value="String(currentItems()[index].default_value ?? '')"
               clearable
               @update:model-value="updateParam(index, 'default_value', $event || null)"
