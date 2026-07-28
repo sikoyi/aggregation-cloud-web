@@ -323,19 +323,19 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   };
 }
 
-const accountGroupRemoteSelect = {
-  endpoint: "/api/account-groups",
+const accountTagRemoteSelect = {
+  endpoint: "/api/account-tags",
   labelKey: "name",
   valueKey: "id",
   detailPath: (value: string) =>
-    `/api/account-groups/${encodeURIComponent(value)}`,
-  secondaryKey: "business_platform",
+    `/api/account-tags/${encodeURIComponent(value)}`,
+  secondaryKey: "member_count",
   searchParam: "keyword",
   pageSize: 50,
 };
 
-const accountGroupMultiSelect = {
-  ...accountGroupRemoteSelect,
+const accountTagMultiSelect = {
+  ...accountTagRemoteSelect,
   multiple: true,
 };
 
@@ -353,13 +353,6 @@ const proxyGroupRemoteSelect = {
 const proxyGroupMultiSelect = {
   ...proxyGroupRemoteSelect,
   multiple: true,
-};
-
-const accountGroupForAccountEditRemoteSelect = {
-  ...accountGroupRemoteSelect,
-  params: (context?: AnyRecord) => ({
-    business_platform: context?.business_platform,
-  }),
 };
 
 const slotGroupRemoteSelect = {
@@ -532,8 +525,8 @@ function formatAccountImportSuccess(data: AnyRecord) {
   const duplicate = Number(data.duplicate_count || 0);
   const existed = Number(data.existed_count || 0);
   const failed = Number(data.failed_count || 0);
-  const grouped = Number(data.grouped_count || 0);
-  const groupText = data.group_id ? `，加入分组 ${grouped} 个` : "";
+  const tagged = Number(data.tagged_count || 0);
+  const tagText = Array.isArray(data.tag_ids) && data.tag_ids.length ? `，添加标签 ${tagged} 个` : "";
   const queued = Number(data.onboarding_queued_count || 0);
   const onboardingText = data.onboarding_status === "queued"
     ? ` 已创建 ${queued} 条环境创建及上号任务，父任务 ID：${data.onboarding_task_id}。`
@@ -547,7 +540,7 @@ function formatAccountImportSuccess(data: AnyRecord) {
   const failureText = failureDetails.length
     ? ` 失败原因：${failureDetails.join("；")}${hiddenFailureCount ? `；另有 ${hiddenFailureCount} 条` : ""}。`
     : "";
-  return `共解析 ${total} 行，成功导入 ${created} 个${groupText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。${onboardingText}${failureText}`;
+  return `共解析 ${total} 行，成功导入 ${created} 个${tagText}。文本重复 ${duplicate} 个，系统已存在 ${existed} 个，失败 ${failed} 个。${onboardingText}${failureText}`;
 }
 
 function accountImportNotificationType(data: AnyRecord): "success" | "warning" | "error" {
@@ -563,7 +556,7 @@ function buildAccountImportPayload(payload: AnyRecord) {
   const body = pickPayload(payload, [
     "business_platform",
     "country",
-    "group_id",
+    "tag_ids",
     "raw_text",
     "delimiter",
     "custom_delimiter",
@@ -678,13 +671,17 @@ function formatContentImportSuccess(data: AnyRecord) {
 
 async function loadAccountForEdit(record: AnyRecord) {
   const account = await http.get<AnyRecord>(`/api/accounts/${record.id}`);
-  return { ...record, ...account, account_group_id: account.group_id || "" };
+  return {
+    ...record,
+    ...account,
+    tag_ids: Array.isArray(account.tag_ids) ? account.tag_ids : [],
+  };
 }
 
-async function updateAccountGroups(_updatedAccount: AnyRecord, payload: AnyRecord, record: AnyRecord) {
-  if (!Object.prototype.hasOwnProperty.call(payload, "account_group_id")) return undefined;
-  return http.put(`/api/accounts/${record.id}/groups`, {
-    group_id: payload.account_group_id || null,
+async function updateAccountTags(_updatedAccount: AnyRecord, payload: AnyRecord, record: AnyRecord) {
+  if (!Object.prototype.hasOwnProperty.call(payload, "tag_ids")) return undefined;
+  return http.put(`/api/accounts/${record.id}/tags`, {
+    tag_ids: Array.isArray(payload.tag_ids) ? payload.tag_ids : [],
   });
 }
 
@@ -770,11 +767,12 @@ export const resources: Record<string, ResourceConfig> = {
         "totp_secret_ref",
         "display_name",
     ]),
-    afterUpdate: updateAccountGroups,
+    afterUpdate: updateAccountTags,
     columns: [
       { key: "id", label: "ID", type: "id", width: 68, align: "center" },
       { key: "login_username", label: "账号信息", type: "accountIdentity", minWidth: 180 },
-      { key: "group_name", label: "所属分组", type: "accountGroup", minWidth: 120 },
+      { key: "tag_names", label: "账号标签", type: "accountTags", minWidth: 170 },
+      { key: "bound_slot_group_name", label: "设备分组", type: "accountDeviceGroup", minWidth: 130 },
       { key: "password_secret_ref", label: "登录凭证", type: "accountCredentials", minWidth: 235 },
       { key: "business_platform", label: "平台 / 国家", type: "accountPlatform", minWidth: 125 },
       { key: "login_status", label: "登录状态", type: "status", width: 170, align: "center" },
@@ -798,11 +796,18 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "请输入登录账号",
       },
       {
-        key: "group_id",
-        label: "所属分组",
+        key: "slot_group_id",
+        label: "设备分组",
         type: "remoteSelect",
-        remote: accountGroupRemoteSelect,
-        placeholder: "全部分组",
+        remote: slotGroupRemoteSelect,
+        placeholder: "全部设备分组",
+      },
+      {
+        key: "tag_id",
+        label: "账号标签",
+        type: "remoteSelect",
+        remote: accountTagRemoteSelect,
+        placeholder: "全部标签",
       },
       {
         key: "bound_slot_name",
@@ -876,11 +881,11 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "custom_delimiter", label: "自定义分隔符", placeholder: "可填写空格、space、\\t 或自定义字符" },
       {
-        key: "group_id",
-        label: "账号分组",
+        key: "tag_ids",
+        label: "账号标签",
         type: "remoteSelect",
-        remote: accountGroupRemoteSelect,
-        placeholder: "可选，导入后自动加入分组",
+        remote: accountTagMultiSelect,
+        placeholder: "可选，导入后自动添加标签",
       },
       {
         key: "post_import_action",
@@ -972,12 +977,12 @@ export const resources: Record<string, ResourceConfig> = {
     updateFields: [
       { key: "login_username", label: "登录账号" },
       {
-        key: "account_group_id",
-        label: "所属分组",
+        key: "tag_ids",
+        label: "账号标签",
         type: "remoteSelect",
-        remote: accountGroupForAccountEditRemoteSelect,
+        remote: accountTagMultiSelect,
         allowEmpty: true,
-        placeholder: "请选择账号分组",
+        placeholder: "请选择一个或多个账号标签",
       },
       { key: "username", label: "公开用户名" },
       {
@@ -1047,76 +1052,57 @@ export const resources: Record<string, ResourceConfig> = {
         fields: accountOnboardingFields,
       },
       {
-        key: "batch-add-to-group",
-        label: "设置分组",
-        method: "POST",
+        key: "batch-set-tags",
+        label: "设置标签",
+        method: "PUT",
         icon: "users",
-        path: (_record, payload) => `/api/account-groups/${payload?.group_id}/accounts`,
-        body: (payload, record) => ({
-          account_ids: [String(record.id)],
-          remark: payload.remark || undefined,
+        path: (record) => `/api/accounts/${record.id}/tags`,
+        body: (payload) => ({
+          tag_ids: Array.isArray(payload.tag_ids) ? payload.tag_ids : [],
         }),
         fields: [
           {
-            key: "group_id",
-            label: "账号分组",
+            key: "tag_ids",
+            label: "账号标签",
             type: "remoteSelect",
-            remote: accountGroupRemoteSelect,
-            required: true,
-            placeholder: "请选择账号分组",
+            remote: accountTagMultiSelect,
+            allowEmpty: true,
+            placeholder: "选择标签；清空后将移除已选账号的全部标签",
           },
-          { key: "remark", label: "备注" },
         ],
       },
     ],
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm:
-      "确认删除该账号？该账号的发布内容、评论、指标快照、监听记录会一并删除，同时释放设备、分组和任务引用，此操作不可恢复，请谨慎操作。",
+      "确认删除该账号？该账号的发布内容、评论、指标快照、监听记录会一并删除，同时释放设备、标签和任务引用，此操作不可恢复，请谨慎操作。",
   },
 
-  accountGroups: {
-    key: "accountGroups",
-    title: "账号分组",
-    endpoint: "/api/account-groups",
-    createLabel: "新增账号组",
-    accountGroupMembers: true,
+  accountTags: {
+    key: "accountTags",
+    title: "账号标签",
+    endpoint: "/api/account-tags",
+    createLabel: "新增标签",
+    accountTagMembers: true,
     columns: [
       { key: "id", label: "ID", type: "id" },
       { key: "name", label: "名称" },
-      { key: "business_platform", label: "平台" },
-      { key: "member_count", label: "成员数" },
+      { key: "member_count", label: "关联账号数" },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
-    filters: [
-      {
-        key: "business_platform",
-        label: "业务平台",
-        type: "select",
-        options: businessPlatformOptions,
-      },
-      { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
-    ],
+    filters: [{ key: "keyword", label: "关键词", placeholder: "名称 / 说明" }],
     createFields: [
-      {
-        key: "business_platform",
-        label: "业务平台",
-        type: "select",
-        options: businessPlatformOptions,
-        defaultValue: "threads",
-      },
       { key: "name", label: "名称", required: true },
-      { key: "description", label: "描述", type: "textarea", span: 2 },
+      { key: "description", label: "说明", type: "textarea", span: 2 },
     ],
     updateFields: [
       { key: "name", label: "名称" },
-      { key: "description", label: "描述", type: "textarea", span: 2 },
+      { key: "description", label: "说明", type: "textarea", span: 2 },
     ],
     deleteLabel: "删除",
-    deletePath: (record) => `/api/account-groups/${record.id}?force=true`,
     directDelete: true,
     deleteConfirm:
-      "确认删除该账号组？删除后组内成员会自动解绑，分组本身不可恢复，请谨慎操作。",
+      "确认删除该账号标签？删除后会自动解除与账号的关联，标签本身不可恢复，请谨慎操作。",
   },
 
   slots: {
@@ -2876,16 +2862,6 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "请选择账号",
       },
       {
-        key: "account_group_ids",
-        hidden: true,
-        label: "账号组列表",
-        type: "remoteSelect",
-        remote: accountGroupMultiSelect,
-        defaultValue: [],
-        span: 2,
-        placeholder: "请选择账号组",
-      },
-      {
         key: "default_params",
         label: "默认参数",
         type: "templateParams",
@@ -2982,15 +2958,6 @@ export const resources: Record<string, ResourceConfig> = {
         remote: accountMultiSelect,
         span: 2,
         placeholder: "请选择账号",
-      },
-      {
-        key: "account_group_ids",
-        hidden: true,
-        label: "账号组列表",
-        type: "remoteSelect",
-        remote: accountGroupMultiSelect,
-        span: 2,
-        placeholder: "请选择账号组",
       },
       {
         key: "default_params",

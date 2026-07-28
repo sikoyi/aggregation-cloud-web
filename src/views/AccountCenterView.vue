@@ -1,33 +1,33 @@
 <script setup lang="ts">
-import { Layers3, Plus, RefreshCw, Users } from 'lucide-vue-next'
+import { Plus, RefreshCw, Tags, Users } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import CrudPage from '@/components/CrudPage.vue'
 import { resources } from '@/config/resources'
 
-type AccountCenterTab = 'accounts' | 'groups'
+type AccountCenterTab = 'accounts' | 'tags'
 
 const route = useRoute()
 const router = useRouter()
 
 const accountConfig = computed(() => resources.accounts)
-const accountGroupConfig = computed(() => resources.accountGroups)
+const accountTagConfig = computed(() => resources.accountTags)
 const activeTab = ref<AccountCenterTab>(normalizeTab(route.query.tab))
 const accountPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
-const accountGroupPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
-const activeConfig = computed(() => (activeTab.value === 'groups' ? accountGroupConfig.value : accountConfig.value))
-const activePage = computed(() => (activeTab.value === 'groups' ? accountGroupPageRef.value : accountPageRef.value))
+const accountTagPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
+const activeConfig = computed(() => (activeTab.value === 'tags' ? accountTagConfig.value : accountConfig.value))
+const activePage = computed(() => (activeTab.value === 'tags' ? accountTagPageRef.value : accountPageRef.value))
 const activeCreateLabel = computed(() => activeConfig.value.createLabel || '新增')
 
 function normalizeTab(value: unknown): AccountCenterTab {
-  return value === 'groups' ? 'groups' : 'accounts'
+  return value === 'tags' ? 'tags' : 'accounts'
 }
 
 function handleTabChange(value: string | number) {
   const tab = normalizeTab(value)
   const query = { ...route.query }
-  if (tab === 'groups') query.tab = 'groups'
+  if (tab === 'tags') query.tab = 'tags'
   else delete query.tab
   router.replace({ path: '/accounts', query })
 }
@@ -58,7 +58,7 @@ watch(
           </div>
           <div class="min-w-0">
             <h1>账号管理</h1>
-            <p>统一维护账号、分组和组内成员。</p>
+            <p>统一维护账号、账号标签及其关联关系。</p>
           </div>
         </div>
         <div class="account-center__actions">
@@ -81,14 +81,14 @@ watch(
           </template>
           <CrudPage ref="accountPageRef" :config="accountConfig" embedded hide-header-actions />
         </el-tab-pane>
-        <el-tab-pane name="groups" lazy>
+        <el-tab-pane name="tags" lazy>
           <template #label>
             <span class="account-center__tab-label">
-              <Layers3 class="h-4 w-4" />
-              账号分组
+              <Tags class="h-4 w-4" />
+              账号标签
             </span>
           </template>
-          <CrudPage ref="accountGroupPageRef" :config="accountGroupConfig" embedded hide-header-actions />
+          <CrudPage ref="accountTagPageRef" :config="accountTagConfig" embedded hide-header-actions />
         </el-tab-pane>
       </el-tabs>
     </el-card>

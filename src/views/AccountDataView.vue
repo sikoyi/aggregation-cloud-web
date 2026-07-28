@@ -54,7 +54,7 @@ const rows = ref<AnyRecord[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const groups = ref<AnyRecord[]>([])
+const slotGroups = ref<AnyRecord[]>([])
 const aiProviderOptions = ref<EnabledAiProviderOption[]>([])
 const summary = reactive({
   total_accounts: 0,
@@ -66,7 +66,7 @@ const summary = reactive({
 const filters = reactive({
   business_platform: '',
   login_status: '',
-  group_id: '',
+  slot_group_id: '',
   monitor_state: '',
   keyword: '',
 })
@@ -126,11 +126,11 @@ function monitorStateType(value: unknown) {
   return 'info'
 }
 
-async function loadGroups() {
+async function loadSlotGroups() {
   try {
-    groups.value = await getAllPages<AnyRecord>('/api/account-groups')
+    slotGroups.value = await getAllPages<AnyRecord>('/api/slot-groups')
   } catch (err) {
-    notifyError(err, '加载失败', '加载账号分组失败')
+    notifyError(err, '加载失败', '加载设备分组失败')
   }
 }
 
@@ -174,7 +174,7 @@ function resetFilters() {
   Object.assign(filters, {
     business_platform: '',
     login_status: '',
-    group_id: '',
+    slot_group_id: '',
     monitor_state: '',
     keyword: '',
   })
@@ -320,7 +320,7 @@ watch(
 )
 
 onMounted(() => {
-  loadGroups()
+  loadSlotGroups()
   loadReplyOptions()
   loadRows()
   window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
@@ -381,8 +381,8 @@ onBeforeUnmount(() => {
             <el-select v-model="filters.business_platform" clearable placeholder="业务 App">
               <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
-            <el-select v-model="filters.group_id" clearable filterable placeholder="所属分组">
-              <el-option v-for="group in groups" :key="String(group.id)" :label="String(group.name || group.id)" :value="String(group.id)" />
+            <el-select v-model="filters.slot_group_id" clearable filterable placeholder="设备分组">
+              <el-option v-for="group in slotGroups" :key="String(group.id)" :label="String(group.name || group.id)" :value="String(group.id)" />
             </el-select>
             <el-select v-model="filters.login_status" clearable placeholder="登录状态">
               <el-option v-for="option in loginStatusOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
@@ -416,9 +416,9 @@ onBeforeUnmount(() => {
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="所属分组" min-width="120" align="center">
+            <el-table-column label="设备分组" min-width="120" align="center">
               <template #default="{ row }">
-                <el-tag v-if="row.group_name" type="primary" effect="plain">{{ row.group_name }}</el-tag>
+                <el-tag v-if="row.slot_group_name" type="primary" effect="plain">{{ row.slot_group_name }}</el-tag>
                 <span v-else class="text-muted">未分组</span>
               </template>
             </el-table-column>
@@ -493,7 +493,7 @@ onBeforeUnmount(() => {
               <strong>{{ monitorTargetAccount.account_name || monitorTargetAccount.login_username || '-' }}</strong>
               <small>
                 {{ optionLabel(businessPlatformOptions, monitorTargetAccount.business_platform) }}
-                · {{ monitorTargetAccount.group_name || '未分组' }}
+                · {{ monitorTargetAccount.slot_group_name || '未分组' }}
               </small>
             </span>
             <StatusBadge :value="monitorTargetAccount.login_status" />
@@ -605,7 +605,7 @@ onBeforeUnmount(() => {
           <el-descriptions :column="3" border>
             <el-descriptions-item label="账号">{{ detailAccount.account_name }}</el-descriptions-item>
             <el-descriptions-item label="业务 App">{{ optionLabel(businessPlatformOptions, detailAccount.business_platform) }}</el-descriptions-item>
-            <el-descriptions-item label="所属分组">{{ detailAccount.group_name || '未分组' }}</el-descriptions-item>
+            <el-descriptions-item label="设备分组">{{ detailAccount.slot_group_name || '未分组' }}</el-descriptions-item>
             <el-descriptions-item label="登录状态"><StatusBadge :value="detailAccount.login_status" /></el-descriptions-item>
             <el-descriptions-item label="监听状态"><el-tag :type="monitorStateType(detailAccount.monitor_state)">{{ monitorStateLabel(detailAccount.monitor_state) }}</el-tag></el-descriptions-item>
             <el-descriptions-item label="监听间隔">{{ detailAccount.monitor_interval_minutes ? `${detailAccount.monitor_interval_minutes} 分钟` : '-' }}</el-descriptions-item>

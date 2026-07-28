@@ -222,12 +222,12 @@ async function loadTree() {
     const availableAccountIds = new Set<string>()
 
     eligibleAccounts.forEach((account) => {
-      const groupId = String(account.group_id || '')
+      const groupId = String(account.bound_slot_group_id || '')
       if (!groupId) return
       const items = accountsByGroup.get(groupId) || []
       items.push(account)
       accountsByGroup.set(groupId, items)
-      groupNames.set(groupId, String(account.group_name || groupId))
+      groupNames.set(groupId, String(account.bound_slot_group_name || groupId))
       groupedAccountIds.add(String(account.id))
     })
 
@@ -260,8 +260,8 @@ async function loadTree() {
         ? [
             {
               id: 'group:ungrouped',
-              label: '未分组账号',
-              searchText: '未分组账号',
+              label: '未分组设备账号',
+              searchText: '未分组设备账号',
               children: ungroupedAccounts.map(toAccountNode),
             },
           ]

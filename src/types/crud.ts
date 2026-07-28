@@ -27,7 +27,8 @@ export type FieldType =
 export type ColumnType =
   | 'text'
   | 'accountIdentity'
-  | 'accountGroup'
+  | 'accountTags'
+  | 'accountDeviceGroup'
   | 'accountCredentials'
   | 'accountPlatform'
   | 'accountEnvironment'
@@ -195,7 +196,7 @@ export interface ResourceConfig {
   batchActions?: RowActionConfig[]
   deleteLabel?: string
   deleteConfirm?: string
-  accountGroupMembers?: boolean
+  accountTagMembers?: boolean
   slotGroupMembers?: boolean
   proxyGroupMembers?: boolean
   contentGroupMembers?: boolean

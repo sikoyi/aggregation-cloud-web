@@ -41,7 +41,7 @@ import { buildFormState, buildPayload } from '@/utils/form'
 import { formatCell, getCellValue, truncateId } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
 
-const AccountGroupMemberEditor = defineAsyncComponent(() => import('@/components/AccountGroupMemberEditor.vue'))
+const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
 const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
 const ContentGroupMemberEditor = defineAsyncComponent(() => import('@/components/ContentGroupMemberEditor.vue'))
@@ -156,7 +156,7 @@ const modalWidth = computed(() => {
   if (
     modal.type === 'edit'
     && (
-      props.config.accountGroupMembers
+      props.config.accountTagMembers
       || props.config.slotGroupMembers
       || props.config.proxyGroupMembers
       || props.config.contentGroupMembers
@@ -1216,8 +1216,8 @@ onBeforeUnmount(() => {
         >
           <template #default="{ row }">
             <AccountTableCell
-              v-if="column.type && ['accountIdentity', 'accountGroup', 'accountCredentials', 'accountPlatform', 'accountEnvironment'].includes(column.type)"
-              :kind="column.type as 'accountIdentity' | 'accountGroup' | 'accountCredentials' | 'accountPlatform' | 'accountEnvironment'"
+              v-if="column.type && ['accountIdentity', 'accountTags', 'accountDeviceGroup', 'accountCredentials', 'accountPlatform', 'accountEnvironment'].includes(column.type)"
+              :kind="column.type as 'accountIdentity' | 'accountTags' | 'accountDeviceGroup' | 'accountCredentials' | 'accountPlatform' | 'accountEnvironment'"
               :row="row"
               :column="column"
             />
@@ -1435,16 +1435,16 @@ onBeforeUnmount(() => {
         @completed="handleMediaAssetBatchCompleted"
       />
       <div
-        v-else-if="modal.type === 'edit' && config.accountGroupMembers && modal.record"
+        v-else-if="modal.type === 'edit' && config.accountTagMembers && modal.record"
         class="account-group-edit-layout"
       >
         <div class="account-group-edit-layout__base">
           <div class="edit-panel-title">基础信息</div>
           <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
         </div>
-        <AccountGroupMemberEditor
+        <AccountTagMemberEditor
           class="account-group-edit-layout__members"
-          :group="modal.record"
+          :tag="modal.record"
           @changed="loadRows"
         />
       </div>

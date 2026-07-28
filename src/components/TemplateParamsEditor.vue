@@ -5,7 +5,6 @@ import { computed, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import {
-  accountSelectionStrategyOptions,
   proxyUsageStatusFilterOptions,
   registrationCountryOptions,
   registrationProviderOptions,
@@ -67,31 +66,11 @@ function normalizeParamType(param: ScriptParam) {
 }
 
 function isResourceParam(param: ScriptParam) {
-  return ['proxy', 'res', 'proxy_group', 'account', 'account_group', 'content', 'content_group', 'media_asset', 'media_asset_group', 'execution_slot'].includes(normalizeParamType(param))
-}
-
-function isAccountGroupParam(param: ScriptParam) {
-  return normalizeParamType(param) === 'account_group'
+  return ['proxy', 'res', 'proxy_group', 'account', 'content', 'content_group', 'media_asset', 'media_asset_group', 'execution_slot'].includes(normalizeParamType(param))
 }
 
 function isProxyGroupParam(param: ScriptParam) {
   return normalizeParamType(param) === 'proxy_group'
-}
-
-function accountGroupSelector(param: ScriptParam) {
-  const value = values.value[param.param_key]
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    const record = value as Record<string, unknown>
-    return {
-      group_id: String(record.group_id || record.id || record.value || ''),
-      selection_strategy: String(record.selection_strategy || record.account_selection_strategy || 'not_logged_in'),
-    }
-  }
-  const groupId = String(value || '')
-  return {
-    group_id: groupId,
-    selection_strategy: groupId ? 'all' : 'not_logged_in',
-  }
 }
 
 function proxyGroupSelector(param: ScriptParam) {
@@ -111,7 +90,6 @@ function proxyGroupSelector(param: ScriptParam) {
 }
 
 function resourceFieldValue(param: ScriptParam) {
-  if (isAccountGroupParam(param)) return accountGroupSelector(param).group_id
   if (isProxyGroupParam(param)) return proxyGroupSelector(param).group_id
   return String(values.value[param.param_key] || '')
 }
@@ -164,12 +142,6 @@ function hydrateResourceDisplayLabels() {
 }
 
 function updateResourceFieldValue(param: ScriptParam, value: string) {
-  if (isAccountGroupParam(param)) {
-    const selector = accountGroupSelector(param)
-    updateValue(param, { ...selector, group_id: value })
-    void loadResourceDisplayLabel(param, value)
-    return
-  }
   if (isProxyGroupParam(param)) {
     const selector = proxyGroupSelector(param)
     updateValue(param, { ...selector, group_id: value })
@@ -184,11 +156,6 @@ function clearResourceField(param: ScriptParam) {
   updateResourceFieldValue(param, '')
 }
 
-function updateAccountGroupStrategy(param: ScriptParam, strategy: unknown) {
-  const selector = accountGroupSelector(param)
-  updateValue(param, { ...selector, selection_strategy: String(strategy || 'not_logged_in') })
-}
-
 function updateProxyGroupUsageStatus(param: ScriptParam, status: unknown) {
   const selector = proxyGroupSelector(param)
   updateValue(param, { ...selector, usage_status: String(status || 'unused') })
@@ -198,7 +165,6 @@ function resourceTypeLabel(param: ScriptParam | null) {
   if (!param) return '资源'
   const type = normalizeParamType(param)
   if (type === 'account') return '账号'
-  if (type === 'account_group') return '账号组'
   if (type === 'proxy_group') return '代理组'
   if (type === 'execution_slot') return '设备'
   if (type === 'content') return '内容'
@@ -219,17 +185,6 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       detailPath: (value: string) => `/api/accounts/${encodeURIComponent(value)}`,
       secondaryKey: 'country',
       statusKey: 'login_status',
-      searchParam: 'keyword',
-      pageSize: 50,
-    }
-  }
-  if (type === 'account_group') {
-    return {
-      endpoint: '/api/account-groups',
-      labelKey: 'name',
-      valueKey: 'id',
-      detailPath: (value: string) => `/api/account-groups/${encodeURIComponent(value)}`,
-      secondaryKey: 'business_platform',
       searchParam: 'keyword',
       pageSize: 50,
     }
@@ -463,20 +418,6 @@ watch(
           <el-button type="primary" @click="openResourcePicker(param)">
             选择{{ resourceTypeLabel(param) }}
           </el-button>
-          <el-select
-            v-if="isAccountGroupParam(param)"
-            :model-value="accountGroupSelector(param).selection_strategy"
-            class="resource-param-field__strategy"
-            placeholder="账号筛选策略"
-            @update:model-value="updateAccountGroupStrategy(param, $event)"
-          >
-            <el-option
-              v-for="option in accountSelectionStrategyOptions"
-              :key="String(option.value)"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
           <el-select
             v-if="isProxyGroupParam(param)"
             :model-value="proxyGroupSelector(param).usage_status"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { KeyRound, MapPin, MonitorSmartphone, ShieldCheck, Users } from 'lucide-vue-next'
+import { KeyRound, MapPin, MonitorSmartphone, ShieldCheck, Tags, Users } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
@@ -8,7 +8,8 @@ import type { ColumnConfig } from '@/types/crud'
 
 type AccountCellKind =
   | 'accountIdentity'
-  | 'accountGroup'
+  | 'accountTags'
+  | 'accountDeviceGroup'
   | 'accountCredentials'
   | 'accountPlatform'
   | 'accountEnvironment'
@@ -34,7 +35,12 @@ const publicName = computed(() => {
 })
 const identityInitial = computed(() => loginName.value.slice(0, 1).toUpperCase())
 const avatarUrl = computed(() => String(props.row.avatar_url || '').trim() || undefined)
-const groupName = computed(() => String(props.row.group_name || '').trim())
+const accountTags = computed(() => (
+  Array.isArray(props.row.tag_names)
+    ? props.row.tag_names.map((item) => String(item).trim()).filter(Boolean)
+    : []
+))
+const deviceGroupName = computed(() => String(props.row.bound_slot_group_name || '').trim())
 const businessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.business_platform))
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.bound_slot_runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.bound_slot_provider))
@@ -56,10 +62,28 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
     </span>
   </div>
 
-  <div v-else-if="kind === 'accountGroup'" class="account-cell">
-    <el-tag v-if="groupName" type="primary" effect="plain" round class="account-group-tag">
+  <div v-else-if="kind === 'accountTags'" class="account-cell account-tags">
+    <el-tag
+      v-for="tag in accountTags.slice(0, 2)"
+      :key="tag"
+      type="primary"
+      effect="plain"
+      round
+      class="account-tag"
+    >
+      <Tags class="account-tag__icon" />
+      <span>{{ tag }}</span>
+    </el-tag>
+    <el-tooltip v-if="accountTags.length > 2" :content="accountTags.slice(2).join('、')" placement="top">
+      <el-tag type="info" effect="plain" round>+{{ accountTags.length - 2 }}</el-tag>
+    </el-tooltip>
+    <el-tag v-if="!accountTags.length" type="info" effect="plain" round>暂无标签</el-tag>
+  </div>
+
+  <div v-else-if="kind === 'accountDeviceGroup'" class="account-cell">
+    <el-tag v-if="deviceGroupName" type="primary" effect="plain" round class="account-group-tag">
       <Users class="account-group-tag__icon" />
-      <span>{{ groupName }}</span>
+      <span>{{ deviceGroupName }}</span>
     </el-tag>
     <el-tag v-else type="info" effect="plain" round>未分组</el-tag>
   </div>
@@ -155,6 +179,13 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
   font-size: 11px;
 }
 
+.account-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.account-tag,
 .account-group-tag {
   display: inline-flex;
   max-width: 100%;
@@ -163,6 +194,7 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
   white-space: nowrap;
 }
 
+.account-tag :deep(.el-tag__content),
 .account-group-tag :deep(.el-tag__content) {
   display: inline-flex;
   min-width: 0;
@@ -172,12 +204,14 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
   white-space: nowrap;
 }
 
+.account-tag__icon,
 .account-group-tag__icon {
   width: 12px;
   height: 12px;
   flex: 0 0 12px;
 }
 
+.account-tag span,
 .account-group-tag span {
   min-width: 0;
   overflow: hidden;

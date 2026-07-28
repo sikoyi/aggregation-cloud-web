@@ -13,7 +13,7 @@ import { formatDate, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
 const props = defineProps<{
-  group: AnyRecord
+  tag: AnyRecord
 }>()
 
 const emit = defineEmits<{
@@ -34,7 +34,7 @@ const accountDetailVisible = ref(false)
 const accountDetailLoading = ref(false)
 const accountDetail = ref<AnyRecord | null>(null)
 
-const groupId = computed(() => String(props.group?.id || ''))
+const tagId = computed(() => String(props.tag?.id || ''))
 const selectedMemberIds = computed(() => selectedMembers.value.map((item) => String(item.id)))
 
 const availableAccountSelect = computed<RemoteSelectConfig>(() => ({
@@ -47,17 +47,16 @@ const availableAccountSelect = computed<RemoteSelectConfig>(() => ({
   pageSize: 50,
   multiple: true,
   params: {
-    business_platform: props.group?.business_platform,
-    exclude_group_id: groupId.value,
+    exclude_tag_id: tagId.value,
   },
 }))
 
 async function loadMembers() {
-  if (!groupId.value) return
+  if (!tagId.value) return
   loading.value = true
   try {
     const data = await http.get<PageResult<AnyRecord>>(
-      `/api/account-groups/${groupId.value}/accounts`,
+      `/api/account-tags/${tagId.value}/accounts`,
       {
         keyword: keyword.value || undefined,
         login_status: loginStatus.value || undefined,
@@ -69,7 +68,7 @@ async function loadMembers() {
     total.value = data.total
     selectedMembers.value = []
   } catch (err) {
-    notifyError(err, '加载组内成员失败', '加载组内成员失败')
+    notifyError(err, '加载标签账号失败', '加载标签账号失败')
   } finally {
     loading.value = false
   }
@@ -83,7 +82,7 @@ async function addMembers() {
 
   submitting.value = true
   try {
-    const data = await http.post<AnyRecord>(`/api/account-groups/${groupId.value}/accounts`, {
+    const data = await http.post<AnyRecord>(`/api/account-tags/${tagId.value}/accounts`, {
       account_ids: selectedAccountIds.value,
     })
     selectedAccountIds.value = []
@@ -114,8 +113,8 @@ async function openAccountDetail(account: AnyRecord) {
 async function removeMember(account: AnyRecord) {
   try {
     await ElMessageBox.confirm(
-      `确认从该分组移除账号「${account.login_username || account.username || account.id}」？`,
-      '移除账号',
+      `确认移除账号「${account.login_username || account.username || account.id}」的当前标签？`,
+      '移除标签',
       {
         type: 'warning',
         confirmButtonText: '移除',
@@ -128,8 +127,8 @@ async function removeMember(account: AnyRecord) {
 
   submitting.value = true
   try {
-    await http.delete(`/api/account-groups/${groupId.value}/accounts/${account.id}`)
-    ElMessage.success('账号已移出分组')
+    await http.delete(`/api/account-tags/${tagId.value}/accounts/${account.id}`)
+    ElMessage.success('账号标签已移除')
     if (members.value.length === 1 && page.value > 1) page.value -= 1
     await loadMembers()
     emit('changed')
@@ -148,8 +147,8 @@ async function removeSelectedMembers() {
 
   try {
     await ElMessageBox.confirm(
-      `确认从该分组移除已选 ${selectedMemberIds.value.length} 个账号？`,
-      '批量移除账号',
+      `确认移除已选 ${selectedMemberIds.value.length} 个账号的当前标签？`,
+      '批量移除标签',
       {
         type: 'warning',
         confirmButtonText: '移除',
@@ -166,7 +165,7 @@ async function removeSelectedMembers() {
   try {
     for (const accountId of accountIds) {
       try {
-        await http.delete(`/api/account-groups/${groupId.value}/accounts/${accountId}`)
+        await http.delete(`/api/account-tags/${tagId.value}/accounts/${accountId}`)
       } catch {
         failed.push(accountId)
       }
@@ -206,7 +205,7 @@ function resetSearch() {
 }
 
 watch(
-  () => props.group?.id,
+  () => props.tag?.id,
   () => {
     page.value = 1
     keyword.value = ''
@@ -223,8 +222,8 @@ onMounted(loadMembers)
   <section class="member-editor">
     <div class="member-editor__header">
       <div>
-        <h3>组内成员</h3>
-        <p>当前分组内账号可在这里添加、搜索、查看详情和移除。</p>
+        <h3>标签账号</h3>
+        <p>可在这里给账号添加当前标签，也可以搜索、查看和移除标签关系。</p>
       </div>
       <el-tag size="small" effect="plain">共 {{ total }} 个</el-tag>
     </div>
@@ -233,8 +232,8 @@ onMounted(loadMembers)
       <RemoteSelect
         v-model="selectedAccountIds"
         :config="availableAccountSelect"
-        :context="group"
-        placeholder="搜索并选择要加入分组的账号"
+        :context="tag"
+        placeholder="搜索并选择要添加当前标签的账号"
       />
       <el-button type="primary" :icon="UserPlus" :loading="submitting" @click="addMembers">
         添加成员
@@ -288,7 +287,7 @@ onMounted(loadMembers)
       stripe
       table-layout="auto"
       class="member-editor__table"
-      empty-text="暂无组内成员"
+      empty-text="暂无关联账号"
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="44" />
@@ -375,6 +374,10 @@ onMounted(loadMembers)
             <span class="font-mono text-xs">{{ text(accountDetail.proxy_id) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="设备名称">{{ text(accountDetail.bound_slot_name) }}</el-descriptions-item>
+          <el-descriptions-item label="设备分组">{{ text(accountDetail.bound_slot_group_name) }}</el-descriptions-item>
+          <el-descriptions-item label="账号标签" :span="2">
+            {{ Array.isArray(accountDetail.tag_names) && accountDetail.tag_names.length ? accountDetail.tag_names.join('、') : '暂无标签' }}
+          </el-descriptions-item>
           <el-descriptions-item label="设备 ID">
             <span class="font-mono text-xs">{{ text(accountDetail.bound_slot_provider_id) }}</span>
           </el-descriptions-item>

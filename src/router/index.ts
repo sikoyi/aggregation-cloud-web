@@ -31,7 +31,6 @@ export const router = createRouter({
         { path: 'settings', component: SystemSettingsView },
         { path: 'accounts', component: AccountCenterView },
         { path: 'account-data', component: AccountDataView },
-        { path: 'account-groups', redirect: { path: '/accounts', query: { tab: 'groups' } } },
         { path: 'slots', component: DeviceCenterView },
         { path: 'slot-groups', redirect: { path: '/slots', query: { tab: 'groups' } } },
         { path: 'proxies', component: ProxyCenterView },
