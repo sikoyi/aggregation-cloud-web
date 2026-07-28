@@ -5,6 +5,7 @@ import {
   CircleOff,
   Clock,
   Eye,
+  GitCompareArrows,
   Play,
   RefreshCw,
   Search,
@@ -50,6 +51,7 @@ const monitorStateOptions = [
 const loading = ref(false)
 const submitting = ref(false)
 const disablingAccountId = ref('')
+const disablingBenchmarkAccountId = ref('')
 const rows = ref<AnyRecord[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -71,6 +73,7 @@ const filters = reactive({
   keyword: '',
 })
 const monitorVisible = ref(false)
+const monitorFeature = ref<'account_data' | 'benchmark'>('account_data')
 const monitorAccountLocked = ref(false)
 const monitorTargetAccount = ref<AnyRecord | null>(null)
 const detailVisible = ref(false)
@@ -88,6 +91,11 @@ const monitorForm = reactive({
   ai_tone: 'natural',
   ai_max_length: 120,
 })
+const benchmarkForm = reactive({
+  source_profile_url: '',
+  monitor_mode: 'system',
+  interval_minutes: 60,
+})
 let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
 
@@ -96,13 +104,17 @@ const monitorAccountFilters = computed(() => ({
   business_platform: monitorForm.business_platform,
 }))
 const monitorDialogTitle = computed(() => {
-  if (!monitorAccountLocked.value) return '开启账号监听'
-  return monitorTargetAccount.value?.monitor_setting_id ? '配置账号监听' : '开启账号监听'
+  if (!monitorAccountLocked.value) return '账号监听'
+  return `监听设置：${String(monitorTargetAccount.value?.account_name || monitorTargetAccount.value?.login_username || '-')}`
 })
 const monitorSubmitLabel = computed(() => (
-  monitorTargetAccount.value?.monitor_state === 'paused'
-    ? '重新开启'
-    : monitorTargetAccount.value?.monitor_setting_id ? '保存配置' : '确认开启'
+  monitorFeature.value === 'benchmark'
+    ? monitorTargetAccount.value?.benchmark_state === 'paused'
+      ? '重新开启对标'
+      : monitorTargetAccount.value?.benchmark_tracker_id ? '保存对标配置' : '开启对标跟踪'
+    : monitorTargetAccount.value?.monitor_state === 'paused'
+      ? '重新开启'
+      : monitorTargetAccount.value?.monitor_setting_id ? '保存配置' : '确认开启'
 ))
 
 function optionLabel(options: Array<{ label: string; value: unknown }>, value: unknown) {
@@ -193,6 +205,7 @@ function handleSizeChange(size: number) {
 }
 
 function openMonitor(account?: AnyRecord) {
+  monitorFeature.value = 'account_data'
   monitorAccountLocked.value = Boolean(account)
   monitorTargetAccount.value = account || null
   const aiConfig = (account?.comment_reply_ai_config || {}) as AnyRecord
@@ -208,7 +221,91 @@ function openMonitor(account?: AnyRecord) {
     ai_tone: String(aiConfig.tone || 'natural'),
     ai_max_length: Number(aiConfig.max_length || 120),
   })
+  Object.assign(benchmarkForm, {
+    source_profile_url: String(account?.benchmark_source_profile_url || ''),
+    monitor_mode: String(account?.benchmark_monitor_mode || 'system'),
+    interval_minutes: Number(account?.benchmark_interval_minutes || 60),
+  })
   monitorVisible.value = true
+}
+
+async function saveBenchmarkTracker() {
+  const accountId = String(monitorForm.account_id || '')
+  if (!accountId) {
+    ElNotification.warning({ title: '请选择账号', message: '请选择需要执行对标跟踪的系统账号' })
+    return
+  }
+  if (!benchmarkForm.source_profile_url.trim()) {
+    ElNotification.warning({ title: '请填写对标主页', message: '请输入已授权对标账号的 Threads 主页链接' })
+    return
+  }
+  submitting.value = true
+  try {
+    await http.post('/api/benchmark-trackers', {
+      target_account_id: accountId,
+      business_platform: monitorForm.business_platform,
+      source_profile_url: benchmarkForm.source_profile_url.trim(),
+      monitor_mode: benchmarkForm.monitor_mode,
+      interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
+    })
+    monitorVisible.value = false
+    ElNotification.success({
+      title: '对标跟踪已开启',
+      message: '正在同步对标账号资料并建立帖子基线，历史帖子不会补发。',
+    })
+    await loadRows()
+  } catch (err) {
+    notifyError(err, '开启失败', '对标跟踪保存失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function disableBenchmarkTracker(account: AnyRecord) {
+  try {
+    await ElMessageBox.confirm(
+      `关闭后将停止跟踪“${String(account.benchmark_source_display_name || account.benchmark_source_username || account.benchmark_source_profile_url || '当前对标账号')}”的资料和帖子变化，已有映射记录会保留。`,
+      '确认关闭对标跟踪',
+      {
+        confirmButtonText: '确认关闭',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+  disablingBenchmarkAccountId.value = String(account.account_id)
+  try {
+    await http.post(`/api/benchmark-trackers/accounts/${encodeURIComponent(String(account.account_id))}/disable`)
+    monitorVisible.value = false
+    ElNotification.success({ title: '对标跟踪已关闭', message: '已有资料和帖子映射记录已保留' })
+    await loadRows()
+  } catch (err) {
+    notifyError(err, '关闭失败', '对标跟踪关闭失败')
+  } finally {
+    disablingBenchmarkAccountId.value = ''
+  }
+}
+
+async function runBenchmarkTrackerNow(account: AnyRecord) {
+  submitting.value = true
+  try {
+    await http.post(`/api/benchmark-trackers/accounts/${encodeURIComponent(String(account.account_id))}/run-now`)
+    ElNotification.success({ title: '已加入采集队列', message: '服务端会立即执行一次对标采集' })
+  } catch (err) {
+    notifyError(err, '执行失败', '无法立即执行对标采集')
+  } finally {
+    submitting.value = false
+  }
+}
+
+function submitMonitorForm() {
+  if (monitorFeature.value === 'benchmark') {
+    void saveBenchmarkTracker()
+    return
+  }
+  void saveMonitor()
 }
 
 async function saveMonitor() {
@@ -425,8 +522,14 @@ onBeforeUnmount(() => {
             <el-table-column label="监听状态" min-width="140" align="center">
               <template #default="{ row }">
                 <div class="monitor-cell">
-                  <el-tag :type="monitorStateType(row.monitor_state)" effect="light">{{ monitorStateLabel(row.monitor_state) }}</el-tag>
-                  <small v-if="row.monitor_interval_minutes">每 {{ row.monitor_interval_minutes }} 分钟</small>
+                  <span>
+                    <small>数据</small>
+                    <el-tag :type="monitorStateType(row.monitor_state)" effect="light">{{ monitorStateLabel(row.monitor_state) }}</el-tag>
+                  </span>
+                  <span>
+                    <small>对标</small>
+                    <el-tag :type="monitorStateType(row.benchmark_state)" effect="light">{{ monitorStateLabel(row.benchmark_state) }}</el-tag>
+                  </span>
                 </div>
               </template>
             </el-table-column>
@@ -471,7 +574,7 @@ onBeforeUnmount(() => {
     <el-dialog
       v-model="monitorVisible"
       :title="monitorDialogTitle"
-      :width="monitorAccountLocked ? 'min(92vw, 680px)' : 'min(92vw, 860px)'"
+      width="min(92vw, 860px)"
       destroy-on-close
       :close-on-click-modal="false"
     >
@@ -486,7 +589,16 @@ onBeforeUnmount(() => {
           />
         </div>
         <el-form label-position="top" class="monitor-dialog-form">
-          <div class="dialog-section-title">监听配置</div>
+          <div class="monitor-type-switch">
+            <el-segmented
+              v-model="monitorFeature"
+              :options="[
+                { label: '账号数据监听', value: 'account_data' },
+                { label: '对标账号跟踪', value: 'benchmark' },
+              ]"
+              class="w-full"
+            />
+          </div>
           <div v-if="monitorAccountLocked && monitorTargetAccount" class="monitor-target-account">
             <span class="monitor-target-account__icon"><el-icon><Users /></el-icon></span>
             <span class="monitor-target-account__content">
@@ -498,97 +610,175 @@ onBeforeUnmount(() => {
             </span>
             <StatusBadge :value="monitorTargetAccount.login_status" />
           </div>
-          <el-form-item v-if="!monitorAccountLocked" label="业务 App">
-            <el-select v-model="monitorForm.business_platform" disabled class="w-full">
-              <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="账号主页链接" required>
-            <el-input v-model="monitorForm.profile_url" placeholder="例如：https://www.threads.net/@username" />
-          </el-form-item>
-          <div class="monitor-form-row">
-            <el-form-item label="监听规则">
-              <el-select v-model="monitorForm.monitor_mode" class="w-full">
-                <el-option label="系统默认（每 60 分钟）" value="system" />
-                <el-option label="自定义间隔" value="custom" />
+          <template v-if="monitorFeature === 'account_data'">
+            <div class="dialog-section-title">账号数据监听</div>
+            <el-form-item v-if="!monitorAccountLocked" label="业务 App">
+              <el-select v-model="monitorForm.business_platform" disabled class="w-full">
+                <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
               </el-select>
             </el-form-item>
-            <el-form-item label="监听间隔（分钟）">
-              <el-input-number v-model="monitorForm.interval_minutes" :min="1" :max="1440" :disabled="monitorForm.monitor_mode !== 'custom'" controls-position="right" class="w-full" />
+            <el-form-item label="账号主页链接" required>
+              <el-input v-model="monitorForm.profile_url" placeholder="例如：https://www.threads.com/@username" />
             </el-form-item>
-          </div>
-          <div class="reply-config">
-            <div class="dialog-section-title">新评论回复</div>
-            <el-form-item label="回复方式">
-              <el-segmented
-                v-model="monitorForm.comment_reply_mode"
-                :options="[
-                  { label: '不自动回复', value: 'disabled' },
-                  { label: '自动回复', value: 'automatic' },
-                  { label: '审核后回复', value: 'review' },
-                ]"
-                class="w-full"
-              />
-            </el-form-item>
-            <template v-if="monitorForm.comment_reply_mode !== 'disabled'">
-              <el-alert
-                :title="monitorForm.comment_reply_mode === 'automatic'
-                  ? '仅对监听开启后发现的新一级评论生成文案并自动下发。'
-                  : '仅对监听开启后发现的新一级评论生成文案，运营确认或修改后再下发。'"
-                type="info"
-                :closable="false"
-                show-icon
-              />
-              <div class="monitor-form-row reply-config__fields">
-                <el-form-item label="AI 供应商" required>
-                  <el-select v-model="monitorForm.ai_provider" class="w-full" placeholder="请选择已启用模型">
-                    <el-option
-                      v-for="option in aiProviderOptions"
-                      :key="option.value"
-                      :label="option.label"
-                      :value="option.value"
-                    />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="回复语言">
-                  <el-select v-model="monitorForm.ai_language" class="w-full">
-                    <el-option label="跟随帖子与评论" value="auto" />
-                    <el-option label="英文" value="en" />
-                    <el-option label="韩文" value="ko" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="回复语气">
-                  <el-select v-model="monitorForm.ai_tone" class="w-full">
-                    <el-option label="自然交流" value="natural" />
-                    <el-option label="友好" value="friendly" />
-                    <el-option label="好奇" value="curious" />
-                    <el-option label="支持认同" value="supportive" />
-                    <el-option label="讨论式" value="discussion" />
-                    <el-option label="韩国财经互动（固定韩文）" value="korean_finance" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="最大长度">
-                  <el-input-number v-model="monitorForm.ai_max_length" :min="20" :max="500" controls-position="right" class="w-full" />
-                </el-form-item>
+            <div class="monitor-form-row">
+              <el-form-item label="监听规则">
+                <el-select v-model="monitorForm.monitor_mode" class="w-full">
+                  <el-option label="系统默认（每 60 分钟）" value="system" />
+                  <el-option label="自定义间隔" value="custom" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="监听间隔（分钟）">
+                <el-input-number v-model="monitorForm.interval_minutes" :min="1" :max="1440" :disabled="monitorForm.monitor_mode !== 'custom'" controls-position="right" class="w-full" />
+              </el-form-item>
+            </div>
+            <div class="reply-config">
+              <div class="dialog-section-title">新评论回复</div>
+              <el-form-item label="回复方式">
+                <el-segmented
+                  v-model="monitorForm.comment_reply_mode"
+                  :options="[
+                    { label: '不自动回复', value: 'disabled' },
+                    { label: '自动回复', value: 'automatic' },
+                    { label: '审核后回复', value: 'review' },
+                  ]"
+                  class="w-full"
+                />
+              </el-form-item>
+              <template v-if="monitorForm.comment_reply_mode !== 'disabled'">
+                <el-alert
+                  :title="monitorForm.comment_reply_mode === 'automatic'
+                    ? '仅对监听开启后发现的新一级评论生成文案并自动下发。'
+                    : '仅对监听开启后发现的新一级评论生成文案，运营确认或修改后再下发。'"
+                  type="info"
+                  :closable="false"
+                  show-icon
+                />
+                <div class="monitor-form-row reply-config__fields">
+                  <el-form-item label="AI 供应商" required>
+                    <el-select v-model="monitorForm.ai_provider" class="w-full" placeholder="请选择已启用模型">
+                      <el-option
+                        v-for="option in aiProviderOptions"
+                        :key="option.value"
+                        :label="option.label"
+                        :value="option.value"
+                      />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="回复语言">
+                    <el-select v-model="monitorForm.ai_language" class="w-full">
+                      <el-option label="跟随帖子与评论" value="auto" />
+                      <el-option label="英文" value="en" />
+                      <el-option label="韩文" value="ko" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="回复语气">
+                    <el-select v-model="monitorForm.ai_tone" class="w-full">
+                      <el-option label="自然交流" value="natural" />
+                      <el-option label="友好" value="friendly" />
+                      <el-option label="好奇" value="curious" />
+                      <el-option label="支持认同" value="supportive" />
+                      <el-option label="讨论式" value="discussion" />
+                      <el-option label="韩国财经互动（固定韩文）" value="korean_finance" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="最大长度">
+                    <el-input-number v-model="monitorForm.ai_max_length" :min="20" :max="500" controls-position="right" class="w-full" />
+                  </el-form-item>
+                </div>
+              </template>
+            </div>
+            <el-alert title="保存后服务端会立即同步一次，后续按监听规则自动采集账号资料、内容、指标和评论。" type="info" :closable="false" show-icon />
+          </template>
+          <template v-else>
+            <div class="dialog-section-title">对标账号跟踪</div>
+            <div v-if="monitorTargetAccount?.benchmark_tracker_id" class="benchmark-source">
+              <el-avatar
+                :size="42"
+                :src="monitorTargetAccount.benchmark_source_avatar_url ? String(monitorTargetAccount.benchmark_source_avatar_url) : undefined"
+              >
+                {{ String(monitorTargetAccount.benchmark_source_display_name || monitorTargetAccount.benchmark_source_username || 'B').slice(0, 1) }}
+              </el-avatar>
+              <div>
+                <strong>{{ monitorTargetAccount.benchmark_source_display_name || monitorTargetAccount.benchmark_source_username || '等待首次采集' }}</strong>
+                <small>
+                  {{ monitorTargetAccount.benchmark_mapping_count || 0 }} 条帖子基线 / 映射
+                  · {{ formatDate(monitorTargetAccount.benchmark_last_success_at) }}
+                </small>
               </div>
-            </template>
-          </div>
-          <el-alert title="保存后服务端会立即同步一次，后续按监听规则自动采集账号资料、内容、指标和评论。" type="info" :closable="false" show-icon />
+              <el-tag :type="monitorStateType(monitorTargetAccount.benchmark_state)">
+                {{ monitorStateLabel(monitorTargetAccount.benchmark_state) }}
+              </el-tag>
+            </div>
+            <el-form-item label="对标账号主页链接" required>
+              <el-input v-model="benchmarkForm.source_profile_url" placeholder="例如：https://www.threads.com/@benchmark_user">
+                <template #prefix><GitCompareArrows :size="15" /></template>
+              </el-input>
+            </el-form-item>
+            <div class="monitor-form-row">
+              <el-form-item label="监听规则">
+                <el-select v-model="benchmarkForm.monitor_mode" class="w-full">
+                  <el-option label="系统默认（每 60 分钟）" value="system" />
+                  <el-option label="自定义间隔" value="custom" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="监听间隔（分钟）">
+                <el-input-number
+                  v-model="benchmarkForm.interval_minutes"
+                  :min="1"
+                  :max="1440"
+                  :disabled="benchmarkForm.monitor_mode !== 'custom'"
+                  controls-position="right"
+                  class="w-full"
+                />
+              </el-form-item>
+            </div>
+            <el-alert
+              title="首次采集会立即同步头像、显示名称和简介，并以当前帖子建立基线；历史帖子不会补发。后续只复刻新增帖子，确认源帖删除后同步删除映射帖子。"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+            <el-alert
+              v-if="monitorTargetAccount?.benchmark_last_error_message"
+              :title="String(monitorTargetAccount.benchmark_last_error_message)"
+              type="error"
+              :closable="false"
+              show-icon
+              class="benchmark-error"
+            />
+          </template>
         </el-form>
       </div>
       <template #footer>
         <div class="monitor-dialog-footer">
           <el-button
-            v-if="monitorAccountLocked && monitorTargetAccount?.monitor_enabled"
+            v-if="monitorFeature === 'account_data' && monitorAccountLocked && monitorTargetAccount?.monitor_enabled"
             type="danger"
             plain
             :icon="CircleOff"
             :loading="disablingAccountId === String(monitorTargetAccount.account_id)"
             @click="disableMonitor(monitorTargetAccount)"
           >关闭监听</el-button>
+          <template v-if="monitorFeature === 'benchmark' && monitorAccountLocked && monitorTargetAccount?.benchmark_tracker_id">
+            <el-button
+              v-if="monitorTargetAccount?.benchmark_enabled"
+              type="danger"
+              plain
+              :icon="CircleOff"
+              :loading="disablingBenchmarkAccountId === String(monitorTargetAccount.account_id)"
+              @click="disableBenchmarkTracker(monitorTargetAccount)"
+            >关闭对标</el-button>
+            <el-button
+              v-if="monitorTargetAccount?.benchmark_enabled"
+              plain
+              :icon="RefreshCw"
+              :loading="submitting"
+              @click="runBenchmarkTrackerNow(monitorTargetAccount)"
+            >立即采集</el-button>
+          </template>
           <div class="monitor-dialog-footer__actions">
             <el-button @click="monitorVisible = false">取消</el-button>
-            <el-button type="primary" :icon="Play" :loading="submitting" @click="saveMonitor">{{ monitorSubmitLabel }}</el-button>
+            <el-button type="primary" :icon="Play" :loading="submitting" @click="submitMonitorForm">{{ monitorSubmitLabel }}</el-button>
           </div>
         </div>
       </template>
@@ -618,7 +808,17 @@ onBeforeUnmount(() => {
             <el-descriptions-item label="总点赞">{{ formatNumber(detailAccount.total_likes_count) }}</el-descriptions-item>
             <el-descriptions-item label="总回复">{{ formatNumber(detailAccount.total_replies_count) }}</el-descriptions-item>
             <el-descriptions-item label="采集次数">{{ formatNumber(detailAccount.collection_count) }}</el-descriptions-item>
+            <el-descriptions-item label="对标跟踪">
+              <el-tag :type="monitorStateType(detailAccount.benchmark_state)">{{ monitorStateLabel(detailAccount.benchmark_state) }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="对标账号">
+              {{ detailAccount.benchmark_source_display_name || detailAccount.benchmark_source_username || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="帖子映射">{{ formatNumber(detailAccount.benchmark_mapping_count) }}</el-descriptions-item>
             <el-descriptions-item label="主页链接" :span="3">{{ detailAccount.profile_url || '-' }}</el-descriptions-item>
+            <el-descriptions-item v-if="detailAccount.benchmark_source_profile_url" label="对标主页" :span="3">
+              {{ detailAccount.benchmark_source_profile_url }}
+            </el-descriptions-item>
             <el-descriptions-item label="最近成功" :span="1">{{ formatDate(detailAccount.last_success_at) }}</el-descriptions-item>
             <el-descriptions-item label="下次监听" :span="1">{{ formatDate(detailAccount.next_run_at) }}</el-descriptions-item>
             <el-descriptions-item label="指标采集" :span="1">{{ formatDate(detailAccount.metrics_captured_at) }}</el-descriptions-item>
@@ -761,6 +961,7 @@ onBeforeUnmount(() => {
 .account-cell__meta { gap: 6px; margin-top: 5px; }
 .account-cell__meta :deep(.el-tag) { height: 20px; padding: 0 6px; font-size: 10px; }
 .monitor-cell { flex-direction: column; gap: 4px; }
+.monitor-cell > span { display: inline-flex; align-items: center; gap: 5px; }
 .monitor-cell small { color: #8190a0; font-size: 10px; }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .metric-grid span { min-width: 0; padding: 5px 7px; border-radius: 4px; background: #f6f9fc; text-align: center; }
@@ -775,6 +976,8 @@ onBeforeUnmount(() => {
 .monitor-dialog-account,
 .monitor-dialog-form { min-width: 0; padding: 12px; border: 1px solid #dbe4ed; border-radius: 6px; background: #f8fafc; }
 .monitor-dialog-account { max-height: 510px; overflow: auto; }
+.monitor-type-switch { margin-bottom: 14px; }
+.monitor-type-switch :deep(.el-segmented) { min-height: 36px; }
 .dialog-section-title { margin-bottom: 12px; color: #26384a; font-size: 14px; font-weight: 700; }
 .monitor-target-account { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid #d6e3ef; border-radius: 6px; background: #fff; }
 .monitor-target-account__icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 6px; color: #23699a; background: #eaf4fb; }
@@ -785,6 +988,22 @@ onBeforeUnmount(() => {
 .reply-config { margin: 2px 0 14px; padding-top: 12px; border-top: 1px solid #dbe4ed; }
 .reply-config__fields { margin-top: 12px; }
 .reply-config :deep(.el-segmented) { min-height: 34px; }
+.benchmark-source {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #d6e3ef;
+  border-radius: 6px;
+  background: #fff;
+}
+.benchmark-source > div { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.benchmark-source strong,
+.benchmark-source small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.benchmark-source strong { color: #203346; font-size: 14px; }
+.benchmark-source small { color: #718096; font-size: 11px; }
+.benchmark-error { margin-top: 12px; }
 .account-detail-tabs :deep(.el-tabs__header) { margin-bottom: 14px; }
 
 @media (max-width: 1100px) {

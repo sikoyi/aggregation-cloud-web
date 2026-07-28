@@ -396,6 +396,8 @@ export const scriptPurposeOptions: SelectOption[] = [
   { label: '互动后续回复', value: 'interaction_reply' },
   { label: '账号环境创建及上号', value: 'account_onboarding' },
   { label: '账号注册', value: 'account_registration' },
+  { label: '账号资料同步', value: 'account_profile_sync' },
+  { label: '删除发布内容', value: 'content_delete' },
 ]
 
 export const slotStatusOptions: SelectOption[] = [
