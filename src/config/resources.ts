@@ -658,6 +658,11 @@ function canOnboardAccount(record: AnyRecord) {
     && !String(record.bound_slot_provider_id || "").trim();
 }
 
+function canRetryRuntimeSync(record: AnyRecord) {
+  return ["failed", "expired"].includes(String(record.sync_status || record.tag_sync_status || ""))
+    && Boolean(record.control_command_id || record.tag_control_command_id);
+}
+
 function formatContentImportSuccess(data: AnyRecord) {
   const total = Number(data.total_count || 0);
   const created = Number(data.created_count || 0);
@@ -776,6 +781,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "password_secret_ref", label: "登录凭证", type: "accountCredentials", minWidth: 235 },
       { key: "business_platform", label: "平台 / 国家", type: "accountPlatform", minWidth: 125 },
       { key: "login_status", label: "登录状态", type: "status", width: 170, align: "center" },
+      { key: "tag_sync_status", label: "标签同步", type: "status", width: 105, align: "center" },
       {
         key: "bound_slot_provider_id",
         label: "设备环境",
@@ -1036,8 +1042,18 @@ export const resources: Record<string, ResourceConfig> = {
         successMessage: (data) => `已创建上号任务，父任务 ID：${data.onboarding_task_id}`,
         fields: accountOnboardingFields,
       },
+      {
+        key: "retry-tag-sync",
+        label: "重试标签同步",
+        visible: canRetryRuntimeSync,
+        method: "POST",
+        icon: "rotate",
+        path: (record) =>
+          `/api/runtime-controls/${encodeURIComponent(String(record.tag_control_command_id))}/retry`,
+        successTitle: "标签同步已重新排队",
+      },
     ],
-    inlineActionKeys: ["account-onboarding"],
+    inlineActionKeys: ["account-onboarding", "retry-tag-sync"],
     batchActions: [
       {
         key: "batch-account-onboarding",
@@ -1122,6 +1138,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "group_name", label: "所属分组", type: "deviceGroup", minWidth: 125 },
       { key: "runtime_platform", label: "运行环境", type: "devicePlatform", minWidth: 175 },
       { key: "status", label: "状态", type: "deviceState", width: 150, align: "center" },
+      { key: "sync_status", label: "同步状态", type: "status", width: 105, align: "center" },
       { key: "bound_account_id", label: "账号信息", type: "deviceAccount", minWidth: 170 },
       { key: "proxy_id", label: "代理资源", type: "deviceProxy", minWidth: 180 },
       { key: "last_seen_at", label: "最近活动", type: "deviceActivity", width: 175 },
@@ -1315,7 +1332,18 @@ export const resources: Record<string, ResourceConfig> = {
         variant: "danger",
         confirm: "确认禁用该设备？",
       },
+      {
+        key: "retry-sync",
+        label: "重试同步",
+        visible: canRetryRuntimeSync,
+        method: "POST",
+        icon: "rotate",
+        path: (record) =>
+          `/api/runtime-controls/${encodeURIComponent(String(record.control_command_id))}/retry`,
+        successTitle: "设备同步已重新排队",
+      },
     ],
+    inlineActionKeys: ["retry-sync"],
   },
 
   slotGroups: {
