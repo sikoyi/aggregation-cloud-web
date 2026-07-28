@@ -35,6 +35,8 @@ const treeData = ref<SlotTreeNode[]>([])
 const groupedSlotCount = ref(0)
 const totalSlotCount = ref(0)
 const loadedSlotIds = ref<Set<string>>(new Set())
+const defaultExpandedGroupKeys = ref<string[]>([])
+const collapsedGroupIds = new Set<string>()
 const treeProps = {
   label: 'label',
   children: 'children',
@@ -98,6 +100,20 @@ function syncCheckedKeys() {
   treeRef.value?.setCheckedKeys?.(keys)
 }
 
+function handleNodeExpand(data: AnyRecord) {
+  const nodeId = String(data.id || '')
+  if (nodeId && Array.isArray(data.children) && data.children.length) {
+    collapsedGroupIds.delete(nodeId)
+  }
+}
+
+function handleNodeCollapse(data: AnyRecord) {
+  const nodeId = String(data.id || '')
+  if (nodeId && Array.isArray(data.children) && data.children.length) {
+    collapsedGroupIds.add(nodeId)
+  }
+}
+
 async function loadTree() {
   const requestId = ++loadRequestId
   loading.value = true
@@ -137,7 +153,7 @@ async function loadTree() {
     loadedSlotIds.value = eligibleSlotIds
     groupedSlotCount.value = groupedSlotIds.size
     totalSlotCount.value = slots.length
-    treeData.value = [
+    const nextTreeData = [
       ...groupNodes.filter((node) => node.children.length),
       ...(ungroupedSlots.length
         ? [
@@ -151,10 +167,18 @@ async function loadTree() {
           ]
         : []),
     ]
+    const currentGroupIds = new Set(nextTreeData.map((node) => node.id))
+    collapsedGroupIds.forEach((groupId) => {
+      if (!currentGroupIds.has(groupId)) collapsedGroupIds.delete(groupId)
+    })
+    defaultExpandedGroupKeys.value = nextTreeData
+      .map((node) => node.id)
+      .filter((groupId) => !collapsedGroupIds.has(groupId))
+    treeData.value = nextTreeData
 
     await nextTick()
     syncCheckedKeys()
-    treeRef.value?.setExpandedKeys?.(treeData.value.map((node) => node.id))
+    treeRef.value?.setExpandedKeys?.(defaultExpandedGroupKeys.value)
     treeRef.value?.filter?.(searchKeyword.value)
   } finally {
     if (requestId === loadRequestId) loading.value = false
@@ -216,13 +240,15 @@ watch(
       :height="treeHeight"
       :item-size="38"
       show-checkbox
-      :default-expanded-keys="treeData.map((node) => node.id)"
+      :default-expanded-keys="defaultExpandedGroupKeys"
       :check-strictly="false"
       :expand-on-click-node="false"
       :filter-method="filterNode"
       scrollbar-always-on
       empty-text="暂无可选设备"
       @check="emitChecked"
+      @node-expand="handleNodeExpand"
+      @node-collapse="handleNodeCollapse"
     >
       <template #default="{ data }">
         <span class="slot-tree-node">
