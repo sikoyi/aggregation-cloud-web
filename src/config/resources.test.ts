@@ -46,6 +46,47 @@ describe('代理协议选项', () => {
   })
 })
 
+describe('发布内容来源', () => {
+  const fields = resources.publishedContents.createFields || []
+
+  it('支持把未分组内容作为虚拟内容池随机取用', () => {
+    const sourceField = fields.find((field) => field.key === 'content_source_type')
+    const groupField = fields.find((field) => field.key === 'content_group_id')
+    const contentField = fields.find((field) => field.key === 'content_id')
+
+    expect(sourceField?.options?.map((option) => option.value)).toEqual([
+      'content',
+      'content_group',
+      'ungrouped',
+    ])
+    expect(groupField?.disabledWhen).toEqual({
+      key: 'content_source_type',
+      value: ['content', 'ungrouped'],
+    })
+    expect(contentField?.disabledWhen).toEqual({
+      key: 'content_source_type',
+      value: ['content_group', 'ungrouped'],
+    })
+  })
+
+  it('未分组随机下发时清除旧的内容和内容池选择', () => {
+    const body = resources.publishedContents.createBody?.({
+      business_platform: 'threads',
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+      account_ids: ['1', '2'],
+      content_source_type: 'ungrouped',
+      content_status: 'all',
+      content_id: '12',
+      content_group_id: '8',
+    }) as Record<string, unknown>
+
+    expect(body.content_status).toBeNull()
+    expect(body.content_id).toBeNull()
+    expect(body.content_group_id).toBeNull()
+  })
+})
+
 describe('账号注册任务下发', () => {
   const fields = resources.tasks.createFields || []
 

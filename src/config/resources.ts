@@ -450,6 +450,7 @@ const taskTemplatePayloadKeys = [
 const publishedContentSourceOptions = [
   { label: "指定内容", value: "content" },
   { label: "内容池随机", value: "content_group" },
+  { label: "未分组内容随机", value: "ungrouped" },
 ];
 
 function buildExecutionWindow(record: AnyRecord) {
@@ -508,6 +509,14 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
   ]);
   if (body.content_status === "all") {
     body.content_status = null;
+  }
+  if (body.content_source_type === "content") {
+    body.content_group_id = null;
+  } else if (body.content_source_type === "content_group") {
+    body.content_id = null;
+  } else if (body.content_source_type === "ungrouped") {
+    body.content_id = null;
+    body.content_group_id = null;
   }
   return body;
 }
@@ -2430,7 +2439,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "内容池",
         type: "remoteSelect",
         remote: contentGroupRemoteSelect,
-        disabledWhen: { key: "content_source_type", value: "content" },
+        disabledWhen: { key: "content_source_type", value: ["content", "ungrouped"] },
         allowEmpty: true,
         placeholder: "按账号数量从内容池中随机取用",
       },
@@ -2439,7 +2448,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "指定内容",
         type: "remoteSelect",
         remote: contentRemoteSelect,
-        disabledWhen: { key: "content_source_type", value: "content_group" },
+        disabledWhen: { key: "content_source_type", value: ["content_group", "ungrouped"] },
         allowEmpty: true,
         placeholder: "按使用状态筛选并选择内容",
       },
