@@ -51,7 +51,7 @@ export function resolveBackendUrl(value: unknown) {
 async function request<T>(
   method: string,
   path: string,
-  options: { params?: AnyRecord; body?: unknown; auth?: boolean } = {},
+  options: { params?: AnyRecord; body?: unknown; auth?: boolean; signal?: AbortSignal } = {},
 ) {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: HeadersInit = {
@@ -66,6 +66,7 @@ async function request<T>(
     method,
     headers,
     body,
+    signal: options.signal,
   })
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
   if (!response.ok || !payload || payload.code !== 0) {
@@ -110,6 +111,8 @@ export const http = {
   get: <T>(path: string, params?: AnyRecord) => request<T>('GET', path, { params }),
   post: <T>(path: string, body?: unknown, params?: AnyRecord) =>
     request<T>('POST', path, { body, params }),
+  postWithSignal: <T>(path: string, body: unknown, signal: AbortSignal) =>
+    request<T>('POST', path, { body, signal }),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, { body }),
   delete: <T>(path: string) => request<T>('DELETE', path),
   apiBaseUrl: API_BASE_URL,

@@ -30,16 +30,24 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async login(username: string, password: string) {
       this.loading = true
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), 15_000)
       try {
-        const data = await http.post<LoginData>(
+        const data = await http.postWithSignal<LoginData>(
           '/api/auth/login',
           { username, password },
-          undefined,
+          controller.signal,
         )
         this.token = data.access_token
         this.user = data.user
         localStorage.setItem('access_token', data.access_token)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          throw new Error('连接后端超时，请稍后重试')
+        }
+        throw error
       } finally {
+        window.clearTimeout(timeoutId)
         this.loading = false
       }
     },
