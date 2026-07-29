@@ -1248,6 +1248,12 @@ export const resources: Record<string, ResourceConfig> = {
         options: slotStatusOptions,
       },
       {
+        key: "account_login_status",
+        label: "账号登录状态",
+        type: "select",
+        options: loginStatusOptions,
+      },
+      {
         key: "bound_account_id",
         label: "绑定账号",
         type: "remoteSelect",

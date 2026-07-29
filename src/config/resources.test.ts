@@ -138,3 +138,19 @@ describe('账号批量设置标签', () => {
     expect(tagField?.placeholder).toContain('按回车新建')
   })
 })
+
+describe('设备管理筛选', () => {
+  it('支持按绑定账号的实时登录状态筛选', () => {
+    const field = resources.slots.filters?.find((filter) => filter.key === 'account_login_status')
+
+    expect(field?.label).toBe('账号登录状态')
+    expect(field?.options?.map((option) => option.value)).toEqual([
+      'not_logged_in',
+      'unknown',
+      'logged_in',
+      'logged_in_dm_unavailable',
+      'twofa_required',
+      'banned',
+    ])
+  })
+})
