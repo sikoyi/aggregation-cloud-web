@@ -2,6 +2,7 @@
 import { KeyRound, MapPin, MonitorSmartphone, ShieldCheck, Tags, Users } from 'lucide-vue-next'
 import { computed } from 'vue'
 
+import { resolveBackendUrl } from '@/api/http'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
@@ -34,7 +35,7 @@ const publicName = computed(() => {
   return value && value !== loginName.value ? `@${value}` : `账号 #${text(props.row.id)}`
 })
 const identityInitial = computed(() => loginName.value.slice(0, 1).toUpperCase())
-const avatarUrl = computed(() => String(props.row.avatar_url || '').trim() || undefined)
+const avatarUrl = computed(() => resolveBackendUrl(props.row.avatar_url) || undefined)
 const accountTags = computed(() => (
   Array.isArray(props.row.tag_names)
     ? props.row.tag_names.map((item) => String(item).trim()).filter(Boolean)

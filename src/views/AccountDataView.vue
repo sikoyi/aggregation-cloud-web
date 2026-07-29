@@ -14,7 +14,7 @@ import {
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
-import { getAllPages, http } from '@/api/http'
+import { getAllPages, http, resolveBackendUrl } from '@/api/http'
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider, type EnabledAiProviderOption } from '@/api/interactionAi'
 import { getSystemDefaults } from '@/api/systemSettings'
 import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
@@ -501,7 +501,7 @@ onBeforeUnmount(() => {
             <el-table-column label="账号" min-width="230">
               <template #default="{ row }">
                 <div class="account-cell">
-                  <el-avatar :size="36" :src="row.avatar_url || undefined" fit="cover" class="account-data__avatar">
+                  <el-avatar :size="36" :src="resolveBackendUrl(row.avatar_url) || undefined" fit="cover" class="account-data__avatar">
                     {{ String(row.account_name || '-').slice(0, 1) }}
                   </el-avatar>
                   <div class="account-cell__copy">
@@ -695,7 +695,7 @@ onBeforeUnmount(() => {
             <div v-if="monitorTargetAccount?.benchmark_tracker_id" class="benchmark-source">
               <el-avatar
                 :size="42"
-                :src="monitorTargetAccount.benchmark_source_avatar_url ? String(monitorTargetAccount.benchmark_source_avatar_url) : undefined"
+                :src="resolveBackendUrl(monitorTargetAccount.benchmark_source_avatar_url) || undefined"
               >
                 {{ String(monitorTargetAccount.benchmark_source_display_name || monitorTargetAccount.benchmark_source_username || 'B').slice(0, 1) }}
               </el-avatar>
