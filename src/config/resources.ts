@@ -849,7 +849,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "password_secret_ref", label: "登录凭证", type: "accountCredentials", minWidth: 235 },
       { key: "business_platform", label: "平台 / 国家", type: "accountPlatform", minWidth: 125 },
       { key: "login_status", label: "登录状态", type: "status", width: 170, align: "center" },
-      { key: "tag_sync_status", label: "标签同步", type: "status", width: 105, align: "center" },
       {
         key: "bound_slot_provider_id",
         label: "设备环境",
@@ -1110,18 +1109,8 @@ export const resources: Record<string, ResourceConfig> = {
         successMessage: (data) => `已创建上号任务，父任务 ID：${data.onboarding_task_id}`,
         fields: accountOnboardingFields,
       },
-      {
-        key: "retry-tag-sync",
-        label: "重试标签同步",
-        visible: canRetryRuntimeSync,
-        method: "POST",
-        icon: "rotate",
-        path: (record) =>
-          `/api/runtime-controls/${encodeURIComponent(String(record.tag_control_command_id))}/retry`,
-        successTitle: "标签同步已重新排队",
-      },
     ],
-    inlineActionKeys: ["account-onboarding", "retry-tag-sync"],
+    inlineActionKeys: ["account-onboarding"],
     batchActions: [
       {
         key: "batch-account-onboarding",
