@@ -98,7 +98,6 @@ const slotResourceGrouping = {
   ungroupedParam: "ungrouped",
   ungroupedLabel: "未分组设备",
   params: (context?: AnyRecord) => ({
-    business_platform: context?.business_platform || undefined,
     runtime_platform: context?.runtime_platform || undefined,
     provider: context?.provider || undefined,
   }),
@@ -420,7 +419,7 @@ const slotGroupRemoteSelect = {
   valueKey: "id",
   detailPath: (value: string) =>
     `/api/slot-groups/${encodeURIComponent(value)}`,
-  secondaryKey: "business_platform",
+  secondaryKey: "provider",
   searchParam: "keyword",
   pageSize: 50,
 };
@@ -430,7 +429,6 @@ const slotGroupForSlotEditRemoteSelect = {
   params: (context?: AnyRecord) => ({
     runtime_platform: context?.runtime_platform,
     provider: context?.provider,
-    business_platform: context?.business_platform,
   }),
 };
 
@@ -1426,7 +1424,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "name", label: "名称" },
       { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
-      { key: "business_platform", label: "平台" },
       { key: "member_count", label: "成员数" },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
@@ -1442,12 +1439,6 @@ export const resources: Record<string, ResourceConfig> = {
         label: "供应商",
         type: "select",
         options: providerOptions,
-      },
-      {
-        key: "business_platform",
-        label: "业务平台",
-        type: "select",
-        options: businessPlatformOptions,
       },
       { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
     ],
@@ -1465,13 +1456,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: providerOptions,
         defaultValue: "adspower",
-      },
-      {
-        key: "business_platform",
-        label: "业务平台",
-        type: "select",
-        options: businessPlatformOptions,
-        defaultValue: "threads",
       },
       { key: "name", label: "名称", required: true },
       { key: "description", label: "描述", type: "textarea", span: 2 },

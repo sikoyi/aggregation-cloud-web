@@ -48,7 +48,6 @@ const availableSlotSelect = computed<RemoteSelectConfig>(() => ({
   params: {
     runtime_platform: props.group?.runtime_platform,
     provider: props.group?.provider,
-    business_platform: props.group?.business_platform,
     exclude_group_id: groupId.value,
   },
 }))
