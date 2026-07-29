@@ -32,6 +32,7 @@ interface ScriptParam {
 const props = defineProps<{
   scriptKey: string
   modelValue: unknown
+  context?: Record<string, unknown>
 }>()
 
 const emit = defineEmits<{
@@ -187,6 +188,19 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       statusKey: 'login_status',
       searchParam: 'keyword',
       pageSize: 50,
+      group: {
+        endpoint: '/api/slot-groups',
+        labelKey: 'name',
+        valueKey: 'id',
+        groupParam: 'slot_group_id',
+        ungroupedParam: 'slot_group_ungrouped',
+        ungroupedLabel: '未分组账号',
+        params: {
+          business_platform: props.context?.business_platform || undefined,
+          runtime_platform: props.context?.runtime_platform || undefined,
+          provider: props.context?.provider || undefined,
+        },
+      },
     }
   }
   if (type === 'proxy_group') {
@@ -210,6 +224,19 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       statusKey: 'status',
       searchParam: 'keyword',
       pageSize: 50,
+      group: {
+        endpoint: '/api/slot-groups',
+        labelKey: 'name',
+        valueKey: 'id',
+        groupParam: 'group_id',
+        ungroupedParam: 'ungrouped',
+        ungroupedLabel: '未分组设备',
+        params: {
+          business_platform: props.context?.business_platform || undefined,
+          runtime_platform: props.context?.runtime_platform || undefined,
+          provider: props.context?.provider || undefined,
+        },
+      },
     }
   }
   if (type === 'content') {
@@ -222,6 +249,17 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       searchParam: 'keyword',
       params: { status: 'unused' },
       pageSize: 50,
+      group: {
+        endpoint: '/api/content-center/content-groups',
+        labelKey: 'name',
+        valueKey: 'id',
+        groupParam: 'group_id',
+        ungroupedParam: 'ungrouped',
+        ungroupedLabel: '未分组内容',
+        params: {
+          business_platform: props.context?.business_platform || undefined,
+        },
+      },
     }
   }
   if (type === 'content_group') {
@@ -245,6 +283,17 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       searchParam: 'keyword',
       params: { status: 'enabled' },
       pageSize: 50,
+      group: {
+        endpoint: '/api/resource-center/media-asset-groups',
+        labelKey: 'name',
+        valueKey: 'id',
+        groupParam: 'group_id',
+        ungroupedParam: 'ungrouped',
+        ungroupedLabel: '未分组素材',
+        params: {
+          business_platform: props.context?.business_platform || undefined,
+        },
+      },
     }
   }
   if (type === 'media_asset_group') {
@@ -266,6 +315,14 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
     secondaryKeys: ['source_proxy_url', 'status'],
     searchParam: 'keyword',
     pageSize: 50,
+    group: {
+      endpoint: '/api/resource-center/proxy-groups',
+      labelKey: 'name',
+      valueKey: 'id',
+      groupParam: 'group_id',
+      ungroupedParam: 'ungrouped',
+      ungroupedLabel: '未分组代理',
+    },
   }
 }
 
@@ -459,6 +516,7 @@ watch(
           v-if="activeResourceSelectConfig"
           v-model="resourcePickerValue"
           :config="activeResourceSelectConfig"
+          :context="context"
           :placeholder="`搜索并选择${resourceTypeLabel(resourcePickerParam)}`"
         />
       </div>

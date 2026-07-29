@@ -90,6 +90,60 @@ const taskTemplateScriptRemoteSelect = {
   emptyText: "当前范围暂无可用于任务模板的普通任务或账号注册脚本",
 };
 
+const slotResourceGrouping = {
+  endpoint: "/api/slot-groups",
+  labelKey: "name",
+  valueKey: "id",
+  groupParam: "group_id",
+  ungroupedParam: "ungrouped",
+  ungroupedLabel: "未分组设备",
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+    runtime_platform: context?.runtime_platform || undefined,
+    provider: context?.provider || undefined,
+  }),
+};
+
+const accountResourceGrouping = {
+  ...slotResourceGrouping,
+  groupParam: "slot_group_id",
+  ungroupedParam: "slot_group_ungrouped",
+  ungroupedLabel: "未分组账号",
+};
+
+const proxyResourceGrouping = {
+  endpoint: "/api/resource-center/proxy-groups",
+  labelKey: "name",
+  valueKey: "id",
+  groupParam: "group_id",
+  ungroupedParam: "ungrouped",
+  ungroupedLabel: "未分组代理",
+};
+
+const mediaAssetResourceGrouping = {
+  endpoint: "/api/resource-center/media-asset-groups",
+  labelKey: "name",
+  valueKey: "id",
+  groupParam: "group_id",
+  ungroupedParam: "ungrouped",
+  ungroupedLabel: "未分组素材",
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+  }),
+};
+
+const contentResourceGrouping = {
+  endpoint: "/api/content-center/content-groups",
+  labelKey: "name",
+  valueKey: "id",
+  groupParam: "group_id",
+  ungroupedParam: "ungrouped",
+  ungroupedLabel: "未分组内容",
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || undefined,
+  }),
+};
+
 // 常见关联资源统一用远程下拉，表单提交仍然使用后端需要的 id/key。
 const accountRemoteSelect = {
   endpoint: "/api/accounts",
@@ -104,6 +158,7 @@ const accountRemoteSelect = {
   secondaryKeys: ["login_username", "platform_account_id"],
   searchParam: "keyword",
   pageSize: 50,
+  group: accountResourceGrouping,
 };
 
 const accountMultiSelect = {
@@ -125,6 +180,7 @@ const slotRemoteSelect = {
   secondaryKeys: ["provider_slot_id", "status"],
   searchParam: "keyword",
   pageSize: 50,
+  group: slotResourceGrouping,
 };
 
 const slotMultiSelect = {
@@ -162,6 +218,7 @@ const proxyRemoteSelect = {
   secondaryKeys: ["source_proxy_url", "status"],
   searchParam: "keyword",
   pageSize: 50,
+  group: proxyResourceGrouping,
 };
 
 const proxyReadonlyRemoteSelect = {
@@ -179,6 +236,7 @@ const mediaAssetRemoteSelect = {
   searchParam: "keyword",
   params: { status: "enabled" },
   pageSize: 50,
+  group: mediaAssetResourceGrouping,
 };
 
 const mediaAssetMultiSelect = {
@@ -238,6 +296,7 @@ const contentRemoteSelect = {
       : undefined,
   }),
   pageSize: 50,
+  group: contentResourceGrouping,
 };
 
 const publishedContentRemoteSelect = {

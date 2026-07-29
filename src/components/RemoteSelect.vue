@@ -5,6 +5,11 @@ import { http } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { statusLabel, statusTagType } from '@/utils/format'
+import {
+  applyRemoteGroupFilter,
+  REMOTE_GROUP_ALL,
+  REMOTE_GROUP_UNGROUPED,
+} from '@/utils/groupedRemoteSelect'
 
 const props = defineProps<{
   modelValue: unknown
@@ -19,9 +24,13 @@ const emit = defineEmits<{
 }>()
 
 const loading = ref(false)
+const groupLoading = ref(false)
 const options = ref<AnyRecord[]>([])
+const groupOptions = ref<AnyRecord[]>([])
+const selectedGroup = ref(REMOTE_GROUP_ALL)
 const suppressNextModelReload = ref(false)
 let loadRequestId = 0
+let groupRequestId = 0
 
 function resolvedEndpoint() {
   return typeof props.config.endpoint === 'function'
@@ -30,15 +39,34 @@ function resolvedEndpoint() {
 }
 
 function resolvedBaseParams() {
-  return typeof props.config.params === 'function'
+  const params = typeof props.config.params === 'function'
     ? props.config.params(props.context)
     : props.config.params || {}
+  return applyRemoteGroupFilter(params, selectedGroup.value, props.config.group)
+}
+
+function resolvedGroupEndpoint() {
+  if (!props.config.group) return ''
+  return typeof props.config.group.endpoint === 'function'
+    ? props.config.group.endpoint(props.context)
+    : props.config.group.endpoint
+}
+
+function resolvedGroupParams() {
+  if (!props.config.group) return {}
+  return typeof props.config.group.params === 'function'
+    ? props.config.group.params(props.context)
+    : props.config.group.params || {}
 }
 
 // 表单对象每次输入都会产生新引用，只比较真正影响候选数据的请求参数。
 const requestSignature = computed(() => JSON.stringify({
   endpoint: resolvedEndpoint(),
   params: resolvedBaseParams(),
+}))
+const groupRequestSignature = computed(() => JSON.stringify({
+  endpoint: resolvedGroupEndpoint(),
+  params: resolvedGroupParams(),
 }))
 
 const selectValue = computed(() => {
@@ -76,6 +104,53 @@ function optionSecondary(option: AnyRecord) {
 
 function optionStatus(option: AnyRecord) {
   return props.config.statusKey ? option[props.config.statusKey] : undefined
+}
+
+function groupValue(group: AnyRecord) {
+  return String(group[props.config.group?.valueKey || 'id'] ?? '')
+}
+
+function groupLabel(group: AnyRecord) {
+  const labelKey = props.config.group?.labelKey || 'name'
+  return String(group[labelKey] || groupValue(group))
+}
+
+async function loadGroupOptions() {
+  if (!props.config.group) {
+    groupOptions.value = []
+    selectedGroup.value = REMOTE_GROUP_ALL
+    return
+  }
+
+  const requestId = ++groupRequestId
+  groupLoading.value = true
+  try {
+    const endpoint = resolvedGroupEndpoint()
+    const baseParams = resolvedGroupParams()
+    const items: AnyRecord[] = []
+    let page = 1
+    let total = 0
+    do {
+      const data = await http.get<PageResult<AnyRecord>>(endpoint, {
+        ...baseParams,
+        page,
+        page_size: 100,
+      })
+      if (requestId !== groupRequestId) return
+      items.push(...data.items)
+      total = data.total
+      page += 1
+      if (!data.items.length) break
+    } while (items.length < total)
+
+    groupOptions.value = items
+    const selectedStillExists = selectedGroup.value === REMOTE_GROUP_ALL
+      || selectedGroup.value === REMOTE_GROUP_UNGROUPED
+      || items.some((group) => groupValue(group) === selectedGroup.value)
+    if (!selectedStillExists) selectedGroup.value = REMOTE_GROUP_ALL
+  } finally {
+    if (requestId === groupRequestId) groupLoading.value = false
+  }
 }
 
 function selectedValues() {
@@ -172,6 +247,7 @@ function handleVisibleChange(visible: boolean) {
 }
 
 onMounted(() => {
+  loadGroupOptions()
   loadOptions('', { clearMissing: Boolean(props.config.clearWhenMissing) })
 })
 
@@ -197,6 +273,15 @@ watch(
   },
 )
 
+watch(
+  groupRequestSignature,
+  () => {
+    groupOptions.value = []
+    selectedGroup.value = REMOTE_GROUP_ALL
+    loadGroupOptions()
+  },
+)
+
 function updateSelected(value: string | string[]) {
   emit(
     'update:modelValue',
@@ -208,56 +293,97 @@ function updateSelected(value: string | string[]) {
 </script>
 
 <template>
-  <el-select
-    :model-value="selectValue"
-    :disabled="disabled"
-    class="w-full"
-    clearable
-    collapse-tags
-    collapse-tags-tooltip
-    filterable
-    :multiple="Boolean(config.multiple)"
-    remote
-    reserve-keyword
-    :loading="loading"
-    :placeholder="placeholder || '请选择'"
-    :remote-method="loadOptions"
-    @visible-change="handleVisibleChange"
-    @update:model-value="updateSelected"
-  >
-    <el-option
-      v-for="option in options"
-      :key="optionValue(option)"
-      :label="optionLabel(option)"
-      :value="optionValue(option)"
+  <div class="remote-select-control">
+    <el-select
+      v-if="config.group"
+      v-model="selectedGroup"
+      class="remote-select-control__group"
+      :disabled="disabled"
+      :loading="groupLoading"
+      filterable
+      placeholder="选择分组"
     >
-      <div class="remote-select-option">
-        <span class="remote-select-option__label">{{ optionLabel(option) }}</span>
-        <span class="remote-select-option__meta">
-          <span v-if="optionSecondary(option)" class="font-mono text-xs text-slate-400">
-            {{ optionSecondary(option) }}
+      <el-option :label="config.group.allLabel || '全部分组'" :value="REMOTE_GROUP_ALL" />
+      <el-option
+        v-for="group in groupOptions"
+        :key="groupValue(group)"
+        :label="groupLabel(group)"
+        :value="groupValue(group)"
+      />
+      <el-option
+        :label="config.group.ungroupedLabel || '未分组'"
+        :value="REMOTE_GROUP_UNGROUPED"
+      />
+    </el-select>
+
+    <el-select
+      :model-value="selectValue"
+      :disabled="disabled"
+      class="remote-select-control__resource"
+      clearable
+      collapse-tags
+      collapse-tags-tooltip
+      filterable
+      :multiple="Boolean(config.multiple)"
+      remote
+      reserve-keyword
+      :loading="loading"
+      :placeholder="placeholder || '请选择'"
+      :remote-method="loadOptions"
+      @visible-change="handleVisibleChange"
+      @update:model-value="updateSelected"
+    >
+      <el-option
+        v-for="option in options"
+        :key="optionValue(option)"
+        :label="optionLabel(option)"
+        :value="optionValue(option)"
+      >
+        <div class="remote-select-option">
+          <span class="remote-select-option__label">{{ optionLabel(option) }}</span>
+          <span class="remote-select-option__meta">
+            <span v-if="optionSecondary(option)" class="font-mono text-xs text-slate-400">
+              {{ optionSecondary(option) }}
+            </span>
+            <el-tag
+              v-if="optionStatus(option)"
+              size="small"
+              :type="statusTagType(optionStatus(option))"
+              effect="light"
+              round
+            >
+              {{ statusLabel(optionStatus(option)) }}
+            </el-tag>
           </span>
-          <el-tag
-            v-if="optionStatus(option)"
-            size="small"
-            :type="statusTagType(optionStatus(option))"
-            effect="light"
-            round
-          >
-            {{ statusLabel(optionStatus(option)) }}
-          </el-tag>
-        </span>
-      </div>
-    </el-option>
-    <template #empty>
-      <div class="remote-select-empty">
-        {{ emptyText }}
-      </div>
-    </template>
-  </el-select>
+        </div>
+      </el-option>
+      <template #empty>
+        <div class="remote-select-empty">
+          {{ emptyText }}
+        </div>
+      </template>
+    </el-select>
+  </div>
 </template>
 
 <style scoped>
+.remote-select-control {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+
+.remote-select-control__group {
+  width: 148px;
+  flex: 0 0 148px;
+}
+
+.remote-select-control__resource {
+  min-width: 0;
+  flex: 1;
+}
+
 .remote-select-option {
   display: flex;
   min-width: 0;
@@ -286,5 +412,16 @@ function updateSelected(value: string | string[]) {
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
+}
+
+@media (max-width: 640px) {
+  .remote-select-control {
+    flex-direction: column;
+  }
+
+  .remote-select-control__group {
+    width: 100%;
+    flex-basis: auto;
+  }
 }
 </style>

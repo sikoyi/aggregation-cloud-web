@@ -267,6 +267,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             v-else-if="field.type === 'templateParams'"
             :script-key="dependencyValue(field)"
             :model-value="modelValue[field.key]"
+            :context="fieldContext"
             @update:model-value="updateValue(field.key, $event)"
           />
 

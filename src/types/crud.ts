@@ -86,6 +86,18 @@ export interface RemoteSelectConfig {
   clearWhenMissing?: boolean
   matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
   emptyText?: string | ((context?: AnyRecord) => string)
+  group?: RemoteSelectGroupConfig
+}
+
+export interface RemoteSelectGroupConfig {
+  endpoint: string | ((context?: AnyRecord) => string)
+  labelKey?: string
+  valueKey?: string
+  params?: AnyRecord | ((context?: AnyRecord) => AnyRecord)
+  groupParam?: string
+  ungroupedParam?: string
+  allLabel?: string
+  ungroupedLabel?: string
 }
 
 export interface FieldConfig {
