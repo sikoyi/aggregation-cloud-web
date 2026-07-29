@@ -127,3 +127,14 @@ describe('账号注册任务下发', () => {
     expect(body.concurrent_registration_count).toBe(10)
   })
 })
+
+describe('账号批量设置标签', () => {
+  const action = resources.accounts.batchActions?.find((item) => item.key === 'batch-set-tags')
+  const tagField = action?.fields?.find((field) => field.key === 'tag_ids')
+
+  it('支持输入名称后快捷创建并选择账号标签', () => {
+    expect(tagField?.remote?.create?.endpoint).toBe('/api/account-tags')
+    expect(tagField?.remote?.create?.body('重点账号')).toEqual({ name: '重点账号' })
+    expect(tagField?.placeholder).toContain('按回车新建')
+  })
+})

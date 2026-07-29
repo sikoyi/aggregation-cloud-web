@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { ElNotification } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { http } from '@/api/http'
+import { ApiError, http } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { statusLabel, statusTagType } from '@/utils/format'
@@ -10,6 +11,7 @@ import {
   REMOTE_GROUP_ALL,
   REMOTE_GROUP_UNGROUPED,
 } from '@/utils/groupedRemoteSelect'
+import { notifyError } from '@/utils/notify'
 
 const props = defineProps<{
   modelValue: unknown
@@ -25,6 +27,7 @@ const emit = defineEmits<{
 }>()
 
 const loading = ref(false)
+const creating = ref(false)
 const groupLoading = ref(false)
 const options = ref<AnyRecord[]>([])
 const groupOptions = ref<AnyRecord[]>([])
@@ -39,6 +42,13 @@ function resolvedEndpoint() {
   return typeof props.config.endpoint === 'function'
     ? props.config.endpoint(props.context)
     : props.config.endpoint
+}
+
+function resolvedCreateEndpoint() {
+  if (!props.config.create) return ''
+  return typeof props.config.create.endpoint === 'function'
+    ? props.config.create.endpoint(props.context)
+    : props.config.create.endpoint
 }
 
 function resolvedBaseParams() {
@@ -289,13 +299,109 @@ watch(
   },
 )
 
-function updateSelected(value: string | string[]) {
-  emit(
-    'update:modelValue',
-    props.config.multiple
-      ? (Array.isArray(value) ? value : [value]).filter(Boolean).map(String)
-      : String(value || ''),
+async function findExactOption(label: string) {
+  const normalizedLabel = label.toLocaleLowerCase()
+  const localOption = options.value.find(
+    (option) => optionLabel(option).trim().toLocaleLowerCase() === normalizedLabel,
   )
+  if (localOption) return localOption
+  if (!props.config.searchParam) return null
+
+  const data = await http.get<PageResult<AnyRecord>>(resolvedEndpoint(), {
+    ...resolvedBaseParams(),
+    page: 1,
+    page_size: props.config.pageSize || 50,
+    [props.config.searchParam]: label,
+  })
+  return data.items.find(
+    (option) => optionLabel(option).trim().toLocaleLowerCase() === normalizedLabel,
+  ) || null
+}
+
+async function createOrReuseOption(label: string) {
+  const existing = await findExactOption(label)
+  if (existing) return { option: existing, created: false }
+
+  try {
+    return {
+      option: await http.post<AnyRecord>(
+        resolvedCreateEndpoint(),
+        props.config.create?.body(label, props.context),
+      ),
+      created: true,
+    }
+  } catch (err) {
+    // 并发创建同名数据时，后端可能先返回冲突；重新查询并复用已创建的数据。
+    if (err instanceof ApiError && err.status === 409) {
+      const conflicted = await findExactOption(label)
+      if (conflicted) return { option: conflicted, created: false }
+    }
+    throw err
+  }
+}
+
+async function updateSelected(value: string | string[]) {
+  const normalized = props.config.multiple
+    ? (Array.isArray(value) ? value : [value]).filter(Boolean).map(String)
+    : [String(Array.isArray(value) ? value[0] || '' : value || '')].filter(Boolean)
+
+  if (!props.config.create) {
+    emit(
+      'update:modelValue',
+      props.config.multiple ? normalized : normalized[0] || '',
+    )
+    return
+  }
+
+  const unknownLabels = normalized.filter(
+    (item) => !options.value.some((option) => optionValue(option) === item),
+  )
+  if (!unknownLabels.length) {
+    emit(
+      'update:modelValue',
+      props.config.multiple ? normalized : normalized[0] || '',
+    )
+    return
+  }
+
+  creating.value = true
+  try {
+    const resolvedOptions = new Map<string, { option: AnyRecord; created: boolean }>()
+    for (const rawLabel of unknownLabels) {
+      const label = rawLabel.trim()
+      if (!label) continue
+      resolvedOptions.set(rawLabel, await createOrReuseOption(label))
+    }
+    if (!resolvedOptions.size) return
+
+    const resolvedValues = normalized
+      .map((item) => {
+        const resolved = resolvedOptions.get(item)
+        if (resolved) return optionValue(resolved.option)
+        return unknownLabels.includes(item) ? '' : item
+      })
+      .filter(Boolean)
+    const additions = [...resolvedOptions.values()].map((item) => item.option).filter(
+      (item) => !options.value.some((option) => optionValue(option) === optionValue(item)),
+    )
+    const created = [...resolvedOptions.values()].filter((item) => item.created).map((item) => item.option)
+    if (additions.length) options.value = [...additions, ...options.value]
+
+    emit(
+      'update:modelValue',
+      props.config.multiple ? resolvedValues : resolvedValues[0] || '',
+    )
+    ElNotification.success({
+      title: props.config.create.successTitle || '创建成功',
+      message: created.length
+        ? `已创建并选中：${created.map(optionLabel).join('、')}`
+        : '已选中同名数据',
+    })
+  } catch (err) {
+    notifyError(err, '创建失败', '暂时无法创建，请稍后重试')
+  } finally {
+    creating.value = false
+  }
 }
 </script>
 
@@ -325,16 +431,18 @@ function updateSelected(value: string | string[]) {
 
     <el-select
       :model-value="selectValue"
-      :disabled="disabled"
+      :disabled="disabled || creating"
       class="remote-select-control__resource"
       clearable
       collapse-tags
       collapse-tags-tooltip
       filterable
       :multiple="Boolean(config.multiple)"
+      :allow-create="Boolean(config.create)"
+      :default-first-option="Boolean(config.create)"
       remote
       reserve-keyword
-      :loading="loading"
+      :loading="loading || creating"
       :placeholder="placeholder || '请选择'"
       :remote-method="loadOptions"
       @visible-change="handleVisibleChange"

@@ -1138,9 +1138,16 @@ export const resources: Record<string, ResourceConfig> = {
             key: "tag_ids",
             label: "账号标签",
             type: "remoteSelect",
-            remote: accountTagMultiSelect,
+            remote: {
+              ...accountTagMultiSelect,
+              create: {
+                endpoint: "/api/account-tags",
+                body: (name: string) => ({ name }),
+                successTitle: "账号标签已创建",
+              },
+            },
             allowEmpty: true,
-            placeholder: "选择标签；清空后将移除已选账号的全部标签",
+            placeholder: "选择已有标签，或输入名称后按回车新建",
           },
         ],
       },

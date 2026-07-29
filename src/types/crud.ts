@@ -87,6 +87,13 @@ export interface RemoteSelectConfig {
   matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
   emptyText?: string | ((context?: AnyRecord) => string)
   group?: RemoteSelectGroupConfig
+  create?: RemoteSelectCreateConfig
+}
+
+export interface RemoteSelectCreateConfig {
+  endpoint: string | ((context?: AnyRecord) => string)
+  body: (label: string, context?: AnyRecord) => AnyRecord
+  successTitle?: string
 }
 
 export interface RemoteSelectGroupConfig {
