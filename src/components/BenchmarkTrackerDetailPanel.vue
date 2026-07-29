@@ -38,6 +38,7 @@ const failedCount = computed(() => (
 const pendingCount = computed(() => (
   Number(mappingCounts.value.pending_publish || 0)
   + Number(mappingCounts.value.publishing || 0)
+  + Number(mappingCounts.value.awaiting_capture || 0)
   + Number(mappingCounts.value.pending_delete || 0)
   + Number(mappingCounts.value.deleting || 0)
 ))
@@ -46,6 +47,7 @@ const mappingStatusOptions: Record<string, { label: string; type: 'success' | 'w
   baseline: { label: '历史基线', type: 'info' },
   pending_publish: { label: '待复刻', type: 'warning' },
   publishing: { label: '复刻中', type: 'primary' },
+  awaiting_capture: { label: '等待监听同步', type: 'warning' },
   published: { label: '已复刻', type: 'success' },
   publish_failed: { label: '复刻失败', type: 'danger' },
   unsupported: { label: '暂不支持', type: 'info' },
@@ -317,6 +319,7 @@ watch(
               >
                 打开目标帖子
               </el-link>
+              <span v-else-if="row.status === 'awaiting_capture'">等待目标账号下一轮监听补齐</span>
               <span v-else>尚未生成目标帖子</span>
               <small v-if="row.target_platform_content_id">
                 {{ row.target_platform_content_id }}
