@@ -1124,6 +1124,7 @@ onBeforeUnmount(() => {
                 :config="filter.remote"
                 :context="filters"
                 :placeholder="filter.placeholder || '全部'"
+                compact
                 @update:model-value="filters[filter.key] = $event; page = 1; loadRows()"
               />
               <el-select

@@ -17,6 +17,7 @@ const props = defineProps<{
   disabled?: boolean
   placeholder?: string
   context?: AnyRecord
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +33,8 @@ const suppressNextModelReload = ref(false)
 let loadRequestId = 0
 let groupRequestId = 0
 
+const groupEnabled = computed(() => Boolean(props.config.group && !props.compact))
+
 function resolvedEndpoint() {
   return typeof props.config.endpoint === 'function'
     ? props.config.endpoint(props.context)
@@ -42,18 +45,22 @@ function resolvedBaseParams() {
   const params = typeof props.config.params === 'function'
     ? props.config.params(props.context)
     : props.config.params || {}
-  return applyRemoteGroupFilter(params, selectedGroup.value, props.config.group)
+  return applyRemoteGroupFilter(
+    params,
+    selectedGroup.value,
+    groupEnabled.value ? props.config.group : undefined,
+  )
 }
 
 function resolvedGroupEndpoint() {
-  if (!props.config.group) return ''
+  if (!groupEnabled.value || !props.config.group) return ''
   return typeof props.config.group.endpoint === 'function'
     ? props.config.group.endpoint(props.context)
     : props.config.group.endpoint
 }
 
 function resolvedGroupParams() {
-  if (!props.config.group) return {}
+  if (!groupEnabled.value || !props.config.group) return {}
   return typeof props.config.group.params === 'function'
     ? props.config.group.params(props.context)
     : props.config.group.params || {}
@@ -116,7 +123,7 @@ function groupLabel(group: AnyRecord) {
 }
 
 async function loadGroupOptions() {
-  if (!props.config.group) {
+  if (!groupEnabled.value || !props.config.group) {
     groupOptions.value = []
     selectedGroup.value = REMOTE_GROUP_ALL
     return
@@ -295,7 +302,7 @@ function updateSelected(value: string | string[]) {
 <template>
   <div class="remote-select-control">
     <el-select
-      v-if="config.group"
+      v-if="groupEnabled"
       v-model="selectedGroup"
       class="remote-select-control__group"
       :disabled="disabled"
@@ -303,7 +310,7 @@ function updateSelected(value: string | string[]) {
       filterable
       placeholder="选择分组"
     >
-      <el-option :label="config.group.allLabel || '全部分组'" :value="REMOTE_GROUP_ALL" />
+      <el-option :label="config.group?.allLabel || '全部分组'" :value="REMOTE_GROUP_ALL" />
       <el-option
         v-for="group in groupOptions"
         :key="groupValue(group)"
@@ -311,7 +318,7 @@ function updateSelected(value: string | string[]) {
         :value="groupValue(group)"
       />
       <el-option
-        :label="config.group.ungroupedLabel || '未分组'"
+        :label="config.group?.ungroupedLabel || '未分组'"
         :value="REMOTE_GROUP_UNGROUPED"
       />
     </el-select>
