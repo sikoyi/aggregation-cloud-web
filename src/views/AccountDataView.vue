@@ -20,6 +20,7 @@ import { getSystemDefaults } from '@/api/systemSettings'
 import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
+import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import { businessPlatformOptions, loginStatusOptions } from '@/config/options'
@@ -832,6 +833,9 @@ onBeforeUnmount(() => {
         </el-tab-pane>
         <el-tab-pane label="账号内容" name="contents" lazy>
           <AccountPublishedContentPanel :account="accountPanelRecord(detailAccount)" />
+        </el-tab-pane>
+        <el-tab-pane label="对标账号" name="benchmark" lazy>
+          <BenchmarkTrackerDetailPanel :account="accountPanelRecord(detailAccount)" />
         </el-tab-pane>
       </el-tabs>
       <template #footer><el-button type="primary" @click="detailVisible = false">关闭</el-button></template>
