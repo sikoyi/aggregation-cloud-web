@@ -655,7 +655,7 @@ const accountOnboardingFields: FieldConfig[] = [
     type: "select",
     options: providerOptions,
     required: true,
-    placeholder: "请选择 MoreLogin 或 AdsPower",
+    placeholder: "请选择设备供应商",
   },
   {
     key: "target_runtime_instance_id",
@@ -977,7 +977,7 @@ export const resources: Record<string, ResourceConfig> = {
         options: providerOptions,
         visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
         requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
-        placeholder: "请选择 MoreLogin 或 AdsPower",
+        placeholder: "请选择设备供应商",
       },
       {
         key: "target_runtime_instance_id",

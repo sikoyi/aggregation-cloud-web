@@ -423,6 +423,7 @@ export const runtimePlatformOptions: SelectOption[] = [
 export const providerOptions: SelectOption[] = [
   { label: 'MoreLogin', value: 'morelogin' },
   { label: 'AdsPower', value: 'adspower' },
+  { label: 'VMOS', value: 'vmos' },
 ]
 
 export const executionModeOptions: SelectOption[] = [

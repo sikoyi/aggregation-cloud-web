@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  providerOptions,
   registrationCountryOptions,
   registrationProviderOptions,
   scriptParamTypeOptions,
@@ -30,6 +31,14 @@ describe('registration country options', () => {
     expect(registrationProviderOptions).toEqual([
       { label: 'Hero SMS', value: 'hero_sms' },
       { label: '火狐狸', value: 'firefox' },
+    ])
+  })
+
+  it('exposes every supported device provider', () => {
+    expect(providerOptions).toEqual([
+      { label: 'MoreLogin', value: 'morelogin' },
+      { label: 'AdsPower', value: 'adspower' },
+      { label: 'VMOS', value: 'vmos' },
     ])
   })
 })
