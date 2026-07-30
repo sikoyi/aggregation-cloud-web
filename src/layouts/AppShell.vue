@@ -52,6 +52,7 @@ const navGroups = [
     children: [
       { label: '账号管理', to: '/accounts', icon: Users },
       { label: '账号数据', to: '/account-data', icon: Activity },
+      { label: '对标同步记录', to: '/benchmark-sync-records', icon: History },
     ],
   },
   {

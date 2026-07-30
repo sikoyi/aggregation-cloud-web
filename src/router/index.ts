@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 const AppShell = () => import('@/layouts/AppShell.vue')
 const AccountCenterView = () => import('@/views/AccountCenterView.vue')
 const AccountDataView = () => import('@/views/AccountDataView.vue')
+const BenchmarkSyncRecordsView = () => import('@/views/BenchmarkSyncRecordsView.vue')
 const ContentCenterView = () => import('@/views/ContentCenterView.vue')
 const CommentReplyReviewView = () => import('@/views/CommentReplyReviewView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
@@ -31,6 +32,7 @@ export const router = createRouter({
         { path: 'settings', component: SystemSettingsView },
         { path: 'accounts', component: AccountCenterView },
         { path: 'account-data', component: AccountDataView },
+        { path: 'benchmark-sync-records', component: BenchmarkSyncRecordsView },
         { path: 'slots', component: DeviceCenterView },
         { path: 'slot-groups', redirect: { path: '/slots', query: { tab: 'groups' } } },
         { path: 'proxies', component: ProxyCenterView },

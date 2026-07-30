@@ -47,6 +47,7 @@ const STATUS_LABELS: Record<string, string> = {
   unbound: '已解绑',
   unknown: '未知',
   waiting_runtime: '等待 Runtime',
+  waiting_capture: '等待采集确认',
   waiting_slot: '等待设备',
 }
 
