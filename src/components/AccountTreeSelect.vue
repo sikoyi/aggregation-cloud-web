@@ -72,9 +72,7 @@ const visibleTreeData = computed(() => {
   const selectedIds = new Set(selectedGroupNodeIds.value)
   return treeData.value.filter((node) => selectedIds.has(node.id))
 })
-const groupFilterLabel = computed(() => selectedGroupNodeIds.value.length
-  ? `已筛 ${selectedGroupNodeIds.value.length} 组`
-  : '筛选分组')
+
 const selectedAccountIds = computed(() => {
   if (Array.isArray(props.modelValue)) return props.modelValue.filter(Boolean).map(String)
   return props.modelValue ? [String(props.modelValue)] : []
@@ -475,14 +473,22 @@ watch(
           trigger="click"
         >
           <template #reference>
-            <el-button
-              class="account-tree-select__filter-button"
-              :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
-              plain
-              :icon="ListFilter"
-            >
-              {{ groupFilterLabel }}
-            </el-button>
+            <el-tooltip content="筛选分组" placement="top">
+              <el-badge
+                :value="selectedGroupNodeIds.length"
+                :hidden="!selectedGroupNodeIds.length"
+                type="primary"
+              >
+                <el-button
+                  class="account-tree-select__filter-button"
+                  :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
+                  :plain="!selectedGroupNodeIds.length"
+                  :icon="ListFilter"
+                  circle
+                  aria-label="筛选分组"
+                />
+              </el-badge>
+            </el-tooltip>
           </template>
           <div class="group-filter-popover">
             <div class="group-filter-popover__header">
@@ -608,12 +614,20 @@ watch(
 
 .account-tree-select__summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
   gap: 6px;
   margin-bottom: 8px;
   color: #65778a;
   font-size: 12px;
   text-align: center;
+}
+
+.account-tree-select__summary span {
+  display: inline-flex;
+  min-width: 72px;
+  align-items: baseline;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .account-tree-select__summary strong {
@@ -634,6 +648,8 @@ watch(
 }
 
 .account-tree-select__filter-button {
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
 }
 

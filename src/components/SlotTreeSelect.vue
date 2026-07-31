@@ -272,13 +272,22 @@ watch(
         />
         <el-popover placement="bottom-end" :width="260" trigger="click">
           <template #reference>
-            <el-button
-              :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
-              plain
-              :icon="ListFilter"
-            >
-              {{ selectedGroupNodeIds.length ? `已筛 ${selectedGroupNodeIds.length} 组` : '筛选分组' }}
-            </el-button>
+            <el-tooltip content="筛选分组" placement="top">
+              <el-badge
+                :value="selectedGroupNodeIds.length"
+                :hidden="!selectedGroupNodeIds.length"
+                type="primary"
+              >
+                <el-button
+                  class="slot-tree-filter-button"
+                  :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
+                  :plain="!selectedGroupNodeIds.length"
+                  :icon="ListFilter"
+                  circle
+                  aria-label="筛选分组"
+                />
+              </el-badge>
+            </el-tooltip>
           </template>
           <div class="group-filter-popover">
             <div class="group-filter-popover__header">
@@ -380,12 +389,20 @@ watch(
 
 .slot-tree-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
   gap: 6px;
   margin-bottom: 8px;
   color: #65778a;
   font-size: 12px;
   text-align: center;
+}
+
+.slot-tree-summary span {
+  display: inline-flex;
+  min-width: 72px;
+  align-items: baseline;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .slot-tree-summary strong {
@@ -403,6 +420,12 @@ watch(
 .slot-tree-filters :deep(.el-input) {
   min-width: 0;
   flex: 1;
+}
+
+.slot-tree-filter-button {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
 }
 
 .group-filter-popover__header {
