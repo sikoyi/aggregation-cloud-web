@@ -272,22 +272,16 @@ watch(
         />
         <el-popover placement="bottom-end" :width="260" trigger="click">
           <template #reference>
-            <el-tooltip content="筛选分组" placement="top">
-              <el-badge
-                :value="selectedGroupNodeIds.length"
-                :hidden="!selectedGroupNodeIds.length"
-                type="primary"
-              >
-                <el-button
-                  class="slot-tree-filter-button"
-                  :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
-                  :plain="!selectedGroupNodeIds.length"
-                  :icon="ListFilter"
-                  circle
-                  aria-label="筛选分组"
-                />
-              </el-badge>
-            </el-tooltip>
+            <el-button
+              class="slot-tree-filter-button"
+              :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
+              :plain="!selectedGroupNodeIds.length"
+              :icon="ListFilter"
+              :data-filter-count="selectedGroupNodeIds.length || undefined"
+              :title="selectedGroupNodeIds.length ? `已筛选 ${selectedGroupNodeIds.length} 个分组` : '筛选分组'"
+              circle
+              aria-label="筛选分组"
+            />
           </template>
           <div class="group-filter-popover">
             <div class="group-filter-popover__header">
@@ -423,9 +417,32 @@ watch(
 }
 
 .slot-tree-filter-button {
+  position: relative;
   width: 32px;
   height: 32px;
   flex: 0 0 auto;
+  overflow: visible;
+}
+
+.slot-tree-filter-button[data-filter-count]::after {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: inline-flex;
+  min-width: 17px;
+  height: 17px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  border-radius: 9px;
+  background: #1f668f;
+  color: #fff;
+  content: attr(data-filter-count);
+  font-size: 10px;
+  line-height: 13px;
+  pointer-events: none;
 }
 
 .group-filter-popover__header {
