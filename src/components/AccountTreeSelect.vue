@@ -11,6 +11,7 @@ import {
   readStringListPreference,
   writeStringListPreference,
 } from '@/utils/localPreferences'
+import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
 const props = defineProps<{
   modelValue: unknown
@@ -43,8 +44,10 @@ const loading = ref(false)
 const searchKeyword = ref('')
 const treeData = ref<AccountTreeNode[]>([])
 const selectedGroupNodeIds = ref<string[]>([])
+const expandedGroupKeys = ref<string[]>([])
 const loggedInCount = ref(0)
 const selectableCount = ref(0)
+const collapsedGroupIds = new Set<string>()
 const treeProps = {
   label: 'label',
   children: 'children',
@@ -54,7 +57,6 @@ const treeProps = {
 const treeHeight = 350
 
 const isMultiple = computed(() => props.multiple !== false)
-const groupFilterEnabled = computed(() => Boolean(props.groupFilterPreferenceKey))
 const groupFilterStorageKey = computed(() => buildUserPreferenceKey(
   auth.user?.id,
   props.groupFilterPreferenceKey,
@@ -196,6 +198,31 @@ function syncCheckedKeys() {
   treeRef.value?.setCheckedKeys?.(selectedAccountIds.value.map(accountNodeId))
 }
 
+function syncExpandedKeys() {
+  const visibleGroupIds = new Set(visibleTreeData.value.map((node) => node.id))
+  expandedGroupKeys.value = reconcileExpandedGroupKeys(
+    treeData.value.map((node) => node.id),
+    collapsedGroupIds,
+  ).filter((groupId) => visibleGroupIds.has(groupId))
+  treeRef.value?.setExpandedKeys?.(expandedGroupKeys.value)
+}
+
+function handleNodeExpand(data: AnyRecord) {
+  const nodeId = String(data.id || '')
+  if (!nodeId || !Array.isArray(data.children) || !data.children.length) return
+  collapsedGroupIds.delete(nodeId)
+  if (!expandedGroupKeys.value.includes(nodeId)) {
+    expandedGroupKeys.value = [...expandedGroupKeys.value, nodeId]
+  }
+}
+
+function handleNodeCollapse(data: AnyRecord) {
+  const nodeId = String(data.id || '')
+  if (!nodeId || !Array.isArray(data.children) || !data.children.length) return
+  collapsedGroupIds.add(nodeId)
+  expandedGroupKeys.value = expandedGroupKeys.value.filter((groupId) => groupId !== nodeId)
+}
+
 function emitSelection(accountIds: string[]) {
   emit('update:modelValue', isMultiple.value ? accountIds : String(accountIds[0] || ''))
 }
@@ -270,7 +297,7 @@ async function loadTree() {
 
     await nextTick()
     syncCheckedKeys()
-    treeRef.value?.setExpandedKeys?.(treeData.value.map((node) => node.id))
+    syncExpandedKeys()
     treeRef.value?.filter?.(searchKeyword.value)
     const nextSelected = selectedAccountIds.value.filter((accountId) => availableAccountIds.has(accountId))
     if (nextSelected.length !== selectedAccountIds.value.length) {
@@ -351,7 +378,7 @@ async function loadDeviceGroupedTree(requestId: number) {
 
   await nextTick()
   syncCheckedKeys()
-  treeRef.value?.setExpandedKeys?.(treeData.value.map((node) => node.id))
+  syncExpandedKeys()
   treeRef.value?.filter?.(searchKeyword.value)
   const nextSelected = selectedAccountIds.value.filter((accountId) => availableAccountIds.has(accountId))
   if (nextSelected.length !== selectedAccountIds.value.length) {
@@ -365,8 +392,17 @@ function emitChecked(node?: AnyRecord) {
     .map((item) => item.accountId)
     .filter((accountId): accountId is string => Boolean(accountId))
 
-  // 主号只允许选一个，避免传给后端时出现数组和单值混用。
-  if (!isMultiple.value) {
+  // 分组筛选只隐藏数据，不能覆盖其他分组里已经选中的账号。
+  if (isMultiple.value) {
+    const visibleAccountIds = new Set(
+      visibleTreeData.value.flatMap((group) => group.children || []).map((item) => item.accountId),
+    )
+    accountIds = [
+      ...selectedAccountIds.value.filter((accountId) => !visibleAccountIds.has(accountId)),
+      ...accountIds,
+    ]
+  } else {
+    // 主号只允许选一个，避免传给后端时出现数组和单值混用。
     const clickedAccountId = node?.accountId ? String(node.accountId) : ''
     accountIds = clickedAccountId && accountIds.includes(clickedAccountId)
       ? [clickedAccountId]
@@ -397,7 +433,7 @@ watch(selectedGroupNodeIds, (value) => {
 watch(visibleTreeData, async () => {
   await nextTick()
   syncCheckedKeys()
-  treeRef.value?.setExpandedKeys?.(visibleTreeData.value.map((node) => node.id))
+  syncExpandedKeys()
   treeRef.value?.filter?.(searchKeyword.value)
 })
 
@@ -417,7 +453,6 @@ watch(
         placeholder="搜索账号 / 设备名称 / Provider ID"
       />
       <el-popover
-        v-if="groupFilterEnabled"
         placement="bottom-end"
         :width="260"
         trigger="click"
@@ -479,13 +514,15 @@ watch(
       :height="treeHeight"
       :item-size="46"
       show-checkbox
-      :default-expanded-keys="visibleTreeData.map((node) => node.id)"
+      :default-expanded-keys="expandedGroupKeys"
       :check-strictly="!isMultiple"
       :expand-on-click-node="false"
       :filter-method="filterNode"
       scrollbar-always-on
       :empty-text="treeEmptyMessage"
       @check="emitChecked"
+      @node-expand="handleNodeExpand"
+      @node-collapse="handleNodeCollapse"
     >
       <template #default="{ data }">
         <span class="account-tree-node">

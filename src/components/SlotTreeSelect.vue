@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Search } from 'lucide-vue-next'
+import { ListFilter, Search, X } from 'lucide-vue-next'
 
 import { loadSlotSelectionOptions } from '@/api/selectionOptions'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
+import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
 const props = defineProps<{
   modelValue: unknown
@@ -32,6 +33,7 @@ const treeRef = ref()
 const loading = ref(false)
 const searchKeyword = ref('')
 const treeData = ref<SlotTreeNode[]>([])
+const selectedGroupNodeIds = ref<string[]>([])
 const groupedSlotCount = ref(0)
 const totalSlotCount = ref(0)
 const loadedSlotIds = ref<Set<string>>(new Set())
@@ -51,6 +53,15 @@ const selectedSlotIds = computed(() =>
 const selectedSlotCount = computed(() =>
   selectedSlotIds.value.filter((slotId) => loadedSlotIds.value.has(slotId)).length,
 )
+const groupOptions = computed(() => treeData.value.map((node) => ({
+  value: node.id,
+  label: node.label,
+})))
+const visibleTreeData = computed(() => {
+  if (!selectedGroupNodeIds.value.length) return treeData.value
+  const selectedIds = new Set(selectedGroupNodeIds.value)
+  return treeData.value.filter((node) => selectedIds.has(node.id))
+})
 const filterSignature = computed(() => JSON.stringify({
   business_platform: String(props.filters?.business_platform || ''),
   runtime_platform: String(props.filters?.runtime_platform || ''),
@@ -100,10 +111,22 @@ function syncCheckedKeys() {
   treeRef.value?.setCheckedKeys?.(keys)
 }
 
+function syncExpandedKeys() {
+  const visibleGroupIds = new Set(visibleTreeData.value.map((node) => node.id))
+  defaultExpandedGroupKeys.value = reconcileExpandedGroupKeys(
+    treeData.value.map((node) => node.id),
+    collapsedGroupIds,
+  ).filter((groupId) => visibleGroupIds.has(groupId))
+  treeRef.value?.setExpandedKeys?.(defaultExpandedGroupKeys.value)
+}
+
 function handleNodeExpand(data: AnyRecord) {
   const nodeId = String(data.id || '')
   if (nodeId && Array.isArray(data.children) && data.children.length) {
     collapsedGroupIds.delete(nodeId)
+    if (!defaultExpandedGroupKeys.value.includes(nodeId)) {
+      defaultExpandedGroupKeys.value = [...defaultExpandedGroupKeys.value, nodeId]
+    }
   }
 }
 
@@ -111,6 +134,9 @@ function handleNodeCollapse(data: AnyRecord) {
   const nodeId = String(data.id || '')
   if (nodeId && Array.isArray(data.children) && data.children.length) {
     collapsedGroupIds.add(nodeId)
+    defaultExpandedGroupKeys.value = defaultExpandedGroupKeys.value.filter(
+      (groupId) => groupId !== nodeId,
+    )
   }
 }
 
@@ -167,18 +193,11 @@ async function loadTree() {
           ]
         : []),
     ]
-    const currentGroupIds = new Set(nextTreeData.map((node) => node.id))
-    collapsedGroupIds.forEach((groupId) => {
-      if (!currentGroupIds.has(groupId)) collapsedGroupIds.delete(groupId)
-    })
-    defaultExpandedGroupKeys.value = nextTreeData
-      .map((node) => node.id)
-      .filter((groupId) => !collapsedGroupIds.has(groupId))
     treeData.value = nextTreeData
 
     await nextTick()
     syncCheckedKeys()
-    treeRef.value?.setExpandedKeys?.(defaultExpandedGroupKeys.value)
+    syncExpandedKeys()
     treeRef.value?.filter?.(searchKeyword.value)
   } finally {
     if (requestId === loadRequestId) loading.value = false
@@ -187,11 +206,20 @@ async function loadTree() {
 
 function emitChecked() {
   const checkedNodes = (treeRef.value?.getCheckedNodes?.(true) || []) as SlotTreeNode[]
+  const visibleSlotIds = new Set(
+    visibleTreeData.value.flatMap((group) => group.children || []).map((node) => node.slotId),
+  )
+  const hiddenSelectedSlotIds = selectedSlotIds.value.filter(
+    (slotId) => !visibleSlotIds.has(slotId),
+  )
   emit(
     'update:modelValue',
-    checkedNodes
-      .map((node) => node.slotId)
-      .filter((slotId): slotId is string => Boolean(slotId)),
+    [
+      ...hiddenSelectedSlotIds,
+      ...checkedNodes
+        .map((node) => node.slotId)
+        .filter((slotId): slotId is string => Boolean(slotId)),
+    ],
   )
 }
 
@@ -205,6 +233,13 @@ onBeforeUnmount(() => {
 watch(selectedSlotIds, () => nextTick(syncCheckedKeys))
 
 watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
+
+watch(visibleTreeData, async () => {
+  await nextTick()
+  syncCheckedKeys()
+  syncExpandedKeys()
+  treeRef.value?.filter?.(searchKeyword.value)
+})
 
 watch(
   filterSignature,
@@ -226,16 +261,54 @@ watch(
         <span>已选设备 <strong>{{ selectedSlotCount }}</strong></span>
         <span>设备总数 <strong>{{ totalSlotCount }}</strong></span>
       </div>
-      <el-input
-        v-model="searchKeyword"
-        :prefix-icon="Search"
-        clearable
-        placeholder="搜索设备名称 / Provider ID"
-      />
+      <div class="slot-tree-filters">
+        <el-input
+          v-model="searchKeyword"
+          :prefix-icon="Search"
+          clearable
+          placeholder="搜索设备名称 / Provider ID"
+        />
+        <el-popover placement="bottom-end" :width="260" trigger="click">
+          <template #reference>
+            <el-button
+              :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
+              plain
+              :icon="ListFilter"
+            >
+              {{ selectedGroupNodeIds.length ? `已筛 ${selectedGroupNodeIds.length} 组` : '筛选分组' }}
+            </el-button>
+          </template>
+          <div class="group-filter-popover">
+            <div class="group-filter-popover__header">
+              <span>显示设备分组</span>
+              <el-button
+                v-if="selectedGroupNodeIds.length"
+                link
+                type="primary"
+                :icon="X"
+                @click="selectedGroupNodeIds = []"
+              >
+                显示全部
+              </el-button>
+            </div>
+            <el-scrollbar max-height="260px">
+              <el-checkbox-group v-model="selectedGroupNodeIds" class="group-filter-popover__options">
+                <el-checkbox
+                  v-for="option in groupOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-scrollbar>
+          </div>
+        </el-popover>
+      </div>
     </div>
     <el-tree-v2
       ref="treeRef"
-      :data="treeData"
+      :data="visibleTreeData"
       :props="treeProps"
       :height="treeHeight"
       :item-size="38"
@@ -317,6 +390,45 @@ watch(
   margin-left: 3px;
   color: #1f668f;
   font-size: 13px;
+}
+
+.slot-tree-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slot-tree-filters :deep(.el-input) {
+  min-width: 0;
+  flex: 1;
+}
+
+.group-filter-popover__header {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #27364a;
+  font-weight: 600;
+}
+
+.group-filter-popover__options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group-filter-popover__options :deep(.el-checkbox) {
+  width: 100%;
+  height: 34px;
+  margin-right: 0;
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.group-filter-popover__options :deep(.el-checkbox:hover) {
+  background: #f3f7fb;
 }
 
 .slot-tree-select :deep(.el-tree-node__content) {
