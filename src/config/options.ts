@@ -476,6 +476,7 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '代理组', value: 'proxy_group' },
   { label: '资源', value: 'res' },
   { label: '账号', value: 'account' },
+  { label: '账号标签', value: 'account_tag' },
   { label: '内容', value: 'content' },
   { label: '内容池', value: 'content_group' },
   { label: '素材', value: 'media_asset' },

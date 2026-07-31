@@ -5,16 +5,24 @@ import { computed, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import {
+  loginStatusOptions,
   proxyUsageStatusFilterOptions,
   registrationCountryOptions,
   registrationProviderOptions,
 } from '@/config/options'
+import type { PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
 
 interface ScriptPublic {
   id: string
   script_key: string
+}
+
+interface AccountTagOption {
+  id: string
+  name: string
+  member_count?: number
 }
 
 interface ScriptParam {
@@ -42,6 +50,7 @@ const emit = defineEmits<{
 const loading = ref(false)
 const error = ref('')
 const params = ref<ScriptParam[]>([])
+const accountTags = ref<AccountTagOption[]>([])
 const loadedScriptKey = ref('')
 const resourcePickerVisible = ref(false)
 const resourcePickerValue = ref('')
@@ -58,6 +67,7 @@ const values = computed<Record<string, unknown>>(() => {
 function defaultForParam(param: ScriptParam) {
   if (param.default_value !== undefined && param.default_value !== null) return param.default_value
   if (param.param_type === 'bool') return false
+  if (isAccountTagParam(param)) return { tag_id: '', login_statuses: [] }
   if (isResourceParam(param)) return ''
   return ''
 }
@@ -66,6 +76,34 @@ function normalizeParamType(param: ScriptParam) {
   return String(param.param_type || '').trim()
 }
 
+function isAccountTagParam(param: ScriptParam) {
+  return normalizeParamType(param) === 'account_tag'
+}
+
+function accountTagSelector(param: ScriptParam) {
+  const value = values.value[param.param_key]
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    return {
+      tag_id: String(record.tag_id || ''),
+      login_statuses: Array.isArray(record.login_statuses)
+        ? record.login_statuses.map(String).filter(Boolean)
+        : [],
+    }
+  }
+  return { tag_id: '', login_statuses: [] as string[] }
+}
+
+function updateAccountTagId(param: ScriptParam, tagId: unknown) {
+  updateValue(param, { ...accountTagSelector(param), tag_id: String(tagId || '') })
+}
+
+function updateAccountLoginStatuses(param: ScriptParam, statuses: unknown) {
+  updateValue(param, {
+    ...accountTagSelector(param),
+    login_statuses: Array.isArray(statuses) ? statuses.map(String).filter(Boolean) : [],
+  })
+}
 function isResourceParam(param: ScriptParam) {
   return ['proxy', 'res', 'proxy_group', 'account', 'content', 'content_group', 'media_asset', 'media_asset_group', 'execution_slot'].includes(normalizeParamType(param))
 }
@@ -341,6 +379,23 @@ function mergeDefaults(items: ScriptParam[]) {
   emit('update:modelValue', next)
 }
 
+async function loadAccountTags() {
+  const items: AccountTagOption[] = []
+  let page = 1
+  let total = 0
+  do {
+    const data = await http.get<PageResult<AccountTagOption>>('/api/account-tags', {
+      page,
+      page_size: 100,
+    })
+    items.push(...data.items)
+    total = data.total
+    page += 1
+    if (!data.items.length) break
+  } while (items.length < total)
+  accountTags.value = items
+}
+
 async function loadParams(scriptKey: string) {
   const key = scriptKey.trim()
   params.value = []
@@ -355,6 +410,8 @@ async function loadParams(scriptKey: string) {
     const items = await http.get<ScriptParam[]>(`/api/scripts/${script.id}/params`)
     if (seq !== requestSeq) return
     params.value = sortedParams(items)
+    if (items.some(isAccountTagParam)) await loadAccountTags()
+    if (seq !== requestSeq) return
     loadedScriptKey.value = key
     mergeDefaults(items)
   } catch (err) {
@@ -464,6 +521,41 @@ watch(
             :value="option.value"
           />
         </el-select>
+        <div v-else-if="isAccountTagParam(param)" class="account-tag-param-field">
+          <el-select
+            :model-value="accountTagSelector(param).tag_id"
+            class="w-full"
+            filterable
+            clearable
+            placeholder="请选择账号标签或未设置标签"
+            @update:model-value="updateAccountTagId(param, $event)"
+          >
+            <el-option label="未设置标签" value="__untagged__" />
+            <el-option
+              v-for="tag in accountTags"
+              :key="tag.id"
+              :label="`${tag.name}（${tag.member_count || 0}）`"
+              :value="tag.id"
+            />
+          </el-select>
+          <el-select
+            :model-value="accountTagSelector(param).login_statuses"
+            class="w-full"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
+            placeholder="全部登录状态"
+            @update:model-value="updateAccountLoginStatuses(param, $event)"
+          >
+            <el-option
+              v-for="option in loginStatusOptions"
+              :key="String(option.value)"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </div>
         <div v-else-if="isResourceParam(param)" class="resource-param-field">
           <el-input
             :model-value="resourceDisplayValue(param)"
@@ -530,6 +622,12 @@ watch(
 </template>
 
 <style scoped>
+.account-tag-param-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
 .resource-param-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -541,6 +639,7 @@ watch(
 }
 
 @media (max-width: 640px) {
+  .account-tag-param-field,
   .resource-param-field {
     grid-template-columns: 1fr;
   }

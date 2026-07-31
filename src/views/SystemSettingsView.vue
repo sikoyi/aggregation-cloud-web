@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Bot, Radar, Settings, SlidersHorizontal } from 'lucide-vue-next'
+import { Bot, Cloud, Radar, Settings, SlidersHorizontal } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 import ApifyMonitorConfigPanel from '@/components/ApifyMonitorConfigPanel.vue'
+import CloudPhoneStorageConfigPanel from '@/components/CloudPhoneStorageConfigPanel.vue'
 import InteractionAiConfigPanel from '@/components/InteractionAiConfigPanel.vue'
 import SystemDefaultsConfigPanel from '@/components/SystemDefaultsConfigPanel.vue'
 
@@ -35,6 +36,10 @@ function refreshDefaults() {
         <el-tab-pane name="monitor" lazy>
           <template #label><span class="tab-label"><Radar :size="16" />内容监听</span></template>
           <ApifyMonitorConfigPanel />
+        </el-tab-pane>
+        <el-tab-pane name="cloud-phone-storage" lazy>
+          <template #label><span class="tab-label"><Cloud :size="16" />云手机存储</span></template>
+          <CloudPhoneStorageConfigPanel />
         </el-tab-pane>
         <el-tab-pane name="ai" lazy>
           <template #label><span class="tab-label"><Bot :size="16" />互动 AI</span></template>
