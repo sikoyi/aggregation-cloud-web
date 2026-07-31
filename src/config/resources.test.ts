@@ -102,6 +102,26 @@ describe('发布内容来源', () => {
     expect(emptyBody.comment_content).toBeNull()
     expect(filledBody.comment_content).toBe('Thanks for sharing.')
   })
+
+  it('每个发布任务支持独立随机延迟范围', () => {
+    const delayField = fields.find((field) => field.key === 'dispatch_delay_min_minutes')
+    const body = resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      dispatch_delay_min_minutes: 2,
+      dispatch_delay_max_minutes: 5,
+    }) as Record<string, unknown>
+
+    expect(delayField?.type).toBe('numberRange')
+    expect(delayField?.defaultValue).toBe(0)
+    expect(delayField?.endDefaultValue).toBe(1)
+    expect(body.dispatch_delay_min_minutes).toBe(2)
+    expect(body.dispatch_delay_max_minutes).toBe(5)
+    expect(() => resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      dispatch_delay_min_minutes: 5,
+      dispatch_delay_max_minutes: 2,
+    })).toThrow('最短延迟不能大于最长延迟')
+  })
 })
 
 describe('账号注册任务下发', () => {

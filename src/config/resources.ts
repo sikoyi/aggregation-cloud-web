@@ -563,12 +563,21 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "content_id",
     "content_group_id",
     "comment_content",
+    "dispatch_delay_min_minutes",
+    "dispatch_delay_max_minutes",
     "scheduled_at",
   ]);
   const commentContent = typeof payload.comment_content === "string"
     ? payload.comment_content
     : "";
   body.comment_content = commentContent.trim() ? commentContent : null;
+  const delayMinMinutes = Number(payload.dispatch_delay_min_minutes ?? 0);
+  const delayMaxMinutes = Number(payload.dispatch_delay_max_minutes ?? 1);
+  if (delayMinMinutes > delayMaxMinutes) {
+    throw new Error("最短延迟不能大于最长延迟");
+  }
+  body.dispatch_delay_min_minutes = delayMinMinutes;
+  body.dispatch_delay_max_minutes = delayMaxMinutes;
   if (body.content_status === "all") {
     body.content_status = null;
   }
@@ -2508,6 +2517,20 @@ export const resources: Record<string, ResourceConfig> = {
         span: 2,
         allowEmpty: true,
         placeholder: "可选；填写后随发布任务下发给脚本",
+      },
+      {
+        key: "dispatch_delay_min_minutes",
+        endKey: "dispatch_delay_max_minutes",
+        label: "延迟下发时间（分钟）",
+        type: "numberRange",
+        defaultValue: 0,
+        endDefaultValue: 1,
+        min: 0,
+        max: 1440,
+        step: 1,
+        required: true,
+        startPlaceholder: "最小延迟",
+        endPlaceholder: "最大延迟",
       },
       { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true, placeholder: "不填则立即下发" },
     ],
