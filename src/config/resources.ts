@@ -562,8 +562,13 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "content_status",
     "content_id",
     "content_group_id",
+    "comment_content",
     "scheduled_at",
   ]);
+  const commentContent = typeof payload.comment_content === "string"
+    ? payload.comment_content
+    : "";
+  body.comment_content = commentContent.trim() ? commentContent : null;
   if (body.content_status === "all") {
     body.content_status = null;
   }
@@ -2495,6 +2500,14 @@ export const resources: Record<string, ResourceConfig> = {
         disabledWhen: { key: "content_source_type", value: ["content_group", "ungrouped"] },
         allowEmpty: true,
         placeholder: "按使用状态筛选并选择内容",
+      },
+      {
+        key: "comment_content",
+        label: "评论内容",
+        type: "textarea",
+        span: 2,
+        allowEmpty: true,
+        placeholder: "可选；填写后随发布任务下发给脚本",
       },
       { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true, placeholder: "不填则立即下发" },
     ],

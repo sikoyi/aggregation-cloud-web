@@ -85,6 +85,23 @@ describe('发布内容来源', () => {
     expect(body.content_id).toBeNull()
     expect(body.content_group_id).toBeNull()
   })
+
+  it('评论内容可选且未填写时提交 null', () => {
+    const commentField = fields.find((field) => field.key === 'comment_content')
+    const emptyBody = resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      comment_content: '   ',
+    }) as Record<string, unknown>
+    const filledBody = resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      comment_content: 'Thanks for sharing.',
+    }) as Record<string, unknown>
+
+    expect(commentField?.type).toBe('textarea')
+    expect(commentField?.required).not.toBe(true)
+    expect(emptyBody.comment_content).toBeNull()
+    expect(filledBody.comment_content).toBe('Thanks for sharing.')
+  })
 })
 
 describe('账号注册任务下发', () => {
