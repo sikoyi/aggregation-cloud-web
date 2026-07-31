@@ -5,6 +5,7 @@ import { ListFilter, Search, X } from 'lucide-vue-next'
 import { loadSlotSelectionOptions } from '@/api/selectionOptions'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
+import { countFilteredTreeLeaves } from '@/utils/treeSelectionStats'
 import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
 const props = defineProps<{
@@ -34,7 +35,6 @@ const loading = ref(false)
 const searchKeyword = ref('')
 const treeData = ref<SlotTreeNode[]>([])
 const selectedGroupNodeIds = ref<string[]>([])
-const groupedSlotCount = ref(0)
 const totalSlotCount = ref(0)
 const loadedSlotIds = ref<Set<string>>(new Set())
 const defaultExpandedGroupKeys = ref<string[]>([])
@@ -62,6 +62,9 @@ const visibleTreeData = computed(() => {
   const selectedIds = new Set(selectedGroupNodeIds.value)
   return treeData.value.filter((node) => selectedIds.has(node.id))
 })
+const filteredSlotCount = computed(() =>
+  countFilteredTreeLeaves(visibleTreeData.value, searchKeyword.value),
+)
 const filterSignature = computed(() => JSON.stringify({
   business_platform: String(props.filters?.business_platform || ''),
   runtime_platform: String(props.filters?.runtime_platform || ''),
@@ -177,7 +180,6 @@ async function loadTree() {
 
     const ungroupedSlots = slots.filter((slot) => !groupedSlotIds.has(String(slot.id)))
     loadedSlotIds.value = eligibleSlotIds
-    groupedSlotCount.value = groupedSlotIds.size
     totalSlotCount.value = slots.length
     const nextTreeData = [
       ...groupNodes.filter((node) => node.children.length),
@@ -257,9 +259,9 @@ watch(
   <div class="slot-tree-select" v-loading="loading">
     <div class="slot-tree-toolbar">
       <div class="slot-tree-summary">
-        <span>分组设备 <strong>{{ groupedSlotCount }}</strong></span>
-        <span>已选设备 <strong>{{ selectedSlotCount }}</strong></span>
         <span>设备总数 <strong>{{ totalSlotCount }}</strong></span>
+        <span>当前筛选 <strong>{{ filteredSlotCount }}</strong></span>
+        <span>已选设备 <strong>{{ selectedSlotCount }}</strong></span>
       </div>
       <div class="slot-tree-filters">
         <el-input

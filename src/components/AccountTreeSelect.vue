@@ -11,6 +11,7 @@ import {
   readStringListPreference,
   writeStringListPreference,
 } from '@/utils/localPreferences'
+import { countFilteredTreeLeaves } from '@/utils/treeSelectionStats'
 import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
 const props = defineProps<{
@@ -34,6 +35,7 @@ interface AccountTreeNode {
   searchText?: string
   deviceLabel?: string
   loginStatus?: string
+  accountCount?: number
   disabled?: boolean
   children?: AccountTreeNode[]
 }
@@ -77,6 +79,11 @@ const selectedAccountIds = computed(() => {
   if (Array.isArray(props.modelValue)) return props.modelValue.filter(Boolean).map(String)
   return props.modelValue ? [String(props.modelValue)] : []
 })
+const totalAccountCount = computed(() => countFilteredTreeLeaves(treeData.value, ''))
+const filteredAccountCount = computed(() =>
+  countFilteredTreeLeaves(visibleTreeData.value, searchKeyword.value),
+)
+const selectedAccountCount = computed(() => selectedAccountIds.value.length)
 const filterSignature = computed(() => JSON.stringify({
   association_only: Boolean(props.associationOnly),
   group_by_device: Boolean(props.groupByDevice),
@@ -267,6 +274,7 @@ async function loadTree() {
         id: `group:${groupId}`,
         label,
         searchText: label.toLowerCase(),
+        accountCount: items.length,
         disabled: Boolean(props.disabled) || !items.length,
         children: items.map(toAccountNode),
       }
@@ -289,6 +297,7 @@ async function loadTree() {
               id: 'group:ungrouped',
               label: '未分组设备账号',
               searchText: '未分组设备账号',
+              accountCount: ungroupedAccounts.length,
               children: ungroupedAccounts.map(toAccountNode),
             },
           ]
@@ -347,6 +356,7 @@ async function loadDeviceGroupedTree(requestId: number) {
       id: `group:${groupId}`,
       label,
       searchText: label.toLowerCase(),
+      accountCount: children.length,
       disabled: Boolean(props.disabled) || !children.length,
       children,
     }
@@ -371,6 +381,7 @@ async function loadDeviceGroupedTree(requestId: number) {
           id: 'group:ungrouped-slots',
           label: '未分组设备',
           searchText: '未分组设备',
+          accountCount: ungroupedChildren.length,
           children: ungroupedChildren,
         }]
       : []),
@@ -446,58 +457,65 @@ watch(
 <template>
   <div class="account-tree-select" v-loading="loading">
     <div class="account-tree-select__toolbar">
-      <el-input
-        v-model="searchKeyword"
-        :prefix-icon="Search"
-        clearable
-        placeholder="搜索账号 / 设备名称 / Provider ID"
-      />
-      <el-popover
-        placement="bottom-end"
-        :width="260"
-        trigger="click"
-      >
-        <template #reference>
-          <el-button
-            class="account-tree-select__filter-button"
-            :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
-            plain
-            :icon="ListFilter"
-          >
-            {{ groupFilterLabel }}
-          </el-button>
-        </template>
-        <div class="group-filter-popover">
-          <div class="group-filter-popover__header">
-            <span>显示设备分组</span>
+      <div class="account-tree-select__summary">
+        <span>账号总数 <strong>{{ totalAccountCount }}</strong></span>
+        <span>当前筛选 <strong>{{ filteredAccountCount }}</strong></span>
+        <span>已选账号 <strong>{{ selectedAccountCount }}</strong></span>
+      </div>
+      <div class="account-tree-select__filters">
+        <el-input
+          v-model="searchKeyword"
+          :prefix-icon="Search"
+          clearable
+          placeholder="搜索账号 / 设备名称 / Provider ID"
+        />
+        <el-popover
+          placement="bottom-end"
+          :width="260"
+          trigger="click"
+        >
+          <template #reference>
             <el-button
-              v-if="selectedGroupNodeIds.length"
-              link
-              type="primary"
-              :icon="X"
-              @click="clearGroupFilter"
+              class="account-tree-select__filter-button"
+              :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
+              plain
+              :icon="ListFilter"
             >
-              显示全部
+              {{ groupFilterLabel }}
             </el-button>
-          </div>
-          <el-scrollbar max-height="260px">
-            <el-checkbox-group v-model="selectedGroupNodeIds" class="group-filter-popover__options">
-              <el-checkbox
-                v-for="option in groupOptions"
-                :key="option.value"
-                :value="option.value"
+          </template>
+          <div class="group-filter-popover">
+            <div class="group-filter-popover__header">
+              <span>显示设备分组</span>
+              <el-button
+                v-if="selectedGroupNodeIds.length"
+                link
+                type="primary"
+                :icon="X"
+                @click="clearGroupFilter"
               >
-                {{ option.label }}
-              </el-checkbox>
-            </el-checkbox-group>
-          </el-scrollbar>
-          <el-empty
-            v-if="!groupOptions.length"
-            description="暂无可筛选分组"
-            :image-size="48"
-          />
-        </div>
-      </el-popover>
+                显示全部
+              </el-button>
+            </div>
+            <el-scrollbar max-height="260px">
+              <el-checkbox-group v-model="selectedGroupNodeIds" class="group-filter-popover__options">
+                <el-checkbox
+                  v-for="option in groupOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </el-checkbox>
+              </el-checkbox-group>
+            </el-scrollbar>
+            <el-empty
+              v-if="!groupOptions.length"
+              description="暂无可筛选分组"
+              :image-size="48"
+            />
+          </div>
+        </el-popover>
+      </div>
     </div>
     <el-alert
       v-if="!loading && emptyMessage"
@@ -546,6 +564,15 @@ watch(
               {{ compactStatusLabel(data.loginStatus) }}
             </el-tag>
           </el-tooltip>
+          <el-tag
+            v-else-if="data.accountCount !== undefined"
+            size="small"
+            type="info"
+            effect="plain"
+            round
+          >
+            {{ data.accountCount }} 个
+          </el-tag>
         </span>
       </template>
     </el-tree-v2>
@@ -577,9 +604,33 @@ watch(
   border-bottom: 1px solid #dbe4f0;
   background: rgb(248 250 252 / 96%);
   backdrop-filter: blur(4px);
+}
+
+.account-tree-select__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+  color: #65778a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.account-tree-select__summary strong {
+  margin-left: 3px;
+  color: #1f668f;
+  font-size: 13px;
+}
+
+.account-tree-select__filters {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.account-tree-select__filters :deep(.el-input) {
+  min-width: 0;
+  flex: 1;
 }
 
 .account-tree-select__filter-button {
