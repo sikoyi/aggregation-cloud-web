@@ -79,15 +79,16 @@ const scriptRemoteSelect = {
 
 const taskTemplateScriptRemoteSelect = {
   ...scriptRemoteSelect,
-  params: (context?: AnyRecord) => ({
-    ...scriptRemoteSelect.params(context),
+  // 模板必须先选脚本，再由脚本支持范围约束平台和供应商，不能反向使用系统默认值过滤脚本。
+  params: () => ({
+    status: "enabled",
     template_eligible: true,
   }),
-  matchesContext: (script: AnyRecord, context?: AnyRecord) => (
+  matchesContext: (script: AnyRecord) => (
     ["general_task", "account_registration"].includes(String(script.purpose))
-    && scriptMatchesContext(script, context)
+    && scriptMatchesContext(script)
   ),
-  emptyText: "当前范围暂无可用于任务模板的普通任务或账号注册脚本",
+  emptyText: "暂无可用于任务模板的普通任务或账号注册脚本",
 };
 
 const slotResourceGrouping = {

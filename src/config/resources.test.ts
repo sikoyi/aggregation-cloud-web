@@ -191,3 +191,39 @@ describe('设备管理筛选', () => {
     ])
   })
 })
+describe('任务模板脚本范围联动', () => {
+  const fields = resources.taskTemplates.createFields || []
+  const scriptField = fields.find((field) => field.key === 'script_key')
+
+  it('选择脚本前不使用系统默认平台和供应商过滤 VMOS 脚本', () => {
+    const params = typeof scriptField?.remote?.params === 'function'
+      ? scriptField.remote.params({
+        business_platform: 'threads',
+        runtime_platform: 'fingerprint_browser',
+        provider: 'morelogin',
+      })
+      : scriptField?.remote?.params
+    const matches = scriptField?.remote?.matchesContext?.({
+      status: 'enabled',
+      purpose: 'general_task',
+      supported_business_platforms: ['threads'],
+      supported_runtime_platforms: ['cloud_phone'],
+      supported_providers: ['vmos'],
+    }, {
+      business_platform: 'threads',
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+    })
+
+    expect(params).toEqual({ status: 'enabled', template_eligible: true })
+    expect(matches).toBe(true)
+  })
+
+  it('选中脚本后执行平台和供应商仍由脚本支持范围约束', () => {
+    const runtimeField = fields.find((field) => field.key === 'runtime_platform')
+    const providerField = fields.find((field) => field.key === 'provider')
+
+    expect(runtimeField?.scriptScopeKey).toBe('supported_runtime_platforms')
+    expect(providerField?.scriptScopeKey).toBe('supported_providers')
+  })
+})
