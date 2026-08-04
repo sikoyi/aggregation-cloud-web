@@ -57,12 +57,17 @@ function targetContentMatchesContext(content: AnyRecord, context?: AnyRecord) {
   return String(content.author_account_id || "") === String(context.main_account_id);
 }
 
+function runtimePlatformLabel(value: unknown) {
+  const platform = String(value || "");
+  return runtimePlatformOptions.find((option) => option.value === platform)?.label || platform;
+}
+
 function scriptRuntimePlatformLabel(script: AnyRecord) {
   const values = Array.isArray(script.supported_runtime_platforms)
     ? script.supported_runtime_platforms.map(String)
     : [];
   return values
-    .map((value) => runtimePlatformOptions.find((option) => option.value === value)?.label || value)
+    .map((value) => runtimePlatformLabel(value))
     .join("、");
 }
 
@@ -462,7 +467,7 @@ const taskTemplateRemoteSelect = {
   valueKey: "id",
   detailPath: (value: string) =>
     `/api/task-templates/${encodeURIComponent(value)}`,
-  secondaryKey: "script_key",
+  secondaryFormatter: (template: AnyRecord) => runtimePlatformLabel(template.runtime_platform),
   searchParam: "keyword",
   params: { status: "enabled" },
   pageSize: 50,

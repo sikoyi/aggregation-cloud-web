@@ -39,6 +39,23 @@ describe('脚本执行平台约束', () => {
   })
 })
 
+describe('任务模板选择展示', () => {
+  it('下发和筛选模板时展示中文执行平台', () => {
+    const createTemplateField = (resources.tasks.createFields || [])
+      .find((field) => field.key === 'template_id')
+    const filterTemplateField = (resources.tasks.filters || [])
+      .find((field) => field.key === 'template_id')
+
+    expect(createTemplateField?.remote).toBe(filterTemplateField?.remote)
+    expect(createTemplateField?.remote?.secondaryFormatter?.({
+      id: '12',
+      name: '云手机注册模板',
+      script_key: 'threads-register',
+      runtime_platform: 'cloud_phone',
+    })).toBe('云手机')
+  })
+})
+
 
 describe('互动会话操作', () => {
   const retryAction = resources.interactionSessions.rowActions?.find((action) => action.key === 'retry')
