@@ -175,6 +175,22 @@ const accountRemoteSelect = {
   group: accountResourceGrouping,
 };
 
+const monitoredAccountRemoteSelect = {
+  endpoint: "/api/accounts/data-overview",
+  labelKeys: ["account_name", "username", "display_name", "login_username"],
+  valueKey: "account_id",
+  detailPath: (value: string) => `/api/accounts/${encodeURIComponent(value)}`,
+  secondaryKeys: ["profile_url", "last_success_at"],
+  searchParam: "keyword",
+  params: (context?: AnyRecord) => ({
+    business_platform: context?.business_platform || "threads",
+    monitor_state: "monitoring",
+  }),
+  pageSize: 100,
+  clearWhenMissing: true,
+  emptyText: "暂无正常监听中的账号，请先在账号数据中开启监听并完成采集",
+};
+
 const accountMultiSelect = {
   ...accountRemoteSelect,
   multiple: true,
@@ -362,8 +378,10 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     content_mode,
     custom_contents_text,
     target_source_type,
+    square_target_account_id,
     ...sessionPayload
   } = payload;
+  const interactionMode = String(sessionPayload.interaction_mode || "conversation");
   const sourceType = String(target_source_type || "system_content");
   const targetContentId = String(sessionPayload.target_content_id || "").trim();
   let targetContentUrl = String(sessionPayload.target_content_url || "").trim();
@@ -373,13 +391,16 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     .split(/\r?\n\s*\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
-  if (sourceType === "direct_url" && !targetContentUrl) {
+  if (interactionMode === "square_numeric" && !String(square_target_account_id || "").trim()) {
+    throw new Error("请选择已开启监听的目标账号");
+  }
+  if (interactionMode === "conversation" && sourceType === "direct_url" && !targetContentUrl) {
     throw new Error("请填写目标帖子链接");
   }
-  if (sourceType === "system_content" && !targetContentId) {
+  if (interactionMode === "conversation" && sourceType === "system_content" && !targetContentId) {
     throw new Error("请选择目标内容");
   }
-  if (sourceType === "direct_url" && String(sessionPayload.business_platform || "") === "threads") {
+  if (interactionMode === "conversation" && sourceType === "direct_url" && String(sessionPayload.business_platform || "") === "threads") {
     targetContentUrl = normalizeThreadsPostUrl(targetContentUrl);
   }
   if (contentMode === "ai" && !aiProvider) {
@@ -395,12 +416,17 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   }
   return {
     ...sessionPayload,
+    interaction_mode: interactionMode,
+    main_account_id: interactionMode === "square_numeric"
+      ? String(square_target_account_id || "").trim()
+      : String(sessionPayload.main_account_id || "").trim(),
+    step_count: interactionMode === "square_numeric" ? 1 : Number(sessionPayload.step_count || 1),
     step_delay_min_minutes: delayMinMinutes,
     step_delay_max_minutes: delayMaxMinutes,
-    target_content_id: sourceType === "system_content" ? targetContentId : null,
-    target_content_url: sourceType === "direct_url" ? targetContentUrl : null,
-    content_mode: contentMode,
-    custom_contents: contentMode === "custom" ? customContents : [],
+    target_content_id: interactionMode === "conversation" && sourceType === "system_content" ? targetContentId : null,
+    target_content_url: interactionMode === "conversation" && sourceType === "direct_url" ? targetContentUrl : null,
+    content_mode: interactionMode === "square_numeric" ? "ai" : contentMode,
+    custom_contents: interactionMode === "conversation" && contentMode === "custom" ? customContents : [],
     ai_config: {
       provider: aiProvider || "gemini",
       language: String(ai_language || "auto"),
@@ -2219,6 +2245,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "会话名称", minWidth: 220 },
+      { key: "interaction_mode", label: "互动场景", type: "status", options: [{ label: "对话互动", value: "conversation" }, { label: "广场数字互动", value: "square_numeric" }], minWidth: 130, align: "center" },
       { key: "target_content_title", label: "目标内容", minWidth: 220 },
       {
         key: "content_mode",
@@ -2261,6 +2288,18 @@ export const resources: Record<string, ResourceConfig> = {
     createFields: [
       { key: "title", label: "会话名称", required: true },
       {
+        key: "interaction_mode",
+        label: "互动场景",
+        type: "segmented",
+        defaultValue: "conversation",
+        required: true,
+        span: 2,
+        options: [
+          { label: "对话互动", value: "conversation" },
+          { label: "广场数字互动", value: "square_numeric" },
+        ],
+      },
+      {
         key: "business_platform",
         label: "业务 App",
         type: "select",
@@ -2275,8 +2314,19 @@ export const resources: Record<string, ResourceConfig> = {
         multiple: false,
         accountTreeGroupByDevice: true,
         accountTreeGroupFilterPreferenceKey: "interaction-main-device-groups",
-        required: true,
+        visibleWhen: { key: "interaction_mode", value: "conversation" },
+        requiredWhen: { key: "interaction_mode", value: "conversation" },
         span: 2,
+      },
+      {
+        key: "square_target_account_id",
+        label: "目标监听账号",
+        type: "remoteSelect",
+        remote: monitoredAccountRemoteSelect,
+        visibleWhen: { key: "interaction_mode", value: "square_numeric" },
+        requiredWhen: { key: "interaction_mode", value: "square_numeric" },
+        span: 2,
+        placeholder: "仅展示正常监听中的 Threads 账号",
       },
       {
         key: "comment_account_ids",
@@ -2297,6 +2347,7 @@ export const resources: Record<string, ResourceConfig> = {
         max: 20,
         step: 1,
         required: true,
+        visibleWhen: { key: "interaction_mode", value: "conversation" },
         placeholder: "默认 1 轮，增加轮次后按主号和评论号交替回复",
       },
       {
@@ -2346,6 +2397,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "segmented",
         defaultValue: "system_content",
         required: true,
+        visibleWhen: { key: "interaction_mode", value: "conversation" },
         span: 2,
         options: [
           { label: "系统已发布内容", value: "system_content" },
@@ -2357,7 +2409,10 @@ export const resources: Record<string, ResourceConfig> = {
         label: "目标内容",
         type: "remoteSelect",
         remote: interactionTargetContentRemoteSelect,
-        visibleWhen: { key: "target_source_type", value: "system_content" },
+        visibleWhenAll: [
+          { key: "interaction_mode", value: "conversation" },
+          { key: "target_source_type", value: "system_content" },
+        ],
         requiredWhen: { key: "target_source_type", value: "system_content" },
         span: 2,
         placeholder: "从主号已发布内容中选择目标帖子",
@@ -2365,7 +2420,10 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "target_content_url",
         label: "目标帖子链接",
-        visibleWhen: { key: "target_source_type", value: "direct_url" },
+        visibleWhenAll: [
+          { key: "interaction_mode", value: "conversation" },
+          { key: "target_source_type", value: "direct_url" },
+        ],
         requiredWhen: { key: "target_source_type", value: "direct_url" },
         span: 2,
         placeholder: "例如：https://www.threads.com/@用户名/post/帖子ID",
@@ -2376,6 +2434,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "segmented",
         defaultValue: "ai",
         required: true,
+        visibleWhen: { key: "interaction_mode", value: "conversation" },
         span: 2,
         options: [
           { label: "AI 生成", value: "ai" },
@@ -2386,7 +2445,10 @@ export const resources: Record<string, ResourceConfig> = {
         key: "custom_contents_text",
         label: "自定义评论内容",
         type: "textarea",
-        visibleWhen: { key: "content_mode", value: "custom" },
+        visibleWhenAll: [
+          { key: "interaction_mode", value: "conversation" },
+          { key: "content_mode", value: "custom" },
+        ],
         requiredWhen: { key: "content_mode", value: "custom" },
         span: 2,
         placeholder: "每段一条文案，文案之间空一行。系统按评论账号和互动轮次依次分配，数量不足时循环使用。",
@@ -2406,7 +2468,10 @@ export const resources: Record<string, ResourceConfig> = {
         label: "生成语言",
         type: "select",
         defaultValue: "auto",
-        visibleWhen: { key: "content_mode", value: "ai" },
+        visibleWhenAll: [
+          { key: "interaction_mode", value: "conversation" },
+          { key: "content_mode", value: "ai" },
+        ],
         options: [
           { label: "跟随帖子与对话", value: "auto" },
           { label: "英文", value: "en" },
@@ -2418,7 +2483,10 @@ export const resources: Record<string, ResourceConfig> = {
         label: "文案语气",
         type: "select",
         defaultValue: "natural",
-        visibleWhen: { key: "content_mode", value: "ai" },
+        visibleWhenAll: [
+          { key: "interaction_mode", value: "conversation" },
+          { key: "content_mode", value: "ai" },
+        ],
         options: [
           { label: "自然交流", value: "natural" },
           { label: "友好亲切", value: "friendly" },
@@ -2433,7 +2501,10 @@ export const resources: Record<string, ResourceConfig> = {
         label: "单条最大长度",
         type: "number",
         defaultValue: 120,
-        visibleWhen: { key: "content_mode", value: "ai" },
+        visibleWhenAll: [
+          { key: "interaction_mode", value: "conversation" },
+          { key: "content_mode", value: "ai" },
+        ],
         min: 20,
         max: 500,
         step: 10,

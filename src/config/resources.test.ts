@@ -112,11 +112,73 @@ describe('互动会话文案来源', () => {
     const aiField = fields.find((field) => field.key === 'ai_provider')
 
     expect(modeField?.options?.map((option) => option.value)).toEqual(['ai', 'custom'])
-    expect(customField?.visibleWhen).toEqual({ key: 'content_mode', value: 'custom' })
+    expect(customField?.visibleWhenAll).toEqual([
+      { key: 'interaction_mode', value: 'conversation' },
+      { key: 'content_mode', value: 'custom' },
+    ])
     expect(aiField?.visibleWhen).toEqual({ key: 'content_mode', value: 'ai' })
   })
 })
 
+describe('广场数字互动', () => {
+  const fields = resources.interactionSessions.createFields || []
+
+  it('只展示正常监听目标账号并使用独立脚本场景', () => {
+    const modeField = fields.find((field) => field.key === 'interaction_mode')
+    const targetField = fields.find((field) => field.key === 'square_target_account_id')
+    const stepField = fields.find((field) => field.key === 'step_count')
+
+    expect(modeField?.options?.map((option) => option.value)).toEqual([
+      'conversation',
+      'square_numeric',
+    ])
+    expect(targetField?.visibleWhen).toEqual({
+      key: 'interaction_mode',
+      value: 'square_numeric',
+    })
+    expect(targetField?.remote?.endpoint).toBe('/api/accounts/data-overview')
+    const remoteParams = targetField?.remote?.params
+    expect(typeof remoteParams).toBe('function')
+    expect(
+      typeof remoteParams === 'function'
+        ? remoteParams({ business_platform: 'threads' })
+        : remoteParams,
+    ).toEqual({
+      business_platform: 'threads',
+      monitor_state: 'monitoring',
+    })
+    expect(stepField?.visibleWhen).toEqual({
+      key: 'interaction_mode',
+      value: 'conversation',
+    })
+  })
+
+  it('提交时固定为单步数字互动并清理普通会话字段', () => {
+    const body = resources.interactionSessions.createBody?.({
+      title: 'Square numeric interaction',
+      interaction_mode: 'square_numeric',
+      business_platform: 'threads',
+      square_target_account_id: '10',
+      comment_account_ids: ['22'],
+      step_count: 8,
+      content_mode: 'custom',
+      custom_contents_text: 'stale content',
+      target_source_type: 'system_content',
+      target_content_id: 'old-content',
+      step_delay_min_minutes: 0,
+      step_delay_max_minutes: 1,
+      ai_provider: 'openai',
+    }) as Record<string, unknown>
+
+    expect(body.main_account_id).toBe('10')
+    expect(body.step_count).toBe(1)
+    expect(body.content_mode).toBe('ai')
+    expect(body.custom_contents).toEqual([])
+    expect(body.target_content_id).toBeNull()
+    expect(body.target_content_url).toBeNull()
+    expect(body).not.toHaveProperty('square_target_account_id')
+  })
+})
 describe('代理协议选项', () => {
   it('分别提供 Socks5、HTTP 和 HTTPS', () => {
     expect(proxyProtocolOptions.map((option) => option.value)).toEqual(['socks5', 'http', 'https'])

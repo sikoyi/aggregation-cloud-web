@@ -31,6 +31,8 @@ const session = computed<AnyRecord | null>(() => {
   const value = detail.value?.session
   return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : null
 })
+const interactionMode = computed(() => String(session.value?.interaction_mode || 'conversation'))
+const isSquareNumeric = computed(() => interactionMode.value === 'square_numeric')
 const contentMode = computed(() => String(session.value?.content_mode || 'ai'))
 const aiProvider = computed(() => String((session.value?.ai_config as AnyRecord | undefined)?.provider || 'gemini'))
 const steps = computed<AnyRecord[]>(() => Array.isArray(detail.value?.steps) ? detail.value.steps : [])
@@ -173,23 +175,35 @@ onBeforeUnmount(() => {
         </div>
 
         <el-descriptions :column="2" border class="mb-4">
+          <el-descriptions-item label="互动场景">
+            <el-tag size="small" type="primary" effect="light">
+              {{ isSquareNumeric ? '广场数字互动' : '对话互动' }}
+            </el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="目标内容">
             {{ text(session.target_content_title || session.target_platform_content_id || session.target_content_url) }}
           </el-descriptions-item>
-          <el-descriptions-item label="主号">{{ text(session.main_account_name || session.main_account_id) }}</el-descriptions-item>
-          <el-descriptions-item label="首次评论脚本">
+          <el-descriptions-item :label="isSquareNumeric ? '目标监听账号' : '主号'">
+            {{ text(session.main_account_name || session.main_account_id) }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="isSquareNumeric ? '广场执行脚本' : '首次评论脚本'">
             <el-tag size="small" effect="plain">{{ text(session.initial_comment_script_key) }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="后续回复脚本">
+          <el-descriptions-item v-if="!isSquareNumeric" label="后续回复脚本">
             <el-tag size="small" effect="plain">{{ text(session.reply_script_key) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item v-else label="数字口令">
+            <el-tag size="small" type="success" effect="light">
+              {{ text((session.params as AnyRecord | undefined)?.square_numeric_reply) }}
+            </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
           <el-descriptions-item label="延迟下发范围">{{ dispatchDelayText }}</el-descriptions-item>
           <el-descriptions-item label="随机点赞概率">{{ text(session.like_probability) }}%</el-descriptions-item>
-          <el-descriptions-item label="文案来源">
+          <el-descriptions-item :label="isSquareNumeric ? '口令来源' : '文案来源'">
             <el-tag size="small" :type="contentMode === 'custom' ? 'success' : 'primary'" effect="light">
-              {{ contentMode === 'custom' ? '自定义内容' : 'AI 生成' }}
+              {{ isSquareNumeric ? 'AI 识别' : (contentMode === 'custom' ? '自定义内容' : 'AI 生成') }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item v-if="contentMode === 'ai'" label="AI 供应商">
