@@ -44,6 +44,7 @@ function relationLabel(item: AnyRecord | null) {
 }
 
 function relationSecondary(item: AnyRecord | null) {
+  if (item && props.config.secondaryFormatter) return props.config.secondaryFormatter(item)
   const keys = props.config.secondaryKeys || (props.config.secondaryKey ? [props.config.secondaryKey] : [])
   return fieldValue(item, keys)
 }

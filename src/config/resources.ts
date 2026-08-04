@@ -57,13 +57,22 @@ function targetContentMatchesContext(content: AnyRecord, context?: AnyRecord) {
   return String(content.author_account_id || "") === String(context.main_account_id);
 }
 
+function scriptRuntimePlatformLabel(script: AnyRecord) {
+  const values = Array.isArray(script.supported_runtime_platforms)
+    ? script.supported_runtime_platforms.map(String)
+    : [];
+  return values
+    .map((value) => runtimePlatformOptions.find((option) => option.value === value)?.label || value)
+    .join("、");
+}
+
 const scriptRemoteSelect = {
   endpoint: "/api/scripts",
   labelKey: "name",
   valueKey: "script_key",
   detailPath: (value: string) =>
     `/api/scripts/by-key/${encodeURIComponent(value)}`,
-  secondaryKey: "script_key",
+  secondaryFormatter: scriptRuntimePlatformLabel,
   searchParam: "keyword",
   params: (context?: AnyRecord) => ({
     status: "enabled",
@@ -480,6 +489,13 @@ function pickPayload(payload: AnyRecord, keys: string[]) {
   }, {});
 }
 
+function buildScriptBody(payload: AnyRecord, keys: string[]) {
+  const body = pickPayload(payload, keys);
+  const runtimePlatform = String(payload.supported_runtime_platforms || "").trim();
+  body.supported_runtime_platforms = runtimePlatform ? [runtimePlatform] : [];
+  return body;
+}
+
 async function createScriptParams(
   createdScript: AnyRecord,
   payload: AnyRecord,
@@ -493,7 +509,14 @@ async function loadScriptForEdit(record: AnyRecord) {
   const detail = await http.get<{ script: AnyRecord; params: AnyRecord[] }>(
     `/api/scripts/${record.id}/detail`,
   );
-  return { ...detail.script, params: detail.params || [] };
+  const runtimePlatform = Array.isArray(detail.script.supported_runtime_platforms)
+    ? String(detail.script.supported_runtime_platforms[0] || "")
+    : String(detail.script.supported_runtime_platforms || "");
+  return {
+    ...detail.script,
+    supported_runtime_platforms: runtimePlatform,
+    params: detail.params || [],
+  };
 }
 
 async function updateScriptParams(
@@ -2764,11 +2787,11 @@ export const resources: Record<string, ResourceConfig> = {
       },
       {
         key: "supported_runtime_platforms",
-        label: "执行平台范围",
+        label: "执行平台",
         type: "select",
-        multiple: true,
         options: runtimePlatformOptions,
-        defaultValue: ["fingerprint_browser"],
+        defaultValue: "fingerprint_browser",
+        required: true,
       },
       {
         key: "supported_providers",
@@ -2802,10 +2825,10 @@ export const resources: Record<string, ResourceConfig> = {
         span: 2,
       },
     ],
-    createBody: (payload) => pickPayload(payload, scriptCreateKeys),
+    createBody: (payload) => buildScriptBody(payload, scriptCreateKeys),
     afterCreate: createScriptParams,
     loadEditRecord: loadScriptForEdit,
-    updateBody: (payload) => pickPayload(payload, scriptUpdateKeys),
+    updateBody: (payload) => buildScriptBody(payload, scriptUpdateKeys),
     afterUpdate: updateScriptParams,
     updateFields: [
       { key: "name", label: "脚本名称" },
@@ -2823,10 +2846,10 @@ export const resources: Record<string, ResourceConfig> = {
       },
       {
         key: "supported_runtime_platforms",
-        label: "执行平台范围",
+        label: "执行平台",
         type: "select",
-        multiple: true,
         options: runtimePlatformOptions,
+        required: true,
       },
       {
         key: "supported_providers",

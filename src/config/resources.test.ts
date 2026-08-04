@@ -4,6 +4,42 @@ import { proxyProtocolOptions, scriptPurposeOptions } from './options'
 import { resources } from './resources'
 
 
+describe('脚本执行平台约束', () => {
+  const createFields = resources.scripts.createFields || []
+  const updateFields = resources.scripts.updateFields || []
+  const createRuntimeField = createFields.find((field) => field.key === 'supported_runtime_platforms')
+  const updateRuntimeField = updateFields.find((field) => field.key === 'supported_runtime_platforms')
+
+  it('新建和编辑脚本均只允许选择一个执行平台', () => {
+    expect(createRuntimeField?.multiple).not.toBe(true)
+    expect(updateRuntimeField?.multiple).not.toBe(true)
+    expect(createRuntimeField?.required).toBe(true)
+    expect(updateRuntimeField?.required).toBe(true)
+  })
+
+  it('提交时保持后端单元素数组结构', () => {
+    const body = resources.scripts.createBody?.({
+      script_key: 'cloud-phone-script',
+      name: '云手机脚本',
+      supported_runtime_platforms: 'cloud_phone',
+    }) as Record<string, unknown>
+
+    expect(body.supported_runtime_platforms).toEqual(['cloud_phone'])
+  })
+
+  it('脚本下拉展示中文执行平台而不是脚本 Key', () => {
+    const templateScriptField = (resources.taskTemplates.createFields || [])
+      .find((field) => field.key === 'script_key')
+    const formatter = templateScriptField?.remote?.secondaryFormatter
+
+    expect(formatter?.({
+      script_key: 'threads-cloud-phone',
+      supported_runtime_platforms: ['cloud_phone'],
+    })).toBe('云手机')
+  })
+})
+
+
 describe('互动会话操作', () => {
   const retryAction = resources.interactionSessions.rowActions?.find((action) => action.key === 'retry')
   const cancelAction = resources.interactionSessions.rowActions?.find((action) => action.key === 'cancel')
