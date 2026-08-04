@@ -85,6 +85,7 @@ export interface RemoteSelectConfig {
   multiple?: boolean
   clearWhenMissing?: boolean
   matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
+  optionDisabled?: (option: AnyRecord, context?: AnyRecord) => boolean
   emptyText?: string | ((context?: AnyRecord) => string)
   group?: RemoteSelectGroupConfig
   create?: RemoteSelectCreateConfig

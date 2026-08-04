@@ -123,6 +123,10 @@ function optionStatus(option: AnyRecord) {
   return props.config.statusKey ? option[props.config.statusKey] : undefined
 }
 
+function optionDisabled(option: AnyRecord) {
+  return Boolean(props.config.optionDisabled?.(option, props.context))
+}
+
 function groupValue(group: AnyRecord) {
   return String(group[props.config.group?.valueKey || 'id'] ?? '')
 }
@@ -453,6 +457,7 @@ async function updateSelected(value: string | string[]) {
         :key="optionValue(option)"
         :label="optionLabel(option)"
         :value="optionValue(option)"
+        :disabled="optionDisabled(option)"
       >
         <div class="remote-select-option">
           <span class="remote-select-option__label">{{ optionLabel(option) }}</span>

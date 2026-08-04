@@ -187,6 +187,20 @@ const slotMultiSelect = {
   multiple: true,
 };
 
+const runtimeSlotSyncRemoteSelect = {
+  endpoint: "/api/runtimes",
+  labelKeys: ["runtime_id", "ip"],
+  valueKey: "id",
+  detailPath: (value: string) => `/api/runtimes/${encodeURIComponent(value)}`,
+  secondaryKeys: ["provider", "runtime_platform", "ip"],
+  statusKey: "status",
+  searchParam: "keyword",
+  pageSize: 100,
+  multiple: true,
+  optionDisabled: (runtime: AnyRecord) => runtime.status !== "online",
+  emptyText: "暂无 Runtime，请先启动脚本端并完成连接",
+};
+
 const onlineFingerprintRuntimeRemoteSelect = {
   endpoint: "/api/runtimes",
   labelKeys: ["runtime_id", "ip"],
@@ -1209,6 +1223,37 @@ export const resources: Record<string, ResourceConfig> = {
     updateBody: (payload) =>
       pickPayload(payload, ["provider_slot_no", "display_name", "business_platform"]),
     afterUpdate: updateSlotGroup,
+    headerActions: [
+      {
+        key: "request-runtime-slot-sync",
+        label: "主动同步",
+        method: "POST",
+        icon: "rotate",
+        path: () => "/api/runtimes/request-slot-sync",
+        refresh: false,
+        successTitle: "主动同步请求已发送",
+        successMessage: (data) => {
+          const notified = Number(data.notified_count || 0);
+          const unavailable = Number(data.unavailable_count || 0);
+          const failed = Number(data.failed_count || 0);
+          return unavailable || failed
+            ? `已通知 ${notified} 个 Runtime，${unavailable + failed} 个未通知`
+            : `已通知 ${notified} 个 Runtime 上传完整设备快照`;
+        },
+        fields: [
+          {
+            key: "runtime_instance_ids",
+            label: "Runtime",
+            type: "remoteSelect",
+            remote: runtimeSlotSyncRemoteSelect,
+            required: true,
+            span: 2,
+            defaultValue: [],
+            placeholder: "搜索并选择在线 Runtime，离线 Runtime 不可选择",
+          },
+        ],
+      },
+    ],
     columns: [
       { key: "provider_slot_id", label: "设备信息", type: "deviceIdentity", minWidth: 220 },
       { key: "group_name", label: "所属分组", type: "deviceGroup", minWidth: 125 },
