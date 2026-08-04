@@ -46,13 +46,37 @@ describe('任务模板选择展示', () => {
     const filterTemplateField = (resources.tasks.filters || [])
       .find((field) => field.key === 'template_id')
 
-    expect(createTemplateField?.remote).toBe(filterTemplateField?.remote)
+    expect(createTemplateField?.remote).not.toBe(filterTemplateField?.remote)
+    expect(filterTemplateField?.remote?.loadWhen).toBeUndefined()
     expect(createTemplateField?.remote?.secondaryFormatter?.({
       id: '12',
       name: '云手机注册模板',
       script_key: 'threads-register',
       runtime_platform: 'cloud_phone',
     })).toBe('云手机')
+  })
+
+  it('下发前必须先选择执行平台并据此筛选模板', () => {
+    const fields = resources.tasks.createFields || []
+    const platformIndex = fields.findIndex((field) => field.key === 'runtime_platform')
+    const templateIndex = fields.findIndex((field) => field.key === 'template_id')
+    const platformField = fields[platformIndex]
+    const templateField = fields[templateIndex]
+    const remote = templateField?.remote
+    const params = typeof remote?.params === 'function'
+      ? remote.params({ runtime_platform: 'cloud_phone' })
+      : remote?.params
+
+    expect(platformIndex).toBeGreaterThanOrEqual(0)
+    expect(platformIndex).toBeLessThan(templateIndex)
+    expect(platformField?.required).toBe(true)
+    expect(platformField?.readonly).not.toBe(true)
+    expect(templateField?.disabledWhen).toEqual({ key: 'runtime_platform', value: '' })
+    expect(remote?.loadWhen?.({})).toBe(false)
+    expect(remote?.loadWhen?.({ runtime_platform: 'cloud_phone' })).toBe(true)
+    expect(params).toEqual({ status: 'enabled', runtime_platform: 'cloud_phone' })
+    expect(remote?.matchesContext?.({ runtime_platform: 'cloud_phone' }, { runtime_platform: 'cloud_phone' })).toBe(true)
+    expect(remote?.matchesContext?.({ runtime_platform: 'fingerprint_browser' }, { runtime_platform: 'cloud_phone' })).toBe(false)
   })
 })
 

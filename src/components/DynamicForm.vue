@@ -35,7 +35,20 @@ function updateValue(key: string, value: unknown) {
 async function updateTemplateValue(field: FieldConfig, value: string | string[]) {
   const templateId = Array.isArray(value) ? String(value[0] || '') : String(value || '')
   if (!templateId || !field.remote?.detailPath) {
-    emit('update:modelValue', { ...props.modelValue, [field.key]: templateId })
+    emit('update:modelValue', {
+      ...props.modelValue,
+      [field.key]: templateId,
+      script_key: '',
+      script_purpose: 'general_task',
+      business_platform: '',
+      provider: '',
+      execution_mode: '',
+      execution_count: 1,
+      params: {},
+      slot_ids: [],
+      registration_target_mode: 'existing_slots',
+      concurrent_registration_count: 1,
+    })
     return
   }
 

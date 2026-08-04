@@ -473,6 +473,20 @@ const taskTemplateRemoteSelect = {
   pageSize: 50,
 };
 
+const dispatchTaskTemplateRemoteSelect = {
+  ...taskTemplateRemoteSelect,
+  params: (context?: AnyRecord) => ({
+    status: "enabled",
+    runtime_platform: context?.runtime_platform || undefined,
+  }),
+  loadWhen: (context?: AnyRecord) => Boolean(context?.runtime_platform),
+  clearWhenMissing: true,
+  matchesContext: (template: AnyRecord, context?: AnyRecord) =>
+    !context?.runtime_platform || String(template.runtime_platform) === String(context.runtime_platform),
+  emptyText: (context?: AnyRecord) =>
+    context?.runtime_platform ? "当前执行平台暂无可用任务模板" : "请先选择执行平台",
+};
+
 const scriptCreateKeys = [
   "script_key",
   "name",
@@ -3242,12 +3256,21 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     createFields: [
       {
+        key: "runtime_platform",
+        label: "执行平台",
+        type: "select",
+        options: runtimePlatformOptions,
+        required: true,
+        placeholder: "请先选择执行平台",
+      },
+      {
         key: "template_id",
         label: "任务模板",
         type: "templateSelect",
         required: true,
-        remote: taskTemplateRemoteSelect,
+        remote: dispatchTaskTemplateRemoteSelect,
         placeholder: "请选择任务模板",
+        disabledWhen: { key: "runtime_platform", value: "" },
       },
       {
         key: "script_purpose",
@@ -3269,13 +3292,6 @@ export const resources: Record<string, ResourceConfig> = {
         label: "业务 App",
         type: "select",
         options: businessPlatformOptions,
-        readonly: true,
-      },
-      {
-        key: "runtime_platform",
-        label: "执行平台",
-        type: "select",
-        options: runtimePlatformOptions,
         readonly: true,
       },
       {

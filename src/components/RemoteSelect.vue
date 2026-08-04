@@ -37,6 +37,7 @@ let loadRequestId = 0
 let groupRequestId = 0
 
 const groupEnabled = computed(() => Boolean(props.config.group && !props.compact))
+const canLoad = computed(() => props.config.loadWhen?.(props.context) ?? true)
 
 function resolvedEndpoint() {
   return typeof props.config.endpoint === 'function'
@@ -223,6 +224,11 @@ async function mergeDetailsForCurrentSelection(items: AnyRecord[]) {
 
 async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
   const requestId = ++loadRequestId
+  if (!canLoad.value) {
+    options.value = []
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     const endpoint = resolvedEndpoint()

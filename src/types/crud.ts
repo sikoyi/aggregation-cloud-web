@@ -83,6 +83,7 @@ export interface RemoteSelectConfig {
   statusKey?: string
   params?: AnyRecord | ((context?: AnyRecord) => AnyRecord)
   pageSize?: number
+  loadWhen?: (context?: AnyRecord) => boolean
   multiple?: boolean
   clearWhenMissing?: boolean
   matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
