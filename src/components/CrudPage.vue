@@ -657,6 +657,7 @@ async function openCreate() {
 defineExpose({
   loadRows,
   openCreate,
+  runHeaderAction,
 })
 
 async function openEdit(record: AnyRecord) {

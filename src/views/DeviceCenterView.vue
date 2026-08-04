@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Boxes, Layers3, Plus, RefreshCw } from 'lucide-vue-next'
+import { Boxes, Layers3, Plus, RefreshCw, RotateCcw } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -40,6 +40,11 @@ function openActiveCreate() {
   activePage.value?.openCreate()
 }
 
+function openSlotSync() {
+  const action = slotConfig.value.headerActions?.find((item) => item.key === 'request-runtime-slot-sync')
+  if (action) slotPageRef.value?.runHeaderAction(action)
+}
+
 watch(
   () => route.query.tab,
   (tab) => {
@@ -65,6 +70,13 @@ watch(
           <el-tooltip content="刷新" placement="bottom">
             <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
           </el-tooltip>
+          <el-button
+            v-if="activeTab === 'slots'"
+            :icon="RotateCcw"
+            @click="openSlotSync"
+          >
+            主动同步
+          </el-button>
           <el-button type="primary" :icon="Plus" @click="openActiveCreate">
             {{ activeCreateLabel }}
           </el-button>
