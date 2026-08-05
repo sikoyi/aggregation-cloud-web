@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
+import { groupInteractionDispatchFields } from '@/utils/interactionDispatchFields'
 
 const props = defineProps<{
   mode: 'task' | 'published' | 'interaction'
@@ -33,29 +34,13 @@ const registrationAttemptTotal = computed(() => (
 ))
 const publishedAccountFields = computed(() => props.fields.filter((field) => field.type === 'accountTree'))
 const publishedParamFields = computed(() => props.fields.filter((field) => field.type !== 'accountTree'))
-const interactionMainFields = computed(() => props.fields.filter((field) => field.key === 'main_account_id'))
-const interactionCommentFields = computed(() => props.fields.filter((field) => field.key === 'comment_account_ids'))
-const interactionParamFields = computed(() => {
-  const keys = new Set([
-    'title',
-    'business_platform',
-    'step_count',
-    'step_delay_min_minutes',
-    'like_probability',
-    'runtime_platform',
-    'provider',
-    'target_source_type',
-    'target_content_id',
-    'target_content_url',
-    'content_mode',
-    'custom_contents_text',
-    'ai_provider',
-    'ai_language',
-    'ai_tone',
-    'ai_max_length',
-  ])
-  return props.fields.filter((field) => keys.has(field.key))
-})
+const interactionFieldGroups = computed(() => groupInteractionDispatchFields(props.fields))
+const interactionMainFields = computed(() => interactionFieldGroups.value.main)
+const interactionCommentFields = computed(() => interactionFieldGroups.value.comment)
+const interactionParamFields = computed(() => interactionFieldGroups.value.params)
+const interactionMainTitle = computed(() => (
+  props.modelValue.interaction_mode === 'square_numeric' ? '目标监听账号' : '主号设备'
+))
 
 function updateValue(value: AnyRecord) {
   emit('update:modelValue', value)
@@ -116,7 +101,7 @@ function updateValue(value: AnyRecord) {
 
   <div v-else class="interaction-layout">
     <div class="dispatch-panel dispatch-panel--account">
-      <div class="dispatch-panel__title">主号设备</div>
+      <div class="dispatch-panel__title">{{ interactionMainTitle }}</div>
       <DynamicForm
         :model-value="modelValue"
         :fields="interactionMainFields"
