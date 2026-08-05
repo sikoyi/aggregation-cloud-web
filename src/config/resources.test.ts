@@ -116,7 +116,10 @@ describe('互动会话文案来源', () => {
       { key: 'interaction_mode', value: 'conversation' },
       { key: 'content_mode', value: 'custom' },
     ])
-    expect(aiField?.visibleWhen).toEqual({ key: 'content_mode', value: 'ai' })
+    expect(aiField?.visibleWhenAll).toEqual([
+      { key: 'interaction_mode', value: 'conversation' },
+      { key: 'content_mode', value: 'ai' },
+    ])
   })
 })
 
@@ -127,6 +130,7 @@ describe('广场数字互动', () => {
     const modeField = fields.find((field) => field.key === 'interaction_mode')
     const targetField = fields.find((field) => field.key === 'square_target_account_id')
     const stepField = fields.find((field) => field.key === 'step_count')
+    const browseField = fields.find((field) => field.key === 'browse_duration_minutes')
 
     expect(modeField?.options?.map((option) => option.value)).toEqual([
       'conversation',
@@ -151,6 +155,11 @@ describe('广场数字互动', () => {
       key: 'interaction_mode',
       value: 'conversation',
     })
+    expect(browseField?.defaultValue).toBe(10)
+    expect(browseField?.visibleWhen).toEqual({
+      key: 'interaction_mode',
+      value: 'square_numeric',
+    })
   })
 
   it('提交时固定为单步数字互动并清理普通会话字段', () => {
@@ -167,6 +176,7 @@ describe('广场数字互动', () => {
       target_content_id: 'old-content',
       step_delay_min_minutes: 0,
       step_delay_max_minutes: 1,
+      browse_duration_minutes: 400,
       ai_provider: 'openai',
     }) as Record<string, unknown>
 
@@ -176,6 +186,8 @@ describe('广场数字互动', () => {
     expect(body.custom_contents).toEqual([])
     expect(body.target_content_id).toBeNull()
     expect(body.target_content_url).toBeNull()
+    expect(body.browse_duration_minutes).toBe(400)
+    expect(body).not.toHaveProperty('ai_config')
     expect(body).not.toHaveProperty('square_target_account_id')
   })
 })

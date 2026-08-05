@@ -403,7 +403,7 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   if (interactionMode === "conversation" && sourceType === "direct_url" && String(sessionPayload.business_platform || "") === "threads") {
     targetContentUrl = normalizeThreadsPostUrl(targetContentUrl);
   }
-  if (contentMode === "ai" && !aiProvider) {
+  if (interactionMode === "conversation" && contentMode === "ai" && !aiProvider) {
     throw new Error("暂无已启用的互动 AI，请先到系统配置中启用");
   }
   if (contentMode === "custom" && !customContents.length) {
@@ -411,6 +411,7 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   }
   const delayMinMinutes = Number(sessionPayload.step_delay_min_minutes ?? 0);
   const delayMaxMinutes = Number(sessionPayload.step_delay_max_minutes ?? 1);
+  const browseDurationMinutes = Number(sessionPayload.browse_duration_minutes ?? 10);
   if (delayMinMinutes > delayMaxMinutes) {
     throw new Error("最短延迟不能大于最长延迟");
   }
@@ -423,16 +424,21 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     step_count: interactionMode === "square_numeric" ? 1 : Number(sessionPayload.step_count || 1),
     step_delay_min_minutes: delayMinMinutes,
     step_delay_max_minutes: delayMaxMinutes,
+    browse_duration_minutes: browseDurationMinutes,
     target_content_id: interactionMode === "conversation" && sourceType === "system_content" ? targetContentId : null,
     target_content_url: interactionMode === "conversation" && sourceType === "direct_url" ? targetContentUrl : null,
     content_mode: interactionMode === "square_numeric" ? "ai" : contentMode,
     custom_contents: interactionMode === "conversation" && contentMode === "custom" ? customContents : [],
-    ai_config: {
-      provider: aiProvider || "gemini",
-      language: String(ai_language || "auto"),
-      tone: String(ai_tone || "natural"),
-      max_length: Number(ai_max_length || 120),
-    },
+    ...(interactionMode === "conversation"
+      ? {
+          ai_config: {
+            provider: aiProvider || "gemini",
+            language: String(ai_language || "auto"),
+            tone: String(ai_tone || "natural"),
+            max_length: Number(ai_max_length || 120),
+          },
+        }
+      : {}),
   };
 }
 
@@ -2359,6 +2365,18 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "0 表示不点赞，100 表示每次都点赞",
       },
       {
+        key: "browse_duration_minutes",
+        label: "浏览时间（分钟）",
+        type: "number",
+        defaultValue: 10,
+        min: 1,
+        max: 1440,
+        step: 1,
+        required: true,
+        visibleWhen: { key: "interaction_mode", value: "square_numeric" },
+        placeholder: "脚本在广场持续浏览和匹配目标帖子的时间",
+      },
+      {
         key: "runtime_platform",
         label: "执行平台",
         type: "select",
@@ -2441,7 +2459,10 @@ export const resources: Record<string, ResourceConfig> = {
         label: "AI 供应商",
         type: "select",
         defaultValue: "",
-        visibleWhen: { key: "content_mode", value: "ai" },
+        visibleWhenAll: [
+          { key: "interaction_mode", value: "conversation" },
+          { key: "content_mode", value: "ai" },
+        ],
         requiredWhen: { key: "content_mode", value: "ai" },
         options: [],
         placeholder: "仅展示系统配置中已启用的 AI",

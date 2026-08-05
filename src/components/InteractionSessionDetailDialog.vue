@@ -200,13 +200,16 @@ onBeforeUnmount(() => {
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
           <el-descriptions-item label="延迟下发范围">{{ dispatchDelayText }}</el-descriptions-item>
+          <el-descriptions-item v-if="isSquareNumeric" label="广场浏览时间">
+            {{ text((session.params as AnyRecord | undefined)?.browse_duration_minutes) }} 分钟
+          </el-descriptions-item>
           <el-descriptions-item label="随机点赞概率">{{ text(session.like_probability) }}%</el-descriptions-item>
           <el-descriptions-item :label="isSquareNumeric ? '口令来源' : '文案来源'">
             <el-tag size="small" :type="contentMode === 'custom' ? 'success' : 'primary'" effect="light">
               {{ isSquareNumeric ? 'AI 识别' : (contentMode === 'custom' ? '自定义内容' : 'AI 生成') }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-if="contentMode === 'ai'" label="AI 供应商">
+          <el-descriptions-item v-if="contentMode === 'ai' && !isSquareNumeric" label="AI 供应商">
             <el-tag size="small" type="primary" effect="light">
               {{ aiProviderLabel(aiProvider) }}
             </el-tag>
