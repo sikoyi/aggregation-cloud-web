@@ -9,7 +9,7 @@ describe('互动会话表单分栏', () => {
       { key: 'title', label: '会话名称' },
       { key: 'interaction_mode', label: '互动场景', type: 'segmented' },
       { key: 'main_account_id', label: '主号设备', type: 'accountTree' },
-      { key: 'square_target_account_ids', label: '目标监听账号', type: 'remoteSelect' },
+      { key: 'square_target_account_ids', label: '目标监听账号', type: 'accountTree' },
       { key: 'comment_account_ids', label: '评论设备', type: 'accountTree' },
     ]
 

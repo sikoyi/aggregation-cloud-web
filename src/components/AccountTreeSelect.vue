@@ -2,7 +2,10 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ListFilter, Search, X } from 'lucide-vue-next'
 
-import { loadAccountSelectionOptions } from '@/api/selectionOptions'
+import {
+  loadAccountSelectionOptions,
+  loadMonitoredAccountSelectionOptions,
+} from '@/api/selectionOptions'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
@@ -21,6 +24,7 @@ const props = defineProps<{
   multiple?: boolean
   associationOnly?: boolean
   groupByDevice?: boolean
+  monitoringOnly?: boolean
   groupFilterPreferenceKey?: string
 }>()
 
@@ -85,6 +89,7 @@ const selectedAccountCount = computed(() => selectedAccountIds.value.length)
 const filterSignature = computed(() => JSON.stringify({
   association_only: Boolean(props.associationOnly),
   group_by_device: Boolean(props.groupByDevice),
+  monitoring_only: Boolean(props.monitoringOnly),
   business_platform: String(props.filters?.business_platform || ''),
   runtime_platform: String(props.filters?.runtime_platform || ''),
   provider: String(props.filters?.provider || ''),
@@ -92,6 +97,9 @@ const filterSignature = computed(() => JSON.stringify({
 }))
 let loadRequestId = 0
 const emptyMessage = computed(() => {
+  if (props.monitoringOnly) {
+    return loggedInCount.value === 0 ? '暂无已开启监听的账号' : ''
+  }
   if (props.associationOnly) {
     return loggedInCount.value === 0 ? '当前业务 App 暂无可关联账号' : ''
   }
@@ -133,6 +141,7 @@ function accountNodeId(accountId: string) {
 function accountMatchesRuntime(account: AnyRecord) {
   const filters = props.filters || {}
   if (filters.exclude_account_id && String(account.id) === String(filters.exclude_account_id)) return false
+  if (props.monitoringOnly) return true
   if (props.associationOnly) return true
   if (filters.runtime_platform && account.bound_slot_runtime_platform !== filters.runtime_platform) return false
   if (filters.provider && account.bound_slot_provider !== filters.provider) return false
@@ -141,7 +150,8 @@ function accountMatchesRuntime(account: AnyRecord) {
 
 function accountLabel(account: AnyRecord) {
   return String(
-    account.login_username
+    account.account_name
+      || account.login_username
       || account.username
       || account.display_name
       || account.platform_account_id
@@ -160,7 +170,7 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
   const providerSlotId = String(account.bound_slot_provider_id || '')
   const slotName = String(account.bound_slot_name || '')
   const hasSlot = Boolean(account.bound_slot_id)
-  const selectable = props.associationOnly || hasSlot
+  const selectable = props.associationOnly || props.monitoringOnly || hasSlot
   return {
     id: accountNodeId(String(account.id)),
     accountId: String(account.id),
@@ -241,10 +251,7 @@ async function loadTree() {
       return
     }
 
-    const accounts = await loadAccountSelectionOptions(
-      props.filters || {},
-      { associationOnly: props.associationOnly },
-    )
+    const accounts = await loadAccounts()
     if (requestId !== loadRequestId) return
 
     const eligibleAccounts = accounts.filter(accountMatchesRuntime)
@@ -316,15 +323,11 @@ async function loadTree() {
 }
 
 async function loadDeviceGroupedTree(requestId: number) {
-  const filters = props.filters || {}
-  const accounts = await loadAccountSelectionOptions(
-    filters,
-    { associationOnly: props.associationOnly },
-  )
+  const accounts = await loadAccounts()
   if (requestId !== loadRequestId) return
 
   const eligibleAccounts = accounts.filter(
-    (account) => account.bound_slot_id && accountMatchesRuntime(account),
+    (account) => (props.monitoringOnly || account.bound_slot_id) && accountMatchesRuntime(account),
   )
   const accountsByGroup = new Map<string, AnyRecord[]>()
   const groupNames = new Map<string, string>()
@@ -377,8 +380,8 @@ async function loadDeviceGroupedTree(requestId: number) {
     ...(ungroupedChildren.length
       ? [{
           id: 'group:ungrouped-slots',
-          label: '未分组设备',
-          searchText: '未分组设备',
+          label: props.monitoringOnly ? '未分组账号' : '未分组设备',
+          searchText: props.monitoringOnly ? '未分组账号' : '未分组设备',
           accountCount: ungroupedChildren.length,
           children: ungroupedChildren,
         }]
@@ -393,6 +396,16 @@ async function loadDeviceGroupedTree(requestId: number) {
   if (nextSelected.length !== selectedAccountIds.value.length) {
     emitSelection(nextSelected)
   }
+}
+
+function loadAccounts() {
+  if (props.monitoringOnly) {
+    return loadMonitoredAccountSelectionOptions(props.filters || {})
+  }
+  return loadAccountSelectionOptions(
+    props.filters || {},
+    { associationOnly: props.associationOnly },
+  )
 }
 
 function emitChecked(node?: AnyRecord) {

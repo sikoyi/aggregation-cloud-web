@@ -175,22 +175,6 @@ const accountRemoteSelect = {
   group: accountResourceGrouping,
 };
 
-const monitoredAccountRemoteSelect = {
-  endpoint: "/api/accounts/data-overview",
-  labelKeys: ["account_name", "username", "display_name", "login_username"],
-  valueKey: "account_id",
-  detailPath: (value: string) => `/api/accounts/${encodeURIComponent(value)}`,
-  secondaryKeys: ["profile_url", "last_success_at"],
-  searchParam: "keyword",
-  params: (context?: AnyRecord) => ({
-    business_platform: context?.business_platform || "threads",
-    monitor_state: "monitoring",
-  }),
-  pageSize: 100,
-  clearWhenMissing: true,
-  emptyText: "暂无正常监听中的账号，请先在账号数据中开启监听并完成采集",
-};
-
 const accountMultiSelect = {
   ...accountRemoteSelect,
   multiple: true,
@@ -2314,11 +2298,11 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "square_target_account_ids",
         label: "目标监听账号",
-        type: "remoteSelect",
-        remote: {
-          ...monitoredAccountRemoteSelect,
-          multiple: true,
-        },
+        type: "accountTree",
+        multiple: true,
+        accountTreeGroupByDevice: true,
+        accountTreeMonitoringOnly: true,
+        accountTreeGroupFilterPreferenceKey: "interaction-square-target-device-groups",
         visibleWhen: { key: "interaction_mode", value: "square_numeric" },
         requiredWhen: { key: "interaction_mode", value: "square_numeric" },
         span: 2,

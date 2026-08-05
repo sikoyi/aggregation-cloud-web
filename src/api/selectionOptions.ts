@@ -1,4 +1,4 @@
-import { http } from '@/api/http'
+import { getAllPages, http } from '@/api/http'
 import type { AnyRecord } from '@/types/api'
 
 interface CacheEntry {
@@ -10,6 +10,7 @@ interface CacheEntry {
 const CACHE_TTL_MS = 15_000
 const slotCache = new Map<string, CacheEntry>()
 const accountCache = new Map<string, CacheEntry>()
+const monitoredAccountCache = new Map<string, CacheEntry>()
 
 function normalizedFilters(filters: AnyRecord = {}) {
   return {
@@ -73,7 +74,28 @@ export function loadAccountSelectionOptions(
   )
 }
 
+export function loadMonitoredAccountSelectionOptions(filters: AnyRecord = {}) {
+  const params = {
+    business_platform: normalizedFilters(filters).business_platform,
+    monitor_state: 'monitoring',
+  }
+  return loadCached(
+    monitoredAccountCache,
+    cacheKey(params),
+    async () => {
+      const accounts = await getAllPages<AnyRecord>('/api/accounts/data-overview', params)
+      return accounts.map((account) => ({
+        ...account,
+        id: String(account.account_id),
+        bound_slot_group_id: account.slot_group_id,
+        bound_slot_group_name: account.slot_group_name,
+      }))
+    },
+  )
+}
+
 export function clearSelectionOptionsCache() {
   slotCache.clear()
   accountCache.clear()
+  monitoredAccountCache.clear()
 }

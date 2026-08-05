@@ -144,18 +144,10 @@ describe('广场数字互动', () => {
       key: 'interaction_mode',
       value: 'square_numeric',
     })
-    expect(targetField?.remote?.endpoint).toBe('/api/accounts/data-overview')
-    expect(targetField?.remote?.multiple).toBe(true)
-    const remoteParams = targetField?.remote?.params
-    expect(typeof remoteParams).toBe('function')
-    expect(
-      typeof remoteParams === 'function'
-        ? remoteParams({ business_platform: 'threads' })
-        : remoteParams,
-    ).toEqual({
-      business_platform: 'threads',
-      monitor_state: 'monitoring',
-    })
+    expect(targetField?.type).toBe('accountTree')
+    expect(targetField?.multiple).toBe(true)
+    expect(targetField?.accountTreeGroupByDevice).toBe(true)
+    expect(targetField?.accountTreeMonitoringOnly).toBe(true)
     expect(stepField?.visibleWhen).toEqual({
       key: 'interaction_mode',
       value: 'conversation',
