@@ -5,7 +5,11 @@ import { ListFilter, Search, X } from 'lucide-vue-next'
 import { loadSlotSelectionOptions } from '@/api/selectionOptions'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
-import { countFilteredTreeLeaves } from '@/utils/treeSelectionStats'
+import {
+  countFilteredTreeLeaves,
+  filteredTreeLeaves,
+  mergeFilteredTreeSelection,
+} from '@/utils/treeSelectionStats'
 import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
 const props = defineProps<{
@@ -208,20 +212,20 @@ async function loadTree() {
 
 function emitChecked() {
   const checkedNodes = (treeRef.value?.getCheckedNodes?.(true) || []) as SlotTreeNode[]
-  const visibleSlotIds = new Set(
-    visibleTreeData.value.flatMap((group) => group.children || []).map((node) => node.slotId),
+  const checkedSlotIds = checkedNodes
+    .map((node) => node.slotId)
+    .filter((slotId): slotId is string => Boolean(slotId))
+  const visibleSlotIds = filteredTreeLeaves(
+    visibleTreeData.value,
+    searchKeyword.value,
   )
-  const hiddenSelectedSlotIds = selectedSlotIds.value.filter(
-    (slotId) => !visibleSlotIds.has(slotId),
-  )
+    .map((node) => node.slotId)
+    .filter((slotId): slotId is string => Boolean(slotId))
+
+  // 搜索只改变本次勾选范围，不能覆盖搜索结果之外已经选中的设备。
   emit(
     'update:modelValue',
-    [
-      ...hiddenSelectedSlotIds,
-      ...checkedNodes
-        .map((node) => node.slotId)
-        .filter((slotId): slotId is string => Boolean(slotId)),
-    ],
+    mergeFilteredTreeSelection(selectedSlotIds.value, checkedSlotIds, visibleSlotIds),
   )
 }
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { countFilteredTreeLeaves } from './treeSelectionStats'
+import {
+  countFilteredTreeLeaves,
+  filteredTreeLeaves,
+  mergeFilteredTreeSelection,
+} from './treeSelectionStats'
 
 describe('树形选择器数量统计', () => {
   const groups = [
@@ -30,5 +34,27 @@ describe('树形选择器数量统计', () => {
     expect(countFilteredTreeLeaves(groups, 'provider-003')).toBe(1)
     expect(countFilteredTreeLeaves(groups, '韩国')).toBe(2)
     expect(countFilteredTreeLeaves(groups, '不存在')).toBe(0)
+  })
+
+  it('返回当前搜索真正可见的叶子节点', () => {
+    expect(filteredTreeLeaves(groups, 'provider-003').map((item) => item.label)).toEqual([
+      '窗口 C',
+    ])
+    expect(filteredTreeLeaves(groups, '韩国').map((item) => item.label)).toEqual([
+      '窗口 A',
+      '窗口 B',
+    ])
+  })
+
+  it('搜索后分组全选只更新可见节点并保留隐藏选择', () => {
+    expect(
+      mergeFilteredTreeSelection(['slot-3'], ['slot-1', 'slot-2', 'slot-3'], [
+        'slot-1',
+        'slot-2',
+      ]),
+    ).toEqual(['slot-3', 'slot-1', 'slot-2'])
+    expect(
+      mergeFilteredTreeSelection(['slot-1', 'slot-2', 'slot-3'], [], ['slot-1', 'slot-2']),
+    ).toEqual(['slot-3'])
   })
 })
