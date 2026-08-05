@@ -1228,10 +1228,6 @@ onBeforeUnmount(() => {
               :kind="column.type as 'deviceIdentity' | 'deviceGroup' | 'devicePlatform' | 'deviceState' | 'deviceAccount' | 'deviceProxy' | 'deviceActivity'"
               :row="row"
               :column="column"
-              :status-switchable="isSwitchableStatusColumn(column)"
-              :status-enabled="isEnabledStatus(row[column.key], column)"
-              :status-loading="submitting"
-              @toggle-status="(value) => toggleEnabledStatus(row, column, value)"
             />
             <ProxyTableCell
               v-else-if="column.type && ['proxyIdentity', 'proxyGroup', 'proxyEndpoint', 'proxyProfile'].includes(column.type)"

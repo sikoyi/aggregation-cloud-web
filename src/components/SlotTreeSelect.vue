@@ -99,7 +99,7 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
       .join(' ')
       .toLowerCase(),
     status: String(slot.status || 'offline'),
-    disabled: Boolean(props.disabled) || slot.status === 'disabled',
+    disabled: Boolean(props.disabled),
   }
 }
 

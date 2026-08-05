@@ -1511,23 +1511,6 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     rowActions: [
       {
-        key: "enable",
-        label: "启用",
-        method: "POST",
-        icon: "power",
-        path: (record) => `/api/execution-slots/${record.id}/enable`,
-        variant: "success",
-      },
-      {
-        key: "disable",
-        label: "禁用",
-        method: "POST",
-        icon: "powerOff",
-        path: (record) => `/api/execution-slots/${record.id}/disable`,
-        variant: "danger",
-        confirm: "确认禁用该设备？",
-      },
-      {
         key: "retry-sync",
         label: "重试同步",
         visible: canRetryRuntimeSync,

@@ -408,7 +408,6 @@ export const slotStatusOptions: SelectOption[] = [
   { label: '停止中', value: 'stopping' },
   { label: '异常', value: 'error' },
   { label: '离线', value: 'offline' },
-  { label: '禁用', value: 'disabled' },
 ]
 
 export const runtimeStatusOptions: SelectOption[] = [

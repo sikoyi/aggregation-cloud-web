@@ -21,13 +21,6 @@ const props = defineProps<{
   kind: DeviceCellKind
   row: AnyRecord
   column: ColumnConfig
-  statusSwitchable?: boolean
-  statusEnabled?: boolean
-  statusLoading?: boolean
-}>()
-
-const emit = defineEmits<{
-  toggleStatus: [value: boolean]
 }>()
 
 function text(value: unknown) {
@@ -87,15 +80,6 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
     <div class="device-state__row">
       <span>设备</span>
       <div class="device-state__value">
-        <el-switch
-          v-if="statusSwitchable"
-          :model-value="statusEnabled"
-          active-text="启用"
-          inactive-text="禁用"
-          inline-prompt
-          :loading="statusLoading"
-          @change="emit('toggleStatus', Boolean($event))"
-        />
         <StatusBadge :value="row.status" />
       </div>
     </div>
