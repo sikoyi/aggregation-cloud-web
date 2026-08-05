@@ -128,7 +128,7 @@ describe('广场数字互动', () => {
 
   it('只展示正常监听目标账号并使用独立脚本场景', () => {
     const modeField = fields.find((field) => field.key === 'interaction_mode')
-    const targetField = fields.find((field) => field.key === 'square_target_account_id')
+    const targetField = fields.find((field) => field.key === 'square_target_account_ids')
     const stepField = fields.find((field) => field.key === 'step_count')
     const browseField = fields.find((field) => field.key === 'browse_duration_minutes')
 
@@ -145,6 +145,7 @@ describe('广场数字互动', () => {
       value: 'square_numeric',
     })
     expect(targetField?.remote?.endpoint).toBe('/api/accounts/data-overview')
+    expect(targetField?.remote?.multiple).toBe(true)
     const remoteParams = targetField?.remote?.params
     expect(typeof remoteParams).toBe('function')
     expect(
@@ -171,7 +172,7 @@ describe('广场数字互动', () => {
       title: 'Square numeric interaction',
       interaction_mode: 'square_numeric',
       business_platform: 'threads',
-      square_target_account_id: '10',
+      square_target_account_ids: ['10', '11'],
       comment_account_ids: ['22'],
       step_count: 8,
       content_mode: 'custom',
@@ -181,18 +182,21 @@ describe('广场数字互动', () => {
       step_delay_min_minutes: 0,
       step_delay_max_minutes: 1,
       browse_duration_minutes: 400,
+      follow_probability: 60,
       ai_provider: 'openai',
     }) as Record<string, unknown>
 
-    expect(body.main_account_id).toBe('10')
+    expect(body.main_account_id).toBeNull()
+    expect(body.target_account_ids).toEqual(['10', '11'])
     expect(body.step_count).toBe(1)
     expect(body.content_mode).toBe('ai')
     expect(body.custom_contents).toEqual([])
     expect(body.target_content_id).toBeNull()
     expect(body.target_content_url).toBeNull()
     expect(body.browse_duration_minutes).toBe(400)
+    expect(body.follow_probability).toBe(60)
     expect(body).not.toHaveProperty('ai_config')
-    expect(body).not.toHaveProperty('square_target_account_id')
+    expect(body).not.toHaveProperty('square_target_account_ids')
   })
 })
 describe('代理协议选项', () => {

@@ -378,7 +378,7 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     content_mode,
     custom_contents_text,
     target_source_type,
-    square_target_account_id,
+    square_target_account_ids,
     ...sessionPayload
   } = payload;
   const interactionMode = String(sessionPayload.interaction_mode || "conversation");
@@ -391,8 +391,11 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     .split(/\r?\n\s*\r?\n/)
     .map((item) => item.trim())
     .filter(Boolean);
-  if (interactionMode === "square_numeric" && !String(square_target_account_id || "").trim()) {
-    throw new Error("请选择已开启监听的目标账号");
+  const squareTargetAccountIds = Array.isArray(square_target_account_ids)
+    ? [...new Set(square_target_account_ids.map((value) => String(value).trim()).filter(Boolean))]
+    : [];
+  if (interactionMode === "square_numeric" && !squareTargetAccountIds.length) {
+    throw new Error("请至少选择一个已开启监听的目标账号");
   }
   if (interactionMode === "conversation" && sourceType === "direct_url" && !targetContentUrl) {
     throw new Error("请填写目标帖子链接");
@@ -419,8 +422,9 @@ function buildInteractionSessionBody(payload: AnyRecord) {
     ...sessionPayload,
     interaction_mode: interactionMode,
     main_account_id: interactionMode === "square_numeric"
-      ? String(square_target_account_id || "").trim()
+      ? null
       : String(sessionPayload.main_account_id || "").trim(),
+    target_account_ids: interactionMode === "square_numeric" ? squareTargetAccountIds : [],
     step_count: interactionMode === "square_numeric" ? 1 : Number(sessionPayload.step_count || 1),
     step_delay_min_minutes: delayMinMinutes,
     step_delay_max_minutes: delayMaxMinutes,
@@ -2247,7 +2251,7 @@ export const resources: Record<string, ResourceConfig> = {
         width: 120,
         align: "center",
       },
-      { key: "main_account_name", label: "主号", minWidth: 150, align: "center" },
+      { key: "main_account_name", label: "主号 / 目标作者", minWidth: 180, align: "center" },
       { key: "comment_account_count", label: "评论账号", width: 100, align: "center" },
       { key: "progress_text", label: "进度", width: 100, align: "center" },
       { key: "status", label: "状态", type: "status", options: interactionSessionStatusOptions, width: 120, align: "center" },
@@ -2308,10 +2312,13 @@ export const resources: Record<string, ResourceConfig> = {
         span: 2,
       },
       {
-        key: "square_target_account_id",
+        key: "square_target_account_ids",
         label: "目标监听账号",
         type: "remoteSelect",
-        remote: monitoredAccountRemoteSelect,
+        remote: {
+          ...monitoredAccountRemoteSelect,
+          multiple: true,
+        },
         visibleWhen: { key: "interaction_mode", value: "square_numeric" },
         requiredWhen: { key: "interaction_mode", value: "square_numeric" },
         span: 2,
@@ -2352,6 +2359,18 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
         startPlaceholder: "最小延迟",
         endPlaceholder: "最大延迟",
+      },
+      {
+        key: "follow_probability",
+        label: "随机关注概率（%）",
+        type: "number",
+        defaultValue: 0,
+        min: 0,
+        max: 100,
+        step: 5,
+        required: true,
+        visibleWhen: { key: "interaction_mode", value: "square_numeric" },
+        placeholder: "0 表示不关注，100 表示每次命中目标作者都关注",
       },
       {
         key: "like_probability",

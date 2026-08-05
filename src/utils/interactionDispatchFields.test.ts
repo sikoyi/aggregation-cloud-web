@@ -9,7 +9,7 @@ describe('互动会话表单分栏', () => {
       { key: 'title', label: '会话名称' },
       { key: 'interaction_mode', label: '互动场景', type: 'segmented' },
       { key: 'main_account_id', label: '主号设备', type: 'accountTree' },
-      { key: 'square_target_account_id', label: '目标监听账号', type: 'remoteSelect' },
+      { key: 'square_target_account_ids', label: '目标监听账号', type: 'remoteSelect' },
       { key: 'comment_account_ids', label: '评论设备', type: 'accountTree' },
     ]
 
@@ -17,7 +17,7 @@ describe('互动会话表单分栏', () => {
 
     expect(grouped.main.map((field) => field.key)).toEqual([
       'main_account_id',
-      'square_target_account_id',
+      'square_target_account_ids',
     ])
     expect(grouped.comment.map((field) => field.key)).toEqual(['comment_account_ids'])
     expect(grouped.params.map((field) => field.key)).toEqual(['title', 'interaction_mode'])

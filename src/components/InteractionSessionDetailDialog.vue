@@ -47,6 +47,20 @@ const dispatchDelayText = computed(() => {
   const maximum = Number(session.value?.step_delay_max_minutes ?? minimum)
   return minimum === maximum ? `${minimum} 分钟` : `${minimum} - ${maximum} 分钟`
 })
+const targetAuthors = computed<string[]>(() => {
+  const params = session.value?.params as AnyRecord | undefined
+  const accounts = Array.isArray(params?.square_target_accounts) ? params.square_target_accounts : []
+  const names = accounts
+    .map((item) => {
+      const account = item as AnyRecord
+      return String(account.username || account.display_name || '').trim()
+    })
+    .filter(Boolean)
+  if (names.length) return [...new Set(names)]
+  return Array.isArray(params?.target_authors)
+    ? [...new Set(params.target_authors.map((item) => String(item).trim()).filter(Boolean))]
+    : []
+})
 
 const groupedSteps = computed(() => {
   const map = new Map<string, AnyRecord[]>()
@@ -88,6 +102,7 @@ function stepActionLabel(value: unknown) {
 
 function stepProgressText(step: AnyRecord) {
   if (step.status === 'generating') {
+    if (isSquareNumeric.value) return '准备下发'
     return contentMode.value === 'custom' ? '自定义文案准备中' : 'AI 文案生成中'
   }
   if (step.status === 'locked') return '等待解锁'
@@ -181,10 +196,15 @@ onBeforeUnmount(() => {
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="目标内容">
-            {{ text(session.target_content_title || session.target_platform_content_id || session.target_content_url) }}
+            {{ isSquareNumeric ? '脚本在广场实时发现' : text(session.target_content_title || session.target_platform_content_id || session.target_content_url) }}
           </el-descriptions-item>
           <el-descriptions-item :label="isSquareNumeric ? '目标监听账号' : '主号'">
-            {{ text(session.main_account_name || session.main_account_id) }}
+            <div v-if="isSquareNumeric && targetAuthors.length" class="flex flex-wrap gap-1">
+              <el-tag v-for="author in targetAuthors" :key="author" size="small" effect="plain">
+                @{{ author }}
+              </el-tag>
+            </div>
+            <template v-else>{{ text(session.main_account_name || session.main_account_id) }}</template>
           </el-descriptions-item>
           <el-descriptions-item :label="isSquareNumeric ? '广场执行脚本' : '首次评论脚本'">
             <el-tag size="small" effect="plain">{{ text(session.initial_comment_script_key) }}</el-tag>
@@ -192,10 +212,8 @@ onBeforeUnmount(() => {
           <el-descriptions-item v-if="!isSquareNumeric" label="后续回复脚本">
             <el-tag size="small" effect="plain">{{ text(session.reply_script_key) }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-else label="数字口令">
-            <el-tag size="small" type="success" effect="light">
-              {{ text((session.params as AnyRecord | undefined)?.square_numeric_reply) }}
-            </el-tag>
+          <el-descriptions-item v-else label="评论决策">
+            <el-tag size="small" type="success" effect="light">发现帖子后由服务端实时识别</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="评论账号数">{{ text(session.comment_account_count) }}</el-descriptions-item>
           <el-descriptions-item label="每号互动轮次">{{ text(stepCount) }}</el-descriptions-item>
@@ -203,10 +221,13 @@ onBeforeUnmount(() => {
           <el-descriptions-item v-if="isSquareNumeric" label="广场浏览时间">
             {{ text((session.params as AnyRecord | undefined)?.browse_duration_minutes) }} 分钟
           </el-descriptions-item>
+          <el-descriptions-item v-if="isSquareNumeric" label="随机关注概率">
+            {{ text((session.params as AnyRecord | undefined)?.follow_probability) }}%
+          </el-descriptions-item>
           <el-descriptions-item label="随机点赞概率">{{ text(session.like_probability) }}%</el-descriptions-item>
           <el-descriptions-item :label="isSquareNumeric ? '口令来源' : '文案来源'">
             <el-tag size="small" :type="contentMode === 'custom' ? 'success' : 'primary'" effect="light">
-              {{ isSquareNumeric ? 'AI 识别' : (contentMode === 'custom' ? '自定义内容' : 'AI 生成') }}
+              {{ isSquareNumeric ? 'AI 实时识别' : (contentMode === 'custom' ? '自定义内容' : 'AI 生成') }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item v-if="contentMode === 'ai' && !isSquareNumeric" label="AI 供应商">

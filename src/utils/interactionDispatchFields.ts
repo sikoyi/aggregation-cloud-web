@@ -2,7 +2,7 @@ import type { FieldConfig } from '@/types/crud'
 
 const INTERACTION_MAIN_FIELD_KEYS = new Set([
   'main_account_id',
-  'square_target_account_id',
+  'square_target_account_ids',
 ])
 
 export function groupInteractionDispatchFields(fields: FieldConfig[]) {
