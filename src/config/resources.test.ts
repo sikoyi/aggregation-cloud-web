@@ -136,6 +136,10 @@ describe('广场数字互动', () => {
       'conversation',
       'square_numeric',
     ])
+    expect(modeField?.options?.map((option) => option.label)).toEqual([
+      '链接内容互动',
+      '广场内容互动',
+    ])
     expect(targetField?.visibleWhen).toEqual({
       key: 'interaction_mode',
       value: 'square_numeric',

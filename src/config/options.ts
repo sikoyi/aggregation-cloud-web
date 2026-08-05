@@ -393,7 +393,7 @@ export const scriptPurposeOptions: SelectOption[] = [
   { label: '普通任务', value: 'general_task' },
   { label: '发布内容', value: 'content_publish' },
   { label: '互动首次评论', value: 'interaction_initial_comment' },
-  { label: '广场数字互动', value: 'interaction_feed_numeric' },
+  { label: '广场内容互动', value: 'interaction_feed_numeric' },
   { label: '互动后续回复', value: 'interaction_reply' },
   { label: '账号环境创建及上号', value: 'account_onboarding' },
   { label: '账号注册', value: 'account_registration' },

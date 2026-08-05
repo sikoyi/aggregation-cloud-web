@@ -2234,7 +2234,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
       { key: "title", label: "会话名称", minWidth: 220 },
-      { key: "interaction_mode", label: "互动场景", type: "status", options: [{ label: "对话互动", value: "conversation" }, { label: "广场数字互动", value: "square_numeric" }], minWidth: 130, align: "center" },
+      { key: "interaction_mode", label: "互动场景", type: "status", options: [{ label: "链接内容互动", value: "conversation" }, { label: "广场内容互动", value: "square_numeric" }], minWidth: 130, align: "center" },
       { key: "target_content_title", label: "目标内容", minWidth: 220 },
       {
         key: "content_mode",
@@ -2284,8 +2284,8 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
         span: 2,
         options: [
-          { label: "对话互动", value: "conversation" },
-          { label: "广场数字互动", value: "square_numeric" },
+          { label: "链接内容互动", value: "conversation" },
+          { label: "广场内容互动", value: "square_numeric" },
         ],
       },
       {

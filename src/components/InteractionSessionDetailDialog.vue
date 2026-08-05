@@ -177,7 +177,7 @@ onBeforeUnmount(() => {
         <el-descriptions :column="2" border class="mb-4">
           <el-descriptions-item label="互动场景">
             <el-tag size="small" type="primary" effect="light">
-              {{ isSquareNumeric ? '广场数字互动' : '对话互动' }}
+              {{ isSquareNumeric ? '广场内容互动' : '链接内容互动' }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="目标内容">
