@@ -51,3 +51,17 @@ export function mergeFilteredTreeSelection(
     ...checkedIds.filter((id) => visibleIdSet.has(id)),
   ]
 }
+
+/**
+ * 搜索时分组节点会因隐藏成员保持半选，需按可见成员的实际选择状态切换。
+ */
+export function toggleFilteredTreeSelection(selectedIds: string[], targetIds: string[]) {
+  const selectedIdSet = new Set(selectedIds)
+  const targetIdSet = new Set(targetIds)
+  const allSelected = targetIds.length > 0 && targetIds.every((id) => selectedIdSet.has(id))
+
+  if (allSelected) {
+    return selectedIds.filter((id) => !targetIdSet.has(id))
+  }
+  return [...selectedIds, ...targetIds.filter((id) => !selectedIdSet.has(id))]
+}

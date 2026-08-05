@@ -9,6 +9,7 @@ import {
   countFilteredTreeLeaves,
   filteredTreeLeaves,
   mergeFilteredTreeSelection,
+  toggleFilteredTreeSelection,
 } from '@/utils/treeSelectionStats'
 import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
@@ -210,7 +211,24 @@ async function loadTree() {
   }
 }
 
-function emitChecked() {
+function emitChecked(node: unknown) {
+  const checkedNode = node as SlotTreeNode
+  if (searchKeyword.value.trim() && checkedNode.children?.length) {
+    const groupVisibleSlotIds = filteredTreeLeaves(
+      [checkedNode],
+      searchKeyword.value,
+    )
+      .map((node) => node.slotId)
+      .filter((slotId): slotId is string => Boolean(slotId))
+
+    // 隐藏成员会让分组节点保持半选，分组点击需按当前可见成员主动切换全选或反选。
+    emit(
+      'update:modelValue',
+      toggleFilteredTreeSelection(selectedSlotIds.value, groupVisibleSlotIds),
+    )
+    return
+  }
+
   const checkedNodes = (treeRef.value?.getCheckedNodes?.(true) || []) as SlotTreeNode[]
   const checkedSlotIds = checkedNodes
     .map((node) => node.slotId)

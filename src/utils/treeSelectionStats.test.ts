@@ -4,6 +4,7 @@ import {
   countFilteredTreeLeaves,
   filteredTreeLeaves,
   mergeFilteredTreeSelection,
+  toggleFilteredTreeSelection,
 } from './treeSelectionStats'
 
 describe('树形选择器数量统计', () => {
@@ -56,5 +57,14 @@ describe('树形选择器数量统计', () => {
     expect(
       mergeFilteredTreeSelection(['slot-1', 'slot-2', 'slot-3'], [], ['slot-1', 'slot-2']),
     ).toEqual(['slot-3'])
+  })
+
+  it('搜索后再次点击已全选的分组可以反选可见节点', () => {
+    expect(
+      toggleFilteredTreeSelection(['slot-hidden', 'slot-1', 'slot-2'], ['slot-1', 'slot-2']),
+    ).toEqual(['slot-hidden'])
+    expect(
+      toggleFilteredTreeSelection(['slot-hidden', 'slot-1'], ['slot-1', 'slot-2']),
+    ).toEqual(['slot-hidden', 'slot-1', 'slot-2'])
   })
 })
