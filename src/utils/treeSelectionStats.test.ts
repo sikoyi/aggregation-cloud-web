@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   countFilteredTreeLeaves,
+  filterTreeByAccountPresence,
   filteredTreeLeaves,
   mergeFilteredTreeSelection,
   toggleFilteredTreeSelection,
@@ -66,5 +67,32 @@ describe('树形选择器数量统计', () => {
     expect(
       toggleFilteredTreeSelection(['slot-hidden', 'slot-1'], ['slot-1', 'slot-2']),
     ).toEqual(['slot-hidden', 'slot-1', 'slot-2'])
+  })
+
+  it('按设备是否绑定账号筛选并移除空分组', () => {
+    const accountGroups = [
+      {
+        label: '混合设备',
+        deviceCount: 2,
+        children: [
+          { label: '有号设备', hasAccount: true },
+          { label: '无号设备', hasAccount: false },
+        ],
+      },
+      {
+        label: '仅无号设备',
+        deviceCount: 1,
+        children: [{ label: '空窗口', hasAccount: false }],
+      },
+    ]
+
+    expect(
+      filterTreeByAccountPresence(accountGroups, 'bound').map((group) => ({
+        label: group.label,
+        children: group.children?.map((child) => child.label),
+      })),
+    ).toEqual([{ label: '混合设备', children: ['有号设备'] }])
+    expect(countFilteredTreeLeaves(filterTreeByAccountPresence(accountGroups, 'unbound'), '')).toBe(2)
+    expect(filterTreeByAccountPresence(accountGroups, 'all')).toBe(accountGroups)
   })
 })

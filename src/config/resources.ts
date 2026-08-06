@@ -3403,6 +3403,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "slot_ids",
         label: "设备组 / 设备",
         type: "slotTree",
+        slotTreeAccountPresenceFilter: true,
         requiredWhen: { key: "registration_target_mode", value: "existing_slots" },
         visibleWhen: { key: "registration_target_mode", value: "existing_slots" },
         defaultValue: [],

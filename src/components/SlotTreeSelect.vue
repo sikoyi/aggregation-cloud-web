@@ -7,6 +7,7 @@ import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
 import {
   countFilteredTreeLeaves,
+  filterTreeByAccountPresence,
   filteredTreeLeaves,
   mergeFilteredTreeSelection,
   toggleFilteredTreeSelection,
@@ -17,6 +18,7 @@ const props = defineProps<{
   modelValue: unknown
   disabled?: boolean
   filters?: AnyRecord
+  showAccountPresenceFilter?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +32,7 @@ interface SlotTreeNode {
   label: string
   searchText?: string
   status?: string
+  hasAccount?: boolean
   deviceCount?: number
   disabled?: boolean
   children?: SlotTreeNode[]
@@ -40,6 +43,7 @@ const loading = ref(false)
 const searchKeyword = ref('')
 const treeData = ref<SlotTreeNode[]>([])
 const selectedGroupNodeIds = ref<string[]>([])
+const accountPresenceFilter = ref<'all' | 'bound' | 'unbound'>('all')
 const totalSlotCount = ref(0)
 const loadedSlotIds = ref<Set<string>>(new Set())
 const defaultExpandedGroupKeys = ref<string[]>([])
@@ -62,10 +66,20 @@ const groupOptions = computed(() => treeData.value.map((node) => ({
   value: node.id,
   label: node.label,
 })))
+const activeFilterCount = computed(() => (
+  selectedGroupNodeIds.value.length
+  + (props.showAccountPresenceFilter && accountPresenceFilter.value !== 'all' ? 1 : 0)
+))
 const visibleTreeData = computed(() => {
-  if (!selectedGroupNodeIds.value.length) return treeData.value
   const selectedIds = new Set(selectedGroupNodeIds.value)
-  return treeData.value.filter((node) => selectedIds.has(node.id))
+  const grouped = selectedGroupNodeIds.value.length
+    ? treeData.value.filter((node) => selectedIds.has(node.id))
+    : treeData.value
+  const accountFilter = props.showAccountPresenceFilter ? accountPresenceFilter.value : 'all'
+  return filterTreeByAccountPresence(grouped, accountFilter).map((node) => ({
+    ...node,
+    deviceCount: node.children?.length || 0,
+  }))
 })
 const filteredSlotCount = computed(() =>
   countFilteredTreeLeaves(visibleTreeData.value, searchKeyword.value),
@@ -103,6 +117,7 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
       .join(' ')
       .toLowerCase(),
     status: String(slot.status || 'offline'),
+    hasAccount: Boolean(slot.bound_account_id),
     disabled: Boolean(props.disabled),
   }
 }
@@ -295,28 +310,41 @@ watch(
           <template #reference>
             <el-button
               class="slot-tree-filter-button"
-              :type="selectedGroupNodeIds.length ? 'primary' : 'default'"
-              :plain="!selectedGroupNodeIds.length"
+              :type="activeFilterCount ? 'primary' : 'default'"
+              :plain="!activeFilterCount"
               :icon="ListFilter"
-              :data-filter-count="selectedGroupNodeIds.length || undefined"
-              :title="selectedGroupNodeIds.length ? `已筛选 ${selectedGroupNodeIds.length} 个分组` : '筛选分组'"
+              :data-filter-count="activeFilterCount || undefined"
+              :title="activeFilterCount ? `已启用 ${activeFilterCount} 项筛选` : '筛选设备'"
               circle
-              aria-label="筛选分组"
+              aria-label="筛选设备"
             />
           </template>
           <div class="group-filter-popover">
             <div class="group-filter-popover__header">
-              <span>显示设备分组</span>
+              <span>{{ showAccountPresenceFilter ? '筛选设备' : '显示设备分组' }}</span>
               <el-button
-                v-if="selectedGroupNodeIds.length"
+                v-if="activeFilterCount"
                 link
                 type="primary"
                 :icon="X"
-                @click="selectedGroupNodeIds = []"
+                @click="selectedGroupNodeIds = []; accountPresenceFilter = 'all'"
               >
                 显示全部
               </el-button>
             </div>
+            <div v-if="showAccountPresenceFilter" class="account-presence-filter">
+              <span>账号情况</span>
+              <el-segmented
+                v-model="accountPresenceFilter"
+                :options="[
+                  { label: '全部', value: 'all' },
+                  { label: '有号', value: 'bound' },
+                  { label: '无号', value: 'unbound' },
+                ]"
+                size="small"
+              />
+            </div>
+            <el-divider v-if="showAccountPresenceFilter" />
             <el-scrollbar max-height="260px">
               <el-checkbox-group v-model="selectedGroupNodeIds" class="group-filter-popover__options">
                 <el-checkbox
@@ -474,6 +502,23 @@ watch(
   margin-bottom: 8px;
   color: #27364a;
   font-weight: 600;
+}
+
+.account-presence-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #27364a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-presence-filter :deep(.el-segmented) {
+  width: 100%;
+}
+
+.group-filter-popover :deep(.el-divider) {
+  margin: 12px 0;
 }
 
 .group-filter-popover__options {

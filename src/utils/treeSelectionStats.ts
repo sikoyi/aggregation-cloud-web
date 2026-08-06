@@ -3,6 +3,12 @@ export interface SearchableTreeNode {
   searchText?: string
 }
 
+export type AccountPresenceFilter = 'all' | 'bound' | 'unbound'
+
+export interface AccountAwareTreeNode extends SearchableTreeNode {
+  hasAccount?: boolean
+}
+
 export interface SearchableTreeGroup<T extends SearchableTreeNode = SearchableTreeNode>
   extends SearchableTreeNode {
   children?: T[]
@@ -35,6 +41,23 @@ export function countFilteredTreeLeaves<T extends SearchableTreeNode>(
   keyword: unknown,
 ) {
   return filteredTreeLeaves(groups, keyword).length
+}
+
+export function filterTreeByAccountPresence<
+  T extends AccountAwareTreeNode,
+  G extends SearchableTreeGroup<T>,
+>(groups: G[], filter: AccountPresenceFilter): G[] {
+  if (filter === 'all') return groups
+
+  const hasAccount = filter === 'bound'
+  return groups
+    .map((group) => ({
+      ...group,
+      children: (group.children || []).filter(
+        (child) => Boolean(child.hasAccount) === hasAccount,
+      ),
+    }))
+    .filter((group) => Boolean(group.children?.length)) as G[]
 }
 
 /**

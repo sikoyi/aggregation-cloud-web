@@ -309,6 +309,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             v-else-if="field.type === 'slotTree'"
             :model-value="modelValue[field.key]"
             :disabled="isFieldDisabled(field)"
+            :show-account-presence-filter="field.slotTreeAccountPresenceFilter"
             :filters="{
               runtime_platform: modelValue.runtime_platform,
               provider: modelValue.template_id ? modelValue.provider : undefined,

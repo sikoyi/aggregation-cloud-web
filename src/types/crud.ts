@@ -123,6 +123,7 @@ export interface FieldConfig {
   accountTreeGroupByDevice?: boolean
   accountTreeMonitoringOnly?: boolean
   accountTreeGroupFilterPreferenceKey?: string
+  slotTreeAccountPresenceFilter?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   endKey?: string
   endDefaultValue?: number
