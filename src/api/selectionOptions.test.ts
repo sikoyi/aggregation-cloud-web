@@ -38,6 +38,10 @@ describe('selection options cache', () => {
     expect(mainOptions).toEqual([{ id: '1' }])
     expect(commentOptions).toBe(mainOptions)
     expect(http.get).toHaveBeenCalledTimes(1)
+    expect(http.get).toHaveBeenCalledWith('/api/execution-slots/selection-options', {
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+    })
   })
 
   it('loads monitoring accounts and normalizes device group fields', async () => {

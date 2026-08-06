@@ -71,7 +71,6 @@ const filteredSlotCount = computed(() =>
   countFilteredTreeLeaves(visibleTreeData.value, searchKeyword.value),
 )
 const filterSignature = computed(() => JSON.stringify({
-  business_platform: String(props.filters?.business_platform || ''),
   runtime_platform: String(props.filters?.runtime_platform || ''),
   provider: String(props.filters?.provider || ''),
 }))

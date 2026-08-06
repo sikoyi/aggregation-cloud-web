@@ -29,7 +29,28 @@ const hasScriptScopeFields = computed(() => props.fields.some((field) => Boolean
 const scriptScopeDependency = computed(() => String(props.modelValue.script_key || ''))
 
 function updateValue(key: string, value: unknown) {
-  emit('update:modelValue', { ...props.modelValue, [key]: value })
+  const nextValue = { ...props.modelValue, [key]: value }
+  if (
+    key === 'runtime_platform'
+    && String(value || '') !== String(props.modelValue.runtime_platform || '')
+    && props.modelValue.template_id
+  ) {
+    // 切换执行平台后，旧模板和设备选择已经失效，需要一起清理。
+    Object.assign(nextValue, {
+      template_id: '',
+      script_key: '',
+      script_purpose: 'general_task',
+      business_platform: '',
+      provider: '',
+      execution_mode: '',
+      execution_count: 1,
+      params: {},
+      slot_ids: [],
+      registration_target_mode: 'existing_slots',
+      concurrent_registration_count: 1,
+    })
+  }
+  emit('update:modelValue', nextValue)
 }
 
 async function updateTemplateValue(field: FieldConfig, value: string | string[]) {
@@ -289,9 +310,8 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :model-value="modelValue[field.key]"
             :disabled="isFieldDisabled(field)"
             :filters="{
-              business_platform: modelValue.business_platform,
               runtime_platform: modelValue.runtime_platform,
-              provider: modelValue.provider,
+              provider: modelValue.template_id ? modelValue.provider : undefined,
             }"
             @update:model-value="updateValue(field.key, $event)"
           />

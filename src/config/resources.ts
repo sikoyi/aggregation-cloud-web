@@ -1284,7 +1284,7 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "新增设备",
     loadEditRecord: loadSlotForEdit,
     updateBody: (payload) =>
-      pickPayload(payload, ["provider_slot_no", "display_name", "business_platform"]),
+      pickPayload(payload, ["provider_slot_no", "display_name"]),
     afterUpdate: updateSlotGroup,
     headerActions: [
       {
@@ -1357,12 +1357,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: providerOptions,
       },
       {
-        key: "business_platform",
-        label: "业务平台",
-        type: "select",
-        options: businessPlatformOptions,
-      },
-      {
         key: "status",
         label: "状态",
         type: "select",
@@ -1419,13 +1413,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "provider_slot_id", label: "设备 ID", required: true, placeholder: "请输入供应商侧 Provider ID" },
       { key: "provider_slot_no", label: "Provider 编号" },
       { key: "display_name", label: "显示名称" },
-      {
-        key: "business_platform",
-        label: "业务平台",
-        type: "select",
-        options: businessPlatformOptions,
-        defaultValue: "threads",
-      },
     ],
     updateFields: [
       { key: "provider_slot_id", label: "设备 ID（Provider ID）", readonly: true },
@@ -1459,12 +1446,6 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: slotTypeOptions,
         readonly: true,
-      },
-      {
-        key: "business_platform",
-        label: "业务 App",
-        type: "select",
-        options: businessPlatformOptions,
       },
       {
         key: "status",

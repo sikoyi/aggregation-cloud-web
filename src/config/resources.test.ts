@@ -328,6 +328,11 @@ describe('账号批量设置标签', () => {
 })
 
 describe('设备管理筛选', () => {
+  it('设备不再维护或筛选业务 App', () => {
+    expect(resources.slots.filters?.some((field) => field.key === 'business_platform')).toBe(false)
+    expect(resources.slots.createFields?.some((field) => field.key === 'business_platform')).toBe(false)
+    expect(resources.slots.updateFields?.some((field) => field.key === 'business_platform')).toBe(false)
+  })
   it('支持按绑定账号的实时登录状态筛选', () => {
     const field = resources.slots.filters?.find((filter) => filter.key === 'account_login_status')
 

@@ -270,7 +270,6 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
         ungroupedParam: 'ungrouped',
         ungroupedLabel: '未分组设备',
         params: {
-          business_platform: props.context?.business_platform || undefined,
           runtime_platform: props.context?.runtime_platform || undefined,
           provider: props.context?.provider || undefined,
         },

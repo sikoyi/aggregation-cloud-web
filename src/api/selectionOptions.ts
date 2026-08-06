@@ -20,6 +20,13 @@ function normalizedFilters(filters: AnyRecord = {}) {
   }
 }
 
+function normalizedSlotFilters(filters: AnyRecord = {}) {
+  return {
+    runtime_platform: String(filters.runtime_platform || '') || undefined,
+    provider: String(filters.provider || '') || undefined,
+  }
+}
+
 function cacheKey(filters: AnyRecord, extra: AnyRecord = {}) {
   return JSON.stringify({ ...normalizedFilters(filters), ...extra })
 }
@@ -48,10 +55,10 @@ async function loadCached(
 }
 
 export function loadSlotSelectionOptions(filters: AnyRecord = {}) {
-  const params = normalizedFilters(filters)
+  const params = normalizedSlotFilters(filters)
   return loadCached(
     slotCache,
-    cacheKey(filters),
+    JSON.stringify(params),
     () => http.get<AnyRecord[]>('/api/execution-slots/selection-options', params),
   )
 }
