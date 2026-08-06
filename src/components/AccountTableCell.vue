@@ -32,7 +32,7 @@ function optionLabel(options: typeof businessPlatformOptions, value: unknown) {
 const loginName = computed(() => text(props.row.login_username))
 const publicName = computed(() => {
   const value = String(props.row.username || '').trim()
-  return value && value !== loginName.value ? `@${value}` : `账号 #${text(props.row.id)}`
+  return value && value !== loginName.value ? `@${value}` : ''
 })
 const identityInitial = computed(() => loginName.value.slice(0, 1).toUpperCase())
 const avatarUrl = computed(() => resolveBackendUrl(props.row.avatar_url) || undefined)
@@ -59,7 +59,7 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
       <el-tooltip :content="loginName" placement="top" :show-after="500">
         <strong class="account-identity__name">{{ loginName }}</strong>
       </el-tooltip>
-      <span class="account-identity__secondary">{{ publicName }}</span>
+      <span v-if="publicName" class="account-identity__secondary">{{ publicName }}</span>
     </span>
   </div>
 
