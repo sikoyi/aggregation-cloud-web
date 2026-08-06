@@ -18,7 +18,8 @@ export function invalidateEnabledAiProviderOptions() {
   cachedOptions = null
 }
 
-export function resolveEnabledAiProvider(preferred: string, options: EnabledAiProviderOption[]) {
+export function resolveEnabledAiProvider(preferred: string | null, options: EnabledAiProviderOption[]) {
+  if (!preferred) return ''
   return options.some((item) => item.value === preferred)
     ? preferred
     : String(options[0]?.value || '')

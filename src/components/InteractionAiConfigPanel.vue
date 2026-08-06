@@ -302,7 +302,7 @@ function formatCurrency(value: number | null | undefined, currency?: string | nu
 onMounted(async () => {
   try {
     const defaults = await getSystemDefaults()
-    if (defaults.default_ai_provider in providerSpecs) {
+    if (defaults.default_ai_provider && defaults.default_ai_provider in providerSpecs) {
       provider.value = defaults.default_ai_provider as AiProvider
     }
   } catch {

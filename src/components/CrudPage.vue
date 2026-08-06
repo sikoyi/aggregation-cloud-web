@@ -603,7 +603,7 @@ function resetFilters() {
 }
 
 function applySystemDefaults(state: AnyRecord, defaults: SystemDefaults) {
-  const scalarDefaults: Record<string, string> = {
+  const scalarDefaults: Record<string, string | null> = {
     business_platform: defaults.default_business_platform,
     runtime_platform: defaults.default_runtime_platform,
     provider: defaults.default_provider,
@@ -614,9 +614,9 @@ function applySystemDefaults(state: AnyRecord, defaults: SystemDefaults) {
   })
 
   const listDefaults: Record<string, string[]> = {
-    supported_business_platforms: [defaults.default_business_platform],
-    supported_runtime_platforms: [defaults.default_runtime_platform],
-    supported_providers: [defaults.default_provider],
+    supported_business_platforms: defaults.default_business_platform ? [defaults.default_business_platform] : [],
+    supported_runtime_platforms: defaults.default_runtime_platform ? [defaults.default_runtime_platform] : [],
+    supported_providers: defaults.default_provider ? [defaults.default_provider] : [],
   }
   Object.entries(listDefaults).forEach(([key, value]) => {
     if (Object.prototype.hasOwnProperty.call(state, key)) state[key] = value

@@ -1,10 +1,10 @@
 import { http } from '@/api/http'
 
 export interface SystemDefaults {
-  default_business_platform: string
-  default_runtime_platform: string
-  default_provider: string
-  default_ai_provider: string
+  default_business_platform: string | null
+  default_runtime_platform: string | null
+  default_provider: string | null
+  default_ai_provider: string | null
   updated_at?: string | null
 }
 
