@@ -124,7 +124,6 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
       <Clock3 />
       <span><small>心跳</small><strong>{{ formatDate(row.last_seen_at) }}</strong></span>
     </div>
-    <div class="device-activity__secondary">最近打开 {{ formatDate(row.last_opened_at) }}</div>
   </div>
 </template>
 
@@ -170,5 +169,4 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
 .device-activity__row > span { display: flex; min-width: 0; flex-direction: column; }
 .device-activity__row small { color: #8a9aab; font-size: 10px; }
 .device-activity__row strong { color: #40566c; font-size: 11px; font-weight: 600; }
-.device-activity__secondary { padding-left: 19px; color: #8a9aab; font-size: 10px; }
 </style>

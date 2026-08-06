@@ -1491,7 +1491,6 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "current_task_run_id", label: "当前任务 ID", readonly: true },
       { key: "last_seen_at", label: "最近心跳", type: "datetime", readonly: true },
-      { key: "last_opened_at", label: "最近打开", type: "datetime", readonly: true },
       { key: "last_login_check_at", label: "最近登录检测", type: "datetime", readonly: true },
       { key: "created_at", label: "创建时间", type: "datetime", readonly: true },
       { key: "updated_at", label: "更新时间", type: "datetime", readonly: true },
