@@ -274,8 +274,8 @@ watch(scriptScopeDependency, (scriptKey) => {
 }, { immediate: true })
 
 watch(() => props.modelValue.execution_mode, (mode) => {
-  if (mode === 'immediate' && Array.isArray(props.modelValue.execution_window) && props.modelValue.execution_window.length) {
-    updateValue('execution_window', [])
+  if (mode === 'immediate' && props.modelValue.scheduled_at) {
+    updateValue('scheduled_at', '')
   }
 }, { immediate: true })
 </script>

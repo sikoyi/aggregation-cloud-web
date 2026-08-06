@@ -395,3 +395,36 @@ describe('任务模板脚本范围联动', () => {
     expect(providerField?.scriptScopeKey).toBe('supported_providers')
   })
 })
+
+describe('任务下发执行模式', () => {
+  const dispatchFields = resources.tasks.createFields || []
+
+  it('允许单次下发覆盖模板执行模式', () => {
+    const modeField = dispatchFields.find((field) => field.key === 'execution_mode')
+
+    expect(modeField?.readonly).not.toBe(true)
+    expect(modeField?.required).toBe(true)
+  })
+
+  it('计划模式要求计划时间，立即模式禁用计划时间', () => {
+    const scheduledField = dispatchFields.find((field) => field.key === 'scheduled_at')
+
+    expect(scheduledField?.requiredWhen).toEqual({ key: 'execution_mode', value: 'scheduled' })
+    expect(scheduledField?.disabledWhen).toEqual({ key: 'execution_mode', value: 'immediate' })
+  })
+
+  it('模板不再包含允许执行时段，并提交本次执行模式', () => {
+    expect((resources.taskTemplates.createFields || []).some((field) => field.key === 'execution_window')).toBe(false)
+    expect((resources.taskTemplates.updateFields || []).some((field) => field.key === 'execution_window')).toBe(false)
+
+    const body = resources.tasks.createBody?.({
+      template_id: '1',
+      slot_ids: ['2'],
+      execution_mode: 'scheduled',
+      scheduled_at: '2026-08-06T12:00:00Z',
+    }) as Record<string, unknown>
+
+    expect(body.execution_mode).toBe('scheduled')
+    expect(body.scheduled_at).toBe('2026-08-06T12:00:00Z')
+  })
+})

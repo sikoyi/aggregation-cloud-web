@@ -587,33 +587,8 @@ const publishedContentSourceOptions = [
   { label: "未分组内容随机", value: "ungrouped" },
 ];
 
-function buildExecutionWindow(record: AnyRecord) {
-  return record.execution_window_start && record.execution_window_end
-    ? [record.execution_window_start, record.execution_window_end]
-    : [];
-}
-
-function normalizeDateTimeRange(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter(Boolean)
-    .map((item) => new Date(String(item)).toISOString());
-}
-
-function buildTaskTemplateBody(payload: AnyRecord, record?: AnyRecord) {
-  const body = pickPayload(payload, taskTemplatePayloadKeys);
-  if (body.execution_mode === "immediate") {
-    body.execution_window_start = null;
-    body.execution_window_end = null;
-  } else {
-    const windowValue = normalizeDateTimeRange(payload.execution_window);
-    body.execution_window_start = windowValue[0] || null;
-    body.execution_window_end = windowValue[1] || null;
-  }
-  body.execution_timezone = String(
-    record?.execution_timezone || payload.execution_timezone || "Asia/Shanghai",
-  );
-  return body;
+function buildTaskTemplateBody(payload: AnyRecord) {
+  return pickPayload(payload, taskTemplatePayloadKeys);
 }
 
 function buildTaskDispatchBody(payload: AnyRecord) {
@@ -624,6 +599,7 @@ function buildTaskDispatchBody(payload: AnyRecord) {
     "registration_target_mode",
     "concurrent_registration_count",
     "execution_count",
+    "execution_mode",
     "params",
     "scheduled_at",
   ]);
@@ -3024,11 +3000,7 @@ export const resources: Record<string, ResourceConfig> = {
     inlineActionKeys: ["clone"],
     directDelete: true,
     createBody: (payload) => buildTaskTemplateBody(payload),
-    loadEditRecord: async (record) => ({
-      ...record,
-      execution_window: buildExecutionWindow(record),
-    }),
-    updateBody: (payload, record) => buildTaskTemplateBody(payload, record),
+    updateBody: (payload) => buildTaskTemplateBody(payload),
     columns: [
       { key: "id", label: "模板 ID", type: "id", width: 55, align: "center" },
       { key: "name", label: "模板信息", type: "templateIdentity", minWidth: 145 },
@@ -3121,15 +3093,6 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "immediate",
       },
       {
-        key: "execution_window",
-        label: "允许执行时段",
-        type: "datetimeRange",
-        defaultValue: [],
-        span: 2,
-        disabledWhen: { key: "execution_mode", value: "immediate" },
-        placeholder: "请选择允许执行的开始和结束日期时间",
-      },
-      {
         key: "status",
         label: "状态",
         type: "select",
@@ -3219,15 +3182,6 @@ export const resources: Record<string, ResourceConfig> = {
         label: "执行模式",
         type: "select",
         options: executionModeOptions,
-      },
-      {
-        key: "execution_window",
-        label: "允许执行时段",
-        type: "datetimeRange",
-        defaultValue: [],
-        span: 2,
-        disabledWhen: { key: "execution_mode", value: "immediate" },
-        placeholder: "请选择允许执行的开始和结束日期时间",
       },
       {
         key: "status",
@@ -3402,7 +3356,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "执行模式",
         type: "select",
         options: executionModeOptions,
-        readonly: true,
+        required: true,
       },
       {
         key: "execution_count",
@@ -3411,7 +3365,15 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
         defaultValue: 1,
       },
-      { key: "scheduled_at", label: "计划时间（计划模式必填）", type: "datetime" },
+      {
+        key: "scheduled_at",
+        label: "计划时间",
+        type: "datetime",
+        allowEmpty: true,
+        requiredWhen: { key: "execution_mode", value: "scheduled" },
+        disabledWhen: { key: "execution_mode", value: "immediate" },
+        placeholder: "计划执行时必填",
+      },
       {
         key: "registration_target_mode",
         label: "注册方式",
