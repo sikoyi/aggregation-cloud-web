@@ -1324,7 +1324,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "status", label: "状态", type: "deviceState", width: 150, align: "center" },
       { key: "bound_account_id", label: "账号信息", type: "deviceAccount", minWidth: 210 },
       { key: "proxy_id", label: "代理资源", type: "deviceProxy", minWidth: 180 },
-      { key: "last_seen_at", label: "最近活动", type: "deviceActivity", width: 175 },
+      { key: "last_seen_at", label: "最近活动", type: "deviceActivity", width: 190, align: "center" },
     ],
     filters: [
       {

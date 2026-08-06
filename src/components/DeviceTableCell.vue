@@ -120,10 +120,8 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
   </div>
 
   <div v-else-if="kind === 'deviceActivity'" class="device-cell device-activity">
-    <div class="device-activity__row">
-      <Clock3 />
-      <span><small>心跳</small><strong>{{ formatDate(row.last_seen_at) }}</strong></span>
-    </div>
+    <span class="device-activity__icon"><Clock3 /></span>
+    <strong>{{ formatDate(row.last_seen_at) }}</strong>
   </div>
 </template>
 
@@ -163,10 +161,8 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
 .device-relation code { color: #66788a; font-size: 10px; }
 .device-relation small { color: #8a9aab; font-size: 10px; }
 .device-relation__empty { color: #9aa9b8; font-size: 12px; }
-.device-activity { display: flex; flex-direction: column; gap: 5px; }
-.device-activity__row { display: flex; align-items: center; gap: 6px; }
-.device-activity__row > svg { width: 13px; height: 13px; color: #4f8b68; }
-.device-activity__row > span { display: flex; min-width: 0; flex-direction: column; }
-.device-activity__row small { color: #8a9aab; font-size: 10px; }
-.device-activity__row strong { color: #40566c; font-size: 11px; font-weight: 600; }
+.device-activity { display: flex; min-width: 158px; align-items: center; justify-content: center; gap: 8px; }
+.device-activity__icon { display: inline-flex; width: 28px; height: 28px; flex: 0 0 28px; align-items: center; justify-content: center; border: 1px solid #cde8d6; border-radius: 7px; color: #31845a; background: #f0faf4; }
+.device-activity__icon svg { width: 14px; height: 14px; }
+.device-activity strong { color: #334e68; font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 </style>
