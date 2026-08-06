@@ -37,7 +37,8 @@ const providerNumber = computed(() => String(props.row.provider_slot_no || '').t
 const groupName = computed(() => String(props.row.group_name || '').trim())
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.provider))
-const businessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.business_platform))
+const accountBusinessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.bound_account_business_platform))
+const accountCountry = computed(() => String(props.row.bound_account_country || '').trim())
 const accountName = computed(() => String(props.row.bound_account_name || '').trim())
 const proxyName = computed(() => String(props.row.proxy_name || '').trim())
 const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
@@ -72,7 +73,6 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
     </div>
     <div class="device-platform__tags">
       <el-tag size="small" effect="plain">{{ provider }}</el-tag>
-      <el-tag size="small" type="primary" effect="light">{{ businessPlatform }}</el-tag>
     </div>
   </div>
 
@@ -94,6 +94,12 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
       <div class="device-relation__title">
         <UserRound />
         <strong>{{ accountName || `账号 #${row.bound_account_id}` }}</strong>
+      </div>
+      <div class="device-relation__meta">
+        <el-tag v-if="row.bound_account_business_platform" size="small" type="primary" effect="light">
+          {{ accountBusinessPlatform }}
+        </el-tag>
+        <el-tag v-if="accountCountry" size="small" type="info" effect="plain">{{ accountCountry }}</el-tag>
       </div>
       <small>账号 ID {{ row.bound_account_id }}</small>
     </template>
@@ -154,6 +160,7 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
 .device-relation code,
 .device-relation small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .device-relation__title strong { color: #334e68; font-size: 12px; }
+.device-relation__meta { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 4px; }
 .device-relation code { color: #66788a; font-size: 10px; }
 .device-relation small { color: #8a9aab; font-size: 10px; }
 .device-relation__empty { color: #9aa9b8; font-size: 12px; }

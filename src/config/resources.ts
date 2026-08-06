@@ -1320,9 +1320,9 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "provider_slot_id", label: "设备信息", type: "deviceIdentity", minWidth: 220 },
       { key: "group_name", label: "所属分组", type: "deviceGroup", minWidth: 125 },
-      { key: "runtime_platform", label: "运行环境", type: "devicePlatform", minWidth: 175 },
+      { key: "runtime_platform", label: "运行环境", type: "devicePlatform", minWidth: 155 },
       { key: "status", label: "状态", type: "deviceState", width: 150, align: "center" },
-      { key: "bound_account_id", label: "账号信息", type: "deviceAccount", minWidth: 170 },
+      { key: "bound_account_id", label: "账号信息", type: "deviceAccount", minWidth: 210 },
       { key: "proxy_id", label: "代理资源", type: "deviceProxy", minWidth: 180 },
       { key: "last_seen_at", label: "最近活动", type: "deviceActivity", width: 175 },
     ],
@@ -1367,6 +1367,18 @@ export const resources: Record<string, ResourceConfig> = {
         label: "账号登录状态",
         type: "select",
         options: loginStatusOptions,
+      },
+      {
+        key: "business_platform",
+        label: "业务 App",
+        type: "select",
+        options: businessPlatformOptions,
+      },
+      {
+        key: "country",
+        label: "国家",
+        type: "select",
+        options: accountCountryOptions,
       },
       {
         key: "bound_account_id",
@@ -1494,6 +1506,32 @@ export const resources: Record<string, ResourceConfig> = {
         path: (record) =>
           `/api/runtime-controls/${encodeURIComponent(String(record.control_command_id))}/retry`,
         successTitle: "设备同步已重新排队",
+      },
+    ],
+    batchActions: [
+      {
+        key: "batch-set-group",
+        label: "批量分组",
+        method: "POST",
+        icon: "users",
+        fields: [
+          {
+            key: "group_id",
+            label: "设备组",
+            type: "remoteSelect",
+            remote: slotGroupForSlotEditRemoteSelect,
+            required: true,
+            placeholder: "请选择目标设备组",
+          },
+        ],
+        batchPath: (_records, payload) =>
+          `/api/slot-groups/${encodeURIComponent(String(payload?.group_id))}/slots/batch`,
+        batchBody: (_payload, records) => ({
+          slot_ids: records.map((record) => String(record.id)),
+        }),
+        successTitle: "设备分组完成",
+        successMessage: (data) =>
+          `已分组 ${Number(data.added_count || 0)} 台设备，跳过 ${Number(data.skipped_count || 0)} 台已在组内设备`,
       },
     ],
     inlineActionKeys: ["retry-sync"],

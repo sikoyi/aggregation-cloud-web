@@ -817,10 +817,17 @@ async function requestAction(action: RowActionConfig, record: AnyRecord, payload
 
 function openBatchAction(action: RowActionConfig) {
   modal.type = 'batch'
-  const selectedPlatforms = [...new Set(selectedRows.value.map((row) => String(row.business_platform || '')).filter(Boolean))]
+  const selectedValues = (key: string) => [
+    ...new Set(selectedRows.value.map((row) => String(row[key] || '')).filter(Boolean)),
+  ]
+  const businessPlatforms = selectedValues('business_platform')
+  const runtimePlatforms = selectedValues('runtime_platform')
+  const providers = selectedValues('provider')
   modal.record = {
     selectedRows: selectedRows.value,
-    business_platform: selectedPlatforms.length === 1 ? selectedPlatforms[0] : undefined,
+    business_platform: businessPlatforms.length === 1 ? businessPlatforms[0] : undefined,
+    runtime_platform: runtimePlatforms.length === 1 ? runtimePlatforms[0] : undefined,
+    provider: providers.length === 1 ? providers[0] : undefined,
   }
   modal.action = action
   formState.value = buildFormState(action.fields || [])

@@ -327,9 +327,21 @@ describe('账号批量设置标签', () => {
   })
 })
 
+describe('设备批量分组', () => {
+  const action = resources.slots.batchActions?.find((item) => item.key === 'batch-set-group')
+
+  it('把选中设备一次提交到目标设备组', () => {
+    expect(action?.batchPath?.([], { group_id: 'group-8' })).toBe('/api/slot-groups/group-8/slots/batch')
+    expect(action?.batchBody?.({}, [{ id: 'slot-1' }, { id: 'slot-2' }])).toEqual({
+      slot_ids: ['slot-1', 'slot-2'],
+    })
+  })
+})
+
 describe('设备管理筛选', () => {
-  it('设备不再维护或筛选业务 App', () => {
-    expect(resources.slots.filters?.some((field) => field.key === 'business_platform')).toBe(false)
+  it('设备本身不维护业务 App，但支持按绑定账号的业务 App 和国家筛选', () => {
+    expect(resources.slots.filters?.some((field) => field.key === 'business_platform')).toBe(true)
+    expect(resources.slots.filters?.some((field) => field.key === 'country')).toBe(true)
     expect(resources.slots.createFields?.some((field) => field.key === 'business_platform')).toBe(false)
     expect(resources.slots.updateFields?.some((field) => field.key === 'business_platform')).toBe(false)
   })
