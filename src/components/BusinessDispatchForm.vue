@@ -181,8 +181,9 @@ function updateValue(value: AnyRecord) {
 }
 
 .dispatch-layout--published :deep(.slot-tree-select) {
-  min-height: 240px;
-  max-height: 44vh;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
 }
 
 .interaction-layout .dispatch-panel--account :deep(.account-tree-select) {
