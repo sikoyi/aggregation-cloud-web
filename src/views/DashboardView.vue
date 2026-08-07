@@ -2,13 +2,20 @@
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
+  Boxes,
   CheckCircle2,
   Clock3,
   FileCode2,
+  FileText,
+  Image,
+  MessageSquareReply,
   PlaySquare,
   RefreshCw,
+  Send,
   Server,
   ShieldCheck,
+  Upload,
   Users,
   XCircle,
 } from 'lucide-vue-next'
@@ -47,6 +54,66 @@ const error = ref('')
 const overview = ref<DashboardOverview | null>(null)
 const lastLoadedAt = ref('')
 let realtimeRefreshTimer: number | undefined
+
+// 快捷入口由系统统一维护，所有运营看到相同的高频业务入口。
+const quickEntries = [
+  {
+    label: '下发任务',
+    section: '任务中心',
+    to: { path: '/tasks', query: { action: 'create' } },
+    icon: Send,
+    tone: 'blue',
+  },
+  {
+    label: '发布内容',
+    section: '互动中心',
+    to: { path: '/published-contents', query: { action: 'create' } },
+    icon: FileText,
+    tone: 'green',
+  },
+  {
+    label: '新建互动会话',
+    section: '互动中心',
+    to: { path: '/interaction-sessions', query: { action: 'create' } },
+    icon: MessageSquareReply,
+    tone: 'violet',
+  },
+  {
+    label: '导入账号',
+    section: '账号中心',
+    to: { path: '/accounts', query: { action: 'create' } },
+    icon: Upload,
+    tone: 'cyan',
+  },
+  {
+    label: '账号数据',
+    section: '账号中心',
+    to: '/account-data',
+    icon: Users,
+    tone: 'indigo',
+  },
+  {
+    label: '设备管理',
+    section: '设备管理',
+    to: '/slots',
+    icon: Boxes,
+    tone: 'orange',
+  },
+  {
+    label: '代理资源',
+    section: '资源中心',
+    to: '/proxies',
+    icon: ShieldCheck,
+    tone: 'slate',
+  },
+  {
+    label: '素材库',
+    section: '资源中心',
+    to: '/media-assets',
+    icon: Image,
+    tone: 'amber',
+  },
+]
 
 const cards = computed(() => {
   const data = overview.value
@@ -142,6 +209,32 @@ onBeforeUnmount(() => {
     </div>
 
     <el-alert v-if="error" class="dashboard-alert" type="error" :title="error" :closable="false" show-icon />
+
+    <section class="quick-entry-section" aria-labelledby="quick-entry-title">
+      <div class="quick-entry-heading">
+        <div>
+          <h2 id="quick-entry-title">快捷入口</h2>
+          <p>常用业务</p>
+        </div>
+      </div>
+      <div class="quick-entry-grid">
+        <RouterLink
+          v-for="entry in quickEntries"
+          :key="entry.label"
+          :to="entry.to"
+          :class="['quick-entry', `quick-entry--${entry.tone}`]"
+        >
+          <span class="quick-entry__icon">
+            <component :is="entry.icon" class="h-5 w-5" />
+          </span>
+          <span class="quick-entry__content">
+            <strong>{{ entry.label }}</strong>
+            <small>{{ entry.section }}</small>
+          </span>
+          <ArrowRight class="quick-entry__arrow h-4 w-4" />
+        </RouterLink>
+      </div>
+    </section>
 
     <div class="dashboard-summary">
       <div v-for="item in summaryRows" :key="item.label" class="dashboard-summary__item">
@@ -279,6 +372,110 @@ onBeforeUnmount(() => {
 .dashboard-alert {
   border-radius: 8px;
 }
+
+.quick-entry-section {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px 16px 16px;
+}
+
+.quick-entry-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.quick-entry-heading h2 {
+  color: #1f2933;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.quick-entry-heading p {
+  margin-top: 2px;
+  color: #7b8794;
+  font-size: 12px;
+}
+
+.quick-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.quick-entry {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 64px;
+  gap: 10px;
+  border: 1px solid #e1e8ef;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.quick-entry:hover {
+  border-color: var(--entry-color);
+  box-shadow: 0 4px 12px rgb(31 41 51 / 8%);
+  transform: translateY(-1px);
+}
+
+.quick-entry__icon {
+  display: inline-flex;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  color: var(--entry-color);
+  background: var(--entry-bg);
+}
+
+.quick-entry__content {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.quick-entry__content strong {
+  overflow: hidden;
+  color: #243b53;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-entry__content small {
+  color: #7b8794;
+  font-size: 11px;
+}
+
+.quick-entry__arrow {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #9aa5b1;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.quick-entry:hover .quick-entry__arrow {
+  color: var(--entry-color);
+  transform: translateX(2px);
+}
+
+.quick-entry--blue { --entry-color: #1f668f; --entry-bg: #eef8ff; }
+.quick-entry--green { --entry-color: #15803d; --entry-bg: #f0fdf4; }
+.quick-entry--violet { --entry-color: #6d28d9; --entry-bg: #f5f3ff; }
+.quick-entry--cyan { --entry-color: #0e7490; --entry-bg: #ecfeff; }
+.quick-entry--indigo { --entry-color: #4f46e5; --entry-bg: #eef2ff; }
+.quick-entry--orange { --entry-color: #c2410c; --entry-bg: #fff7ed; }
+.quick-entry--slate { --entry-color: #475569; --entry-bg: #f8fafc; }
+.quick-entry--amber { --entry-color: #b45309; --entry-bg: #fffbeb; }
 
 .dashboard-summary {
   display: grid;
@@ -488,6 +685,10 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 
+  .quick-entry-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
   .dashboard-summary__item {
     border-right: 0;
     border-bottom: 1px solid #e6edf3;
@@ -507,6 +708,10 @@ onBeforeUnmount(() => {
     align-items: stretch;
     flex-direction: column;
     width: 100%;
+  }
+
+  .quick-entry-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

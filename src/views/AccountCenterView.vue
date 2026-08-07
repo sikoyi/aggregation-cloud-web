@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus, RefreshCw, Tags, Users } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import CrudPage from '@/components/CrudPage.vue'
@@ -45,6 +45,21 @@ watch(
   (tab) => {
     activeTab.value = normalizeTab(tab)
   },
+)
+
+// 工作台快捷入口进入账号中心后直接打开账号导入表单。
+watch(
+  () => route.query.action,
+  async (action) => {
+    if (action !== 'create') return
+    activeTab.value = 'accounts'
+    await nextTick()
+    await accountPageRef.value?.openCreate()
+    const query = { ...route.query }
+    delete query.action
+    await router.replace({ path: route.path, query })
+  },
+  { immediate: true, flush: 'post' },
 )
 </script>
 

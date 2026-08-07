@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ClipboardList, Plus, RefreshCw } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import CrudPage from '@/components/CrudPage.vue'
 import { resources } from '@/config/resources'
 
 const taskConfig = computed(() => resources.tasks)
 const taskPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
+const route = useRoute()
+const router = useRouter()
 
 function refreshTasks() {
   taskPageRef.value?.loadRows()
@@ -15,6 +18,20 @@ function refreshTasks() {
 function openDispatch() {
   taskPageRef.value?.openCreate()
 }
+
+// 工作台快捷入口进入任务记录后直接打开任务下发表单。
+watch(
+  () => route.query.action,
+  async (action) => {
+    if (action !== 'create') return
+    await nextTick()
+    await taskPageRef.value?.openCreate()
+    const query = { ...route.query }
+    delete query.action
+    await router.replace({ path: route.path, query })
+  },
+  { immediate: true, flush: 'post' },
+)
 </script>
 
 <template>
