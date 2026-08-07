@@ -200,6 +200,26 @@ describe('代理协议选项', () => {
 describe('发布内容来源', () => {
   const fields = resources.publishedContents.createFields || []
 
+  it('按设备下发且固定只展示已绑定账号的设备', () => {
+    const slotField = fields.find((field) => field.key === 'slot_ids')
+
+    expect(slotField?.type).toBe('slotTree')
+    expect(slotField?.slotTreeAccountPresence).toBe('bound')
+    expect(slotField?.slotTreeAccountPresenceFilter).not.toBe(true)
+    expect(slotField?.slotTreeProviderFilter).toBe(true)
+    expect(fields.some((field) => field.key === 'account_ids')).toBe(false)
+
+    const body = resources.publishedContents.createBody?.({
+      business_platform: 'threads',
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+      slot_ids: ['slot-1'],
+      content_source_type: 'ungrouped',
+    }) as Record<string, unknown>
+
+    expect(body.slot_ids).toEqual(['slot-1'])
+    expect(body).not.toHaveProperty('account_ids')
+  })
   it('支持把未分组内容作为虚拟内容池随机取用', () => {
     const sourceField = fields.find((field) => field.key === 'content_source_type')
     const groupField = fields.find((field) => field.key === 'content_group_id')
@@ -225,7 +245,7 @@ describe('发布内容来源', () => {
       business_platform: 'threads',
       runtime_platform: 'fingerprint_browser',
       provider: 'morelogin',
-      account_ids: ['1', '2'],
+      slot_ids: ['slot-1', 'slot-2'],
       content_source_type: 'ungrouped',
       content_status: 'all',
       content_id: '12',

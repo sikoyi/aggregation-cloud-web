@@ -610,7 +610,7 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "business_platform",
     "runtime_platform",
     "provider",
-    "account_ids",
+    "slot_ids",
     "content_source_type",
     "content_status",
     "content_id",
@@ -649,7 +649,7 @@ function formatPublishedContentDispatchSuccess(data: AnyRecord) {
   const total = Number(data.total || 0);
   const task = data.task && typeof data.task === "object" ? data.task as AnyRecord : {};
   const taskId = task.id ? `，父任务 ID：${task.id}` : "";
-  return `已下发 ${total} 个账号发布任务${taskId}`;
+  return `已下发 ${total} 台设备的发布任务${taskId}`;
 }
 
 function formatAccountImportSuccess(data: AnyRecord) {
@@ -2631,10 +2631,12 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "adspower",
       },
       {
-        key: "account_ids",
-        label: "发布账号",
-        type: "accountTree",
+        key: "slot_ids",
+        label: "发布设备",
+        type: "slotTree",
         required: true,
+        slotTreeAccountPresence: "bound",
+        slotTreeProviderFilter: true,
         span: 2,
       },
       {

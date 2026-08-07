@@ -124,6 +124,8 @@ export interface FieldConfig {
   accountTreeMonitoringOnly?: boolean
   accountTreeGroupFilterPreferenceKey?: string
   slotTreeAccountPresenceFilter?: boolean
+  slotTreeAccountPresence?: 'all' | 'bound' | 'unbound'
+  slotTreeProviderFilter?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   endKey?: string
   endDefaultValue?: number

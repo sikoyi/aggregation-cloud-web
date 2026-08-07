@@ -32,8 +32,8 @@ const registrationAttemptTotal = computed(() => (
   Number(props.modelValue.concurrent_registration_count || 0)
   * Number(props.modelValue.execution_count || 0)
 ))
-const publishedAccountFields = computed(() => props.fields.filter((field) => field.type === 'accountTree'))
-const publishedParamFields = computed(() => props.fields.filter((field) => field.type !== 'accountTree'))
+const publishedDeviceFields = computed(() => props.fields.filter((field) => field.type === 'slotTree'))
+const publishedParamFields = computed(() => props.fields.filter((field) => field.type !== 'slotTree'))
 const interactionFieldGroups = computed(() => groupInteractionDispatchFields(props.fields))
 const interactionMainFields = computed(() => interactionFieldGroups.value.main)
 const interactionCommentFields = computed(() => interactionFieldGroups.value.comment)
@@ -80,10 +80,10 @@ function updateValue(value: AnyRecord) {
 
   <div v-else-if="mode === 'published'" class="dispatch-layout dispatch-layout--published">
     <div class="dispatch-panel dispatch-panel--selector">
-      <div class="dispatch-panel__title">账号分组 / 已登录账号</div>
+      <div class="dispatch-panel__title">设备分组 / 有号设备</div>
       <DynamicForm
         :model-value="modelValue"
-        :fields="publishedAccountFields"
+        :fields="publishedDeviceFields"
         :context="context"
         @update:model-value="updateValue"
       />
@@ -180,7 +180,7 @@ function updateValue(value: AnyRecord) {
   padding: 12px;
 }
 
-.dispatch-layout--published :deep(.account-tree-select) {
+.dispatch-layout--published :deep(.slot-tree-select) {
   min-height: 240px;
   max-height: 44vh;
 }

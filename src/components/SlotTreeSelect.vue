@@ -19,6 +19,7 @@ const props = defineProps<{
   disabled?: boolean
   filters?: AnyRecord
   showAccountPresenceFilter?: boolean
+  accountPresence?: 'all' | 'bound' | 'unbound'
 }>()
 
 const emit = defineEmits<{
@@ -44,7 +45,6 @@ const searchKeyword = ref('')
 const treeData = ref<SlotTreeNode[]>([])
 const selectedGroupNodeIds = ref<string[]>([])
 const accountPresenceFilter = ref<'all' | 'bound' | 'unbound'>('all')
-const totalSlotCount = ref(0)
 const loadedSlotIds = ref<Set<string>>(new Set())
 const defaultExpandedGroupKeys = ref<string[]>([])
 const collapsedGroupIds = new Set<string>()
@@ -62,7 +62,11 @@ const selectedSlotIds = computed(() =>
 const selectedSlotCount = computed(() =>
   selectedSlotIds.value.filter((slotId) => loadedSlotIds.value.has(slotId)).length,
 )
-const groupOptions = computed(() => treeData.value.map((node) => ({
+const fixedTreeData = computed(() =>
+  filterTreeByAccountPresence(treeData.value, props.accountPresence || 'all'),
+)
+const totalSlotCount = computed(() => countFilteredTreeLeaves(fixedTreeData.value, ''))
+const groupOptions = computed(() => fixedTreeData.value.map((node) => ({
   value: node.id,
   label: node.label,
 })))
@@ -73,8 +77,8 @@ const activeFilterCount = computed(() => (
 const visibleTreeData = computed(() => {
   const selectedIds = new Set(selectedGroupNodeIds.value)
   const grouped = selectedGroupNodeIds.value.length
-    ? treeData.value.filter((node) => selectedIds.has(node.id))
-    : treeData.value
+    ? fixedTreeData.value.filter((node) => selectedIds.has(node.id))
+    : fixedTreeData.value
   const accountFilter = props.showAccountPresenceFilter ? accountPresenceFilter.value : 'all'
   return filterTreeByAccountPresence(grouped, accountFilter).map((node) => ({
     ...node,
@@ -87,6 +91,7 @@ const filteredSlotCount = computed(() =>
 const filterSignature = computed(() => JSON.stringify({
   runtime_platform: String(props.filters?.runtime_platform || ''),
   provider: String(props.filters?.provider || ''),
+  account_presence: String(props.accountPresence || 'all'),
 }))
 let loadRequestId = 0
 let filterReloadTimer: number | undefined
@@ -169,7 +174,6 @@ async function loadTree() {
     const slots = await loadSlotSelectionOptions(props.filters || {})
     if (requestId !== loadRequestId) return
 
-    const eligibleSlotIds = new Set(slots.map((slot) => String(slot.id)))
     const slotsByGroup = new Map<string, AnyRecord[]>()
     const groupNames = new Map<string, string>()
     const groupedSlotIds = new Set<string>()
@@ -198,8 +202,6 @@ async function loadTree() {
     })
 
     const ungroupedSlots = slots.filter((slot) => !groupedSlotIds.has(String(slot.id)))
-    loadedSlotIds.value = eligibleSlotIds
-    totalSlotCount.value = slots.length
     const nextTreeData = [
       ...groupNodes.filter((node) => node.children.length),
       ...(ungroupedSlots.length
@@ -215,6 +217,15 @@ async function loadTree() {
         : []),
     ]
     treeData.value = nextTreeData
+    const selectableTreeData = filterTreeByAccountPresence(
+      nextTreeData,
+      props.accountPresence || 'all',
+    )
+    loadedSlotIds.value = new Set(
+      filteredTreeLeaves(selectableTreeData, '')
+        .map((node) => node.slotId)
+        .filter((slotId): slotId is string => Boolean(slotId)),
+    )
 
     await nextTick()
     syncCheckedKeys()

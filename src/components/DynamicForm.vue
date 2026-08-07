@@ -310,9 +310,10 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :model-value="modelValue[field.key]"
             :disabled="isFieldDisabled(field)"
             :show-account-presence-filter="field.slotTreeAccountPresenceFilter"
+            :account-presence="field.slotTreeAccountPresence"
             :filters="{
               runtime_platform: modelValue.runtime_platform,
-              provider: modelValue.template_id ? modelValue.provider : undefined,
+              provider: field.slotTreeProviderFilter || modelValue.template_id ? modelValue.provider : undefined,
             }"
             @update:model-value="updateValue(field.key, $event)"
           />
