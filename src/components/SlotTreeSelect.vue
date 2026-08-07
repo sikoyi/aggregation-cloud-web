@@ -20,6 +20,7 @@ const props = defineProps<{
   filters?: AnyRecord
   showAccountPresenceFilter?: boolean
   accountPresence?: 'all' | 'bound' | 'unbound'
+  fillHeight?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +41,8 @@ interface SlotTreeNode {
 }
 
 const treeRef = ref()
+const rootRef = ref<HTMLElement>()
+const toolbarRef = ref<HTMLElement>()
 const loading = ref(false)
 const searchKeyword = ref('')
 const treeData = ref<SlotTreeNode[]>([])
@@ -54,7 +57,7 @@ const treeProps = {
   disabled: 'disabled',
   value: 'id',
 }
-const treeHeight = 350
+const treeHeight = ref(350)
 
 const selectedSlotIds = computed(() =>
   Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
@@ -95,6 +98,16 @@ const filterSignature = computed(() => JSON.stringify({
 }))
 let loadRequestId = 0
 let filterReloadTimer: number | undefined
+let resizeObserver: ResizeObserver | undefined
+
+function updateTreeHeight() {
+  if (!props.fillHeight || !rootRef.value) {
+    treeHeight.value = 350
+    return
+  }
+  const toolbarHeight = toolbarRef.value?.offsetHeight || 0
+  treeHeight.value = Math.max(260, rootRef.value.clientHeight - toolbarHeight - 10)
+}
 
 function slotNodeId(slotId: string) {
   return `slot:${slotId}`
@@ -272,11 +285,19 @@ function emitChecked(node: unknown) {
   )
 }
 
-onMounted(loadTree)
+onMounted(() => {
+  loadTree()
+  if (!props.fillHeight || typeof ResizeObserver === 'undefined') return
+  resizeObserver = new ResizeObserver(updateTreeHeight)
+  if (rootRef.value) resizeObserver.observe(rootRef.value)
+  if (toolbarRef.value) resizeObserver.observe(toolbarRef.value)
+  nextTick(updateTreeHeight)
+})
 
 onBeforeUnmount(() => {
   loadRequestId += 1
   if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
+  resizeObserver?.disconnect()
 })
 
 watch(selectedSlotIds, () => nextTick(syncCheckedKeys))
@@ -303,8 +324,13 @@ watch(
 </script>
 
 <template>
-  <div class="slot-tree-select" v-loading="loading">
-    <div class="slot-tree-toolbar">
+  <div
+    ref="rootRef"
+    class="slot-tree-select"
+    :class="{ 'slot-tree-select--fill': fillHeight }"
+    v-loading="loading"
+  >
+    <div ref="toolbarRef" class="slot-tree-toolbar">
       <div class="slot-tree-summary">
         <span>设备总数 <strong>{{ totalSlotCount }}</strong></span>
         <span>当前筛选 <strong>{{ filteredSlotCount }}</strong></span>
@@ -423,6 +449,13 @@ watch(
   border: 1px solid #dbe4f0;
   border-radius: 6px;
   background: #f8fafc;
+}
+
+.slot-tree-select--fill {
+  height: 100%;
+  min-height: 380px;
+  max-height: none;
+  overflow: hidden;
 }
 
 .slot-tree-select :deep(.el-tree),

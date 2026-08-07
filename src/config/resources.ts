@@ -2634,6 +2634,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: businessPlatformOptions,
         defaultValue: "threads",
+        required: true,
       },
       {
         key: "runtime_platform",
@@ -2641,6 +2642,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: runtimePlatformOptions,
         defaultValue: "fingerprint_browser",
+        required: true,
       },
       {
         key: "provider",
@@ -2648,6 +2650,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: providerOptions,
         defaultValue: "adspower",
+        required: true,
       },
       {
         key: "slot_ids",
@@ -2656,6 +2659,7 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
         slotTreeAccountPresence: "bound",
         slotTreeProviderFilter: true,
+        slotTreeFillHeight: true,
         span: 2,
       },
       {
@@ -2664,6 +2668,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: publishedContentSourceOptions,
         defaultValue: "content_group",
+        required: true,
       },
       {
         key: "content_status",
@@ -2679,6 +2684,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "remoteSelect",
         remote: contentGroupRemoteSelect,
         disabledWhen: { key: "content_source_type", value: ["content", "ungrouped"] },
+        requiredWhen: { key: "content_source_type", value: "content_group" },
         allowEmpty: true,
         placeholder: "按账号数量从内容池中随机取用",
       },
@@ -2688,6 +2694,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "remoteSelect",
         remote: contentRemoteSelect,
         disabledWhen: { key: "content_source_type", value: ["content_group", "ungrouped"] },
+        requiredWhen: { key: "content_source_type", value: "content" },
         allowEmpty: true,
         placeholder: "按使用状态筛选并选择内容",
       },

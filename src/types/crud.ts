@@ -126,6 +126,7 @@ export interface FieldConfig {
   slotTreeAccountPresenceFilter?: boolean
   slotTreeAccountPresence?: 'all' | 'bound' | 'unbound'
   slotTreeProviderFilter?: boolean
+  slotTreeFillHeight?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   endKey?: string
   endDefaultValue?: number

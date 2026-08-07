@@ -311,6 +311,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :disabled="isFieldDisabled(field)"
             :show-account-presence-filter="field.slotTreeAccountPresenceFilter"
             :account-presence="field.slotTreeAccountPresence"
+            :fill-height="field.slotTreeFillHeight"
             :filters="{
               runtime_platform: modelValue.runtime_platform,
               provider: field.slotTreeProviderFilter || modelValue.template_id ? modelValue.provider : undefined,

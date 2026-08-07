@@ -81,12 +81,14 @@ function updateValue(value: AnyRecord) {
   <div v-else-if="mode === 'published'" class="dispatch-layout dispatch-layout--published">
     <div class="dispatch-panel dispatch-panel--selector">
       <div class="dispatch-panel__title">设备分组 / 有号设备</div>
-      <DynamicForm
-        :model-value="modelValue"
-        :fields="publishedDeviceFields"
-        :context="context"
-        @update:model-value="updateValue"
-      />
+      <div class="dispatch-panel__selector-body">
+        <DynamicForm
+          :model-value="modelValue"
+          :fields="publishedDeviceFields"
+          :context="context"
+          @update:model-value="updateValue"
+        />
+      </div>
     </div>
     <div class="dispatch-panel">
       <div class="dispatch-panel__title">发布配置</div>
@@ -141,6 +143,7 @@ function updateValue(value: AnyRecord) {
 .dispatch-layout--published {
   grid-template-columns: minmax(240px, 300px) minmax(660px, 1fr);
   gap: 14px;
+  align-items: stretch;
 }
 
 .interaction-layout {
@@ -177,11 +180,39 @@ function updateValue(value: AnyRecord) {
 }
 
 .dispatch-layout--published .dispatch-panel--selector {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
   padding: 12px;
 }
 
-.dispatch-layout--published :deep(.slot-tree-select) {
+.dispatch-layout--published .dispatch-panel__selector-body {
   min-height: 0;
+  flex: 1;
+}
+
+.dispatch-layout--published .dispatch-panel__selector-body :deep(.dynamic-form),
+.dispatch-layout--published .dispatch-panel__selector-body :deep(.el-row),
+.dispatch-layout--published .dispatch-panel__selector-body :deep(.el-col),
+.dispatch-layout--published .dispatch-panel__selector-body :deep(.el-form-item) {
+  height: 100%;
+  min-height: 0;
+}
+
+.dispatch-layout--published .dispatch-panel__selector-body :deep(.el-form-item) {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+.dispatch-layout--published .dispatch-panel__selector-body :deep(.el-form-item__content) {
+  min-height: 0;
+  flex: 1;
+  align-items: stretch;
+}
+
+.dispatch-layout--published :deep(.slot-tree-select) {
+  min-height: 380px;
   max-height: none;
   overflow: hidden;
 }

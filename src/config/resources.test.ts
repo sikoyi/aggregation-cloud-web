@@ -207,6 +207,7 @@ describe('发布内容来源', () => {
     expect(slotField?.slotTreeAccountPresence).toBe('bound')
     expect(slotField?.slotTreeAccountPresenceFilter).not.toBe(true)
     expect(slotField?.slotTreeProviderFilter).toBe(true)
+    expect(slotField?.slotTreeFillHeight).toBe(true)
     expect(fields.some((field) => field.key === 'account_ids')).toBe(false)
 
     const body = resources.publishedContents.createBody?.({
@@ -219,6 +220,22 @@ describe('发布内容来源', () => {
 
     expect(body.slot_ids).toEqual(['slot-1'])
     expect(body).not.toHaveProperty('account_ids')
+  })
+
+  it('为发布配置展示准确的必填标记', () => {
+    for (const key of ['business_platform', 'runtime_platform', 'provider', 'content_source_type']) {
+      expect(fields.find((field) => field.key === key)?.required).toBe(true)
+    }
+
+    expect(fields.find((field) => field.key === 'content_group_id')?.requiredWhen).toEqual({
+      key: 'content_source_type',
+      value: 'content_group',
+    })
+    expect(fields.find((field) => field.key === 'content_id')?.requiredWhen).toEqual({
+      key: 'content_source_type',
+      value: 'content',
+    })
+    expect(fields.find((field) => field.key === 'content_status')?.required).not.toBe(true)
   })
   it('支持把未分组内容作为虚拟内容池随机取用', () => {
     const sourceField = fields.find((field) => field.key === 'content_source_type')
