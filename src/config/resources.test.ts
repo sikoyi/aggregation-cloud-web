@@ -257,6 +257,25 @@ describe('发布内容来源', () => {
     expect(body.content_group_id).toBeNull()
   })
 
+  it('评论图片支持多选并按原顺序提交素材 ID', () => {
+    const imageField = fields.find((field) => field.key === 'comment_media_asset_ids')
+    const body = resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      business_platform: 'threads',
+      comment_content: '',
+      comment_media_asset_ids: ['asset-1', 'asset-2'],
+    }) as Record<string, unknown>
+    const params = typeof imageField?.remote?.params === 'function'
+      ? imageField.remote.params({ business_platform: 'threads' })
+      : imageField?.remote?.params
+
+    expect(imageField?.type).toBe('remoteSelect')
+    expect(imageField?.remote?.multiple).toBe(true)
+    expect(params).toMatchObject({ status: 'enabled', asset_type: 'image', business_platform: 'threads' })
+    expect(body.comment_content).toBeNull()
+    expect(body.comment_media_asset_ids).toEqual(['asset-1', 'asset-2'])
+  })
+
   it('评论内容可选且未填写时提交 null', () => {
     const commentField = fields.find((field) => field.key === 'comment_content')
     const emptyBody = resources.publishedContents.createBody?.({
@@ -283,8 +302,14 @@ describe('发布内容来源', () => {
     }) as Record<string, unknown>
 
     expect(delayField?.type).toBe('numberRange')
-    expect(delayField?.defaultValue).toBe(0)
-    expect(delayField?.endDefaultValue).toBe(1)
+    expect(delayField?.defaultValue).toBe(1)
+    expect(delayField?.endDefaultValue).toBe(2)
+    expect(resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+    })).toMatchObject({
+      dispatch_delay_min_minutes: 1,
+      dispatch_delay_max_minutes: 2,
+    })
     expect(body.dispatch_delay_min_minutes).toBe(2)
     expect(body.dispatch_delay_max_minutes).toBe(5)
     expect(() => resources.publishedContents.createBody?.({

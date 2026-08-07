@@ -43,8 +43,8 @@ const stepCount = computed(() => {
   return Math.max(0, ...steps.value.map((step) => Number(step.step_no || 0)))
 })
 const dispatchDelayText = computed(() => {
-  const minimum = Number(session.value?.step_delay_min_minutes ?? 0)
-  const maximum = Number(session.value?.step_delay_max_minutes ?? minimum)
+  const minimum = Number(session.value?.step_delay_min_minutes ?? 1)
+  const maximum = Number(session.value?.step_delay_max_minutes ?? 2)
   return minimum === maximum ? `${minimum} 分钟` : `${minimum} - ${maximum} 分钟`
 })
 const targetAuthors = computed<string[]>(() => {

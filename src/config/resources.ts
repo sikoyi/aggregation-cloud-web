@@ -271,6 +271,21 @@ const mediaAssetMultiSelect = {
   ...mediaAssetRemoteSelect,
   multiple: true,
 };
+const commentImageMultiSelect = {
+  ...mediaAssetMultiSelect,
+  params: (context?: AnyRecord) => ({
+    status: "enabled",
+    asset_type: "image",
+    business_platform: context?.business_platform || undefined,
+  }),
+  matchesContext: (asset: AnyRecord, context?: AnyRecord) => (
+    asset.asset_type === "image"
+    && asset.status === "enabled"
+    && (!context?.business_platform || asset.business_platform === context.business_platform)
+  ),
+  emptyText: "当前业务 App 下暂无可用图片，请先在素材库上传",
+};
+
 
 const mediaAssetGroupRemoteSelect = {
   endpoint: "/api/resource-center/media-asset-groups",
@@ -396,8 +411,8 @@ function buildInteractionSessionBody(payload: AnyRecord) {
   if (contentMode === "custom" && !customContents.length) {
     throw new Error("请至少填写一条自定义评论内容");
   }
-  const delayMinMinutes = Number(sessionPayload.step_delay_min_minutes ?? 0);
-  const delayMaxMinutes = Number(sessionPayload.step_delay_max_minutes ?? 1);
+  const delayMinMinutes = Number(sessionPayload.step_delay_min_minutes ?? 1);
+  const delayMaxMinutes = Number(sessionPayload.step_delay_max_minutes ?? 2);
   const browseDurationMinutes = Number(sessionPayload.browse_duration_minutes ?? 10);
   if (delayMinMinutes > delayMaxMinutes) {
     throw new Error("最短延迟不能大于最长延迟");
@@ -616,6 +631,7 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "content_id",
     "content_group_id",
     "comment_content",
+    "comment_media_asset_ids",
     "dispatch_delay_min_minutes",
     "dispatch_delay_max_minutes",
     "scheduled_at",
@@ -624,8 +640,11 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     ? payload.comment_content
     : "";
   body.comment_content = commentContent.trim() ? commentContent : null;
-  const delayMinMinutes = Number(payload.dispatch_delay_min_minutes ?? 0);
-  const delayMaxMinutes = Number(payload.dispatch_delay_max_minutes ?? 1);
+  body.comment_media_asset_ids = Array.isArray(payload.comment_media_asset_ids)
+    ? payload.comment_media_asset_ids.map(String).filter(Boolean)
+    : [];
+  const delayMinMinutes = Number(payload.dispatch_delay_min_minutes ?? 1);
+  const delayMaxMinutes = Number(payload.dispatch_delay_max_minutes ?? 2);
   if (delayMinMinutes > delayMaxMinutes) {
     throw new Error("最短延迟不能大于最长延迟");
   }
@@ -2329,8 +2348,8 @@ export const resources: Record<string, ResourceConfig> = {
         endKey: "step_delay_max_minutes",
         label: "延迟下发时间（分钟）",
         type: "numberRange",
-        defaultValue: 0,
-        endDefaultValue: 1,
+        defaultValue: 1,
+        endDefaultValue: 2,
         min: 0,
         max: 1440,
         step: 1,
@@ -2681,12 +2700,21 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "可选；填写后随发布任务下发给脚本",
       },
       {
+        key: "comment_media_asset_ids",
+        label: "评论图片",
+        type: "remoteSelect",
+        remote: commentImageMultiSelect,
+        span: 2,
+        allowEmpty: true,
+        placeholder: "可选；支持从素材库选择多张图片",
+      },
+      {
         key: "dispatch_delay_min_minutes",
         endKey: "dispatch_delay_max_minutes",
         label: "延迟下发时间（分钟）",
         type: "numberRange",
-        defaultValue: 0,
-        endDefaultValue: 1,
+        defaultValue: 1,
+        endDefaultValue: 2,
         min: 0,
         max: 1440,
         step: 1,
