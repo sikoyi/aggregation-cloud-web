@@ -143,7 +143,7 @@ function updateValue(value: AnyRecord) {
 .dispatch-layout--published {
   grid-template-columns: minmax(240px, 300px) minmax(660px, 1fr);
   gap: 14px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .interaction-layout {
@@ -181,6 +181,7 @@ function updateValue(value: AnyRecord) {
 
 .dispatch-layout--published .dispatch-panel--selector {
   display: flex;
+  height: clamp(500px, calc(100vh - 230px), 620px);
   min-height: 0;
   flex-direction: column;
   padding: 12px;
@@ -189,6 +190,7 @@ function updateValue(value: AnyRecord) {
 .dispatch-layout--published .dispatch-panel__selector-body {
   min-height: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .dispatch-layout--published .dispatch-panel__selector-body :deep(.dynamic-form),
@@ -212,7 +214,8 @@ function updateValue(value: AnyRecord) {
 }
 
 .dispatch-layout--published :deep(.slot-tree-select) {
-  min-height: 380px;
+  height: 100%;
+  min-height: 0;
   max-height: none;
   overflow: hidden;
 }
