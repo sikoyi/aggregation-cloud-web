@@ -32,6 +32,7 @@ export type ColumnType =
   | 'accountCredentials'
   | 'accountPlatform'
   | 'accountEnvironment'
+  | 'accountBackup'
   | 'proxyIdentity'
   | 'proxyGroup'
   | 'proxyEndpoint'

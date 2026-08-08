@@ -1225,8 +1225,8 @@ onBeforeUnmount(() => {
         >
           <template #default="{ row }">
             <AccountTableCell
-              v-if="column.type && ['accountIdentity', 'accountTags', 'accountDeviceGroup', 'accountCredentials', 'accountPlatform', 'accountEnvironment'].includes(column.type)"
-              :kind="column.type as 'accountIdentity' | 'accountTags' | 'accountDeviceGroup' | 'accountCredentials' | 'accountPlatform' | 'accountEnvironment'"
+              v-if="column.type && ['accountIdentity', 'accountTags', 'accountDeviceGroup', 'accountCredentials', 'accountPlatform', 'accountEnvironment', 'accountBackup'].includes(column.type)"
+              :kind="column.type as 'accountIdentity' | 'accountTags' | 'accountDeviceGroup' | 'accountCredentials' | 'accountPlatform' | 'accountEnvironment' | 'accountBackup'"
               :row="row"
               :column="column"
             />

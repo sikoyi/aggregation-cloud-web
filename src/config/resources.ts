@@ -939,6 +939,12 @@ export const resources: Record<string, ResourceConfig> = {
         type: "accountEnvironment",
         minWidth: 205,
       },
+      {
+        key: "account_package_download_url",
+        label: "备份地址",
+        type: "accountBackup",
+        minWidth: 240,
+      },
       { key: "updated_at", label: "更新时间", type: "datetime", width: 155, align: "center" },
     ],
     filters: [

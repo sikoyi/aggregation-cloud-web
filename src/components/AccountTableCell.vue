@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { KeyRound, MapPin, MonitorSmartphone, ShieldCheck, Tags, Users } from 'lucide-vue-next'
+import { KeyRound, Link2, MapPin, MonitorSmartphone, ShieldCheck, Tags, Users } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import { resolveBackendUrl } from '@/api/http'
@@ -14,6 +14,7 @@ type AccountCellKind =
   | 'accountCredentials'
   | 'accountPlatform'
   | 'accountEnvironment'
+  | 'accountBackup'
 
 const props = defineProps<{
   kind: AccountCellKind
@@ -48,6 +49,7 @@ const provider = computed(() => optionLabel(providerOptions, props.row.bound_slo
 const deviceName = computed(() => String(props.row.bound_slot_name || '').trim())
 const deviceId = computed(() => String(props.row.bound_slot_provider_id || '').trim())
 const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value))
+const backupUrl = computed(() => String(props.row.account_package_download_url || '').trim())
 </script>
 
 <template>
@@ -131,6 +133,21 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
       <el-tag size="small" effect="plain" type="info">{{ runtimePlatform }}</el-tag>
       <el-tag size="small" effect="plain">{{ provider }}</el-tag>
     </div>
+  </div>
+
+  <div v-else-if="kind === 'accountBackup'" class="account-cell account-backup">
+    <el-tooltip v-if="backupUrl" :content="backupUrl" placement="top" :show-after="500">
+      <a
+        class="account-backup__link"
+        :href="backupUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Link2 />
+        <span>{{ backupUrl }}</span>
+      </a>
+    </el-tooltip>
+    <el-tag v-else type="info" effect="plain" round>未备份</el-tag>
   </div>
 </template>
 
@@ -352,5 +369,34 @@ const hasBoundDevice = computed(() => Boolean(deviceName.value || deviceId.value
 .account-environment__empty {
   color: #9aa9b8;
   font-size: 12px;
+}
+
+.account-backup__link {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  color: #2f6f9f;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.account-backup__link:hover {
+  color: #1f5d8a;
+  text-decoration: underline;
+}
+
+.account-backup__link svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.account-backup__link span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
