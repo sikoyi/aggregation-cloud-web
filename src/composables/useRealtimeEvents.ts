@@ -19,7 +19,7 @@ let currentToken = ''
 
 function buildStreamUrl() {
   const url = new URL('/api/events/stream', http.apiBaseUrl)
-  url.searchParams.set('topics', 'task,runtime,conversation,content_monitor,comment_reply')
+  url.searchParams.set('topics', 'task,runtime,account,conversation,content_monitor,comment_reply')
   return url.toString()
 }
 

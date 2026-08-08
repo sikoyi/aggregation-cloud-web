@@ -524,6 +524,7 @@ async function loadRows(options?: { silent?: boolean } | number) {
 }
 
 function shouldRefreshForRealtime(event: RealtimeEventPayload) {
+  if (props.config.key === 'accounts') return event.topic === 'account'
   if (props.config.key === 'tasks') return event.topic === 'task'
   if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
