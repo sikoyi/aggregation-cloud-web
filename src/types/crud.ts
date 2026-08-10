@@ -66,6 +66,7 @@ export type ColumnType =
   | 'id'
   | 'boolean'
   | 'assetPreview'
+  | 'contentPreview'
   | 'relation'
 
 export interface SelectOption {
@@ -233,6 +234,7 @@ export interface ResourceConfig {
   contentGroupMembers?: boolean
   mediaAssetGroupMembers?: boolean
   mediaAssetBatchUpload?: boolean
+  editPreview?: 'content'
 }
 
 export type IconMap = Record<string, Component>

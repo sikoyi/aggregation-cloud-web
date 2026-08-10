@@ -45,6 +45,7 @@ import { getErrorMessage, notifyError } from '@/utils/notify'
 const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
 const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
+const ContentPreview = defineAsyncComponent(() => import('@/components/ContentPreview.vue'))
 const ContentGroupMemberEditor = defineAsyncComponent(() => import('@/components/ContentGroupMemberEditor.vue'))
 const InteractionSessionDetailDialog = defineAsyncComponent(() => import('@/components/InteractionSessionDetailDialog.vue'))
 const MediaAssetBatchUploader = defineAsyncComponent(() => import('@/components/MediaAssetBatchUploader.vue'))
@@ -162,6 +163,7 @@ const modalWidth = computed(() => {
   if (isMediaAssetBatchCreateModal.value) return '900px'
   if (isInteractionSessionCreateModal.value) return '1240px'
   if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value) return '1120px'
+  if (modal.type === 'edit' && props.config.editPreview === 'content') return '1100px'
   if (
     modal.type === 'edit'
     && (
@@ -1322,6 +1324,7 @@ onBeforeUnmount(() => {
                 <el-tag v-else effect="plain">{{ assetTypeLabel(row, column) }}</el-tag>
               </div>
             </template>
+            <ContentPreview v-else-if="column.type === 'contentPreview'" :record="row" mode="compact" />
             <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
               {{ truncateId(row[column.key]) }}
             </span>
@@ -1494,6 +1497,10 @@ onBeforeUnmount(() => {
           />
         </el-tab-pane>
       </el-tabs>
+      <div v-else-if="modal.type === 'edit' && config.editPreview === 'content'" class="content-edit-layout">
+        <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
+        <ContentPreview :record="formState" mode="full" />
+      </div>
       <DynamicForm v-else v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
       <template #footer>
         <el-button :disabled="submitting" @click="closeModal">{{ isMediaAssetBatchCreateModal ? '关闭' : '取消' }}</el-button>
@@ -1850,6 +1857,24 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
+.content-edit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.8fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.content-edit-layout > :last-child {
+  position: sticky;
+  top: 0;
+  max-height: 62vh;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid #dce6ef;
+  border-radius: 8px;
+  background: #f8fbfd;
+}
+
 .asset-inline-preview {
   display: flex;
   align-items: center;
@@ -1925,6 +1950,15 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .content-edit-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .content-edit-layout > :last-child {
+    position: static;
+    max-height: none;
+  }
+
   .filter-grid {
     grid-template-columns: 1fr;
   }

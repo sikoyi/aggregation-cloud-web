@@ -1963,7 +1963,8 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     columns: [
       { key: "id", label: "ID", type: "id", align: "center" },
-      { key: "title", label: "内容标题", minWidth: 240 },
+      { key: "title", label: "内容标题", minWidth: 220 },
+      { key: "text_body", label: "内容预览", type: "contentPreview", minWidth: 380 },
       { key: "content_group_names", label: "所属内容池", type: "list", minWidth: 180 },
       { key: "business_platform", label: "业务 App", align: "center" },
       { key: "content_type", label: "内容类型", options: contentTypeOptions, align: "center" },
@@ -2081,6 +2082,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "text_body", label: "内容正文", type: "textarea", span: 2, allowEmpty: true },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
     ],
+    editPreview: "content",
     batchActions: [
       {
         key: "batch-add-to-content-group",
