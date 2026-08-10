@@ -3,6 +3,7 @@ import { Images, Search, X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { notifyError } from '@/utils/notify'
@@ -25,8 +26,18 @@ const emit = defineEmits<{
 const dialogVisible = ref(false)
 const loading = ref(false)
 const selectedLoading = ref(false)
-const keyword = ref('')
-const selectedGroup = ref(GROUP_ALL)
+const { filters: pickerFilters } = usePersistentFilters('picker:images', {
+  keyword: '',
+  selectedGroup: GROUP_ALL,
+})
+const keyword = computed({
+  get: () => String(pickerFilters.keyword || ''),
+  set: (value: string) => { pickerFilters.keyword = value },
+})
+const selectedGroup = computed({
+  get: () => String(pickerFilters.selectedGroup || GROUP_ALL),
+  set: (value: string) => { pickerFilters.selectedGroup = value },
+})
 const groups = ref<AnyRecord[]>([])
 const assets = ref<AnyRecord[]>([])
 const selectedAssets = ref<AnyRecord[]>([])
@@ -133,8 +144,6 @@ async function openDialog() {
   if (props.disabled) return
   dialogVisible.value = true
   draftIds.value = [...selectedIds.value]
-  keyword.value = ''
-  selectedGroup.value = GROUP_ALL
   page.value = 1
   await Promise.all([loadGroups(), loadAssets()])
 }

@@ -6,14 +6,9 @@ import {
   loadAccountSelectionOptions,
   loadMonitoredAccountSelectionOptions,
 } from '@/api/selectionOptions'
-import { useAuthStore } from '@/stores/auth'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
-import {
-  buildUserPreferenceKey,
-  readStringListPreference,
-  writeStringListPreference,
-} from '@/utils/localPreferences'
 import { countFilteredTreeLeaves } from '@/utils/treeSelectionStats'
 import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
@@ -25,7 +20,6 @@ const props = defineProps<{
   associationOnly?: boolean
   groupByDevice?: boolean
   monitoringOnly?: boolean
-  groupFilterPreferenceKey?: string
 }>()
 
 const emit = defineEmits<{
@@ -45,11 +39,24 @@ interface AccountTreeNode {
 }
 
 const treeRef = ref()
-const auth = useAuthStore()
 const loading = ref(false)
-const searchKeyword = ref('')
 const treeData = ref<AccountTreeNode[]>([])
-const selectedGroupNodeIds = ref<string[]>([])
+const accountTreeFilterScope = props.groupByDevice ? 'selector:devices' : 'selector:accounts'
+const { filters: persistentFilters } = usePersistentFilters(accountTreeFilterScope, {
+  keyword: '',
+  groupNodeIds: [] as string[],
+  accountPresence: 'all' as 'all' | 'bound' | 'unbound',
+})
+const searchKeyword = computed({
+  get: () => String(persistentFilters.keyword || ''),
+  set: (value: string) => { persistentFilters.keyword = value },
+})
+const selectedGroupNodeIds = computed<string[]>({
+  get: () => Array.isArray(persistentFilters.groupNodeIds)
+    ? persistentFilters.groupNodeIds.map(String)
+    : [],
+  set: (value) => { persistentFilters.groupNodeIds = [...new Set(value.map(String))] },
+})
 const expandedGroupKeys = ref<string[]>([])
 const loggedInCount = ref(0)
 const selectableCount = ref(0)
@@ -63,10 +70,6 @@ const treeProps = {
 const treeHeight = 350
 
 const isMultiple = computed(() => props.multiple !== false)
-const groupFilterStorageKey = computed(() => buildUserPreferenceKey(
-  auth.user?.id,
-  props.groupFilterPreferenceKey,
-))
 const groupOptions = computed(() => treeData.value.map((node) => ({
   value: node.id,
   label: node.label,
@@ -124,11 +127,6 @@ const treeEmptyMessage = computed(() => {
   return emptyMessage.value || '暂无已登录账号'
 })
 
-function loadGroupFilterPreference() {
-  selectedGroupNodeIds.value = groupFilterStorageKey.value
-    ? readStringListPreference(localStorage, groupFilterStorageKey.value)
-    : []
-}
 
 function clearGroupFilter() {
   selectedGroupNodeIds.value = []
@@ -436,7 +434,6 @@ function emitChecked(node?: AnyRecord) {
 }
 
 onMounted(() => {
-  loadGroupFilterPreference()
   loadTree()
 })
 
@@ -444,13 +441,6 @@ watch(selectedAccountIds, () => nextTick(syncCheckedKeys))
 
 watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
 
-watch(groupFilterStorageKey, loadGroupFilterPreference)
-
-watch(selectedGroupNodeIds, (value) => {
-  if (groupFilterStorageKey.value) {
-    writeStringListPreference(localStorage, groupFilterStorageKey.value, value)
-  }
-})
 
 watch(visibleTreeData, async () => {
   await nextTick()

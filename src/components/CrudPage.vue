@@ -34,6 +34,7 @@ import ScriptTableCell from '@/components/ScriptTableCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import TaskTableCell from '@/components/TaskTableCell.vue'
 import TemplateTableCell from '@/components/TemplateTableCell.vue'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
@@ -83,7 +84,15 @@ const pageSize = ref(20)
 const total = ref(0)
 const rows = ref<AnyRecord[]>([])
 const selectedRows = ref<AnyRecord[]>([])
-const filters = reactive<AnyRecord>({})
+const { filters } = usePersistentFilters(
+  'list:' + props.config.key,
+  () => Object.fromEntries((props.config.filters || []).map((field) => {
+    const defaultValue = typeof field.defaultValue === 'function'
+      ? field.defaultValue()
+      : field.defaultValue
+    return [field.key, defaultValue ?? '']
+  })),
+)
 const resultDialogVisible = ref(false)
 const resultTitle = ref('')
 const resultValue = ref<unknown>(null)
@@ -1027,10 +1036,6 @@ function handleDropdown(command: string, row: AnyRecord) {
 }
 
 function initFilters() {
-  Object.keys(filters).forEach((key) => delete filters[key])
-  ;(props.config.filters || []).forEach((field) => {
-    filters[field.key] = field.defaultValue ?? ''
-  })
   page.value = 1
   resultDialogVisible.value = false
   resultTitle.value = ''

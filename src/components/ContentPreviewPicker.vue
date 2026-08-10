@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
@@ -27,8 +28,18 @@ const dialogVisible = ref(false)
 const listLoading = ref(false)
 const previewLoading = ref(false)
 const selectedLoading = ref(false)
-const keyword = ref('')
-const selectedGroup = ref(GROUP_ALL)
+const { filters: pickerFilters } = usePersistentFilters('picker:contents', {
+  keyword: '',
+  selectedGroup: GROUP_ALL,
+})
+const keyword = computed({
+  get: () => String(pickerFilters.keyword || ''),
+  set: (value: string) => { pickerFilters.keyword = value },
+})
+const selectedGroup = computed({
+  get: () => String(pickerFilters.selectedGroup || GROUP_ALL),
+  set: (value: string) => { pickerFilters.selectedGroup = value },
+})
 const groups = ref<AnyRecord[]>([])
 const contents = ref<AnyRecord[]>([])
 const page = ref(1)
@@ -182,8 +193,6 @@ async function openDialog() {
   if (props.disabled) return
   dialogVisible.value = true
   draftValue.value = selectedId.value
-  keyword.value = ''
-  selectedGroup.value = GROUP_ALL
   page.value = 1
   previewContent.value = selectedContent.value
   previewAssets.value = selectedAssets.value

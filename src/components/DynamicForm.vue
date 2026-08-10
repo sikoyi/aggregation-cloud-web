@@ -329,7 +329,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :association-only="field.accountAssociationOnly"
             :group-by-device="field.accountTreeGroupByDevice"
             :monitoring-only="field.accountTreeMonitoringOnly"
-            :group-filter-preference-key="field.accountTreeGroupFilterPreferenceKey"
+
             :filters="{
               business_platform: modelValue.business_platform,
               runtime_platform: modelValue.runtime_platform,

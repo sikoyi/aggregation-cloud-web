@@ -6,9 +6,10 @@ import {
   Search,
   SlidersHorizontal,
 } from 'lucide-vue-next'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { PageResult } from '@/types/api'
 import { formatDate, statusLabel, statusTagType } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -63,12 +64,30 @@ const rows = ref<BenchmarkSyncRun[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const timeRange = ref<[Date, Date] | null>(null)
-const filters = reactive({
-  keyword: '',
-  status: '',
-  actionType: '',
-  actionStatus: '',
+const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
+  'list:benchmark-sync-records',
+  {
+    keyword: '',
+    status: '',
+    actionType: '',
+    actionStatus: '',
+    createdRange: [] as string[],
+  },
+)
+const timeRange = computed<[Date, Date] | null>({
+  get: (): [Date, Date] | null => {
+    if (filters.createdRange.length !== 2) return null
+    const range: [Date, Date] = [
+      new Date(filters.createdRange[0]),
+      new Date(filters.createdRange[1]),
+    ]
+    return range.every((item) => !Number.isNaN(item.getTime())) ? range : null
+  },
+  set: (value: [Date, Date] | null) => {
+    filters.createdRange = value
+      ? [value[0].toISOString(), value[1].toISOString()]
+      : []
+  },
 })
 
 const detailVisible = ref(false)
@@ -171,11 +190,7 @@ function submitFilters() {
 }
 
 function clearFilters() {
-  filters.keyword = ''
-  filters.status = ''
-  filters.actionType = ''
-  filters.actionStatus = ''
-  timeRange.value = null
+  resetCachedFilters()
   page.value = 1
   loadRows()
 }

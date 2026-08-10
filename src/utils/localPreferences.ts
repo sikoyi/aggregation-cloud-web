@@ -6,19 +6,22 @@ export function buildUserPreferenceKey(userId: unknown, preferenceKey: unknown) 
   return `aggregation-cloud:user:${normalizedUserId}:${normalizedPreferenceKey}`
 }
 
-export function readStringListPreference(storage: Storage, key: string) {
-  if (!key) return []
+export function readRecordPreference(storage: Storage, key: string) {
+  if (!key) return null
   try {
-    const value = JSON.parse(storage.getItem(key) || '[]')
-    if (!Array.isArray(value)) return []
-    return [...new Set(value.map(String).filter(Boolean))]
+    const value = JSON.parse(storage.getItem(key) || 'null')
+    if (!value || Array.isArray(value) || typeof value !== 'object') return null
+    return value as Record<string, unknown>
   } catch {
-    return []
+    return null
   }
 }
 
-export function writeStringListPreference(storage: Storage, key: string, value: string[]) {
+export function writeRecordPreference(
+  storage: Storage,
+  key: string,
+  value: Record<string, unknown>,
+) {
   if (!key) return
-  const normalizedValue = [...new Set(value.map(String).filter(Boolean))]
-  storage.setItem(key, JSON.stringify(normalizedValue))
+  storage.setItem(key, JSON.stringify(value))
 }

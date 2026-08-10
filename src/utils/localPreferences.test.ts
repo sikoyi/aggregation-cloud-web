@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildUserPreferenceKey,
-  readStringListPreference,
-  writeStringListPreference,
+  readRecordPreference,
+  writeRecordPreference,
 } from '@/utils/localPreferences'
 
 class MemoryStorage implements Storage {
@@ -36,20 +36,26 @@ class MemoryStorage implements Storage {
 
 describe('管理员本地偏好', () => {
   it('按管理员和使用位置生成隔离的存储键', () => {
-    expect(buildUserPreferenceKey('admin-1', 'interaction-main-device-groups'))
-      .toBe('aggregation-cloud:user:admin-1:interaction-main-device-groups')
-    expect(buildUserPreferenceKey('admin-2', 'interaction-main-device-groups'))
-      .not.toBe(buildUserPreferenceKey('admin-1', 'interaction-main-device-groups'))
+    expect(buildUserPreferenceKey('admin-1', 'filters:selector:devices'))
+      .toBe('aggregation-cloud:user:admin-1:filters:selector:devices')
+    expect(buildUserPreferenceKey('admin-2', 'filters:selector:devices'))
+      .not.toBe(buildUserPreferenceKey('admin-1', 'filters:selector:devices'))
   })
 
-  it('保存分组筛选时去重并兼容损坏的本地数据', () => {
+  it('保存对象筛选并兼容损坏的本地数据', () => {
     const storage = new MemoryStorage()
-    const key = buildUserPreferenceKey('admin-1', 'interaction-comment-device-groups')
+    const key = buildUserPreferenceKey('admin-1', 'filters:selector:devices')
 
-    writeStringListPreference(storage, key, ['group:1', 'group:1', 'group:2'])
-    expect(readStringListPreference(storage, key)).toEqual(['group:1', 'group:2'])
+    writeRecordPreference(storage, key, {
+      keyword: '韩国',
+      groupNodeIds: ['group:1', 'group:2'],
+    })
+    expect(readRecordPreference(storage, key)).toEqual({
+      keyword: '韩国',
+      groupNodeIds: ['group:1', 'group:2'],
+    })
 
     storage.setItem(key, '{invalid')
-    expect(readStringListPreference(storage, key)).toEqual([])
+    expect(readRecordPreference(storage, key)).toBeNull()
   })
 })

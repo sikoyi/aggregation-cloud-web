@@ -2336,7 +2336,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "accountTree",
         multiple: false,
         accountTreeGroupByDevice: true,
-        accountTreeGroupFilterPreferenceKey: "interaction-main-device-groups",
+
         visibleWhen: { key: "interaction_mode", value: "conversation" },
         requiredWhen: { key: "interaction_mode", value: "conversation" },
         span: 2,
@@ -2348,7 +2348,7 @@ export const resources: Record<string, ResourceConfig> = {
         multiple: true,
         accountTreeGroupByDevice: true,
         accountTreeMonitoringOnly: true,
-        accountTreeGroupFilterPreferenceKey: "interaction-square-target-device-groups",
+
         visibleWhen: { key: "interaction_mode", value: "square_numeric" },
         requiredWhen: { key: "interaction_mode", value: "square_numeric" },
         span: 2,
@@ -2360,7 +2360,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "accountTree",
         multiple: true,
         accountTreeGroupByDevice: true,
-        accountTreeGroupFilterPreferenceKey: "interaction-comment-device-groups",
+
         required: true,
         span: 2,
       },

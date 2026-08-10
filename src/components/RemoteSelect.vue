@@ -3,6 +3,7 @@ import { ElNotification } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 
 import { ApiError, http } from '@/api/http'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { statusLabel, statusTagType } from '@/utils/format'
@@ -31,7 +32,19 @@ const creating = ref(false)
 const groupLoading = ref(false)
 const options = ref<AnyRecord[]>([])
 const groupOptions = ref<AnyRecord[]>([])
-const selectedGroup = ref(REMOTE_GROUP_ALL)
+const groupPreferenceScope = [
+  'remote-select',
+  typeof props.config.group?.endpoint === 'string'
+    ? props.config.group.endpoint
+    : typeof props.config.endpoint === 'string' ? props.config.endpoint : 'dynamic',
+].join(':')
+const { filters: groupFilters } = usePersistentFilters(groupPreferenceScope, {
+  selectedGroup: REMOTE_GROUP_ALL,
+})
+const selectedGroup = computed({
+  get: () => String(groupFilters.selectedGroup || REMOTE_GROUP_ALL),
+  set: (value: string) => { groupFilters.selectedGroup = value },
+})
 const suppressNextModelReload = ref(false)
 let loadRequestId = 0
 let groupRequestId = 0
@@ -305,7 +318,6 @@ watch(
   groupRequestSignature,
   () => {
     groupOptions.value = []
-    selectedGroup.value = REMOTE_GROUP_ALL
     loadGroupOptions()
   },
 )

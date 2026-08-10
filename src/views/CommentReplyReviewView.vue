@@ -9,7 +9,7 @@ import {
   SkipForward,
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import {
   approveCommentReply,
@@ -19,6 +19,7 @@ import {
   regenerateCommentReply,
   retryCommentReply,
 } from '@/api/commentReplies'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
@@ -50,7 +51,10 @@ const pageSize = ref(20)
 const dialogVisible = ref(false)
 const activeJob = ref<AnyRecord | null>(null)
 const editedContent = ref('')
-const filters = reactive({ status: '', keyword: '' })
+const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
+  'list:comment-replies',
+  { status: '', keyword: '' },
+)
 let refreshTimer: number | undefined
 
 const hasFilters = computed(() => Boolean(filters.status || filters.keyword))
@@ -90,8 +94,7 @@ function searchRows() {
 }
 
 function resetFilters() {
-  filters.status = ''
-  filters.keyword = ''
+  resetCachedFilters()
   searchRows()
 }
 

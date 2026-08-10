@@ -22,6 +22,7 @@ import AccountPublishedContentPanel from '@/components/AccountPublishedContentPa
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import { businessPlatformOptions, loginStatusOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
@@ -66,13 +67,16 @@ const summary = reactive({
   abnormal_accounts: 0,
   unmonitored_accounts: 0,
 })
-const filters = reactive({
-  business_platform: '',
-  login_status: '',
-  slot_group_id: '',
-  monitor_state: '',
-  keyword: '',
-})
+const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
+  'list:account-data',
+  {
+    business_platform: '',
+    login_status: '',
+    slot_group_id: '',
+    monitor_state: '',
+    keyword: '',
+  },
+)
 const monitorVisible = ref(false)
 const monitorFeature = ref<'account_data' | 'benchmark'>('account_data')
 const monitorAccountLocked = ref(false)
@@ -184,13 +188,7 @@ function searchRows() {
 }
 
 function resetFilters() {
-  Object.assign(filters, {
-    business_platform: '',
-    login_status: '',
-    slot_group_id: '',
-    monitor_state: '',
-    keyword: '',
-  })
+  resetCachedFilters()
   searchRows()
 }
 

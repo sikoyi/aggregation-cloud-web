@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ListFilter, Search, X } from 'lucide-vue-next'
 
 import { loadSlotSelectionOptions } from '@/api/selectionOptions'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
 import {
@@ -44,10 +45,28 @@ const treeRef = ref()
 const rootRef = ref<HTMLElement>()
 const toolbarRef = ref<HTMLElement>()
 const loading = ref(false)
-const searchKeyword = ref('')
 const treeData = ref<SlotTreeNode[]>([])
-const selectedGroupNodeIds = ref<string[]>([])
-const accountPresenceFilter = ref<'all' | 'bound' | 'unbound'>('all')
+const { filters: persistentFilters } = usePersistentFilters('selector:devices', {
+  keyword: '',
+  groupNodeIds: [] as string[],
+  accountPresence: 'all' as 'all' | 'bound' | 'unbound',
+})
+const searchKeyword = computed({
+  get: () => String(persistentFilters.keyword || ''),
+  set: (value: string) => { persistentFilters.keyword = value },
+})
+const selectedGroupNodeIds = computed<string[]>({
+  get: () => Array.isArray(persistentFilters.groupNodeIds)
+    ? persistentFilters.groupNodeIds.map(String)
+    : [],
+  set: (value) => { persistentFilters.groupNodeIds = [...new Set(value.map(String))] },
+})
+const accountPresenceFilter = computed<'all' | 'bound' | 'unbound'>({
+  get: () => ['bound', 'unbound'].includes(String(persistentFilters.accountPresence))
+    ? persistentFilters.accountPresence as 'bound' | 'unbound'
+    : 'all',
+  set: (value) => { persistentFilters.accountPresence = value },
+})
 const loadedSlotIds = ref<Set<string>>(new Set())
 const defaultExpandedGroupKeys = ref<string[]>([])
 const collapsedGroupIds = new Set<string>()
