@@ -1284,7 +1284,8 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/execution-slots",
     deleteLabel: "删除",
     directDelete: true,
-    deleteConfirm: "确认删除该设备？运行中的设备不能删除。供应商环境删除成功后会清理设备记录，绑定账号会保留并自动解绑。",
+    deleteConfirm:
+      "确认删除该设备？存在在线 Runtime 时会先删除供应商环境；关联 Runtime 均离线时会直接清理系统设备记录。绑定账号会保留并自动解绑，运行中的设备不能删除。",
     createLabel: "新增设备",
     loadEditRecord: loadSlotForEdit,
     updateBody: (payload) =>
