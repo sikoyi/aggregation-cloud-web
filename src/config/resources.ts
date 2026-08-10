@@ -1538,6 +1538,28 @@ export const resources: Record<string, ResourceConfig> = {
         successMessage: (data) =>
           `已分组 ${Number(data.added_count || 0)} 台设备，跳过 ${Number(data.skipped_count || 0)} 台已在组内设备`,
       },
+      {
+        key: "__delete",
+        label: "批量删除",
+        method: "POST",
+        icon: "trash",
+        variant: "danger",
+        batchPath: () => "/api/execution-slots/batch-delete",
+        batchBody: (_payload, records) => ({
+          slot_ids: records.map((record) => String(record.id)),
+        }),
+        successMessage: (data) => {
+          const deleted = Number(data.deleted_count || 0);
+          const queued = Number(data.command_queued_count || 0);
+          const skipped = Number(data.skipped_running_count || 0);
+          const notFound = Number(data.not_found_count || 0);
+          const parts = [`已删除 ${deleted} 台离线设备`];
+          if (queued) parts.push(`已提交 ${queued} 台在线设备删除命令`);
+          if (skipped) parts.push(`跳过 ${skipped} 台运行中设备`);
+          if (notFound) parts.push(`${notFound} 台设备已不存在`);
+          return parts.join("，");
+        },
+      },
     ],
     inlineActionKeys: ["retry-sync"],
   },

@@ -408,6 +408,18 @@ describe('设备批量分组', () => {
   })
 })
 
+describe('设备批量删除', () => {
+  const action = resources.slots.batchActions?.find((item) => item.key === '__delete')
+
+  it('把选中设备合并成一次批量请求', () => {
+    expect(action?.method).toBe('POST')
+    expect(action?.batchPath?.([])).toBe('/api/execution-slots/batch-delete')
+    expect(action?.batchBody?.({}, [{ id: 'slot-1' }, { id: 'slot-2' }])).toEqual({
+      slot_ids: ['slot-1', 'slot-2'],
+    })
+  })
+})
+
 describe('设备管理筛选', () => {
   it('设备本身不维护业务 App，但支持按绑定账号的业务 App 和国家筛选', () => {
     expect(resources.slots.filters?.some((field) => field.key === 'business_platform')).toBe(true)
