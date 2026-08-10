@@ -286,11 +286,19 @@ describe('发布内容来源', () => {
       ? imageField.remote.params({ business_platform: 'threads' })
       : imageField?.remote?.params
 
-    expect(imageField?.type).toBe('remoteSelect')
+    expect(imageField?.type).toBe('imagePreviewPicker')
     expect(imageField?.remote?.multiple).toBe(true)
     expect(params).toMatchObject({ status: 'enabled', asset_type: 'image', business_platform: 'threads' })
     expect(body.comment_content).toBeNull()
     expect(body.comment_media_asset_ids).toEqual(['asset-1', 'asset-2'])
+  })
+
+  it('指定内容使用带正文和图片预览的弹窗选择器', () => {
+    const contentField = fields.find((field) => field.key === 'content_id')
+
+    expect(contentField?.type).toBe('contentPreviewPicker')
+    expect(contentField?.remote?.group?.endpoint).toBe('/api/content-center/content-groups')
+    expect(contentField?.span).toBe(2)
   })
 
   it('评论内容可选且未填写时提交 null', () => {

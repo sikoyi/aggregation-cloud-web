@@ -2697,11 +2697,12 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "content_id",
         label: "指定内容",
-        type: "remoteSelect",
+        type: "contentPreviewPicker",
         remote: contentRemoteSelect,
         disabledWhen: { key: "content_source_type", value: ["content_group", "ungrouped"] },
         requiredWhen: { key: "content_source_type", value: "content" },
         allowEmpty: true,
+        span: 2,
         placeholder: "按使用状态筛选并选择内容",
       },
       {
@@ -2715,7 +2716,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "comment_media_asset_ids",
         label: "评论图片",
-        type: "remoteSelect",
+        type: "imagePreviewPicker",
         remote: commentImageMultiSelect,
         span: 2,
         allowEmpty: true,

@@ -8,6 +8,8 @@ import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
 
 const AccountTreeSelect = defineAsyncComponent(() => import('@/components/AccountTreeSelect.vue'))
+const ContentPreviewPicker = defineAsyncComponent(() => import('@/components/ContentPreviewPicker.vue'))
+const ImageAssetPreviewPicker = defineAsyncComponent(() => import('@/components/ImageAssetPreviewPicker.vue'))
 const ScriptParamEditor = defineAsyncComponent(() => import('@/components/ScriptParamEditor.vue'))
 const SlotTreeSelect = defineAsyncComponent(() => import('@/components/SlotTreeSelect.vue'))
 const TemplateParamsEditor = defineAsyncComponent(() => import('@/components/TemplateParamsEditor.vue'))
@@ -345,6 +347,26 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :disabled="isFieldDisabled(field) || templateLoading"
             :placeholder="field.placeholder"
             @update:model-value="updateTemplateValue(field, $event)"
+          />
+
+          <ContentPreviewPicker
+            v-else-if="field.type === 'contentPreviewPicker' && field.remote"
+            :model-value="modelValue[field.key]"
+            :config="field.remote"
+            :context="fieldContext"
+            :disabled="isFieldDisabled(field)"
+            :placeholder="field.placeholder"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <ImageAssetPreviewPicker
+            v-else-if="field.type === 'imagePreviewPicker' && field.remote"
+            :model-value="modelValue[field.key]"
+            :config="field.remote"
+            :context="fieldContext"
+            :disabled="isFieldDisabled(field)"
+            :placeholder="field.placeholder"
+            @update:model-value="updateValue(field.key, $event)"
           />
 
           <RemoteSelect

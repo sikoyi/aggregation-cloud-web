@@ -22,6 +22,8 @@ export type FieldType =
   | 'accountTree'
   | 'slotTree'
   | 'templateSelect'
+  | 'contentPreviewPicker'
+  | 'imagePreviewPicker'
   | 'remoteSelect'
 
 export type ColumnType =
