@@ -1964,7 +1964,8 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id", align: "center" },
       { key: "title", label: "内容标题", minWidth: 220 },
-      { key: "text_body", label: "内容预览", type: "contentPreview", minWidth: 380 },
+      { key: "text_body", label: "正文预览", type: "contentTextPreview", minWidth: 320 },
+      { key: "material_assets", label: "媒体资源", type: "contentMediaPreview", minWidth: 260, align: "center" },
       { key: "content_group_names", label: "所属内容池", type: "list", minWidth: 180 },
       { key: "business_platform", label: "业务 App", align: "center" },
       { key: "content_type", label: "内容类型", options: contentTypeOptions, align: "center" },

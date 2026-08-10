@@ -8,8 +8,10 @@ import type { AnyRecord } from '@/types/api'
 const props = withDefaults(defineProps<{
   record: AnyRecord
   mode?: 'compact' | 'full'
+  section?: 'all' | 'text' | 'media'
 }>(), {
   mode: 'compact',
+  section: 'all',
 })
 
 const loadedAssets = ref<AnyRecord[]>([])
@@ -57,7 +59,7 @@ function openVideo(asset: AnyRecord) {
 
 async function loadMissingAssets() {
   const currentRequest = ++requestId
-  if (!assetIds.value.length || embeddedAssets.value.length) {
+  if (props.section === 'text' || !assetIds.value.length || embeddedAssets.value.length) {
     loadedAssets.value = []
     return
   }
@@ -78,12 +80,14 @@ watch(
 </script>
 
 <template>
-  <div :class="['content-preview', `content-preview--${mode}`]">
+  <div :class="['content-preview', `content-preview--${mode}`, `content-preview--${section}`]">
     <div v-if="mode === 'full'" class="content-preview__heading">内容预览</div>
-    <p v-if="textContent" class="content-preview__text">{{ textContent }}</p>
-    <p v-else class="content-preview__empty">暂无文本正文</p>
+    <template v-if="section !== 'media'">
+      <p v-if="textContent" class="content-preview__text">{{ textContent }}</p>
+      <p v-else class="content-preview__empty">暂无文本正文</p>
+    </template>
 
-    <div v-if="visibleAssets.length" class="content-preview__assets">
+    <div v-if="section !== 'text' && visibleAssets.length" class="content-preview__assets">
       <template v-for="asset in visibleAssets" :key="String(asset.id)">
         <el-image
           v-if="assetKind(asset) === 'image' && assetUrl(asset)"
@@ -113,6 +117,7 @@ watch(
         +{{ assets.length - visibleAssets.length }}
       </span>
     </div>
+    <p v-else-if="section === 'media'" class="content-preview__empty">暂无媒体资源</p>
 
     <el-dialog
       v-model="videoVisible"
@@ -187,6 +192,10 @@ watch(
 
 .content-preview__media {
   cursor: zoom-in;
+}
+
+.content-preview--media .content-preview__assets {
+  justify-content: center;
 }
 
 .content-preview__video {

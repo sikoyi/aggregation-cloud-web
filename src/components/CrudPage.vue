@@ -1324,7 +1324,8 @@ onBeforeUnmount(() => {
                 <el-tag v-else effect="plain">{{ assetTypeLabel(row, column) }}</el-tag>
               </div>
             </template>
-            <ContentPreview v-else-if="column.type === 'contentPreview'" :record="row" mode="compact" />
+            <ContentPreview v-else-if="column.type === 'contentTextPreview'" :record="row" mode="compact" section="text" />
+            <ContentPreview v-else-if="column.type === 'contentMediaPreview'" :record="row" mode="compact" section="media" />
             <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
               {{ truncateId(row[column.key]) }}
             </span>

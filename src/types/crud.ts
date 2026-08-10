@@ -66,7 +66,8 @@ export type ColumnType =
   | 'id'
   | 'boolean'
   | 'assetPreview'
-  | 'contentPreview'
+  | 'contentTextPreview'
+  | 'contentMediaPreview'
   | 'relation'
 
 export interface SelectOption {
