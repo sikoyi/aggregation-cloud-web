@@ -174,6 +174,7 @@ export interface ColumnConfig {
 export interface RowActionConfig {
   key: string
   label: string
+  submitLabel?: string
   visible?: (record: AnyRecord) => boolean
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   path?: (record: AnyRecord, payload?: AnyRecord) => string

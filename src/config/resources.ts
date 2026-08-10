@@ -210,10 +210,13 @@ const runtimeSlotSyncRemoteSelect = {
   secondaryKeys: ["provider", "runtime_platform", "ip"],
   statusKey: "status",
   searchParam: "keyword",
+  params: { runtime_platform: "fingerprint_browser" },
   pageSize: 100,
   multiple: true,
-  optionDisabled: (runtime: AnyRecord) => runtime.status !== "online",
-  emptyText: "暂无 Runtime，请先启动脚本端并完成连接",
+  optionDisabled: (runtime: AnyRecord) => (
+    runtime.status !== "online" || runtime.runtime_platform !== "fingerprint_browser"
+  ),
+  emptyText: "暂无在线指纹浏览器 Runtime，请先启动脚本端并完成连接",
 };
 
 const onlineFingerprintRuntimeRemoteSelect = {
@@ -1291,6 +1294,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "request-runtime-slot-sync",
         label: "主动同步",
+        submitLabel: "执行",
         method: "POST",
         icon: "rotate",
         path: () => "/api/runtimes/request-slot-sync",
@@ -1313,7 +1317,7 @@ export const resources: Record<string, ResourceConfig> = {
             required: true,
             span: 2,
             defaultValue: [],
-            placeholder: "搜索并选择在线 Runtime，离线 Runtime 不可选择",
+            placeholder: "搜索并选择在线指纹浏览器 Runtime",
           },
         ],
       },
