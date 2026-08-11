@@ -32,13 +32,19 @@ const metricDefs: Array<{ key: MetricKey; label: string; color: string }> = [
 const loading = ref(false)
 const period = ref<PeriodValue>('7d')
 const curve = ref<AnyRecord | null>(null)
+const snapshotPage = ref(1)
+const snapshotPageSize = 10
 
 const accountId = computed(() => String(props.account?.id || ''))
 const accountName = computed(() =>
   String(props.account?.login_username || props.account?.username || props.account?.display_name || props.account?.id || '-'),
 )
 const points = computed<AnyRecord[]>(() => Array.isArray(curve.value?.points) ? curve.value.points : [])
-const tablePoints = computed<AnyRecord[]>(() => [...points.value].reverse())
+const orderedSnapshotPoints = computed<AnyRecord[]>(() => [...points.value].reverse())
+const tablePoints = computed<AnyRecord[]>(() => {
+  const start = (snapshotPage.value - 1) * snapshotPageSize
+  return orderedSnapshotPoints.value.slice(start, start + snapshotPageSize)
+})
 const trends = computed<AnyRecord[]>(() => Array.isArray(curve.value?.trends) ? curve.value.trends : [])
 
 function metricNumber(value: unknown) {
@@ -124,7 +130,10 @@ async function loadCurve() {
   }
 }
 
-watch([accountId, period], loadCurve, { immediate: true })
+watch([accountId, period], () => {
+  snapshotPage.value = 1
+  void loadCurve()
+}, { immediate: true })
 </script>
 
 <template>
@@ -206,6 +215,16 @@ watch([accountId, period], loadCurve, { immediate: true })
       <el-table-column prop="total_likes_count" label="总点赞" width="110" align="center" />
       <el-table-column prop="total_replies_count" label="总回复" width="110" align="center" />
     </el-table>
+    <div v-if="orderedSnapshotPoints.length > snapshotPageSize" class="metric-history__pagination">
+      <el-pagination
+        v-model:current-page="snapshotPage"
+        small
+        background
+        layout="total, prev, pager, next"
+        :page-size="snapshotPageSize"
+        :total="orderedSnapshotPoints.length"
+      />
+    </div>
   </div>
 </template>
 
@@ -345,6 +364,12 @@ watch([accountId, period], loadCurve, { immediate: true })
 .chart-label {
   fill: #64748b;
   font-size: 12px;
+}
+
+.metric-history__pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 @media (max-width: 1180px) {
