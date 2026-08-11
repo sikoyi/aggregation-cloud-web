@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
       v-loading="loading"
       :data="rows"
       border
-      table-layout="auto"
+      table-layout="fixed"
       row-key="id"
       class="account-published-content__table"
       empty-text="该账号暂无内容"
@@ -331,7 +331,10 @@ onBeforeUnmount(() => {
 }
 
 .content-summary {
+  width: 100%;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   padding: 5px 0;
 }
 
