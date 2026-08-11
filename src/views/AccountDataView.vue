@@ -4,7 +4,7 @@ import {
   AlertTriangle,
   CircleOff,
   Clock,
-  Eye,
+  ExternalLink,
   GitCompareArrows,
   Play,
   RefreshCw,
@@ -81,9 +81,8 @@ const monitorVisible = ref(false)
 const monitorFeature = ref<'account_data' | 'benchmark'>('account_data')
 const monitorAccountLocked = ref(false)
 const monitorTargetAccount = ref<AnyRecord | null>(null)
-const detailVisible = ref(false)
 const detailTab = ref('overview')
-const detailAccount = ref<AnyRecord | null>(null)
+const selectedAccount = ref<AnyRecord | null>(null)
 const monitorForm = reactive({
   business_platform: 'threads',
   account_id: '',
@@ -175,6 +174,8 @@ async function loadRows() {
     rows.value = data.items
     total.value = data.total
     Object.assign(summary, data.summary)
+    const selectedId = String(selectedAccount.value?.account_id || '')
+    selectedAccount.value = data.items.find((item) => String(item.account_id) === selectedId) || data.items[0] || null
   } catch (err) {
     notifyError(err, '加载失败', '加载账号数据失败')
   } finally {
@@ -377,10 +378,22 @@ async function disableMonitor(account: AnyRecord) {
   }
 }
 
-function openDetail(account: AnyRecord) {
-  detailAccount.value = account
-  detailTab.value = 'overview'
-  detailVisible.value = true
+function selectAccount(account: AnyRecord) {
+  if (String(selectedAccount.value?.account_id || '') !== String(account.account_id || '')) {
+    detailTab.value = 'overview'
+  }
+  selectedAccount.value = account
+}
+
+function openProfile(account: AnyRecord) {
+  const url = String(account.profile_url || '').trim()
+  if (url) window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function replyModeLabel(value: unknown) {
+  if (value === 'automatic') return '自动回复'
+  if (value === 'review') return '审核后回复'
+  return '未开启'
 }
 
 function accountPanelRecord(account: AnyRecord) {
@@ -494,78 +507,215 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div class="account-data__table">
-          <el-table v-loading="loading" :data="rows" border stripe empty-text="暂无账号数据">
-            <el-table-column label="账号" min-width="230">
-              <template #default="{ row }">
-                <div class="account-cell">
-                  <el-avatar :size="36" :src="resolveBackendUrl(row.avatar_url) || undefined" fit="cover" class="account-data__avatar">
-                    {{ String(row.account_name || '-').slice(0, 1) }}
-                  </el-avatar>
-                  <div class="account-cell__copy">
-                    <strong>{{ row.account_name }}</strong>
-                    <div class="account-cell__meta">
-                      <el-tag size="small" effect="plain">{{ optionLabel(businessPlatformOptions, row.business_platform) }}</el-tag>
-                      <StatusBadge :value="row.login_status" />
-                    </div>
+        <div class="account-data__split">
+          <aside class="account-directory">
+            <div class="account-directory__header">
+              <div>
+                <strong>账号列表</strong>
+                <small>选择账号查看完整资料</small>
+              </div>
+              <el-tag type="info" effect="plain">{{ formatNumber(total) }} 个</el-tag>
+            </div>
+
+            <div v-loading="loading" class="account-directory__viewport">
+              <el-scrollbar class="account-directory__scroll">
+                <div v-if="rows.length" class="account-directory__items">
+                  <button
+                    v-for="account in rows"
+                    :key="String(account.account_id)"
+                    type="button"
+                    class="account-directory__item"
+                    :class="{ 'is-selected': String(selectedAccount?.account_id || '') === String(account.account_id) }"
+                    :aria-pressed="String(selectedAccount?.account_id || '') === String(account.account_id)"
+                    @click="selectAccount(account)"
+                  >
+                    <el-avatar
+                      :size="42"
+                      :src="resolveBackendUrl(account.avatar_url) || undefined"
+                      fit="cover"
+                      class="account-data__avatar"
+                    >
+                      {{ String(account.account_name || '-').slice(0, 1) }}
+                    </el-avatar>
+                    <span class="account-directory__copy">
+                      <strong>{{ account.account_name || account.login_username || '-' }}</strong>
+                      <small v-if="account.username">@{{ account.username }}</small>
+                      <small v-else>{{ account.login_username || '暂无公开用户名' }}</small>
+                      <span class="account-directory__tags">
+                        <el-tag size="small" effect="plain">{{ optionLabel(businessPlatformOptions, account.business_platform) }}</el-tag>
+                        <el-tag size="small" :type="monitorStateType(account.monitor_state)" effect="light">
+                          {{ monitorStateLabel(account.monitor_state) }}
+                        </el-tag>
+                      </span>
+                    </span>
+                  </button>
+                </div>
+                <el-empty v-else :image-size="72" description="暂无账号数据" />
+              </el-scrollbar>
+            </div>
+
+            <div class="account-directory__pagination">
+              <span>第 {{ page }} 页</span>
+              <el-pagination
+                v-model:current-page="page"
+                small
+                background
+                layout="prev, next"
+                :page-size="pageSize"
+                :total="total"
+                @current-change="loadRows"
+              />
+            </div>
+          </aside>
+
+          <main class="account-profile">
+            <template v-if="selectedAccount">
+              <header class="account-profile__header">
+                <el-avatar
+                  :size="76"
+                  :src="resolveBackendUrl(selectedAccount.avatar_url) || undefined"
+                  fit="cover"
+                  class="account-profile__avatar"
+                >
+                  {{ String(selectedAccount.account_name || '-').slice(0, 1) }}
+                </el-avatar>
+                <div class="account-profile__identity">
+                  <div class="account-profile__name-row">
+                    <h2>{{ selectedAccount.display_name || selectedAccount.account_name || selectedAccount.login_username || '-' }}</h2>
+                    <StatusBadge :value="selectedAccount.login_status" />
+                  </div>
+                  <div class="account-profile__handle">
+                    <span v-if="selectedAccount.username">@{{ selectedAccount.username }}</span>
+                    <span v-else>暂未采集公开用户名</span>
+                    <span>账号 ID {{ selectedAccount.account_id }}</span>
+                  </div>
+                  <p class="account-profile__biography">
+                    {{ selectedAccount.biography || '暂未采集到账号简介' }}
+                  </p>
+                  <div class="account-profile__tags">
+                    <el-tag effect="plain">{{ optionLabel(businessPlatformOptions, selectedAccount.business_platform) }}</el-tag>
+                    <el-tag v-if="selectedAccount.country" type="info" effect="plain">{{ selectedAccount.country }}</el-tag>
+                    <el-tag v-if="selectedAccount.slot_group_name" type="primary" effect="plain">{{ selectedAccount.slot_group_name }}</el-tag>
+                    <el-tag :type="monitorStateType(selectedAccount.monitor_state)" effect="light">
+                      数据{{ monitorStateLabel(selectedAccount.monitor_state) }}
+                    </el-tag>
+                    <el-tag :type="monitorStateType(selectedAccount.benchmark_state)" effect="light">
+                      对标{{ monitorStateLabel(selectedAccount.benchmark_state) }}
+                    </el-tag>
                   </div>
                 </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="设备分组" min-width="120" align="center">
-              <template #default="{ row }">
-                <el-tag v-if="row.slot_group_name" type="primary" effect="plain">{{ row.slot_group_name }}</el-tag>
-                <span v-else class="text-muted">未分组</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="监听状态" min-width="140" align="center">
-              <template #default="{ row }">
-                <div class="monitor-cell">
-                  <span>
-                    <small>数据</small>
-                    <el-tag :type="monitorStateType(row.monitor_state)" effect="light">{{ monitorStateLabel(row.monitor_state) }}</el-tag>
-                  </span>
-                  <span>
-                    <small>对标</small>
-                    <el-tag :type="monitorStateType(row.benchmark_state)" effect="light">{{ monitorStateLabel(row.benchmark_state) }}</el-tag>
-                  </span>
+                <div class="account-profile__actions">
+                  <el-button
+                    v-if="selectedAccount.profile_url"
+                    :icon="ExternalLink"
+                    @click="openProfile(selectedAccount)"
+                  >打开主页</el-button>
+                  <el-button type="primary" :icon="Activity" @click="openMonitor(selectedAccount)">监听设置</el-button>
                 </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="账号指标" min-width="330">
-              <template #default="{ row }">
-                <div class="metric-grid">
-                  <span><small>粉丝</small><strong>{{ formatNumber(row.followers_count) }}</strong></span>
-                  <span><small>关注</small><strong>{{ formatNumber(row.following_count) }}</strong></span>
-                  <span><small>帖子</small><strong>{{ formatNumber(row.posts_count) }}</strong></span>
-                  <span><small>采集次数</small><strong>{{ formatNumber(row.collection_count) }}</strong></span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="最近采集" min-width="165" align="center">
-              <template #default="{ row }">{{ formatDate(row.metrics_captured_at || row.last_success_at) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="164" align="center" fixed="right">
-              <template #default="{ row }">
-                <div class="table-actions">
-                  <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
-                  <el-button text type="primary" :icon="Activity" @click="openMonitor(row)">监听</el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div class="account-data__pagination">
-            <el-pagination
-              v-model:current-page="page"
-              v-model:page-size="pageSize"
-              background
-              layout="total, sizes, prev, pager, next"
-              :page-sizes="[20, 50, 100]"
-              :total="total"
-              @current-change="loadRows"
-              @size-change="handleSizeChange"
-            />
-          </div>
+              </header>
+
+              <div class="account-profile__metrics">
+                <div><small>粉丝</small><strong>{{ formatNumber(selectedAccount.followers_count) }}</strong></div>
+                <div><small>关注</small><strong>{{ formatNumber(selectedAccount.following_count) }}</strong></div>
+                <div><small>帖子</small><strong>{{ formatNumber(selectedAccount.posts_count) }}</strong></div>
+                <div><small>总点赞</small><strong>{{ formatNumber(selectedAccount.total_likes_count) }}</strong></div>
+                <div><small>总回复</small><strong>{{ formatNumber(selectedAccount.total_replies_count) }}</strong></div>
+                <div><small>采集次数</small><strong>{{ formatNumber(selectedAccount.collection_count) }}</strong></div>
+              </div>
+
+              <el-tabs v-model="detailTab" class="account-profile__tabs">
+                <el-tab-pane label="数据概览" name="overview">
+                  <section class="profile-section">
+                    <div class="profile-section__title">
+                      <div>
+                        <strong>账号资料</strong>
+                        <small>平台公开信息与系统关联信息</small>
+                      </div>
+                    </div>
+                    <div class="profile-info-grid">
+                      <div><small>登录账号</small><strong>{{ selectedAccount.login_username || '-' }}</strong></div>
+                      <div><small>公开用户名</small><strong>{{ selectedAccount.username ? '@' + selectedAccount.username : '-' }}</strong></div>
+                      <div><small>国家</small><strong>{{ selectedAccount.country || '-' }}</strong></div>
+                      <div><small>设备分组</small><strong>{{ selectedAccount.slot_group_name || '未分组' }}</strong></div>
+                      <div><small>业务 App</small><strong>{{ optionLabel(businessPlatformOptions, selectedAccount.business_platform) }}</strong></div>
+                      <div><small>登录状态</small><StatusBadge :value="selectedAccount.login_status" /></div>
+                    </div>
+                  </section>
+
+                  <section class="profile-section">
+                    <div class="profile-section__title">
+                      <div>
+                        <strong>监听情况</strong>
+                        <small>当前账号的数据采集和评论回复配置</small>
+                      </div>
+                    </div>
+                    <div class="profile-info-grid">
+                      <div>
+                        <small>数据监听</small>
+                        <el-tag :type="monitorStateType(selectedAccount.monitor_state)" effect="light">
+                          {{ monitorStateLabel(selectedAccount.monitor_state) }}
+                        </el-tag>
+                      </div>
+                      <div><small>监听间隔</small><strong>{{ selectedAccount.monitor_interval_minutes ? selectedAccount.monitor_interval_minutes + ' 分钟' : '-' }}</strong></div>
+                      <div><small>新评论回复</small><strong>{{ replyModeLabel(selectedAccount.comment_reply_mode) }}</strong></div>
+                      <div><small>最近成功</small><strong>{{ formatDate(selectedAccount.last_success_at) }}</strong></div>
+                      <div><small>下次监听</small><strong>{{ formatDate(selectedAccount.next_run_at) }}</strong></div>
+                      <div><small>指标采集</small><strong>{{ formatDate(selectedAccount.metrics_captured_at) }}</strong></div>
+                    </div>
+                    <el-alert
+                      v-if="selectedAccount.last_error_message"
+                      :title="String(selectedAccount.last_error_message)"
+                      type="error"
+                      :closable="false"
+                      show-icon
+                      class="profile-section__alert"
+                    />
+                  </section>
+
+                  <section class="profile-section">
+                    <div class="profile-section__title">
+                      <div>
+                        <strong>对标跟踪</strong>
+                        <small>对标账号资料和帖子同步概况</small>
+                      </div>
+                    </div>
+                    <div class="profile-info-grid">
+                      <div>
+                        <small>跟踪状态</small>
+                        <el-tag :type="monitorStateType(selectedAccount.benchmark_state)" effect="light">
+                          {{ monitorStateLabel(selectedAccount.benchmark_state) }}
+                        </el-tag>
+                      </div>
+                      <div><small>对标账号</small><strong>{{ selectedAccount.benchmark_source_display_name || selectedAccount.benchmark_source_username || '-' }}</strong></div>
+                      <div><small>帖子映射</small><strong>{{ formatNumber(selectedAccount.benchmark_mapping_count) }}</strong></div>
+                      <div><small>最近成功</small><strong>{{ formatDate(selectedAccount.benchmark_last_success_at) }}</strong></div>
+                      <div><small>下次采集</small><strong>{{ formatDate(selectedAccount.benchmark_next_run_at) }}</strong></div>
+                      <div><small>对标主页</small><strong class="profile-info-grid__ellipsis">{{ selectedAccount.benchmark_source_profile_url || '-' }}</strong></div>
+                    </div>
+                  </section>
+                </el-tab-pane>
+                <el-tab-pane label="趋势分析" name="metrics" lazy>
+                  <AccountMetricsPanel
+                    :key="'metrics-' + String(selectedAccount.account_id)"
+                    :account="accountPanelRecord(selectedAccount)"
+                  />
+                </el-tab-pane>
+                <el-tab-pane label="账号内容" name="contents" lazy>
+                  <AccountPublishedContentPanel
+                    :key="'contents-' + String(selectedAccount.account_id)"
+                    :account="accountPanelRecord(selectedAccount)"
+                  />
+                </el-tab-pane>
+                <el-tab-pane label="对标账号" name="benchmark" lazy>
+                  <BenchmarkTrackerDetailPanel
+                    :key="'benchmark-' + String(selectedAccount.account_id)"
+                    :account="accountPanelRecord(selectedAccount)"
+                  />
+                </el-tab-pane>
+              </el-tabs>
+            </template>
+            <el-empty v-else description="请选择需要查看的账号" />
+          </main>
         </div>
       </div>
     </el-card>
@@ -783,61 +933,6 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
-    <el-dialog
-      v-model="detailVisible"
-      :title="`账号数据详情：${detailAccount?.account_name || '-'}`"
-      width="min(94vw, 1180px)"
-      destroy-on-close
-    >
-      <el-tabs v-if="detailAccount" v-model="detailTab" class="account-detail-tabs">
-        <el-tab-pane label="数据概览" name="overview">
-          <el-descriptions :column="3" border>
-            <el-descriptions-item label="账号">{{ detailAccount.account_name }}</el-descriptions-item>
-            <el-descriptions-item label="业务 App">{{ optionLabel(businessPlatformOptions, detailAccount.business_platform) }}</el-descriptions-item>
-            <el-descriptions-item label="设备分组">{{ detailAccount.slot_group_name || '未分组' }}</el-descriptions-item>
-            <el-descriptions-item label="登录状态"><StatusBadge :value="detailAccount.login_status" /></el-descriptions-item>
-            <el-descriptions-item label="监听状态"><el-tag :type="monitorStateType(detailAccount.monitor_state)">{{ monitorStateLabel(detailAccount.monitor_state) }}</el-tag></el-descriptions-item>
-            <el-descriptions-item label="监听间隔">{{ detailAccount.monitor_interval_minutes ? `${detailAccount.monitor_interval_minutes} 分钟` : '-' }}</el-descriptions-item>
-            <el-descriptions-item label="新评论回复">
-              {{ detailAccount.comment_reply_mode === 'automatic' ? '自动回复' : detailAccount.comment_reply_mode === 'review' ? '审核后回复' : '未开启' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="粉丝">{{ formatNumber(detailAccount.followers_count) }}</el-descriptions-item>
-            <el-descriptions-item label="关注">{{ formatNumber(detailAccount.following_count) }}</el-descriptions-item>
-            <el-descriptions-item label="帖子">{{ formatNumber(detailAccount.posts_count) }}</el-descriptions-item>
-            <el-descriptions-item label="总点赞">{{ formatNumber(detailAccount.total_likes_count) }}</el-descriptions-item>
-            <el-descriptions-item label="总回复">{{ formatNumber(detailAccount.total_replies_count) }}</el-descriptions-item>
-            <el-descriptions-item label="采集次数">{{ formatNumber(detailAccount.collection_count) }}</el-descriptions-item>
-            <el-descriptions-item label="对标跟踪">
-              <el-tag :type="monitorStateType(detailAccount.benchmark_state)">{{ monitorStateLabel(detailAccount.benchmark_state) }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="对标账号">
-              {{ detailAccount.benchmark_source_display_name || detailAccount.benchmark_source_username || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="帖子映射">{{ formatNumber(detailAccount.benchmark_mapping_count) }}</el-descriptions-item>
-            <el-descriptions-item label="主页链接" :span="3">{{ detailAccount.profile_url || '-' }}</el-descriptions-item>
-            <el-descriptions-item v-if="detailAccount.benchmark_source_profile_url" label="对标主页" :span="3">
-              {{ detailAccount.benchmark_source_profile_url }}
-            </el-descriptions-item>
-            <el-descriptions-item label="最近成功" :span="1">{{ formatDate(detailAccount.last_success_at) }}</el-descriptions-item>
-            <el-descriptions-item label="下次监听" :span="1">{{ formatDate(detailAccount.next_run_at) }}</el-descriptions-item>
-            <el-descriptions-item label="指标采集" :span="1">{{ formatDate(detailAccount.metrics_captured_at) }}</el-descriptions-item>
-            <el-descriptions-item v-if="detailAccount.last_error_message" label="最近错误" :span="3">
-              <el-alert :title="String(detailAccount.last_error_message)" type="error" :closable="false" show-icon />
-            </el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-        <el-tab-pane label="趋势分析" name="metrics" lazy>
-          <AccountMetricsPanel :account="accountPanelRecord(detailAccount)" />
-        </el-tab-pane>
-        <el-tab-pane label="账号内容" name="contents" lazy>
-          <AccountPublishedContentPanel :account="accountPanelRecord(detailAccount)" />
-        </el-tab-pane>
-        <el-tab-pane label="对标账号" name="benchmark" lazy>
-          <BenchmarkTrackerDetailPanel :account="accountPanelRecord(detailAccount)" />
-        </el-tab-pane>
-      </el-tabs>
-      <template #footer><el-button type="primary" @click="detailVisible = false">关闭</el-button></template>
-    </el-dialog>
   </section>
 </template>
 
@@ -854,12 +949,18 @@ onBeforeUnmount(() => {
 .account-data__actions,
 .monitor-dialog-footer,
 .monitor-dialog-footer__actions,
-.table-actions,
 .filter-title,
 .filter-actions,
-.account-cell,
-.account-cell__meta,
-.monitor-cell { display: flex; align-items: center; }
+.account-profile__header,
+.account-profile__name-row,
+.account-profile__handle,
+.account-profile__tags,
+.account-profile__actions,
+.account-directory__header,
+.account-directory__pagination,
+.account-directory__item,
+.account-directory__tags,
+.profile-section__title { display: flex; align-items: center; }
 
 .account-data__header {
   justify-content: space-between;
@@ -868,23 +969,6 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #e6edf3;
   background: #fff;
 }
-
-.monitor-dialog-footer {
-  justify-content: space-between;
-  gap: 16px;
-  width: 100%;
-}
-
-.monitor-dialog-footer__actions { gap: 8px; margin-left: auto; }
-
-.table-actions {
-  justify-content: center;
-  flex-wrap: nowrap;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.table-actions :deep(.el-button) { margin-left: 0; }
 
 .account-data__title { gap: 10px; }
 .account-data__icon {
@@ -943,36 +1027,218 @@ onBeforeUnmount(() => {
 .summary-item small { color: #718096; font-size: 11px; }
 .summary-item strong { margin-top: 2px; font-size: 18px; line-height: 1.1; }
 
-.account-data__filters,
-.account-data__table {
+.account-data__filters {
+  margin-bottom: 12px;
+  padding: 12px;
   border: 1px solid #dbe4ed;
   border-radius: 6px;
   background: #fff;
 }
-.account-data__filters { margin-bottom: 12px; padding: 12px; }
 .filter-title { gap: 6px; margin-bottom: 10px; color: #26384a; font-size: 13px; font-weight: 700; }
 .filter-grid { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(220px, 1.35fr); gap: 10px; }
 .filter-actions { gap: 10px; margin-top: 10px; }
-.account-data__table { overflow: hidden; }
-.account-data__pagination { display: flex; justify-content: flex-end; padding: 12px; border-top: 1px solid #e5ebf1; }
 
-.account-cell { min-width: 0; gap: 10px; }
-.account-data__avatar { flex: 0 0 auto; border: 1px solid #d5e2ec; color: #245f87; background: #edf6fc; }
-.account-cell__copy { min-width: 0; }
-.account-cell__copy strong { display: block; overflow: hidden; color: #243548; text-overflow: ellipsis; white-space: nowrap; }
-.account-cell__meta { gap: 6px; margin-top: 5px; }
-.account-cell__meta :deep(.el-tag) { height: 20px; padding: 0 6px; font-size: 10px; }
-.monitor-cell { flex-direction: column; gap: 4px; }
-.monitor-cell > span { display: inline-flex; align-items: center; gap: 5px; }
-.monitor-cell small { color: #8190a0; font-size: 10px; }
-.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.metric-grid span { min-width: 0; padding: 5px 7px; border-radius: 4px; background: #f6f9fc; text-align: center; }
-.metric-grid small,
-.metric-grid strong { display: block; }
-.metric-grid small { color: #7b8b9b; font-size: 10px; }
-.metric-grid strong { margin-top: 2px; overflow: hidden; color: #26384a; font-size: 13px; text-overflow: ellipsis; }
-.text-muted { color: #94a3b8; font-size: 12px; }
+.account-data__split {
+  display: grid;
+  grid-template-columns: 316px minmax(0, 1fr);
+  min-height: 650px;
+  overflow: hidden;
+  border: 1px solid #dbe4ed;
+  border-radius: 6px;
+  background: #fff;
+}
+.account-directory {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border-right: 1px solid #dbe4ed;
+  background: #fbfdff;
+}
+.account-directory__header {
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5ebf1;
+  background: #fff;
+}
+.account-directory__header > div { min-width: 0; }
+.account-directory__header strong,
+.account-directory__header small { display: block; }
+.account-directory__header strong { color: #26384a; font-size: 14px; }
+.account-directory__header small { margin-top: 3px; color: #8190a0; font-size: 11px; }
+.account-directory__viewport { min-height: 0; flex: 1; }
+.account-directory__scroll { height: 580px; }
+.account-directory__items { padding: 6px; }
+.account-directory__item {
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.account-directory__item:hover { background: #f1f7fb; }
+.account-directory__item.is-selected {
+  border-color: #9fc4dc;
+  background: #eaf5fc;
+}
+.account-directory__copy {
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+.account-directory__copy > strong,
+.account-directory__copy > small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-directory__copy > strong { color: #243548; font-size: 13px; }
+.account-directory__copy > small { margin-top: 3px; color: #7b8b9b; font-size: 11px; }
+.account-directory__tags { gap: 5px; margin-top: 6px; }
+.account-directory__tags :deep(.el-tag) { height: 20px; padding: 0 6px; font-size: 10px; }
+.account-directory__pagination {
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 10px;
+  border-top: 1px solid #e5ebf1;
+  color: #718096;
+  background: #fff;
+  font-size: 11px;
+}
 
+.account-data__avatar,
+.account-profile__avatar {
+  flex: 0 0 auto;
+  border: 1px solid #d5e2ec;
+  color: #245f87;
+  background: #edf6fc;
+}
+.account-profile {
+  min-width: 0;
+  padding: 18px 20px 22px;
+  background: #fff;
+}
+.account-profile__header {
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e7edf3;
+}
+.account-profile__avatar { box-shadow: 0 0 0 4px #f3f8fb; }
+.account-profile__identity { min-width: 0; flex: 1; }
+.account-profile__name-row { flex-wrap: wrap; gap: 9px; }
+.account-profile__name-row h2 {
+  overflow: hidden;
+  max-width: 100%;
+  color: #1f2f40;
+  font-size: 21px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-profile__handle { flex-wrap: wrap; gap: 12px; margin-top: 5px; color: #718096; font-size: 12px; }
+.account-profile__handle span + span { position: relative; padding-left: 12px; }
+.account-profile__handle span + span::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #a8b5c2;
+  content: '';
+  transform: translateY(-50%);
+}
+.account-profile__biography {
+  max-width: 760px;
+  margin-top: 12px;
+  color: #425466;
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.account-profile__tags { flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.account-profile__actions { flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.account-profile__actions :deep(.el-button) { margin-left: 0; }
+
+.account-profile__metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 16px 0 4px;
+  border: 1px solid #dce5ed;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+.account-profile__metrics > div {
+  min-width: 0;
+  padding: 13px 12px;
+  border-right: 1px solid #dce5ed;
+  text-align: center;
+}
+.account-profile__metrics > div:last-child { border-right: 0; }
+.account-profile__metrics small,
+.account-profile__metrics strong { display: block; }
+.account-profile__metrics small { color: #7b8b9b; font-size: 11px; }
+.account-profile__metrics strong {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #1f3a50;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-profile__tabs { margin-top: 10px; }
+.account-profile__tabs :deep(.el-tabs__header) { margin-bottom: 16px; }
+.profile-section {
+  padding: 15px 0 18px;
+  border-bottom: 1px solid #e7edf3;
+}
+.profile-section:last-child { border-bottom: 0; }
+.profile-section__title { justify-content: space-between; margin-bottom: 12px; }
+.profile-section__title strong,
+.profile-section__title small { display: block; }
+.profile-section__title strong { color: #26384a; font-size: 14px; }
+.profile-section__title small { margin-top: 3px; color: #8190a0; font-size: 11px; }
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #e1e8ef;
+  border-radius: 6px;
+}
+.profile-info-grid > div {
+  min-width: 0;
+  min-height: 64px;
+  padding: 11px 13px;
+  border-right: 1px solid #e1e8ef;
+  border-bottom: 1px solid #e1e8ef;
+  background: #fbfdff;
+}
+.profile-info-grid > div:nth-child(3n) { border-right: 0; }
+.profile-info-grid > div:nth-last-child(-n + 3) { border-bottom: 0; }
+.profile-info-grid small,
+.profile-info-grid strong { display: block; }
+.profile-info-grid small { margin-bottom: 6px; color: #7b8b9b; font-size: 11px; }
+.profile-info-grid strong { overflow: hidden; color: #2b3f52; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.profile-info-grid__ellipsis { max-width: 100%; }
+.profile-section__alert { margin-top: 12px; }
+
+.monitor-dialog-footer {
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+.monitor-dialog-footer__actions { gap: 8px; margin-left: auto; }
 .monitor-dialog-grid { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(0, 1.15fr); gap: 14px; }
 .monitor-dialog-grid--locked { grid-template-columns: minmax(0, 1fr); }
 .monitor-dialog-account,
@@ -1006,20 +1272,51 @@ onBeforeUnmount(() => {
 .benchmark-source strong { color: #203346; font-size: 14px; }
 .benchmark-source small { color: #718096; font-size: 11px; }
 .benchmark-error { margin-top: 12px; }
-.account-detail-tabs :deep(.el-tabs__header) { margin-bottom: 14px; }
+
+@media (max-width: 1280px) {
+  .account-data__split { grid-template-columns: 286px minmax(0, 1fr); }
+  .account-profile__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .account-profile__metrics > div:nth-child(3) { border-right: 0; }
+  .account-profile__metrics > div:nth-child(-n + 3) { border-bottom: 1px solid #dce5ed; }
+}
 
 @media (max-width: 1100px) {
   .account-data__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .account-data__split { grid-template-columns: 260px minmax(0, 1fr); }
+  .profile-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-info-grid > div,
+  .profile-info-grid > div:nth-child(3n) { border-right: 1px solid #e1e8ef; border-bottom: 1px solid #e1e8ef; }
+  .profile-info-grid > div:nth-child(2n) { border-right: 0; }
+  .profile-info-grid > div:nth-last-child(-n + 2) { border-bottom: 0; }
 }
 
-@media (max-width: 720px) {
-  .account-data__header { align-items: flex-start; flex-direction: column; }
-  .account-data__actions { width: 100%; justify-content: flex-end; }
+@media (max-width: 800px) {
+  .account-data__header,
+  .account-profile__header { align-items: flex-start; flex-direction: column; }
+  .account-data__actions,
+  .account-profile__actions { width: 100%; justify-content: flex-end; }
   .account-data__summary,
   .filter-grid,
   .monitor-dialog-grid,
-  .monitor-form-row { grid-template-columns: 1fr; }
+  .monitor-form-row,
+  .account-data__split { grid-template-columns: 1fr; }
   .account-data__body { padding: 12px; }
+  .account-directory { border-right: 0; border-bottom: 1px solid #dbe4ed; }
+  .account-directory__scroll { height: 360px; }
+  .account-profile { padding: 16px; }
+}
+
+@media (max-width: 560px) {
+  .account-profile__metrics,
+  .profile-info-grid { grid-template-columns: 1fr; }
+  .account-profile__metrics > div,
+  .account-profile__metrics > div:nth-child(3),
+  .profile-info-grid > div,
+  .profile-info-grid > div:nth-child(2n),
+  .profile-info-grid > div:nth-child(3n) { border-right: 0; border-bottom: 1px solid #dce5ed; }
+  .account-profile__metrics > div:last-child,
+  .profile-info-grid > div:last-child { border-bottom: 0; }
+  .account-profile__name-row h2 { font-size: 18px; }
 }
 </style>
