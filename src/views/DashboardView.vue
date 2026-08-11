@@ -2,7 +2,9 @@
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
   Boxes,
   CheckCircle2,
   Clock3,
@@ -12,20 +14,35 @@ import {
   MessageSquareReply,
   PlaySquare,
   RefreshCw,
+  RotateCcw,
   Send,
   Server,
+  Settings2,
   ShieldCheck,
   Upload,
   Users,
   XCircle,
 } from 'lucide-vue-next'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
+import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
+import {
+  buildDefaultQuickEntryPreferences,
+  moveQuickEntryPreference,
+  normalizeQuickEntryPreferences,
+  type DashboardQuickEntryPreference,
+} from '@/utils/dashboardQuickEntries'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
+import {
+  buildUserPreferenceKey,
+  readRecordPreference,
+  writeRecordPreference,
+} from '@/utils/localPreferences'
 import { notifyError } from '@/utils/notify'
 
 interface DashboardMetric {
@@ -55,9 +72,10 @@ const overview = ref<DashboardOverview | null>(null)
 const lastLoadedAt = ref('')
 let realtimeRefreshTimer: number | undefined
 
-// 快捷入口由系统统一维护，所有运营看到相同的高频业务入口。
-const quickEntries = [
+// 系统入口负责提供稳定路由，运营只在当前浏览器调整显示和顺序。
+const defaultQuickEntries = [
   {
+    id: 'slots',
     label: '设备管理',
     section: '设备管理',
     to: '/slots',
@@ -65,6 +83,7 @@ const quickEntries = [
     tone: 'orange',
   },
   {
+    id: 'media-assets',
     label: '素材库',
     section: '资源中心',
     to: '/media-assets',
@@ -72,6 +91,7 @@ const quickEntries = [
     tone: 'amber',
   },
   {
+    id: 'published-contents',
     label: '发布内容',
     section: '互动中心',
     to: { path: '/published-contents', query: { action: 'create' } },
@@ -79,6 +99,7 @@ const quickEntries = [
     tone: 'green',
   },
   {
+    id: 'interaction-sessions',
     label: '互动会话',
     section: '互动中心',
     to: { path: '/interaction-sessions', query: { action: 'create' } },
@@ -86,6 +107,7 @@ const quickEntries = [
     tone: 'violet',
   },
   {
+    id: 'tasks',
     label: '下发任务',
     section: '任务中心',
     to: { path: '/tasks', query: { action: 'create' } },
@@ -93,6 +115,7 @@ const quickEntries = [
     tone: 'blue',
   },
   {
+    id: 'accounts',
     label: '导入账号',
     section: '账号中心',
     to: { path: '/accounts', query: { action: 'create' } },
@@ -100,6 +123,7 @@ const quickEntries = [
     tone: 'cyan',
   },
   {
+    id: 'proxies',
     label: '代理资源',
     section: '资源中心',
     to: '/proxies',
@@ -107,6 +131,7 @@ const quickEntries = [
     tone: 'slate',
   },
   {
+    id: 'account-data',
     label: '账号数据',
     section: '账号中心',
     to: '/account-data',
@@ -114,7 +139,59 @@ const quickEntries = [
     tone: 'indigo',
   },
 ]
+type QuickEntryDefinition = (typeof defaultQuickEntries)[number]
 
+const authStore = useAuthStore()
+const defaultQuickEntryIds = defaultQuickEntries.map((entry) => entry.id)
+const quickEntryMap = new Map<string, QuickEntryDefinition>(
+  defaultQuickEntries.map((entry) => [entry.id, entry]),
+)
+const quickEntryPreferences = ref<DashboardQuickEntryPreference[]>(
+  buildDefaultQuickEntryPreferences(defaultQuickEntryIds),
+)
+const quickEntryEditor = ref<DashboardQuickEntryPreference[]>([])
+const quickEntryDialogVisible = ref(false)
+const quickEntryPreferenceKey = computed(() => buildUserPreferenceKey(
+  authStore.user?.id,
+  'dashboard:quick-entries',
+))
+const quickEntries = computed(() => quickEntryPreferences.value
+  .filter((item) => item.visible)
+  .map((item) => quickEntryMap.get(item.id))
+  .filter((entry): entry is QuickEntryDefinition => Boolean(entry)))
+
+function loadQuickEntryPreferences() {
+  const storedValue = readRecordPreference(window.localStorage, quickEntryPreferenceKey.value)
+  quickEntryPreferences.value = normalizeQuickEntryPreferences(defaultQuickEntryIds, storedValue)
+}
+
+function openQuickEntryDialog() {
+  quickEntryEditor.value = quickEntryPreferences.value.map((item) => ({ ...item }))
+  quickEntryDialogVisible.value = true
+}
+
+function moveQuickEntry(id: string, direction: -1 | 1) {
+  quickEntryEditor.value = moveQuickEntryPreference(quickEntryEditor.value, id, direction)
+}
+
+function resetQuickEntryEditor() {
+  quickEntryEditor.value = buildDefaultQuickEntryPreferences(defaultQuickEntryIds)
+}
+
+function saveQuickEntryPreferences() {
+  if (!quickEntryEditor.value.some((item) => item.visible)) {
+    ElMessage.warning('至少保留一个快捷入口')
+    return
+  }
+  quickEntryPreferences.value = quickEntryEditor.value.map((item) => ({ ...item }))
+  writeRecordPreference(window.localStorage, quickEntryPreferenceKey.value, {
+    entries: quickEntryPreferences.value,
+  })
+  quickEntryDialogVisible.value = false
+  ElMessage.success('快捷入口已保存')
+}
+
+watch(quickEntryPreferenceKey, loadQuickEntryPreferences, { immediate: true })
 const cards = computed(() => {
   const data = overview.value
   return [
@@ -216,6 +293,7 @@ onBeforeUnmount(() => {
           <h2 id="quick-entry-title">快捷入口</h2>
           <p>常用业务</p>
         </div>
+        <el-button plain :icon="Settings2" @click="openQuickEntryDialog">自定义</el-button>
       </div>
       <div class="quick-entry-grid">
         <RouterLink
@@ -235,6 +313,68 @@ onBeforeUnmount(() => {
         </RouterLink>
       </div>
     </section>
+
+    <el-dialog
+      v-model="quickEntryDialogVisible"
+      title="自定义快捷入口"
+      width="min(520px, calc(100vw - 32px))"
+      append-to-body
+      destroy-on-close
+    >
+      <div class="quick-entry-editor">
+        <div
+          v-for="(item, index) in quickEntryEditor"
+          :key="item.id"
+          class="quick-entry-editor__row"
+        >
+          <el-checkbox v-model="item.visible" class="quick-entry-editor__checkbox">
+            <span class="quick-entry-editor__identity">
+              <span
+                v-if="quickEntryMap.get(item.id)"
+                :class="['quick-entry-editor__icon', 'quick-entry--' + quickEntryMap.get(item.id)?.tone]"
+              >
+                <component :is="quickEntryMap.get(item.id)?.icon" class="h-4 w-4" />
+              </span>
+              <span class="quick-entry-editor__text">
+                <strong>{{ quickEntryMap.get(item.id)?.label }}</strong>
+                <small>{{ quickEntryMap.get(item.id)?.section }}</small>
+              </span>
+            </span>
+          </el-checkbox>
+          <div class="quick-entry-editor__actions">
+            <el-tooltip content="上移" placement="top">
+              <el-button
+                circle
+                text
+                :icon="ArrowUp"
+                :disabled="index === 0"
+                aria-label="上移"
+                @click="moveQuickEntry(item.id, -1)"
+              />
+            </el-tooltip>
+            <el-tooltip content="下移" placement="top">
+              <el-button
+                circle
+                text
+                :icon="ArrowDown"
+                :disabled="index === quickEntryEditor.length - 1"
+                aria-label="下移"
+                @click="moveQuickEntry(item.id, 1)"
+              />
+            </el-tooltip>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="quick-entry-editor__footer">
+          <el-button :icon="RotateCcw" @click="resetQuickEntryEditor">恢复默认</el-button>
+          <div>
+            <el-button @click="quickEntryDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="saveQuickEntryPreferences">保存</el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
 
     <div class="dashboard-summary">
       <div v-for="item in summaryRows" :key="item.label" class="dashboard-summary__item">
@@ -477,6 +617,83 @@ onBeforeUnmount(() => {
 .quick-entry--slate { --entry-color: #475569; --entry-bg: #f8fafc; }
 .quick-entry--amber { --entry-color: #b45309; --entry-bg: #fffbeb; }
 
+.quick-entry-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-entry-editor__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+  gap: 12px;
+  border: 1px solid #e1e8ef;
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+
+.quick-entry-editor__checkbox {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+}
+
+.quick-entry-editor__checkbox :deep(.el-checkbox__label) {
+  min-width: 0;
+  width: 100%;
+}
+
+.quick-entry-editor__identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.quick-entry-editor__icon {
+  display: inline-flex;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  color: var(--entry-color);
+  background: var(--entry-bg);
+}
+
+.quick-entry-editor__text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.quick-entry-editor__text strong {
+  color: #243b53;
+  font-size: 13px;
+}
+
+.quick-entry-editor__text small {
+  color: #7b8794;
+  font-size: 11px;
+}
+
+.quick-entry-editor__actions,
+.quick-entry-editor__footer {
+  display: flex;
+  align-items: center;
+}
+
+.quick-entry-editor__actions {
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.quick-entry-editor__footer {
+  justify-content: space-between;
+  gap: 12px;
+}
 .dashboard-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
