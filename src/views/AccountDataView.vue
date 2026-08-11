@@ -508,7 +508,8 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="account-data__split">
-          <aside class="account-directory">
+          <div class="account-directory__column">
+            <aside class="account-directory">
             <div class="account-directory__header">
               <div>
                 <strong>账号列表</strong>
@@ -566,7 +567,8 @@ onBeforeUnmount(() => {
                 @current-change="loadRows"
               />
             </div>
-          </aside>
+            </aside>
+          </div>
 
           <main class="account-profile">
             <template v-if="selectedAccount">
@@ -1041,13 +1043,19 @@ onBeforeUnmount(() => {
 .account-data__split {
   display: grid;
   grid-template-columns: 316px minmax(0, 1fr);
-  min-height: 650px;
   overflow: hidden;
   border: 1px solid #dbe4ed;
   border-radius: 6px;
   background: #fff;
 }
+.account-directory__column {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
 .account-directory {
+  position: absolute;
+  inset: 0;
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -1302,7 +1310,14 @@ onBeforeUnmount(() => {
   .monitor-form-row,
   .account-data__split { grid-template-columns: 1fr; }
   .account-data__body { padding: 12px; }
-  .account-directory { border-right: 0; border-bottom: 1px solid #dbe4ed; }
+  .account-directory__column { position: static; }
+  .account-directory {
+    position: static;
+    border-right: 0;
+    border-bottom: 1px solid #dbe4ed;
+  }
+  .account-directory__viewport { flex: 0 1 auto; }
+  .account-directory__scroll { height: auto; max-height: 50vh; }
   .account-profile { padding: 16px; }
 }
 
