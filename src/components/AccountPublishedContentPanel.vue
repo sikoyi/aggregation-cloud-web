@@ -17,7 +17,6 @@ import PublishedContentDetailDialog from '@/components/PublishedContentDetailDia
 import StatusBadge from '@/components/StatusBadge.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import {
-  businessPlatformOptions,
   publishedContentStatusOptions,
   publishedContentTypeOptions,
 } from '@/config/options'
@@ -184,9 +183,6 @@ onBeforeUnmount(() => {
             <strong :title="contentTitle(row)">{{ contentTitle(row) }}</strong>
             <p :title="contentExcerpt(row)">{{ contentExcerpt(row) }}</p>
             <div class="content-summary__meta">
-              <el-tag size="small" effect="plain">
-                {{ optionLabel(businessPlatformOptions, row.business_platform) }}
-              </el-tag>
               <el-tag size="small" effect="plain" type="info">
                 {{ optionLabel(publishedContentTypeOptions, row.content_type) }}
               </el-tag>
