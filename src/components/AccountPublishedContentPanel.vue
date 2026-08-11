@@ -235,25 +235,25 @@ onBeforeUnmount(() => {
       <el-table-column label="互动数据" min-width="260">
         <template #default="{ row }">
           <div class="content-metrics">
-            <div title="评论数">
-              <MessageCircle :size="15" />
-              <span>评论</span>
-              <strong>{{ countText(row.comment_count) }}</strong>
+            <div title="浏览数">
+              <Eye :size="15" />
+              <span>浏览</span>
+              <strong>{{ countText(row.view_count) }}</strong>
             </div>
             <div title="点赞数">
               <Heart :size="15" />
               <span>点赞</span>
               <strong>{{ countText(row.like_count) }}</strong>
             </div>
+            <div title="评论数">
+              <MessageCircle :size="15" />
+              <span>评论</span>
+              <strong>{{ countText(row.comment_count) }}</strong>
+            </div>
             <div title="分享数">
               <Share2 :size="15" />
               <span>分享</span>
               <strong>{{ countText(row.share_count) }}</strong>
-            </div>
-            <div title="浏览数">
-              <Eye :size="15" />
-              <span>浏览</span>
-              <strong>{{ countText(row.view_count) }}</strong>
             </div>
           </div>
         </template>
