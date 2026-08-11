@@ -1,8 +1,18 @@
 <script setup lang="ts">
-import { Eye, RefreshCw } from 'lucide-vue-next'
+import {
+  ExternalLink,
+  Eye,
+  FileText,
+  Heart,
+  Image as ImageIcon,
+  MessageCircle,
+  Play,
+  RefreshCw,
+  Share2,
+} from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import { http } from '@/api/http'
+import { http, resolveBackendUrl } from '@/api/http'
 import PublishedContentDetailDialog from '@/components/PublishedContentDetailDialog.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
@@ -42,6 +52,48 @@ const accountName = computed(() =>
 function optionLabel(options: { label: string; value: string | number | boolean }[], value: unknown) {
   const option = options.find((item) => String(item.value) === String(value || ''))
   return option?.label || String(value || '-')
+}
+
+function contentTitle(row: AnyRecord) {
+  const title = String(row.title || '').trim()
+  if (title) return title
+  const body = String(row.text_content || '').trim().replace(/\s+/g, ' ')
+  return body ? body.slice(0, 60) : '无标题内容'
+}
+
+function contentExcerpt(row: AnyRecord) {
+  const body = String(row.text_content || '').trim()
+  if (!body || body === String(row.title || '').trim()) return '暂无正文内容'
+  return body
+}
+
+function mediaUrls(row: AnyRecord) {
+  if (!Array.isArray(row.media_urls)) return []
+  return row.media_urls
+    .map((value) => resolveBackendUrl(value))
+    .filter(Boolean)
+}
+
+function isVideoMedia(row: AnyRecord, url: string) {
+  return String(row.content_type || '').toLowerCase() === 'video'
+    || /\.(mp4|webm|ogg|mov|m4v)(\?|#|$)/i.test(url)
+}
+
+function isImageMedia(row: AnyRecord, url: string) {
+  if (isVideoMedia(row, url)) return false
+  const type = String(row.content_type || '').toLowerCase()
+  return ['image', 'mixed', 'post', 'thread', 'note'].includes(type)
+    || /\.(png|jpe?g|webp|gif|bmp|svg)(\?|#|$)/i.test(url)
+}
+
+function imagePreviewUrls(row: AnyRecord) {
+  return mediaUrls(row).filter((url) => isImageMedia(row, url))
+}
+
+function countText(value: unknown) {
+  const count = Number(value || 0)
+  if (!Number.isFinite(count)) return '0'
+  return Math.max(0, Math.trunc(count)).toLocaleString('zh-CN')
 }
 
 async function loadRows() {
@@ -106,7 +158,7 @@ onBeforeUnmount(() => {
       <div>
         <div class="account-published-content__title">账号内容</div>
         <div class="account-published-content__subtitle">
-          当前账号：{{ accountName }}
+          当前账号：{{ accountName }} · 共 {{ total }} 条内容
         </div>
       </div>
       <el-button :icon="RefreshCw" :loading="loading" @click="loadRows">刷新</el-button>
@@ -116,40 +168,116 @@ onBeforeUnmount(() => {
       v-loading="loading"
       :data="rows"
       border
-      stripe
       table-layout="auto"
+      row-key="id"
+      class="account-published-content__table"
       empty-text="该账号暂无内容"
     >
-      <el-table-column label="ID" width="82" align="center">
+      <el-table-column label="ID" width="74" align="center">
         <template #default="{ row }">
           <span class="font-mono text-xs" :title="String(row.id || '')">{{ truncateId(row.id) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="220" show-overflow-tooltip />
-      <el-table-column label="业务 App" width="120" align="center">
-        <template #default="{ row }">{{ optionLabel(businessPlatformOptions, row.business_platform) }}</template>
-      </el-table-column>
-      <el-table-column label="内容类型" width="120" align="center">
-        <template #default="{ row }">{{ optionLabel(publishedContentTypeOptions, row.content_type) }}</template>
-      </el-table-column>
-      <el-table-column prop="comment_count" label="评论" width="84" align="center" />
-      <el-table-column prop="like_count" label="点赞" width="84" align="center" />
-      <el-table-column label="状态" width="110" align="center">
+      <el-table-column label="内容信息" min-width="330">
         <template #default="{ row }">
-          <StatusBadge :value="row.status" />
-          <span class="sr-only">{{ optionLabel(publishedContentStatusOptions, row.status) }}</span>
+          <div class="content-summary">
+            <strong :title="contentTitle(row)">{{ contentTitle(row) }}</strong>
+            <p :title="contentExcerpt(row)">{{ contentExcerpt(row) }}</p>
+            <div class="content-summary__meta">
+              <el-tag size="small" effect="plain">
+                {{ optionLabel(businessPlatformOptions, row.business_platform) }}
+              </el-tag>
+              <el-tag size="small" effect="plain" type="info">
+                {{ optionLabel(publishedContentTypeOptions, row.content_type) }}
+              </el-tag>
+              <el-link
+                v-if="row.content_url"
+                :href="String(row.content_url)"
+                target="_blank"
+                type="primary"
+                :icon="ExternalLink"
+              >
+                打开原帖
+              </el-link>
+            </div>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column label="发布时间" min-width="170" align="center">
-        <template #default="{ row }">{{ formatDate(row.published_at) }}</template>
+      <el-table-column label="媒体" width="104" align="center">
+        <template #default="{ row }">
+          <div v-if="mediaUrls(row).length" class="content-media">
+            <el-image
+              v-if="isImageMedia(row, mediaUrls(row)[0])"
+              :src="mediaUrls(row)[0]"
+              :preview-src-list="imagePreviewUrls(row)"
+              preview-teleported
+              fit="cover"
+            />
+            <button
+              v-else-if="isVideoMedia(row, mediaUrls(row)[0])"
+              type="button"
+              class="content-media__video"
+              aria-label="查看视频详情"
+              @click="openDetail(row)"
+            >
+              <video :src="mediaUrls(row)[0]" muted playsinline preload="metadata" />
+              <span><Play :size="16" /></span>
+            </button>
+            <div v-else class="content-media__placeholder">
+              <FileText :size="22" />
+            </div>
+            <span v-if="mediaUrls(row).length > 1" class="content-media__count">
+              +{{ mediaUrls(row).length - 1 }}
+            </span>
+          </div>
+          <div v-else class="content-media__empty">
+            <ImageIcon :size="18" />
+            <span>无媒体</span>
+          </div>
+        </template>
       </el-table-column>
-      <el-table-column label="最近采集" min-width="170" align="center">
-        <template #default="{ row }">{{ formatDate(row.last_collected_at) }}</template>
+      <el-table-column label="互动数据" min-width="260">
+        <template #default="{ row }">
+          <div class="content-metrics">
+            <div title="评论数">
+              <MessageCircle :size="15" />
+              <span>评论</span>
+              <strong>{{ countText(row.comment_count) }}</strong>
+            </div>
+            <div title="点赞数">
+              <Heart :size="15" />
+              <span>点赞</span>
+              <strong>{{ countText(row.like_count) }}</strong>
+            </div>
+            <div title="分享数">
+              <Share2 :size="15" />
+              <span>分享</span>
+              <strong>{{ countText(row.share_count) }}</strong>
+            </div>
+            <div title="浏览数">
+              <Eye :size="15" />
+              <span>浏览</span>
+              <strong>{{ countText(row.view_count) }}</strong>
+            </div>
+          </div>
+        </template>
       </el-table-column>
-      <el-table-column label="操作" width="90" align="center" fixed="right">
+      <el-table-column label="状态 / 时间" min-width="190">
+        <template #default="{ row }">
+          <div class="content-state">
+            <div>
+              <StatusBadge :value="row.status" />
+              <span class="sr-only">{{ optionLabel(publishedContentStatusOptions, row.status) }}</span>
+            </div>
+            <span><em>发布</em>{{ formatDate(row.published_at) }}</span>
+            <span><em>采集</em>{{ formatDate(row.last_collected_at) }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="88" align="center" fixed="right">
         <template #default="{ row }">
           <el-tooltip content="查看详情" placement="top">
-            <el-button text circle :icon="Eye" @click="openDetail(row)" />
+            <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
           </el-tooltip>
         </template>
       </el-table-column>
@@ -204,5 +332,184 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: flex-end;
   padding-top: 12px;
+}
+
+.content-summary {
+  min-width: 0;
+  padding: 5px 0;
+}
+
+.content-summary > strong {
+  display: block;
+  overflow: hidden;
+  color: #102a43;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-summary > p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 6px 0 8px;
+  color: #526d82;
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.content-summary__meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.content-summary__meta :deep(.el-link) {
+  margin-left: 2px;
+  font-size: 12px;
+}
+
+.content-media {
+  position: relative;
+  width: 68px;
+  height: 62px;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid #dbe5ef;
+  border-radius: 6px;
+  background: #f4f8fb;
+}
+
+.content-media :deep(.el-image),
+.content-media__video,
+.content-media__video video,
+.content-media__placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.content-media__video {
+  position: relative;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  cursor: pointer;
+  background: #0f172a;
+}
+
+.content-media__video video {
+  object-fit: cover;
+}
+
+.content-media__video span {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background: rgb(15 23 42 / 74%);
+  transform: translate(-50%, -50%);
+}
+
+.content-media__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #829ab1;
+}
+
+.content-media__count {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: #fff;
+  background: rgb(15 23 42 / 76%);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.content-media__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #9fb3c8;
+  font-size: 11px;
+}
+
+.content-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(104px, 1fr));
+  gap: 7px;
+}
+
+.content-metrics > div {
+  display: grid;
+  grid-template-columns: 18px 34px minmax(28px, 1fr);
+  align-items: center;
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: #526d82;
+  background: #f5f8fb;
+  font-size: 12px;
+}
+
+.content-metrics > div > strong {
+  overflow: hidden;
+  color: #102a43;
+  font-size: 13px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content-state {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 4px 0;
+}
+
+.content-state > span {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 6px;
+  color: #526d82;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.content-state em {
+  color: #829ab1;
+  font-style: normal;
+}
+
+.account-published-content__table :deep(.el-table__cell) {
+  padding: 10px 0;
+}
+
+.account-published-content__table :deep(.el-table__row:hover > td.el-table__cell) {
+  background: #f7fbff;
+}
+
+@media (max-width: 900px) {
+  .account-published-content__header {
+    align-items: flex-start;
+  }
+
+  .account-published-content__pagination {
+    overflow-x: auto;
+  }
 }
 </style>
