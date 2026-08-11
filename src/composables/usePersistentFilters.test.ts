@@ -22,7 +22,7 @@ describe('统一筛选缓存', () => {
     setActivePinia(createPinia())
   })
 
-  it('同一管理员和筛选域实时共享筛选条件', () => {
+  it('同一管理员和筛选域继承缓存但实例状态互不联动', () => {
     const auth = useAuthStore()
     auth.user = { id: 'admin-filter-1', username: 'admin' }
 
@@ -37,8 +37,18 @@ describe('统一筛选缓存', () => {
       keyword: '',
       groupNodeIds: [] as string[],
     })
-    expect(second.filters).toBe(first.filters)
+    expect(second.filters).not.toBe(first.filters)
     expect(second.filters).toEqual({ keyword: '韩国', groupNodeIds: ['group:8'] })
+
+    second.filters.keyword = '美国'
+    second.filters.groupNodeIds = ['group:9']
+    expect(first.filters).toEqual({ keyword: '韩国', groupNodeIds: ['group:8'] })
+
+    const third = usePersistentFilters('selector:devices', {
+      keyword: '',
+      groupNodeIds: [] as string[],
+    })
+    expect(third.filters).toEqual({ keyword: '美国', groupNodeIds: ['group:9'] })
   })
 
   it('不同管理员之间隔离筛选条件', () => {

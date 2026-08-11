@@ -9,9 +9,6 @@ import {
 
 type FilterState = Record<string, unknown>
 
-// 同一管理员、同一筛选域复用同一个响应式对象，使不同业务弹窗里的筛选实时保持一致。
-const sharedFilterStates = new Map<string, FilterState>()
-
 function cloneDefaults<T extends FilterState>(defaults: T | (() => T)) {
   const value = typeof defaults === 'function' ? defaults() : defaults
   return JSON.parse(JSON.stringify(value)) as T
@@ -51,10 +48,8 @@ export function usePersistentFilters<T extends FilterState>(
     defaultState,
     preferenceKey ? readRecordPreference(localStorage, preferenceKey) : null,
   )
-  const existingState = preferenceKey ? sharedFilterStates.get(preferenceKey) : undefined
-  const filters = (existingState || reactive(restoredState)) as T
-
-  if (preferenceKey && !existingState) sharedFilterStates.set(preferenceKey, filters)
+  // 同一筛选域共用本地持久化结果，但每个组件持有独立状态，避免同屏选择器互相联动。
+  const filters = reactive(restoredState) as T
 
   watch(
     filters,
