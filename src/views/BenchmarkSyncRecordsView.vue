@@ -9,6 +9,7 @@ import {
 import { computed, onMounted, ref } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import AccountMetricRecordsPanel from '@/components/AccountMetricRecordsPanel.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { PageResult } from '@/types/api'
 import { formatDate, statusLabel, statusTagType } from '@/utils/format'
@@ -64,6 +65,8 @@ const rows = ref<BenchmarkSyncRun[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const activeSection = ref('metrics')
+const metricRecordsRef = ref<InstanceType<typeof AccountMetricRecordsPanel> | null>(null)
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:benchmark-sync-records',
   {
@@ -184,6 +187,14 @@ async function loadRows() {
   }
 }
 
+function reloadActiveSection() {
+  if (activeSection.value === 'metrics') {
+    void metricRecordsRef.value?.loadRows()
+    return
+  }
+  void loadRows()
+}
+
 function submitFilters() {
   page.value = 1
   loadRows()
@@ -224,18 +235,23 @@ onMounted(loadRows)
           <div class="page-title">
             <span class="page-title__icon"><FileClock :size="19" /></span>
             <div>
-              <h1>对标同步记录</h1>
-              <p>统一查看每轮采集以及资料、内容发布和删除的同步结果。</p>
+              <h1>数据同步记录</h1>
+              <p>统一查看账号指标采集，以及对标资料和内容的同步结果。</p>
             </div>
           </div>
           <el-tooltip content="刷新记录" placement="bottom">
-            <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
+            <el-button circle :icon="RefreshCw" :loading="loading" @click="reloadActiveSection" />
           </el-tooltip>
         </div>
       </template>
 
       <div class="sync-records__body">
-        <div class="filter-panel">
+        <el-tabs v-model="activeSection" class="sync-records__tabs">
+          <el-tab-pane label="账号采集记录" name="metrics" lazy>
+            <AccountMetricRecordsPanel ref="metricRecordsRef" />
+          </el-tab-pane>
+          <el-tab-pane label="对标同步记录" name="benchmark" lazy>
+            <div class="filter-panel">
           <div class="filter-title"><SlidersHorizontal :size="15" /> 筛选条件</div>
           <div class="filter-grid">
             <el-input
@@ -378,6 +394,8 @@ onMounted(loadRows)
             />
           </div>
         </div>
+          </el-tab-pane>
+        </el-tabs>
       </div>
     </el-card>
 
@@ -463,6 +481,9 @@ onMounted(loadRows)
 .page-title h1 { color: #1f2933; font-size: 18px; font-weight: 700; line-height: 1.25; }
 .page-title p { margin-top: 3px; color: #66788a; font-size: 12px; }
 .sync-records__body { padding: 14px 16px 16px; background: #f8fafc; }
+.sync-records__tabs :deep(.el-tabs__header) { margin: 0 0 12px; }
+.sync-records__tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: #dbe4ed; }
+.sync-records__tabs :deep(.el-tabs__item) { height: 36px; font-size: 13px; }
 .filter-panel,
 .records-table { border: 1px solid #dbe4ed; border-radius: 6px; background: #fff; }
 .filter-panel { margin-bottom: 12px; padding: 12px; }

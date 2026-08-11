@@ -2,6 +2,8 @@
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   CircleOff,
   Clock,
   ExternalLink,
@@ -9,6 +11,7 @@ import {
   Play,
   RefreshCw,
   Search,
+  Minus,
   Users,
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -17,7 +20,6 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { getAllPages, http, resolveBackendUrl } from '@/api/http'
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider, type EnabledAiProviderOption } from '@/api/interactionAi'
 import { getSystemDefaults } from '@/api/systemSettings'
-import AccountMetricsPanel from '@/components/AccountMetricsPanel.vue'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
@@ -107,6 +109,23 @@ const hasFilters = computed(() => Object.values(filters).some(Boolean))
 const monitorAccountFilters = computed(() => ({
   business_platform: monitorForm.business_platform,
 }))
+const profileMetricItems = computed(() => {
+  const account = selectedAccount.value
+  if (!account) return []
+  return [
+    { label: '粉丝', value: account.followers_count, delta: account.followers_day_delta },
+    { label: '关注', value: account.following_count, delta: account.following_day_delta },
+    { label: '帖子', value: account.posts_count, delta: account.posts_day_delta },
+    { label: '总点赞', value: account.total_likes_count, delta: account.total_likes_day_delta },
+    { label: '总回复', value: account.total_replies_count, delta: account.total_replies_day_delta },
+    {
+      label: '采集次数',
+      value: account.collection_count,
+      delta: account.collection_day_delta,
+      deltaMode: 'daily',
+    },
+  ]
+})
 const monitorDialogTitle = computed(() => {
   if (!monitorAccountLocked.value) return '账号监听'
   return `监听设置：${String(monitorTargetAccount.value?.account_name || monitorTargetAccount.value?.login_username || '-')}`
@@ -129,6 +148,25 @@ function formatNumber(value: unknown) {
   if (value === null || value === undefined || value === '') return '--'
   const number = Number(value)
   return Number.isFinite(number) ? new Intl.NumberFormat('zh-CN').format(number) : String(value)
+}
+
+function metricDeltaMeta(value: unknown, mode: unknown = 'previous') {
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue)) {
+    return { icon: Minus, label: '暂无前日数据', type: 'unknown' }
+  }
+  if (mode === 'daily') {
+    return numberValue > 0
+      ? { icon: ArrowUp, label: `当日新增 +${formatNumber(numberValue)}`, type: 'up' }
+      : { icon: Minus, label: '当日暂无新增', type: 'flat' }
+  }
+  if (numberValue > 0) {
+    return { icon: ArrowUp, label: `较前一日 +${formatNumber(numberValue)}`, type: 'up' }
+  }
+  if (numberValue < 0) {
+    return { icon: ArrowDown, label: `较前一日 ${formatNumber(numberValue)}`, type: 'down' }
+  }
+  return { icon: Minus, label: '较前一日 持平', type: 'flat' }
 }
 
 function monitorStateLabel(value: unknown) {
@@ -617,12 +655,17 @@ onBeforeUnmount(() => {
               </header>
 
               <div class="account-profile__metrics">
-                <div><small>粉丝</small><strong>{{ formatNumber(selectedAccount.followers_count) }}</strong></div>
-                <div><small>关注</small><strong>{{ formatNumber(selectedAccount.following_count) }}</strong></div>
-                <div><small>帖子</small><strong>{{ formatNumber(selectedAccount.posts_count) }}</strong></div>
-                <div><small>总点赞</small><strong>{{ formatNumber(selectedAccount.total_likes_count) }}</strong></div>
-                <div><small>总回复</small><strong>{{ formatNumber(selectedAccount.total_replies_count) }}</strong></div>
-                <div><small>采集次数</small><strong>{{ formatNumber(selectedAccount.collection_count) }}</strong></div>
+                <div v-for="metric in profileMetricItems" :key="metric.label">
+                  <small>{{ metric.label }}</small>
+                  <strong>{{ formatNumber(metric.value) }}</strong>
+                  <span
+                    class="account-profile__delta"
+                    :class="'is-' + metricDeltaMeta(metric.delta, metric.deltaMode).type"
+                  >
+                    <component :is="metricDeltaMeta(metric.delta, metric.deltaMode).icon" :size="11" />
+                    {{ metricDeltaMeta(metric.delta, metric.deltaMode).label }}
+                  </span>
+                </div>
               </div>
 
               <el-tabs v-model="detailTab" class="account-profile__tabs">
@@ -695,12 +738,6 @@ onBeforeUnmount(() => {
                       <div><small>对标主页</small><strong class="profile-info-grid__ellipsis">{{ selectedAccount.benchmark_source_profile_url || '-' }}</strong></div>
                     </div>
                   </section>
-                </el-tab-pane>
-                <el-tab-pane label="趋势分析" name="metrics" lazy>
-                  <AccountMetricsPanel
-                    :key="'metrics-' + String(selectedAccount.account_id)"
-                    :account="accountPanelRecord(selectedAccount)"
-                  />
                 </el-tab-pane>
                 <el-tab-pane label="账号内容" name="contents" lazy>
                   <AccountPublishedContentPanel
@@ -1205,6 +1242,22 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.account-profile__delta {
+  display: inline-flex;
+  min-height: 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 5px;
+  color: #7b8b9b;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.account-profile__delta.is-up { color: #238457; }
+.account-profile__delta.is-down { color: #cf4f4f; }
+.account-profile__delta.is-flat,
+.account-profile__delta.is-unknown { color: #8291a1; }
 .account-profile__tabs { margin-top: 10px; }
 .account-profile__tabs :deep(.el-tabs__header) { margin-bottom: 16px; }
 .profile-section {
