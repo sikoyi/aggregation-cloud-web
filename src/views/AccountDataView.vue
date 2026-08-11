@@ -1068,7 +1068,7 @@ onBeforeUnmount(() => {
 .account-directory__header strong { color: #26384a; font-size: 14px; }
 .account-directory__header small { margin-top: 3px; color: #8190a0; font-size: 11px; }
 .account-directory__viewport { min-height: 0; flex: 1; }
-.account-directory__scroll { height: 580px; }
+.account-directory__scroll { height: 100%; }
 .account-directory__items { padding: 6px; }
 .account-directory__item {
   width: 100%;
@@ -1303,7 +1303,6 @@ onBeforeUnmount(() => {
   .account-data__split { grid-template-columns: 1fr; }
   .account-data__body { padding: 12px; }
   .account-directory { border-right: 0; border-bottom: 1px solid #dbe4ed; }
-  .account-directory__scroll { height: 360px; }
   .account-profile { padding: 16px; }
 }
 
