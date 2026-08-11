@@ -1,5 +1,13 @@
 import { http } from "@/api/http";
 import type { AnyRecord } from "@/types/api";
+import {
+  contentMaterialAssetType,
+  contentMaterialEmptyText,
+  contentMaterialItemLabel,
+  contentMaterialMatchesContext,
+  contentMaterialPickerTitle,
+  contentMaterialSelectionLimit,
+} from "@/utils/contentTypeRules";
 import { normalizeThreadsPostUrl } from "@/utils/platformUrls";
 import type { FieldConfig, ResourceConfig } from "@/types/crud";
 
@@ -286,7 +294,25 @@ const commentImageMultiSelect = {
     && asset.status === "enabled"
     && (!context?.business_platform || asset.business_platform === context.business_platform)
   ),
+  pickerTitle: "选择评论图片",
+  selectionItemLabel: "张图片",
+  preferenceKey: "picker:comment-images",
   emptyText: "当前业务 App 下暂无可用图片，请先在素材库上传",
+};
+
+const contentMaterialMultiSelect = {
+  ...mediaAssetMultiSelect,
+  params: (context?: AnyRecord) => ({
+    status: "enabled",
+    asset_type: contentMaterialAssetType(context?.content_type),
+    business_platform: context?.business_platform || undefined,
+  }),
+  matchesContext: contentMaterialMatchesContext,
+  selectionLimit: (context?: AnyRecord) => contentMaterialSelectionLimit(context?.content_type),
+  pickerTitle: (context?: AnyRecord) => contentMaterialPickerTitle(context?.content_type),
+  selectionItemLabel: (context?: AnyRecord) => contentMaterialItemLabel(context?.content_type),
+  preferenceKey: "picker:content-materials",
+  emptyText: (context?: AnyRecord) => contentMaterialEmptyText(context?.content_type),
 };
 
 
@@ -1908,13 +1934,6 @@ export const resources: Record<string, ResourceConfig> = {
             defaultValue: "threads",
           },
           {
-            key: "content_type",
-            label: "内容类型",
-            type: "select",
-            options: contentTypeOptions,
-            defaultValue: "text",
-          },
-          {
             key: "status",
             label: "状态",
             type: "select",
@@ -2027,18 +2046,21 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "material_asset_ids",
         label: "关联素材",
-        type: "imagePreviewPicker",
-        remote: commentImageMultiSelect,
+        type: "mediaPreviewPicker",
+        remote: contentMaterialMultiSelect,
         span: 2,
-        allowEmpty: true,
-        placeholder: "可选；支持从素材库选择多张图片",
+        requiredWhen: { key: "content_type", value: ["image", "video", "mixed"] },
+        visibleWhen: { key: "content_type", value: ["image", "video", "mixed"] },
+        clearWhenHidden: true,
+        placeholder: "请选择与内容类型匹配的图片或视频素材",
       },
       {
         key: "text_body",
         label: "内容正文",
         type: "textarea",
         span: 2,
-        placeholder: "填写要发布的正文。没有正文时需要至少选择一个素材。",
+        requiredWhen: { key: "content_type", value: ["text", "image", "video"] },
+        placeholder: "文本、图文和视频内容必须填写正文；混合内容可按组合填写",
       },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
     ],
@@ -2074,13 +2096,23 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "material_asset_ids",
         label: "关联素材",
-        type: "imagePreviewPicker",
-        remote: commentImageMultiSelect,
+        type: "mediaPreviewPicker",
+        remote: contentMaterialMultiSelect,
+        span: 2,
+        requiredWhen: { key: "content_type", value: ["image", "video", "mixed"] },
+        visibleWhen: { key: "content_type", value: ["image", "video", "mixed"] },
+        clearWhenHidden: true,
+        placeholder: "请选择与内容类型匹配的图片或视频素材",
+      },
+      {
+        key: "text_body",
+        label: "内容正文",
+        type: "textarea",
         span: 2,
         allowEmpty: true,
-        placeholder: "可选；支持从素材库选择多张图片",
+        requiredWhen: { key: "content_type", value: ["text", "image", "video"] },
+        placeholder: "文本、图文和视频内容必须填写正文；混合内容可按组合填写",
       },
-      { key: "text_body", label: "内容正文", type: "textarea", span: 2, allowEmpty: true },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
     ],
     batchActions: [
@@ -2745,7 +2777,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "comment_media_asset_ids",
         label: "评论图片",
-        type: "imagePreviewPicker",
+        type: "mediaPreviewPicker",
         remote: commentImageMultiSelect,
         span: 2,
         allowEmpty: true,

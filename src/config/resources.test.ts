@@ -286,7 +286,7 @@ describe('发布内容来源', () => {
       ? imageField.remote.params({ business_platform: 'threads' })
       : imageField?.remote?.params
 
-    expect(imageField?.type).toBe('imagePreviewPicker')
+    expect(imageField?.type).toBe('mediaPreviewPicker')
     expect(imageField?.remote?.multiple).toBe(true)
     expect(params).toMatchObject({ status: 'enabled', asset_type: 'image', business_platform: 'threads' })
     expect(body.comment_content).toBeNull()

@@ -9,7 +9,7 @@ import type { FieldConfig } from '@/types/crud'
 
 const AccountTreeSelect = defineAsyncComponent(() => import('@/components/AccountTreeSelect.vue'))
 const ContentPreviewPicker = defineAsyncComponent(() => import('@/components/ContentPreviewPicker.vue'))
-const ImageAssetPreviewPicker = defineAsyncComponent(() => import('@/components/ImageAssetPreviewPicker.vue'))
+const MediaAssetPreviewPicker = defineAsyncComponent(() => import('@/components/MediaAssetPreviewPicker.vue'))
 const ScriptParamEditor = defineAsyncComponent(() => import('@/components/ScriptParamEditor.vue'))
 const SlotTreeSelect = defineAsyncComponent(() => import('@/components/SlotTreeSelect.vue'))
 const TemplateParamsEditor = defineAsyncComponent(() => import('@/components/TemplateParamsEditor.vue'))
@@ -271,6 +271,22 @@ function fieldColumnSpan(field: FieldConfig) {
   return 12
 }
 
+watch(
+  () => props.fields.map((field) => `${field.key}:${isVisibleByRule(field)}`).join('|'),
+  () => {
+    const updates: AnyRecord = {}
+    for (const field of props.fields) {
+      if (!field.clearWhenHidden || isVisibleByRule(field)) continue
+      const current = props.modelValue[field.key]
+      const hasValue = Array.isArray(current) ? current.length > 0 : Boolean(current)
+      if (hasValue) updates[field.key] = Array.isArray(current) ? [] : ''
+    }
+    if (Object.keys(updates).length) {
+      emit('update:modelValue', { ...props.modelValue, ...updates })
+    }
+  },
+  { immediate: true },
+)
 watch(scriptScopeDependency, (scriptKey) => {
   void loadScriptScope(scriptKey)
 }, { immediate: true })
@@ -359,8 +375,8 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             @update:model-value="updateValue(field.key, $event)"
           />
 
-          <ImageAssetPreviewPicker
-            v-else-if="field.type === 'imagePreviewPicker' && field.remote"
+          <MediaAssetPreviewPicker
+            v-else-if="field.type === 'mediaPreviewPicker' && field.remote"
             :model-value="modelValue[field.key]"
             :config="field.remote"
             :context="fieldContext"

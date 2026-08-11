@@ -23,7 +23,7 @@ export type FieldType =
   | 'slotTree'
   | 'templateSelect'
   | 'contentPreviewPicker'
-  | 'imagePreviewPicker'
+  | 'mediaPreviewPicker'
   | 'remoteSelect'
 
 export type ColumnType =
@@ -90,6 +90,10 @@ export interface RemoteSelectConfig {
   pageSize?: number
   loadWhen?: (context?: AnyRecord) => boolean
   multiple?: boolean
+  selectionLimit?: number | ((context?: AnyRecord) => number | undefined)
+  pickerTitle?: string | ((context?: AnyRecord) => string)
+  selectionItemLabel?: string | ((context?: AnyRecord) => string)
+  preferenceKey?: string
   clearWhenMissing?: boolean
   matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
   optionDisabled?: (option: AnyRecord, context?: AnyRecord) => boolean
@@ -150,6 +154,7 @@ export interface FieldConfig {
   requiredWhen?: { key: string; value: string | string[] }
   visibleWhen?: { key: string; value: string | string[] }
   visibleWhenAll?: Array<{ key: string; value: string | string[] }>
+  clearWhenHidden?: boolean
   allowEmpty?: boolean
 }
 

@@ -25,6 +25,7 @@ function defaultValueFor(field: FieldConfig, record?: AnyRecord) {
   if (field.type === 'accountTree') return field.multiple === false ? '' : []
   if (field.type === 'slotTree') return []
   if (field.type === 'templateSelect') return ''
+  if (field.type === 'mediaPreviewPicker') return []
   if (field.type === 'remoteSelect' && field.remote?.multiple) return []
   if (field.type === 'select' && field.multiple) return []
   if (field.type === 'datetimeRange') return []
