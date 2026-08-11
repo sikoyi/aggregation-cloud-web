@@ -34,6 +34,7 @@ import ScriptTableCell from '@/components/ScriptTableCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import TaskTableCell from '@/components/TaskTableCell.vue'
 import TemplateTableCell from '@/components/TemplateTableCell.vue'
+import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import type { AnyRecord, PageResult } from '@/types/api'
@@ -84,7 +85,13 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const rows = ref<AnyRecord[]>([])
-const selectedRows = ref<AnyRecord[]>([])
+const {
+  tableRef,
+  selectedRows,
+  handleSelectionChange,
+  restorePageSelection,
+  clearSelection: clearTableSelection,
+} = useCrossPageTableSelection(rows, (row) => String(row.id))
 const { filters } = usePersistentFilters(
   'list:' + props.config.key,
   () => Object.fromEntries((props.config.filters || []).map((field) => {
@@ -111,7 +118,6 @@ const assetViewerUrl = ref('')
 const assetViewerKind = ref<'image' | 'video'>('image')
 const assetViewerFilename = ref('')
 const assetViewerRecord = ref<AnyRecord | null>(null)
-const tableRef = ref()
 const pageRootRef = ref<HTMLElement | null>(null)
 const slotGroupEditTab = ref('base')
 let realtimeRefreshTimer: number | undefined
@@ -527,7 +533,7 @@ async function loadRows(options?: { silent?: boolean } | number) {
     if (requestId !== listRequestId) return
     rows.value = data.items
     total.value = data.total
-    selectedRows.value = []
+    await restorePageSelection()
   } catch (err) {
     if (!silent) error.value = notifyError(err, '加载失败', '加载失败')
   } finally {
@@ -608,12 +614,17 @@ function handleSizeChange(size: number) {
   loadRows()
 }
 
+function applyFilters() {
+  clearTableSelection()
+  page.value = 1
+  loadRows()
+}
+
 function resetFilters() {
   Object.keys(filters).forEach((key) => {
     filters[key] = ''
   })
-  page.value = 1
-  loadRows()
+  applyFilters()
 }
 
 function applySystemDefaults(state: AnyRecord, defaults: SystemDefaults) {
@@ -800,13 +811,8 @@ async function deleteRow(record: AnyRecord) {
   )
 }
 
-function handleSelectionChange(selection: AnyRecord[]) {
-  selectedRows.value = selection
-}
-
 function clearSelection() {
-  tableRef.value?.clearSelection?.()
-  selectedRows.value = []
+  clearTableSelection()
   window.setTimeout(flushPendingRealtimeRefresh, 0)
 }
 
@@ -1038,6 +1044,7 @@ function handleDropdown(command: string, row: AnyRecord) {
 }
 
 function initFilters() {
+  clearTableSelection()
   page.value = 1
   resultDialogVisible.value = false
   resultTitle.value = ''
@@ -1143,7 +1150,7 @@ onBeforeUnmount(() => {
                 :context="filters"
                 :placeholder="filter.placeholder || '全部'"
                 compact
-                @update:model-value="filters[filter.key] = $event; page = 1; loadRows()"
+                @update:model-value="filters[filter.key] = $event; applyFilters()"
               />
               <el-select
                 v-else-if="filter.type === 'select'"
@@ -1152,8 +1159,8 @@ onBeforeUnmount(() => {
                 filterable
                 class="w-full"
                 placeholder="全部"
-                @update:model-value="filters[filter.key] = $event"
-                @change="page = 1; loadRows()"
+                @update:model-value="filters[filter.key] = $event; clearTableSelection()"
+                @change="applyFilters"
               >
                 <el-option
                   v-for="option in filter.options || []"
@@ -1167,14 +1174,14 @@ onBeforeUnmount(() => {
                 :model-value="String(filters[filter.key] ?? '')"
                 clearable
                 :placeholder="filter.placeholder"
-                @update:model-value="filters[filter.key] = $event"
-                @keydown.enter="page = 1; loadRows()"
+                @update:model-value="filters[filter.key] = $event; clearTableSelection()"
+                @keydown.enter="applyFilters"
               />
           </el-form-item>
         </div>
         <div class="filter-actions">
           <el-button :icon="RotateCcw" :disabled="!hasActiveFilters || loading" @click="resetFilters">清空</el-button>
-          <el-button type="primary" :icon="Search" :loading="loading" @click="page = 1; loadRows()">查询</el-button>
+          <el-button type="primary" :icon="Search" :loading="loading" @click="applyFilters">查询</el-button>
         </div>
       </el-form>
     </el-card>

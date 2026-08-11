@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { contentStatusOptions, contentTypeOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
@@ -29,7 +30,13 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const members = ref<AnyRecord[]>([])
-const selectedMembers = ref<AnyRecord[]>([])
+const {
+  tableRef: memberTableRef,
+  selectedRows: selectedMembers,
+  handleSelectionChange,
+  restorePageSelection,
+  clearSelection: clearMemberSelection,
+} = useCrossPageTableSelection(members, (row) => String(row.id))
 const selectedContentIds = ref<string[]>([])
 const contentDetailVisible = ref(false)
 const contentDetailLoading = ref(false)
@@ -69,7 +76,7 @@ async function loadMembers() {
     )
     members.value = data.items
     total.value = data.total
-    selectedMembers.value = []
+    await restorePageSelection()
   } catch (err) {
     notifyError(err, '加载组内内容失败', '加载组内内容失败')
   } finally {
@@ -133,6 +140,7 @@ async function removeMember(content: AnyRecord) {
     await http.delete(`/api/content-center/content-groups/${groupId.value}/contents/${content.id}`)
     ElMessage.success('内容已移出内容池')
     if (members.value.length === 1 && page.value > 1) page.value -= 1
+    clearMemberSelection()
     await loadMembers()
     emit('changed')
   } catch (err) {
@@ -175,7 +183,7 @@ async function removeSelectedMembers() {
     }
     if (failed.length) throw new Error(`有 ${failed.length} 条内容移除失败`)
     ElMessage.success(`已移除 ${contentIds.length} 条内容`)
-    selectedMembers.value = []
+    clearMemberSelection()
     if (members.value.length <= contentIds.length && page.value > 1) page.value -= 1
     await loadMembers()
     emit('changed')
@@ -187,12 +195,14 @@ async function removeSelectedMembers() {
 }
 
 function searchMembers() {
+  clearMemberSelection()
   page.value = 1
   loadMembers()
 }
 
-function handleSelectionChange(selection: AnyRecord[]) {
-  selectedMembers.value = selection
+function handlePageSizeChange() {
+  page.value = 1
+  loadMembers()
 }
 
 function text(value: unknown) {
@@ -223,6 +233,7 @@ watch(
     contentType.value = ''
     status.value = 'unused'
     selectedContentIds.value = []
+    clearMemberSelection()
     loadMembers()
   },
 )
@@ -250,8 +261,8 @@ onMounted(loadMembers)
     </div>
 
     <div class="member-editor__search">
-      <el-input v-model="keyword" clearable placeholder="标题 / 正文 / 标签" @keyup.enter="searchMembers" />
-      <el-select v-model="contentType" clearable placeholder="内容类型">
+      <el-input v-model="keyword" clearable @input="clearMemberSelection" placeholder="标题 / 正文 / 标签" @keyup.enter="searchMembers" />
+      <el-select v-model="contentType" clearable placeholder="内容类型" @change="clearMemberSelection">
         <el-option
           v-for="option in contentTypeOptions"
           :key="String(option.value)"
@@ -259,7 +270,7 @@ onMounted(loadMembers)
           :value="option.value"
         />
       </el-select>
-      <el-select v-model="status" clearable placeholder="状态">
+      <el-select v-model="status" clearable placeholder="状态" @change="clearMemberSelection">
         <el-option
           v-for="option in contentStatusOptions"
           :key="String(option.value)"
@@ -279,6 +290,7 @@ onMounted(loadMembers)
     </div>
 
     <el-table
+      ref="memberTableRef"
       v-loading="loading"
       :data="members"
       border
@@ -287,7 +299,7 @@ onMounted(loadMembers)
       empty-text="暂无组内内容"
       @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column type="selection" width="46" align="center" reserve-selection />
       <el-table-column label="ID" width="92" align="center">
         <template #default="{ row }">
           <span class="font-mono text-xs">{{ truncateId(row.id) }}</span>
@@ -333,7 +345,7 @@ onMounted(loadMembers)
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next"
         @current-change="loadMembers"
-        @size-change="searchMembers"
+        @size-change="handlePageSizeChange"
       />
     </div>
 

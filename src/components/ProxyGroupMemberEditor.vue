@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { proxyModeOptions, proxyProtocolOptions, proxyUsageStatusOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
@@ -30,7 +31,13 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const members = ref<AnyRecord[]>([])
-const selectedMembers = ref<AnyRecord[]>([])
+const {
+  tableRef: memberTableRef,
+  selectedRows: selectedMembers,
+  handleSelectionChange,
+  restorePageSelection,
+  clearSelection: clearMemberSelection,
+} = useCrossPageTableSelection(members, (row) => String(row.id))
 const selectedProxyIds = ref<string[]>([])
 const proxyDetailVisible = ref(false)
 const proxyDetailLoading = ref(false)
@@ -70,7 +77,7 @@ async function loadMembers() {
     )
     members.value = data.items
     total.value = data.total
-    selectedMembers.value = []
+    await restorePageSelection()
   } catch (err) {
     notifyError(err, '加载组内代理失败', '加载组内代理失败')
   } finally {
@@ -134,6 +141,7 @@ async function removeMember(proxy: AnyRecord) {
     await http.delete(`/api/resource-center/proxy-groups/${groupId.value}/proxies/${proxy.id}`)
     ElMessage.success('代理已移出分组')
     if (members.value.length === 1 && page.value > 1) page.value -= 1
+    clearMemberSelection()
     await loadMembers()
     emit('changed')
   } catch (err) {
@@ -176,7 +184,7 @@ async function removeSelectedMembers() {
     }
     if (failed.length) throw new Error(`有 ${failed.length} 个代理移除失败`)
     ElMessage.success(`已移除 ${proxyIds.length} 个代理`)
-    selectedMembers.value = []
+    clearMemberSelection()
     if (members.value.length <= proxyIds.length && page.value > 1) page.value -= 1
     await loadMembers()
     emit('changed')
@@ -188,12 +196,14 @@ async function removeSelectedMembers() {
 }
 
 function searchMembers() {
+  clearMemberSelection()
   page.value = 1
   loadMembers()
 }
 
-function handleSelectionChange(selection: AnyRecord[]) {
-  selectedMembers.value = selection
+function handlePageSizeChange() {
+  page.value = 1
+  loadMembers()
 }
 
 function text(value: unknown) {
@@ -217,6 +227,7 @@ watch(
     proxyMode.value = ''
     status.value = ''
     selectedProxyIds.value = []
+    clearMemberSelection()
     loadMembers()
   },
 )
@@ -250,6 +261,7 @@ onMounted(loadMembers)
       <el-input
         v-model="keyword"
         clearable
+        @input="clearMemberSelection"
         placeholder="搜索名称 / 代理链接 / Host"
         @keydown.enter="searchMembers"
       />
@@ -317,8 +329,10 @@ onMounted(loadMembers)
     </div>
 
     <el-table
+      ref="memberTableRef"
       v-loading="loading"
       :data="members"
+      row-key="id"
       border
       stripe
       table-layout="auto"
@@ -326,7 +340,7 @@ onMounted(loadMembers)
       empty-text="暂无组内代理"
       @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="44" />
+      <el-table-column type="selection" width="44" reserve-selection />
       <el-table-column prop="id" label="ID" min-width="90" align="center" header-align="center">
         <template #default="{ row }">
           <span class="font-mono text-xs">{{ truncateId(row.id) }}</span>
@@ -377,7 +391,7 @@ onMounted(loadMembers)
         :page-sizes="[10, 20, 50]"
         :total="total"
         @current-change="loadMembers"
-        @size-change="() => { page = 1; loadMembers() }"
+        @size-change="handlePageSizeChange"
       />
     </div>
 

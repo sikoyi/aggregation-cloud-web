@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http, resolveBackendUrl } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { mediaAssetStatusOptions, mediaAssetTypeOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
@@ -29,7 +30,13 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const members = ref<AnyRecord[]>([])
-const selectedMembers = ref<AnyRecord[]>([])
+const {
+  tableRef: memberTableRef,
+  selectedRows: selectedMembers,
+  handleSelectionChange,
+  restorePageSelection,
+  clearSelection: clearMemberSelection,
+} = useCrossPageTableSelection(members, (row) => String(row.id))
 const selectedAssetIds = ref<string[]>([])
 
 const groupId = computed(() => String(props.group?.id || ''))
@@ -66,7 +73,7 @@ async function loadMembers() {
     )
     members.value = data.items
     total.value = data.total
-    selectedMembers.value = []
+    await restorePageSelection()
   } catch (err) {
     notifyError(err, '加载组内素材失败', '加载组内素材失败')
   } finally {
@@ -125,6 +132,7 @@ async function removeSingleMember(asset: AnyRecord) {
     if (!await removeMember(asset)) return
     ElMessage.success('素材已移出素材组')
     if (members.value.length === 1 && page.value > 1) page.value -= 1
+    clearMemberSelection()
     await loadMembers()
     emit('changed')
   } catch (err) {
@@ -166,6 +174,7 @@ async function removeSelectedMembers() {
     }
     if (failedCount) throw new Error(`有 ${failedCount} 个素材移除失败`)
     ElMessage.success(`已移除 ${selected.length} 个素材`)
+    clearMemberSelection()
     if (members.value.length <= selected.length && page.value > 1) page.value -= 1
     await loadMembers()
     emit('changed')
@@ -177,6 +186,12 @@ async function removeSelectedMembers() {
 }
 
 function searchMembers() {
+  clearMemberSelection()
+  page.value = 1
+  loadMembers()
+}
+
+function handlePageSizeChange() {
   page.value = 1
   loadMembers()
 }
@@ -204,6 +219,7 @@ watch(
     assetType.value = ''
     status.value = ''
     selectedAssetIds.value = []
+    clearMemberSelection()
     loadMembers()
   },
 )
@@ -234,7 +250,7 @@ onMounted(loadMembers)
     </div>
 
     <div class="member-editor__search">
-      <el-input v-model="keyword" clearable placeholder="素材名称 / 地址 / 标签" @keyup.enter="searchMembers" />
+      <el-input v-model="keyword" clearable @input="clearMemberSelection" placeholder="素材名称 / 地址 / 标签" @keyup.enter="searchMembers" />
       <el-select v-model="assetType" clearable placeholder="素材类型" @change="searchMembers">
         <el-option
           v-for="option in mediaAssetTypeOptions"
@@ -263,6 +279,7 @@ onMounted(loadMembers)
     </div>
 
     <el-table
+      ref="memberTableRef"
       v-loading="loading"
       :data="members"
       border
@@ -270,9 +287,9 @@ onMounted(loadMembers)
       row-key="id"
       class="member-editor__table"
       empty-text="暂无组内素材"
-      @selection-change="selectedMembers = $event"
+      @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column type="selection" width="46" align="center" reserve-selection />
       <el-table-column label="ID" width="92" align="center">
         <template #default="{ row }"><span class="font-mono text-xs">{{ truncateId(row.id) }}</span></template>
       </el-table-column>
@@ -316,7 +333,7 @@ onMounted(loadMembers)
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next"
         @current-change="loadMembers"
-        @size-change="searchMembers"
+        @size-change="handlePageSizeChange"
       />
     </div>
   </section>

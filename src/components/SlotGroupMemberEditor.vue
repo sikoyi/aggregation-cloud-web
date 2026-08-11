@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
@@ -27,7 +28,13 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const members = ref<AnyRecord[]>([])
-const selectedMembers = ref<AnyRecord[]>([])
+const {
+  tableRef: memberTableRef,
+  selectedRows: selectedMembers,
+  handleSelectionChange,
+  restorePageSelection,
+  clearSelection: clearMemberSelection,
+} = useCrossPageTableSelection(members, (row) => String(row.id))
 const selectedSlotIds = ref<string[]>([])
 const slotDetailVisible = ref(false)
 const slotDetailLoading = ref(false)
@@ -66,7 +73,7 @@ async function loadMembers() {
     )
     members.value = data.items
     total.value = data.total
-    selectedMembers.value = []
+    await restorePageSelection()
   } catch (err) {
     notifyError(err, '加载组内设备失败', '加载组内设备失败')
   } finally {
@@ -139,6 +146,7 @@ async function removeMember(slot: AnyRecord) {
     await http.delete(`/api/slot-groups/${groupId.value}/slots/${slot.id}`)
     ElMessage.success('设备已移出分组')
     if (members.value.length === 1 && page.value > 1) page.value -= 1
+    clearMemberSelection()
     await loadMembers()
     emit('changed')
   } catch (err) {
@@ -181,7 +189,7 @@ async function removeSelectedMembers() {
     }
     if (failed.length) throw new Error(`有 ${failed.length} 台设备移除失败`)
     ElMessage.success(`已移除 ${slotIds.length} 台设备`)
-    selectedMembers.value = []
+    clearMemberSelection()
     if (members.value.length <= slotIds.length && page.value > 1) page.value -= 1
     await loadMembers()
     emit('changed')
@@ -193,12 +201,14 @@ async function removeSelectedMembers() {
 }
 
 function searchMembers() {
+  clearMemberSelection()
   page.value = 1
   loadMembers()
 }
 
-function handleSelectionChange(selection: AnyRecord[]) {
-  selectedMembers.value = selection
+function handlePageSizeChange() {
+  page.value = 1
+  loadMembers()
 }
 
 function text(value: unknown) {
@@ -221,6 +231,7 @@ watch(
     page.value = 1
     keyword.value = ''
     selectedSlotIds.value = []
+    clearMemberSelection()
     loadMembers()
   },
 )
@@ -254,6 +265,7 @@ onMounted(loadMembers)
       <el-input
         v-model="keyword"
         clearable
+        @input="clearMemberSelection"
         placeholder="搜索设备名称 / 设备 ID / 编号"
         @keydown.enter="searchMembers"
       />
@@ -276,8 +288,10 @@ onMounted(loadMembers)
     </div>
 
     <el-table
+      ref="memberTableRef"
       v-loading="loading"
       :data="members"
+      row-key="id"
       border
       stripe
       table-layout="auto"
@@ -285,7 +299,7 @@ onMounted(loadMembers)
       empty-text="暂无组内设备"
       @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="44" />
+      <el-table-column type="selection" width="44" reserve-selection />
       <el-table-column prop="provider_slot_id" label="设备 ID" min-width="170" />
       <el-table-column prop="display_name" label="名称" min-width="170" />
       <el-table-column prop="provider_slot_no" label="编号" min-width="130" />
@@ -322,7 +336,7 @@ onMounted(loadMembers)
         :page-sizes="[10, 20, 50]"
         :total="total"
         @current-change="loadMembers"
-        @size-change="() => { page = 1; loadMembers() }"
+        @size-change="handlePageSizeChange"
       />
     </div>
 
