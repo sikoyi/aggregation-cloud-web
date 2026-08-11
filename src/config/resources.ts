@@ -2027,11 +2027,11 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "material_asset_ids",
         label: "关联素材",
-        type: "remoteSelect",
-        remote: mediaAssetMultiSelect,
+        type: "imagePreviewPicker",
+        remote: commentImageMultiSelect,
         span: 2,
         allowEmpty: true,
-        placeholder: "可选择一个或多个素材",
+        placeholder: "可选；支持从素材库选择多张图片",
       },
       {
         key: "text_body",
@@ -2074,16 +2074,15 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "material_asset_ids",
         label: "关联素材",
-        type: "remoteSelect",
-        remote: mediaAssetMultiSelect,
+        type: "imagePreviewPicker",
+        remote: commentImageMultiSelect,
         span: 2,
         allowEmpty: true,
-        placeholder: "可选择一个或多个素材",
+        placeholder: "可选；支持从素材库选择多张图片",
       },
       { key: "text_body", label: "内容正文", type: "textarea", span: 2, allowEmpty: true },
       { key: "tags", label: "标签", type: "tags", placeholder: "多个标签用逗号或换行分隔" },
     ],
-    editPreview: "content",
     batchActions: [
       {
         key: "batch-add-to-content-group",
