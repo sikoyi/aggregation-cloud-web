@@ -971,6 +971,7 @@ export const resources: Record<string, ResourceConfig> = {
         "twofa_type",
         "totp_secret_ref",
         "display_name",
+        "login_status",
     ]),
     afterUpdate: updateAccountTags,
     columns: [
@@ -1197,6 +1198,13 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "username", label: "公开用户名" },
       {
+        key: "login_status",
+        label: "登录状态",
+        type: "select",
+        options: loginStatusOptions,
+        required: true,
+      },
+      {
         key: "country",
         label: "账号国家",
         type: "select",
@@ -1250,6 +1258,30 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     inlineActionKeys: ["account-onboarding"],
     batchActions: [
+      {
+        key: "batch-update-login-status",
+        label: "修改登录状态",
+        method: "PUT",
+        icon: "edit",
+        batchPath: () => "/api/accounts/login-status/batch",
+        batchBody: (payload, records) => ({
+          account_ids: records.map((record) => String(record.id)),
+          login_status: String(payload.login_status || ""),
+        }),
+        successTitle: "登录状态修改完成",
+        successMessage: (data) =>
+          `已修改 ${Number(data.updated_count || 0)} 个账号${Number(data.not_found_count || 0) ? `，跳过 ${Number(data.not_found_count || 0)} 个不存在的账号` : ""}`,
+        fields: [
+          {
+            key: "login_status",
+            label: "登录状态",
+            type: "select",
+            options: loginStatusOptions,
+            required: true,
+            placeholder: "请选择目标登录状态",
+          },
+        ],
+      },
       {
         key: "batch-account-onboarding",
         label: "重新上号",

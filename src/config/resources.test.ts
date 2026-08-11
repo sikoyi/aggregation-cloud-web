@@ -440,6 +440,30 @@ describe('账号批量设置标签', () => {
   })
 })
 
+describe('账号登录状态管理', () => {
+  const action = resources.accounts.batchActions?.find(
+    (item) => item.key === 'batch-update-login-status',
+  )
+
+  it('编辑账号时提交登录状态', () => {
+    expect(resources.accounts.updateFields?.find((field) => field.key === 'login_status')).toMatchObject({
+      type: 'select',
+      required: true,
+    })
+    expect(resources.accounts.updateBody?.({ login_status: 'banned' }, {})).toEqual({
+      login_status: 'banned',
+    })
+  })
+
+  it('把选中账号一次提交到批量状态接口', () => {
+    expect(action?.batchPath?.([])).toBe('/api/accounts/login-status/batch')
+    expect(action?.batchBody?.({ login_status: 'banned' }, [{ id: '11' }, { id: '12' }])).toEqual({
+      account_ids: ['11', '12'],
+      login_status: 'banned',
+    })
+  })
+})
+
 describe('设备批量分组', () => {
   const action = resources.slots.batchActions?.find((item) => item.key === 'batch-set-group')
 
