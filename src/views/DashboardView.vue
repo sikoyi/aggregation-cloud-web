@@ -58,11 +58,18 @@ let realtimeRefreshTimer: number | undefined
 // 快捷入口由系统统一维护，所有运营看到相同的高频业务入口。
 const quickEntries = [
   {
-    label: '下发任务',
-    section: '任务中心',
-    to: { path: '/tasks', query: { action: 'create' } },
-    icon: Send,
-    tone: 'blue',
+    label: '设备管理',
+    section: '设备管理',
+    to: '/slots',
+    icon: Boxes,
+    tone: 'orange',
+  },
+  {
+    label: '素材库',
+    section: '资源中心',
+    to: '/media-assets',
+    icon: Image,
+    tone: 'amber',
   },
   {
     label: '发布内容',
@@ -72,11 +79,18 @@ const quickEntries = [
     tone: 'green',
   },
   {
-    label: '新建互动会话',
+    label: '互动会话',
     section: '互动中心',
     to: { path: '/interaction-sessions', query: { action: 'create' } },
     icon: MessageSquareReply,
     tone: 'violet',
+  },
+  {
+    label: '下发任务',
+    section: '任务中心',
+    to: { path: '/tasks', query: { action: 'create' } },
+    icon: Send,
+    tone: 'blue',
   },
   {
     label: '导入账号',
@@ -86,20 +100,6 @@ const quickEntries = [
     tone: 'cyan',
   },
   {
-    label: '账号数据',
-    section: '账号中心',
-    to: '/account-data',
-    icon: Users,
-    tone: 'indigo',
-  },
-  {
-    label: '设备管理',
-    section: '设备管理',
-    to: '/slots',
-    icon: Boxes,
-    tone: 'orange',
-  },
-  {
     label: '代理资源',
     section: '资源中心',
     to: '/proxies',
@@ -107,11 +107,11 @@ const quickEntries = [
     tone: 'slate',
   },
   {
-    label: '素材库',
-    section: '资源中心',
-    to: '/media-assets',
-    icon: Image,
-    tone: 'amber',
+    label: '账号数据',
+    section: '账号中心',
+    to: '/account-data',
+    icon: Users,
+    tone: 'indigo',
   },
 ]
 
