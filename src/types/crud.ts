@@ -24,6 +24,7 @@ export type FieldType =
   | 'templateSelect'
   | 'contentPreviewPicker'
   | 'mediaPreviewPicker'
+  | 'publishedCommentList'
   | 'remoteSelect'
 
 export type ColumnType =
@@ -143,6 +144,7 @@ export interface FieldConfig {
   endPlaceholder?: string
   min?: number
   max?: number
+  maxItems?: number
   step?: number
   span?: 1 | 2
   readonly?: boolean

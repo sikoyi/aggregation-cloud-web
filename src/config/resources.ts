@@ -659,19 +659,38 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "content_status",
     "content_id",
     "content_group_id",
-    "comment_content",
-    "comment_media_asset_ids",
+    "comments",
+    "comment_delay_min_minutes",
+    "comment_delay_max_minutes",
     "dispatch_delay_min_minutes",
     "dispatch_delay_max_minutes",
     "scheduled_at",
   ]);
-  const commentContent = typeof payload.comment_content === "string"
-    ? payload.comment_content
-    : "";
-  body.comment_content = commentContent.trim() ? commentContent : null;
-  body.comment_media_asset_ids = Array.isArray(payload.comment_media_asset_ids)
-    ? payload.comment_media_asset_ids.map(String).filter(Boolean)
-    : [];
+  const rawComments = Array.isArray(payload.comments) ? payload.comments : [];
+  if (rawComments.length > 20) {
+    throw new Error("每个发布任务最多添加 20 条评论");
+  }
+  body.comments = rawComments.map((item, index) => {
+    const source = item && typeof item === "object" ? item as AnyRecord : {};
+    const content = typeof source.content === "string" ? source.content.trim() : "";
+    const mediaAssetIds = Array.isArray(source.media_asset_ids)
+      ? Array.from(new Set(source.media_asset_ids.map(String).map((value) => value.trim()).filter(Boolean)))
+      : [];
+    if (!content && mediaAssetIds.length === 0) {
+      throw new Error(`评论 ${index + 1} 至少填写文本或选择一张图片`);
+    }
+    return {
+      content: content || null,
+      media_asset_ids: mediaAssetIds,
+    };
+  });
+  const commentDelayMinMinutes = Number(payload.comment_delay_min_minutes ?? 0);
+  const commentDelayMaxMinutes = Number(payload.comment_delay_max_minutes ?? 1);
+  if (commentDelayMinMinutes > commentDelayMaxMinutes) {
+    throw new Error("评论最短间隔不能大于最长间隔");
+  }
+  body.comment_delay_min_minutes = commentDelayMinMinutes;
+  body.comment_delay_max_minutes = commentDelayMaxMinutes;
   const delayMinMinutes = Number(payload.dispatch_delay_min_minutes ?? 1);
   const delayMaxMinutes = Number(payload.dispatch_delay_max_minutes ?? 2);
   if (delayMinMinutes > delayMaxMinutes) {
@@ -2767,21 +2786,28 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "按使用状态筛选并选择内容",
       },
       {
-        key: "comment_content",
-        label: "评论内容",
-        type: "textarea",
+        key: "comments",
+        label: "发布后评论",
+        type: "publishedCommentList",
+        remote: commentImageMultiSelect,
+        defaultValue: [],
+        maxItems: 20,
         span: 2,
         allowEmpty: true,
-        placeholder: "可选；填写后随发布任务下发给脚本",
       },
       {
-        key: "comment_media_asset_ids",
-        label: "评论图片",
-        type: "mediaPreviewPicker",
-        remote: commentImageMultiSelect,
-        span: 2,
-        allowEmpty: true,
-        placeholder: "可选；支持从素材库选择多张图片",
+        key: "comment_delay_min_minutes",
+        endKey: "comment_delay_max_minutes",
+        label: "评论间隔时间（分钟）",
+        type: "numberRange",
+        defaultValue: 0,
+        endDefaultValue: 1,
+        min: 0,
+        max: 1440,
+        step: 1,
+        required: true,
+        startPlaceholder: "最小间隔",
+        endPlaceholder: "最大间隔",
       },
       {
         key: "dispatch_delay_min_minutes",

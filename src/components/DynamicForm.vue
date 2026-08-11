@@ -10,6 +10,7 @@ import type { FieldConfig } from '@/types/crud'
 const AccountTreeSelect = defineAsyncComponent(() => import('@/components/AccountTreeSelect.vue'))
 const ContentPreviewPicker = defineAsyncComponent(() => import('@/components/ContentPreviewPicker.vue'))
 const MediaAssetPreviewPicker = defineAsyncComponent(() => import('@/components/MediaAssetPreviewPicker.vue'))
+const PublishedCommentListEditor = defineAsyncComponent(() => import('@/components/PublishedCommentListEditor.vue'))
 const ScriptParamEditor = defineAsyncComponent(() => import('@/components/ScriptParamEditor.vue'))
 const SlotTreeSelect = defineAsyncComponent(() => import('@/components/SlotTreeSelect.vue'))
 const TemplateParamsEditor = defineAsyncComponent(() => import('@/components/TemplateParamsEditor.vue'))
@@ -382,6 +383,16 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :context="fieldContext"
             :disabled="isFieldDisabled(field)"
             :placeholder="field.placeholder"
+            @update:model-value="updateValue(field.key, $event)"
+          />
+
+          <PublishedCommentListEditor
+            v-else-if="field.type === 'publishedCommentList' && field.remote"
+            :model-value="modelValue[field.key]"
+            :config="field.remote"
+            :context="fieldContext"
+            :disabled="isFieldDisabled(field)"
+            :max-items="field.maxItems"
             @update:model-value="updateValue(field.key, $event)"
           />
 

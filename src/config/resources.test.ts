@@ -274,23 +274,42 @@ describe('发布内容来源', () => {
     expect(body.content_group_id).toBeNull()
   })
 
-  it('评论图片支持多选并按原顺序提交素材 ID', () => {
-    const imageField = fields.find((field) => field.key === 'comment_media_asset_ids')
+  it('发布后评论支持最多二十条且每条可独立选择多张图片', () => {
+    const commentField = fields.find((field) => field.key === 'comments')
     const body = resources.publishedContents.createBody?.({
       content_source_type: 'content',
       business_platform: 'threads',
-      comment_content: '',
-      comment_media_asset_ids: ['asset-1', 'asset-2'],
+      comments: [
+        {
+          content: '  First comment.  ',
+          media_asset_ids: ['asset-1', 'asset-1', 'asset-2'],
+        },
+        {
+          content: null,
+          media_asset_ids: ['asset-3'],
+        },
+      ],
     }) as Record<string, unknown>
-    const params = typeof imageField?.remote?.params === 'function'
-      ? imageField.remote.params({ business_platform: 'threads' })
-      : imageField?.remote?.params
+    const params = typeof commentField?.remote?.params === 'function'
+      ? commentField.remote.params({ business_platform: 'threads' })
+      : commentField?.remote?.params
 
-    expect(imageField?.type).toBe('mediaPreviewPicker')
-    expect(imageField?.remote?.multiple).toBe(true)
+    expect(commentField?.type).toBe('publishedCommentList')
+    expect(commentField?.maxItems).toBe(20)
+    expect(commentField?.remote?.multiple).toBe(true)
     expect(params).toMatchObject({ status: 'enabled', asset_type: 'image', business_platform: 'threads' })
-    expect(body.comment_content).toBeNull()
-    expect(body.comment_media_asset_ids).toEqual(['asset-1', 'asset-2'])
+    expect(body.comments).toEqual([
+      {
+        content: 'First comment.',
+        media_asset_ids: ['asset-1', 'asset-2'],
+      },
+      {
+        content: null,
+        media_asset_ids: ['asset-3'],
+      },
+    ])
+    expect(body).not.toHaveProperty('comment_content')
+    expect(body).not.toHaveProperty('comment_media_asset_ids')
   })
 
   it('指定内容使用带正文和图片预览的弹窗选择器', () => {
@@ -301,21 +320,45 @@ describe('发布内容来源', () => {
     expect(contentField?.span).toBe(2)
   })
 
-  it('评论内容可选且未填写时提交 null', () => {
-    const commentField = fields.find((field) => field.key === 'comment_content')
+  it('发布后评论整体可选，但已添加的空评论不能提交', () => {
     const emptyBody = resources.publishedContents.createBody?.({
       content_source_type: 'content',
-      comment_content: '   ',
-    }) as Record<string, unknown>
-    const filledBody = resources.publishedContents.createBody?.({
-      content_source_type: 'content',
-      comment_content: 'Thanks for sharing.',
     }) as Record<string, unknown>
 
-    expect(commentField?.type).toBe('textarea')
-    expect(commentField?.required).not.toBe(true)
-    expect(emptyBody.comment_content).toBeNull()
-    expect(filledBody.comment_content).toBe('Thanks for sharing.')
+    expect(emptyBody.comments).toEqual([])
+    expect(() => resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      comments: [{ content: '   ', media_asset_ids: [] }],
+    })).toThrow('评论 1 至少填写文本或选择一张图片')
+  })
+
+  it('发布后评论不能超过二十条', () => {
+    expect(() => resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      comments: Array.from({ length: 21 }, (_item, index) => ({
+        content: `comment-${index + 1}`,
+        media_asset_ids: [],
+      })),
+    })).toThrow('每个发布任务最多添加 20 条评论')
+  })
+
+  it('多条评论默认间隔为零到一分钟并校验范围', () => {
+    const delayField = fields.find((field) => field.key === 'comment_delay_min_minutes')
+
+    expect(delayField?.type).toBe('numberRange')
+    expect(delayField?.defaultValue).toBe(0)
+    expect(delayField?.endDefaultValue).toBe(1)
+    expect(resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+    })).toMatchObject({
+      comment_delay_min_minutes: 0,
+      comment_delay_max_minutes: 1,
+    })
+    expect(() => resources.publishedContents.createBody?.({
+      content_source_type: 'content',
+      comment_delay_min_minutes: 3,
+      comment_delay_max_minutes: 1,
+    })).toThrow('评论最短间隔不能大于最长间隔')
   })
 
   it('每个发布任务支持独立随机延迟范围', () => {
