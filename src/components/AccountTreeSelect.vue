@@ -20,6 +20,7 @@ const props = defineProps<{
   associationOnly?: boolean
   groupByDevice?: boolean
   monitoringOnly?: boolean
+  preferenceScope?: string
 }>()
 
 const emit = defineEmits<{
@@ -41,7 +42,8 @@ interface AccountTreeNode {
 const treeRef = ref()
 const loading = ref(false)
 const treeData = ref<AccountTreeNode[]>([])
-const accountTreeFilterScope = props.groupByDevice ? 'selector:devices' : 'selector:accounts'
+const accountTreeFilterScope = String(props.preferenceScope || '').trim()
+  || (props.groupByDevice ? 'selector:devices' : 'selector:accounts')
 const { filters: persistentFilters } = usePersistentFilters(accountTreeFilterScope, {
   keyword: '',
   groupNodeIds: [] as string[],

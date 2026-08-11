@@ -132,6 +132,7 @@ export interface FieldConfig {
   accountAssociationOnly?: boolean
   accountTreeGroupByDevice?: boolean
   accountTreeMonitoringOnly?: boolean
+  accountTreePreferenceScope?: string
 
   slotTreeAccountPresenceFilter?: boolean
   slotTreeAccountPresence?: 'all' | 'bound' | 'unbound'

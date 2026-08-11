@@ -101,6 +101,15 @@ describe('互动会话操作', () => {
     expect(cancelAction?.visible?.({ status: 'completed' })).toBe(false)
     expect(cancelAction?.visible?.({ status: 'canceled' })).toBe(false)
   })
+
+  it('评论设备使用独立筛选缓存', () => {
+    const fields = resources.interactionSessions.createFields || []
+    const mainField = fields.find((field) => field.key === 'main_account_id')
+    const commentField = fields.find((field) => field.key === 'comment_account_ids')
+
+    expect(mainField?.accountTreePreferenceScope).toBeUndefined()
+    expect(commentField?.accountTreePreferenceScope).toBe('selector:interaction-comment-devices')
+  })
 })
 
 describe('互动会话文案来源', () => {

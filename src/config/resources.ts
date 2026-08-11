@@ -2445,6 +2445,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "accountTree",
         multiple: true,
         accountTreeGroupByDevice: true,
+        accountTreePreferenceScope: "selector:interaction-comment-devices",
 
         required: true,
         span: 2,

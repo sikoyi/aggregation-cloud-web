@@ -51,6 +51,21 @@ describe('统一筛选缓存', () => {
     expect(third.filters).toEqual({ keyword: '美国', groupNodeIds: ['group:9'] })
   })
 
+  it('同一管理员不同筛选域分别保存条件', () => {
+    const auth = useAuthStore()
+    auth.user = { id: 'admin-filter-scope', username: 'admin' }
+
+    const devices = usePersistentFilters('selector:devices', { keyword: '' })
+    const comments = usePersistentFilters('selector:interaction-comment-devices', { keyword: '' })
+    devices.filters.keyword = '通用设备'
+    comments.filters.keyword = '评论设备'
+
+    expect(usePersistentFilters('selector:devices', { keyword: '' }).filters.keyword).toBe('通用设备')
+    expect(
+      usePersistentFilters('selector:interaction-comment-devices', { keyword: '' }).filters.keyword,
+    ).toBe('评论设备')
+  })
+
   it('不同管理员之间隔离筛选条件', () => {
     const auth = useAuthStore()
     auth.user = { id: 'admin-filter-2', username: 'admin-2' }
