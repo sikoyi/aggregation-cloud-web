@@ -8,7 +8,7 @@ import {
 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
-import { http, resolveBackendUrl } from '@/api/http'
+import { ApiError, http, resolveBackendUrl } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -117,46 +117,57 @@ function trackerStatusType(value: unknown) {
 }
 
 async function loadTracker() {
-  if (!accountId.value) return
+  const requestedAccountId = accountId.value
+  if (!requestedAccountId) return false
   trackerLoading.value = true
   try {
-    tracker.value = await http.get<AnyRecord>(
-      `/api/benchmark-trackers/accounts/${encodeURIComponent(accountId.value)}`,
+    const data = await http.get<AnyRecord>(
+      `/api/benchmark-trackers/accounts/${encodeURIComponent(requestedAccountId)}`,
     )
+    if (accountId.value !== requestedAccountId) return false
+    tracker.value = data
+    return true
   } catch (err) {
+    if (accountId.value !== requestedAccountId) return false
     tracker.value = null
+    // 未配置对标跟踪是正常空状态，不向运营弹出错误通知。
+    if (err instanceof ApiError && err.status === 404) return false
     notifyError(err, '加载对标资料失败', '无法读取对标账号资料')
+    return false
   } finally {
-    trackerLoading.value = false
+    if (accountId.value === requestedAccountId) trackerLoading.value = false
   }
 }
 
 async function loadPosts() {
-  if (!accountId.value) return
+  const requestedAccountId = accountId.value
+  if (!requestedAccountId) return
   postLoading.value = true
   try {
     const data = await http.get<PageResult<AnyRecord>>(
-      `/api/benchmark-trackers/accounts/${encodeURIComponent(accountId.value)}/mappings`,
+      `/api/benchmark-trackers/accounts/${encodeURIComponent(requestedAccountId)}/mappings`,
       {
         page: page.value,
         page_size: pageSize.value,
       },
     )
+    if (accountId.value !== requestedAccountId) return
     posts.value = data.items
     total.value = data.total
   } catch (err) {
+    if (accountId.value !== requestedAccountId) return
     posts.value = []
     total.value = 0
     notifyError(err, '加载对标帖子失败', '无法读取对标账号帖子')
   } finally {
-    postLoading.value = false
+    if (accountId.value === requestedAccountId) postLoading.value = false
   }
 }
 
 async function refreshAll() {
-  await Promise.all([loadTracker(), loadPosts()])
+  const trackerExists = await loadTracker()
+  if (trackerExists) await loadPosts()
 }
-
 function handleSizeChange(size: number) {
   pageSize.value = size
   page.value = 1

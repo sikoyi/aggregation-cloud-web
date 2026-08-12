@@ -832,9 +832,11 @@ onBeforeUnmount(() => {
                 </el-tab-pane>
                 <el-tab-pane label="对标账号" name="benchmark" lazy>
                   <BenchmarkTrackerDetailPanel
+                    v-if="selectedAccount.benchmark_tracker_id"
                     :key="'benchmark-' + String(selectedAccount.account_id)"
                     :account="accountPanelRecord(selectedAccount)"
                   />
+                  <el-empty v-else description="该账号尚未配置对标跟踪" :image-size="80" />
                 </el-tab-pane>
               </el-tabs>
             </template>
