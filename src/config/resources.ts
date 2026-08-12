@@ -21,8 +21,6 @@ import {
   commentStatusOptions,
   accountScopeTypeOptions,
   executionModeOptions,
-  interactionActionStatusOptions,
-  interactionActionTypeOptions,
   interactionSessionStatusOptions,
   loginStatusOptions,
   mediaAssetStatusOptions,
@@ -2899,7 +2897,7 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     deleteLabel: "删除",
     directDelete: true,
-    deleteConfirm: "确认删除该发布内容？评论、指标快照和互动动作记录会一起删除。",
+    deleteConfirm: "确认删除该发布内容？评论、指标快照和监听记录会一起删除。",
   },
 
   contentComments: {
@@ -2934,45 +2932,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: commentStatusOptions,
       },
       { key: "keyword", label: "关键字", placeholder: "评论内容 / 作者 / 平台评论 ID" },
-    ],
-  },
-
-  interactionActions: {
-    key: "interactionActions",
-    title: "互动执行日志",
-    endpoint: "/api/interaction-center/actions",
-    readOnly: true,
-    columns: [
-      { key: "id", label: "ID", type: "id", width: 80, align: "center" },
-      { key: "published_content_id", label: "发布内容", type: "relation", relation: publishedContentRemoteSelect, minWidth: 160, align: "center" },
-      { key: "action_type", label: "动作", type: "status", options: interactionActionTypeOptions, align: "center" },
-      { key: "comment_id", label: "目标评论", type: "id", minWidth: 120, align: "center" },
-      { key: "operator_username", label: "执行账号", minWidth: 150, align: "center" },
-      { key: "content", label: "内容", minWidth: 240 },
-      { key: "status", label: "状态", type: "status", options: interactionActionStatusOptions, align: "center" },
-      { key: "error_message", label: "错误信息", minWidth: 220 },
-      { key: "executed_at", label: "执行时间", type: "datetime", minWidth: 170, align: "center" },
-    ],
-    filters: [
-      {
-        key: "published_content_id",
-        label: "发布内容",
-        type: "remoteSelect",
-        remote: publishedContentRemoteSelect,
-      },
-      {
-        key: "action_type",
-        label: "动作",
-        type: "select",
-        options: interactionActionTypeOptions,
-      },
-      {
-        key: "status",
-        label: "状态",
-        type: "select",
-        options: interactionActionStatusOptions,
-      },
-      { key: "keyword", label: "关键字", placeholder: "账号 / 内容 / 错误信息" },
     ],
   },
 

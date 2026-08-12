@@ -56,7 +56,7 @@ const navGroups = [
     ],
   },
   {
-    label: '设备管理',
+    label: '设备中心',
     index: 'device',
     icon: Boxes,
     children: [{ label: '设备管理', to: '/slots', icon: Boxes }],
@@ -104,7 +104,6 @@ const navGroups = [
       { label: 'Runtime 状态', to: '/runtimes', icon: Server },
       { label: '采集同步日志', to: '/benchmark-sync-records', icon: History },
       { label: '评论数据日志', to: '/content-comments', icon: ScrollText },
-      { label: '互动执行日志', to: '/interaction-actions', icon: PlaySquare },
       { label: '操作日志', to: '/operation-logs', icon: History },
     ],
   },

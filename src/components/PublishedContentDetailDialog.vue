@@ -91,7 +91,6 @@ const monitorStatusType = computed(() => {
   return 'success'
 })
 const comments = computed<AnyRecord[]>(() => Array.isArray(detail.value?.comments) ? detail.value.comments : [])
-const actions = computed<AnyRecord[]>(() => Array.isArray(detail.value?.actions) ? detail.value.actions : [])
 const contentMediaUrls = computed<string[]>(() => {
   const urls = content.value?.media_urls
   return Array.isArray(urls) ? urls.map(String).filter(Boolean) : []
@@ -600,26 +599,6 @@ watch(metricPeriod, () => {
             </el-tree>
           </el-tab-pane>
 
-          <el-tab-pane label="互动动作" name="actions">
-            <el-table :data="actions" border stripe empty-text="暂无互动动作">
-              <el-table-column prop="action_type" label="动作" width="120" align="center">
-                <template #default="{ row }">
-                  <StatusBadge :value="row.action_type" />
-                </template>
-              </el-table-column>
-              <el-table-column prop="operator_username" label="执行账号" min-width="150" align="center" />
-              <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip />
-              <el-table-column prop="status" label="状态" width="100" align="center">
-                <template #default="{ row }">
-                  <StatusBadge :value="row.status" />
-                </template>
-              </el-table-column>
-              <el-table-column prop="error_message" label="错误信息" min-width="220" show-overflow-tooltip />
-              <el-table-column label="执行时间" min-width="170" align="center">
-                <template #default="{ row }">{{ formatDate(row.executed_at) }}</template>
-              </el-table-column>
-            </el-table>
-          </el-tab-pane>
         </el-tabs>
       </template>
     </div>

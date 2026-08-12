@@ -45,7 +45,6 @@ export const router = createRouter({
         { path: 'comment-replies', component: CommentReplyReviewView },
         { path: 'published-contents', component: ResourceView, meta: { resource: 'publishedContents' } },
         { path: 'content-comments', component: ResourceView, meta: { resource: 'contentComments' } },
-        { path: 'interaction-actions', component: ResourceView, meta: { resource: 'interactionActions' } },
         { path: 'scripts', component: ResourceView, meta: { resource: 'scripts' } },
         { path: 'task-templates', component: ResourceView, meta: { resource: 'taskTemplates' } },
         { path: 'tasks', component: TaskRecordsView },

@@ -337,21 +337,6 @@ export const commentStatusOptions: SelectOption[] = [
   { label: '异常', value: 'error' },
 ]
 
-export const interactionActionTypeOptions: SelectOption[] = [
-  { label: '评论', value: 'comment' },
-  { label: '回复评论', value: 'reply_comment' },
-  { label: '点赞内容', value: 'like_content' },
-  { label: '点赞评论', value: 'like_comment' },
-  { label: '收藏', value: 'collect' },
-]
-
-export const interactionActionStatusOptions: SelectOption[] = [
-  { label: '待执行', value: 'pending' },
-  { label: '执行中', value: 'running' },
-  { label: '成功', value: 'succeeded' },
-  { label: '失败', value: 'failed' },
-]
-
 export const interactionSessionStatusOptions: SelectOption[] = [
   { label: '排队中', value: 'queued' },
   { label: '运行中', value: 'running' },
