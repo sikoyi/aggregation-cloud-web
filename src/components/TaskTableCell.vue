@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { Ban, CalendarClock, CheckCircle2, CheckSquare2, CircleX, Clock3, Cpu } from 'lucide-vue-next'
+import { Ban, CalendarClock, CheckCircle2, CheckSquare2, CircleX, Clock3, Cpu, UserRound } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
 
-type TaskCellKind = 'taskIdentity' | 'taskPlatform' | 'taskResult' | 'taskTimeline'
+type TaskCellKind = 'taskIdentity' | 'taskOperator' | 'taskPlatform' | 'taskResult' | 'taskTimeline'
 
 const props = defineProps<{
   kind: TaskCellKind
@@ -31,6 +31,16 @@ function compactDate(value: unknown) {
 }
 
 const taskTitle = computed(() => text(props.row.title))
+const creatorName = computed(() => text(
+  props.row.creator_display_name || props.row.creator_username || props.row.created_by,
+))
+const creatorSecondary = computed(() => {
+  const username = String(props.row.creator_username || '').trim()
+  const displayName = String(props.row.creator_display_name || '').trim()
+  if (username && username !== displayName) return `@${username}`
+  if (!username && props.row.created_by) return `ID ${props.row.created_by}`
+  return ''
+})
 const businessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.business_platform))
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.provider))
@@ -43,6 +53,14 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
       <el-tooltip :content="taskTitle" placement="top" :show-after="500">
         <strong>{{ taskTitle }}</strong>
       </el-tooltip>
+    </span>
+  </div>
+
+  <div v-else-if="kind === 'taskOperator'" class="task-cell task-operator">
+    <span class="task-operator__icon"><UserRound /></span>
+    <span class="task-operator__content">
+      <strong>{{ creatorName }}</strong>
+      <span v-if="creatorSecondary">{{ creatorSecondary }}</span>
     </span>
   </div>
 
@@ -93,6 +111,14 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
 .task-identity__content span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-identity__content strong { color: #243b53; font-size: 13px; }
 .task-identity__content span { color: #8293a5; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; }
+.task-operator { display: flex; align-items: center; gap: 8px; }
+.task-operator__icon { display: inline-flex; width: 30px; height: 30px; flex: 0 0 30px; align-items: center; justify-content: center; border-radius: 8px; color: #3f6f8f; background: #edf5fa; }
+.task-operator__icon svg { width: 15px; height: 15px; }
+.task-operator__content { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.task-operator__content strong,
+.task-operator__content span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-operator__content strong { color: #334e68; font-size: 12px; }
+.task-operator__content span { color: #8293a5; font-size: 11px; }
 .task-platform { display: flex; flex-direction: column; gap: 7px; }
 .task-platform__primary { display: flex; align-items: center; gap: 6px; color: #334e68; }
 .task-platform__primary svg { width: 14px; height: 14px; color: #527a98; }
