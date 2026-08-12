@@ -355,8 +355,6 @@ export const interactionStepActionOptions: SelectOption[] = [
 export const mediaAssetTypeOptions: SelectOption[] = [
   { label: '图片', value: 'image' },
   { label: '视频', value: 'video' },
-  { label: '文件', value: 'file' },
-  { label: '外链', value: 'link' },
 ]
 
 export const mediaAssetStatusOptions: SelectOption[] = [

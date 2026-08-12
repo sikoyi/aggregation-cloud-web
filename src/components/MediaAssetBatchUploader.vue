@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileImage, FileText, Film, RotateCcw, Trash2, UploadCloud } from 'lucide-vue-next'
+import { FileImage, Film, RotateCcw, Trash2, UploadCloud } from 'lucide-vue-next'
 import { ElNotification, type UploadFile } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
 
@@ -28,6 +28,13 @@ const form = reactive({
 const items = ref<UploadItem[]>([])
 const uploading = ref(false)
 const currentFile = ref('')
+const supportedMediaExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'm4v', 'mov', 'webm'])
+
+function isSupportedMediaFile(file: File) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || ''
+  const mediaTypeMatches = !file.type || file.type.startsWith('image/') || file.type.startsWith('video/')
+  return supportedMediaExtensions.has(extension) && mediaTypeMatches
+}
 
 const succeeded = computed(() => items.value.filter((item) => item.status === 'succeeded').length)
 const failed = computed(() => items.value.filter((item) => item.status === 'failed').length)
@@ -50,6 +57,13 @@ function previewUrl(file: File) {
 function addFile(uploadFile: UploadFile) {
   const file = uploadFile.raw
   if (!file || items.value.some((item) => item.id === fileId(file))) return
+  if (!isSupportedMediaFile(file)) {
+    ElNotification.warning({
+      title: '不支持该文件',
+      message: '仅支持 JPG、PNG、GIF、WebP、MP4、MOV、WebM 图片或视频',
+    })
+    return
+  }
   items.value.push({
     id: fileId(file),
     file,
@@ -79,9 +93,7 @@ function releasePreviews() {
 }
 
 function fileIcon(item: UploadItem) {
-  if (item.file.type.startsWith('image/')) return FileImage
-  if (item.file.type.startsWith('video/')) return Film
-  return FileText
+  return item.file.type.startsWith('video/') ? Film : FileImage
 }
 
 function statusLabel(status: UploadItem['status']) {
@@ -114,7 +126,7 @@ async function startUpload() {
   }
   const candidates = retryable.value
   if (!candidates.length) {
-    ElNotification.warning({ title: '请选择素材文件', message: '可一次选择多个图片、视频或文件' })
+    ElNotification.warning({ title: '请选择素材', message: '可一次选择多个图片或视频' })
     return
   }
 
@@ -199,13 +211,14 @@ onBeforeUnmount(releasePreviews)
       action="#"
       :auto-upload="false"
       :show-file-list="false"
+      accept=".jpg,.jpeg,.png,.gif,.webp,.mp4,.m4v,.mov,.webm,image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm"
       :disabled="uploading"
       :on-change="addFile"
       class="batch-uploader__dropzone"
     >
       <UploadCloud :size="30" />
-      <div class="el-upload__text">拖放多个素材到这里，或 <em>选择文件</em></div>
-      <template #tip>文件将逐个上传，名称和素材类型由系统自动识别。</template>
+      <div class="el-upload__text">拖放多个图片或视频到这里，或 <em>选择素材</em></div>
+      <template #tip>支持 JPG、PNG、GIF、WebP、MP4、MOV、WebM，素材类型由系统识别。</template>
     </el-upload>
 
     <section v-if="items.length" class="batch-uploader__queue">
