@@ -71,7 +71,8 @@ export type ColumnType =
   | 'contentMediaPreview'
   | 'contentIdentity'
   | 'contentPools'
-  | 'contentProfile'
+  | 'contentPlatform'
+  | 'contentType'
   | 'contentTimeline'
   | 'relation'
 

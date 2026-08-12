@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { AppWindow, Clock3, FileText, Image as ImageIcon, Layers3, Tags, Video } from 'lucide-vue-next'
+import { Clock3, FileText, Image as ImageIcon, Layers3, Tags, Video } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import { businessPlatformOptions, contentTypeOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig, SelectOption } from '@/types/crud'
 
-type ContentCellKind = 'contentIdentity' | 'contentPools' | 'contentProfile' | 'contentTimeline'
+type ContentCellKind = 'contentIdentity' | 'contentPools' | 'contentPlatform' | 'contentType' | 'contentTimeline'
 
 const props = defineProps<{
   kind: ContentCellKind
@@ -74,9 +74,14 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
     <el-tag v-else type="info" effect="plain" round>未加入内容池</el-tag>
   </div>
 
-  <div v-else-if="kind === 'contentProfile'" class="content-cell content-profile">
-    <span><AppWindow />{{ optionLabel(businessPlatformOptions, row.business_platform) }}</span>
-    <el-tag size="small" type="info" effect="plain" round>
+  <div v-else-if="kind === 'contentPlatform'" class="content-cell content-property">
+    <el-tag type="primary" effect="light" round>
+      {{ optionLabel(businessPlatformOptions, row.business_platform) }}
+    </el-tag>
+  </div>
+
+  <div v-else-if="kind === 'contentType'" class="content-cell content-property">
+    <el-tag type="info" effect="plain" round>
       {{ optionLabel(contentTypeOptions, row.content_type) }}
     </el-tag>
   </div>
@@ -109,9 +114,7 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
 .content-pools svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .content-pools span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .content-pools small { color: #8293a5; font-size: 10px; }
-.content-profile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; }
-.content-profile > span { display: inline-flex; align-items: center; gap: 5px; color: #40566c; font-size: 12px; font-weight: 600; }
-.content-profile > span svg { width: 13px; height: 13px; color: #39759b; }
+.content-property { display: flex; align-items: center; justify-content: center; }
 .content-timeline { display: flex; align-items: center; justify-content: center; gap: 7px; }
 .content-timeline > svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
 .content-timeline strong { color: #40566c; font-size: 12px; white-space: nowrap; }

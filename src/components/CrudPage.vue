@@ -1255,8 +1255,8 @@ onBeforeUnmount(() => {
               :column="column"
             />
             <ContentTableCell
-              v-else-if="column.type && ['contentIdentity', 'contentPools', 'contentProfile', 'contentTimeline'].includes(column.type)"
-              :kind="column.type as 'contentIdentity' | 'contentPools' | 'contentProfile' | 'contentTimeline'"
+              v-else-if="column.type && ['contentIdentity', 'contentPools', 'contentPlatform', 'contentType', 'contentTimeline'].includes(column.type)"
+              :kind="column.type as 'contentIdentity' | 'contentPools' | 'contentPlatform' | 'contentType' | 'contentTimeline'"
               :row="row"
               :column="column"
             />
