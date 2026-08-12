@@ -19,7 +19,7 @@ let currentToken = ''
 
 function buildStreamUrl() {
   const url = new URL('/api/events/stream', http.apiBaseUrl)
-  url.searchParams.set('topics', 'task,runtime,account,conversation,content_monitor,comment_reply')
+  url.searchParams.set('topics', 'task,runtime,account,conversation,content_monitor,comment_reply,system_notification')
   return url.toString()
 }
 
@@ -38,7 +38,7 @@ function consumeEventBlock(block: string) {
     .find((line) => line.startsWith('event:'))
     ?.slice('event:'.length)
     .trim()
-  if (eventName !== 'realtime') return
+  if (!['realtime', 'connected'].includes(eventName || '')) return
 
   const data = lines
     .filter((line) => line.startsWith('data:'))

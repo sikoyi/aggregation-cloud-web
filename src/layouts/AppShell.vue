@@ -2,6 +2,8 @@
 import {
   Boxes,
   BarChart3,
+  Bell,
+  CheckCheck,
   Activity,
   ClipboardList,
   FileText,
@@ -10,6 +12,7 @@ import {
   Image,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   MessageSquareReply,
   PlaySquare,
   ScrollText,
@@ -18,10 +21,17 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-vue-next'
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElNotification } from 'element-plus'
 
+import {
+  getSystemNotificationUnreadCount,
+  listSystemNotifications,
+  markAllSystemNotificationsRead,
+  markSystemNotificationRead,
+  type SystemNotification,
+} from '@/api/systemNotifications'
 import {
   REALTIME_EVENT_NAME,
   useRealtimeEvents,
@@ -33,6 +43,13 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const realtime = useRealtimeEvents()
+
+const notificationPopoverVisible = ref(false)
+const notificationDialogVisible = ref(false)
+const notificationLoading = ref(false)
+const unreadNotificationCount = ref(0)
+const systemNotifications = ref<SystemNotification[]>([])
+const activeNotification = ref<SystemNotification | null>(null)
 
 const navGroups = [
   {
@@ -114,6 +131,72 @@ const mobileNavItems = computed(() => navGroups.flatMap((group) => group.childre
 const defaultOpeneds = navGroups.map((group) => group.index)
 const userInitial = computed(() => auth.displayName.slice(0, 1).toUpperCase())
 
+function formatNotificationTime(value: string) {
+  if (!value) return '-'
+  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+}
+
+async function loadNotificationUnreadCount() {
+  if (!auth.token) return
+  try {
+    const data = await getSystemNotificationUnreadCount()
+    unreadNotificationCount.value = data.unread_count
+  } catch {
+    // 顶部通知加载失败不阻断其他后台操作，用户下次打开时会再次获取。
+  }
+}
+
+async function loadSystemNotifications() {
+  if (!auth.token || notificationLoading.value) return
+  notificationLoading.value = true
+  try {
+    const [data, unread] = await Promise.all([
+      listSystemNotifications(),
+      getSystemNotificationUnreadCount(),
+    ])
+    systemNotifications.value = data.items
+    unreadNotificationCount.value = unread.unread_count
+  } catch {
+    // 通知加载失败不阻断后台操作，用户下次打开时会重新获取。
+  } finally {
+    notificationLoading.value = false
+  }
+}
+
+async function showNotificationDetail(notification: SystemNotification) {
+  activeNotification.value = notification
+  notificationDialogVisible.value = true
+  notificationPopoverVisible.value = false
+  if (notification.is_read) return
+  try {
+    await markSystemNotificationRead(notification.id)
+    notification.is_read = true
+    unreadNotificationCount.value = Math.max(0, unreadNotificationCount.value - 1)
+  } catch {
+    // 详情仍可正常阅读，已读状态会在下次请求时重新同步。
+  }
+}
+
+async function markAllNotificationsRead() {
+  if (unreadNotificationCount.value <= 0) return
+  try {
+    await markAllSystemNotificationsRead()
+    systemNotifications.value.forEach((item) => {
+      item.is_read = true
+    })
+    unreadNotificationCount.value = 0
+  } catch {
+    ElNotification.error({
+      title: '操作失败',
+      message: '系统通知状态更新失败，请稍后重试。',
+    })
+  }
+}
+
+function handleNotificationPopoverShow() {
+  void loadSystemNotifications()
+}
+
 async function logout() {
   await auth.logout()
   realtime.disconnect()
@@ -122,6 +205,29 @@ async function logout() {
 
 function handleRealtimeEvent(event: Event) {
   const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (payload?.type === 'realtime.connected') {
+    void loadNotificationUnreadCount()
+    return
+  }
+  if (payload?.topic === 'system_notification') {
+    void loadSystemNotifications()
+    const data = payload.data && typeof payload.data === 'object'
+      ? payload.data as Record<string, unknown>
+      : {}
+    const releaseNotification = ElNotification({
+      title: String(data.title || '系统版本已更新'),
+      message: Array.isArray(data.items) && data.items.length
+        ? String(data.items[0])
+        : '点击查看本次版本更新内容。',
+      type: 'success',
+      duration: 10000,
+      onClick: () => {
+        notificationPopoverVisible.value = true
+        releaseNotification.close()
+      },
+    })
+    return
+  }
   if (payload?.topic === 'comment_reply') {
     const data = payload.data && typeof payload.data === 'object'
       ? payload.data as Record<string, unknown>
@@ -161,6 +267,7 @@ function handleRealtimeEvent(event: Event) {
 onMounted(() => {
   window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   realtime.connect()
+  void loadNotificationUnreadCount()
 })
 
 onBeforeUnmount(() => {
@@ -171,7 +278,10 @@ onBeforeUnmount(() => {
 watch(
   () => auth.token,
   (token) => {
-    if (token) realtime.connect()
+    if (token) {
+      realtime.connect()
+      void loadNotificationUnreadCount()
+    }
     else realtime.disconnect()
   },
 )
@@ -211,6 +321,59 @@ watch(
           </div>
           <div class="hidden text-sm text-slate-500 lg:block">运营管理工作台</div>
           <div class="flex items-center gap-3">
+            <el-popover
+              v-model:visible="notificationPopoverVisible"
+              placement="bottom-end"
+              :width="400"
+              trigger="click"
+              @show="handleNotificationPopoverShow"
+            >
+              <template #reference>
+                <el-badge
+                  :value="unreadNotificationCount > 99 ? '99+' : unreadNotificationCount"
+                  :hidden="unreadNotificationCount === 0"
+                  :max="99"
+                >
+                  <el-tooltip content="系统通知" placement="bottom">
+                    <el-button circle aria-label="系统通知">
+                      <Bell class="h-4 w-4" />
+                    </el-button>
+                  </el-tooltip>
+                </el-badge>
+              </template>
+              <div class="overflow-hidden">
+                <div class="flex items-center justify-between border-b border-slate-200 px-1 pb-3">
+                  <div class="flex items-center gap-2">
+                    <Megaphone class="h-4 w-4 text-brand-600" />
+                    <strong class="text-sm text-slate-800">系统通知</strong>
+                  </div>
+                  <el-button v-if="unreadNotificationCount > 0" text size="small" :icon="CheckCheck" @click="markAllNotificationsRead">
+                    全部已读
+                  </el-button>
+                </div>
+                <div v-loading="notificationLoading" class="max-h-96 overflow-y-auto py-2">
+                  <el-empty
+                    v-if="!notificationLoading && systemNotifications.length === 0"
+                    description="暂无系统通知"
+                    :image-size="64"
+                  />
+                  <button
+                    v-for="notification in systemNotifications"
+                    :key="notification.id"
+                    type="button"
+                    class="flex w-full gap-3 border-b border-slate-100 px-2 py-3 text-left transition-colors last:border-0 hover:bg-slate-50"
+                    @click="showNotificationDetail(notification)"
+                  >
+                    <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="notification.is_read ? 'bg-slate-300' : 'bg-brand-600'" />
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-semibold text-slate-800">{{ notification.title }}</span>
+                      <span class="mt-1 block truncate text-xs text-slate-500">{{ notification.items[0] || '系统功能与稳定性更新' }}</span>
+                      <span class="mt-1.5 block text-xs text-slate-400">{{ formatNotificationTime(notification.published_at) }}</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </el-popover>
             <el-avatar :size="28">{{ userInitial }}</el-avatar>
             <span class="max-w-40 truncate text-sm text-slate-600">{{ auth.displayName }}</span>
             <el-tooltip content="退出登录" placement="bottom">
@@ -237,6 +400,32 @@ watch(
       <main class="px-4 py-5 lg:px-6">
         <RouterView />
       </main>
+
+      <el-dialog
+        v-model="notificationDialogVisible"
+        :title="activeNotification?.title || '系统通知'"
+        width="min(620px, 92vw)"
+        destroy-on-close
+      >
+        <div v-if="activeNotification" class="space-y-5">
+          <div class="flex flex-wrap items-center gap-2">
+            <el-tag effect="plain">{{ activeNotification.version }}</el-tag>
+            <span class="text-sm text-slate-500">{{ formatNotificationTime(activeNotification.published_at) }}</span>
+          </div>
+          <div>
+            <div class="mb-3 text-sm font-semibold text-slate-800">本次更新</div>
+            <ul class="space-y-3">
+              <li v-for="(item, index) in activeNotification.items" :key="index" class="flex gap-3 rounded-md bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600" />
+                <span>{{ item }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <template #footer>
+          <el-button type="primary" @click="notificationDialogVisible = false">我知道了</el-button>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
