@@ -24,6 +24,8 @@ interface CommentNode extends AnyRecord {
 type MetricKey = 'comment_count' | 'like_count' | 'share_count' | 'view_count'
 type PeriodValue = '24h' | '7d' | '30d' | 'all'
 
+const METRIC_RECORD_PAGE_SIZE = 10
+
 const metricDefs: Array<{ key: MetricKey; label: string; color: string }> = [
   { key: 'comment_count', label: '评论', color: '#2563eb' },
   { key: 'like_count', label: '点赞', color: '#16a34a' },
@@ -48,6 +50,7 @@ const monitorSaving = ref(false)
 const error = ref('')
 const activeTab = ref('basic')
 const metricPeriod = ref<PeriodValue>('7d')
+const metricRecordPage = ref(1)
 const detail = ref<AnyRecord | null>(null)
 const monitorEnabled = ref(true)
 
@@ -66,6 +69,15 @@ const curvePoints = computed<AnyRecord[]>(() => {
   return [...metrics.value].sort((a, b) => new Date(String(a.captured_at || '')).getTime() - new Date(String(b.captured_at || '')).getTime())
 })
 const trendItems = computed<AnyRecord[]>(() => Array.isArray(metricCurve.value?.trends) ? metricCurve.value.trends as AnyRecord[] : [])
+const metricRecordRows = computed<AnyRecord[]>(() =>
+  [...curvePoints.value].sort(
+    (a, b) => new Date(String(b.captured_at || '')).getTime() - new Date(String(a.captured_at || '')).getTime(),
+  ),
+)
+const paginatedMetricRecordRows = computed<AnyRecord[]>(() => {
+  const start = (metricRecordPage.value - 1) * METRIC_RECORD_PAGE_SIZE
+  return metricRecordRows.value.slice(start, start + METRIC_RECORD_PAGE_SIZE)
+})
 const comments = computed<AnyRecord[]>(() => Array.isArray(detail.value?.comments) ? detail.value.comments : [])
 const contentMediaUrls = computed<string[]>(() => {
   const urls = content.value?.media_urls
@@ -250,18 +262,21 @@ watch(
     if (open && contentId) {
       activeTab.value = 'basic'
       metricPeriod.value = '7d'
+      metricRecordPage.value = 1
       loadDetail(contentId)
     }
     if (!open) {
       detail.value = null
       error.value = ''
       monitorEnabled.value = true
+      metricRecordPage.value = 1
     }
   },
   { immediate: true },
 )
 
 watch(metricPeriod, () => {
+  metricRecordPage.value = 1
   if (props.modelValue && props.contentId) loadMetricCurve(props.contentId)
 })
 </script>
@@ -428,7 +443,7 @@ watch(metricPeriod, () => {
             </div>
             </div>
 
-            <el-table :data="curvePoints" border stripe empty-text="暂无指标快照">
+            <el-table :data="paginatedMetricRecordRows" border stripe empty-text="暂无指标快照">
               <el-table-column label="采集时间" min-width="170" align="center">
                 <template #default="{ row }">{{ formatDate(row.captured_at) }}</template>
               </el-table-column>
@@ -437,6 +452,15 @@ watch(metricPeriod, () => {
               <el-table-column prop="share_count" label="分享" width="90" align="center" />
               <el-table-column prop="view_count" label="浏览" width="90" align="center" />
             </el-table>
+            <div v-if="metricRecordRows.length > METRIC_RECORD_PAGE_SIZE" class="metric-record-pagination">
+              <el-pagination
+                v-model:current-page="metricRecordPage"
+                background
+                layout="total, prev, pager, next"
+                :page-size="METRIC_RECORD_PAGE_SIZE"
+                :total="metricRecordRows.length"
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane label="评论树" name="comments">
@@ -690,6 +714,12 @@ watch(metricPeriod, () => {
   width: 100%;
   max-height: 220px;
   object-fit: contain;
+}
+
+.metric-record-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
 }
 
 .comment-tree {
