@@ -5,11 +5,13 @@ import { useRoute, useRouter } from 'vue-router'
 
 import CrudPage from '@/components/CrudPage.vue'
 import { resources } from '@/config/resources'
+import { useAuthStore } from '@/stores/auth'
 
 type AccountCenterTab = 'accounts' | 'tags'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const accountConfig = computed(() => resources.accounts)
 const accountTagConfig = computed(() => resources.accountTags)
@@ -80,7 +82,7 @@ watch(
           <el-tooltip content="刷新" placement="bottom">
             <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
           </el-tooltip>
-          <el-button type="primary" :icon="Plus" @click="openActiveCreate">
+          <el-button v-if="auth.can('accounts.create')" type="primary" :icon="Plus" @click="openActiveCreate">
             {{ activeCreateLabel }}
           </el-button>
         </div>

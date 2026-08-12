@@ -194,6 +194,7 @@ export interface ColumnConfig {
 
 export interface RowActionConfig {
   key: string
+  permission?: string
   label: string
   submitLabel?: string
   visible?: (record: AnyRecord) => boolean
@@ -221,6 +222,7 @@ export interface RowActionConfig {
 export interface ResourceConfig {
   key: string
   title: string
+  permissionModule?: string
   endpoint: string
   idKey?: string
   createEndpoint?: string

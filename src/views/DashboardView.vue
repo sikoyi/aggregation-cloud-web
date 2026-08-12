@@ -81,6 +81,7 @@ const defaultQuickEntries = [
     to: '/slots',
     icon: Boxes,
     tone: 'orange',
+    permission: 'devices.view',
   },
   {
     id: 'media-assets',
@@ -89,6 +90,7 @@ const defaultQuickEntries = [
     to: '/media-assets',
     icon: Image,
     tone: 'amber',
+    permission: 'media.view',
   },
   {
     id: 'published-contents',
@@ -97,6 +99,7 @@ const defaultQuickEntries = [
     to: { path: '/published-contents', query: { action: 'create' } },
     icon: FileText,
     tone: 'green',
+    permission: 'operations.dispatch',
   },
   {
     id: 'interaction-sessions',
@@ -105,6 +108,7 @@ const defaultQuickEntries = [
     to: { path: '/interaction-sessions', query: { action: 'create' } },
     icon: MessageSquareReply,
     tone: 'violet',
+    permission: 'operations.dispatch',
   },
   {
     id: 'tasks',
@@ -113,6 +117,7 @@ const defaultQuickEntries = [
     to: { path: '/tasks', query: { action: 'create' } },
     icon: Send,
     tone: 'blue',
+    permission: 'tasks.dispatch',
   },
   {
     id: 'accounts',
@@ -121,6 +126,7 @@ const defaultQuickEntries = [
     to: { path: '/accounts', query: { action: 'create' } },
     icon: Upload,
     tone: 'cyan',
+    permission: 'accounts.create',
   },
   {
     id: 'proxies',
@@ -129,6 +135,7 @@ const defaultQuickEntries = [
     to: '/proxies',
     icon: ShieldCheck,
     tone: 'slate',
+    permission: 'proxies.view',
   },
   {
     id: 'account-data',
@@ -137,6 +144,7 @@ const defaultQuickEntries = [
     to: '/account-data',
     icon: Users,
     tone: 'indigo',
+    permission: 'accounts.view',
   },
 ]
 type QuickEntryDefinition = (typeof defaultQuickEntries)[number]
@@ -158,7 +166,8 @@ const quickEntryPreferenceKey = computed(() => buildUserPreferenceKey(
 const quickEntries = computed(() => quickEntryPreferences.value
   .filter((item) => item.visible)
   .map((item) => quickEntryMap.get(item.id))
-  .filter((entry): entry is QuickEntryDefinition => Boolean(entry)))
+  .filter((entry): entry is QuickEntryDefinition => Boolean(entry))
+  .filter((entry) => authStore.can(entry.permission)))
 
 function loadQuickEntryPreferences() {
   const storedValue = readRecordPreference(window.localStorage, quickEntryPreferenceKey.value)
@@ -166,7 +175,9 @@ function loadQuickEntryPreferences() {
 }
 
 function openQuickEntryDialog() {
-  quickEntryEditor.value = quickEntryPreferences.value.map((item) => ({ ...item }))
+  quickEntryEditor.value = quickEntryPreferences.value
+    .filter((item) => authStore.can(quickEntryMap.get(item.id)?.permission ?? ''))
+    .map((item) => ({ ...item }))
   quickEntryDialogVisible.value = true
 }
 
@@ -176,6 +187,7 @@ function moveQuickEntry(id: string, direction: -1 | 1) {
 
 function resetQuickEntryEditor() {
   quickEntryEditor.value = buildDefaultQuickEntryPreferences(defaultQuickEntryIds)
+    .filter((item) => authStore.can(quickEntryMap.get(item.id)?.permission ?? ''))
 }
 
 function saveQuickEntryPreferences() {

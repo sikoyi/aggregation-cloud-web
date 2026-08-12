@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { Bot, Cloud, Radar, Settings, SlidersHorizontal } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import ApifyMonitorConfigPanel from '@/components/ApifyMonitorConfigPanel.vue'
 import CloudPhoneStorageConfigPanel from '@/components/CloudPhoneStorageConfigPanel.vue'
 import InteractionAiConfigPanel from '@/components/InteractionAiConfigPanel.vue'
 import SystemDefaultsConfigPanel from '@/components/SystemDefaultsConfigPanel.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const auth = useAuthStore()
+const canEdit = computed(() => auth.can('system_settings.edit'))
 
 const activeTab = ref('defaults')
 const defaultsPanel = ref<{ loadConfig: () => Promise<void> } | null>(null)
@@ -28,22 +32,36 @@ function refreshDefaults() {
         </div>
       </div>
 
-      <el-tabs v-model="activeTab" class="system-settings__tabs">
+      <el-alert
+        v-if="!canEdit"
+        title="当前角色仅可查看系统配置"
+        type="info"
+        :closable="false"
+      />
+      <el-tabs v-model="activeTab" class="system-settings__tabs" :class="{ 'system-settings__tabs--readonly': !canEdit }">
         <el-tab-pane name="defaults" lazy>
           <template #label><span class="tab-label"><SlidersHorizontal :size="16" />默认选项</span></template>
-          <SystemDefaultsConfigPanel ref="defaultsPanel" />
+          <div :inert="!canEdit">
+            <SystemDefaultsConfigPanel ref="defaultsPanel" />
+          </div>
         </el-tab-pane>
         <el-tab-pane name="monitor" lazy>
           <template #label><span class="tab-label"><Radar :size="16" />内容监听</span></template>
-          <ApifyMonitorConfigPanel />
+          <div :inert="!canEdit">
+            <ApifyMonitorConfigPanel />
+          </div>
         </el-tab-pane>
         <el-tab-pane name="cloud-phone-storage" lazy>
           <template #label><span class="tab-label"><Cloud :size="16" />云手机存储</span></template>
-          <CloudPhoneStorageConfigPanel />
+          <div :inert="!canEdit">
+            <CloudPhoneStorageConfigPanel />
+          </div>
         </el-tab-pane>
         <el-tab-pane name="ai" lazy>
           <template #label><span class="tab-label"><Bot :size="16" />互动 AI</span></template>
-          <InteractionAiConfigPanel @config-saved="refreshDefaults" />
+          <div :inert="!canEdit">
+            <InteractionAiConfigPanel @config-saved="refreshDefaults" />
+          </div>
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -78,6 +96,8 @@ function refreshDefaults() {
 .system-settings__tabs :deep(.el-tabs__item) { height: 40px; color: #52606d; font-size: 13px; font-weight: 600; }
 .system-settings__tabs :deep(.el-tabs__item.is-active) { color: #1f668f; }
 .system-settings__tabs :deep(.el-tabs__content) { min-height: 500px; padding: 18px var(--content-inset) 22px; background: #f8fafc; }
+.system-settings__tabs--readonly :deep(.el-button),
+.system-settings__tabs--readonly :deep(.el-switch) { display: none; }
 .system-settings__tabs :deep(.el-tab-pane) { padding: 16px; border: 1px solid #dbe4ed; border-radius: 6px; background: #fff; }
 .tab-label { gap: 6px; }
 @media (max-width: 720px) {

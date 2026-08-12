@@ -39,6 +39,7 @@ import TemplateTableCell from '@/components/TemplateTableCell.vue'
 import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
+import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
@@ -63,6 +64,8 @@ const props = defineProps<{
   embedded?: boolean
   hideHeaderActions?: boolean
 }>()
+const auth = useAuthStore()
+
 
 const iconMap: IconMap = {
   copy: Copy,
@@ -227,6 +230,66 @@ const statusSwitchActionKeys = computed(() => {
 function isInlineStatusAction(action: RowActionConfig) {
   return statusSwitchActionKeys.value.has(action.key) && !action.fields?.length
 }
+const permissionModuleByResource: Record<string, string> = {
+  accounts: 'accounts',
+  accountTags: 'accounts',
+  slots: 'devices',
+  slotGroups: 'devices',
+  proxies: 'proxies',
+  proxyGroups: 'proxies',
+  contents: 'content',
+  contentGroups: 'content',
+  mediaAssets: 'media',
+  mediaAssetGroups: 'media',
+  interactionSessions: 'operations',
+  publishedContents: 'operations',
+  contentComments: 'monitoring',
+  scripts: 'scripts',
+  taskTemplates: 'templates',
+  tasks: 'tasks',
+  operationLogs: 'audit',
+  runtimes: 'runtimes',
+}
+
+const permissionModule = computed(
+  () => props.config.permissionModule || permissionModuleByResource[props.config.key] || '',
+)
+
+function canResource(action: string) {
+  if (!permissionModule.value) return true
+  return auth.can(`${permissionModule.value}.${action}`)
+}
+
+function actionPermission(action: RowActionConfig) {
+  if (action.permission) return action.permission
+  if (!permissionModule.value) return ''
+
+  const key = action.key.toLowerCase()
+  const explicitAction: Record<string, string> = {
+    'request-runtime-slot-sync': 'devices.sync',
+    'retry-sync': 'devices.sync',
+    check: 'proxies.check',
+    'batch-check': 'proxies.check',
+    cancel: `${permissionModule.value}.cancel`,
+    retry: `${permissionModule.value}.retry`,
+    clone: 'templates.create',
+    detail: `${permissionModule.value}.view`,
+    download: `${permissionModule.value}.view`,
+    slots: `${permissionModule.value}.view`,
+    import: `${permissionModule.value}.create`,
+  }
+  if (explicitAction[key]) return explicitAction[key]
+  if (key.startsWith('batch-')) return `${permissionModule.value}.batch`
+  return `${permissionModule.value}.edit`
+}
+
+function canRunAction(action: RowActionConfig) {
+  const permission = actionPermission(action)
+  return !permission || auth.can(permission)
+}
+
+const canCreateRow = computed(() => !props.config.readOnly && canResource('create'))
+
 
 function defaultStatusSwitchConfig(column?: ColumnConfig) {
   return column?.statusSwitch || {
@@ -241,13 +304,15 @@ function defaultStatusSwitchConfig(column?: ColumnConfig) {
 
 function findInlineStatusAction(key: string) {
   return [...(props.config.rowActions || []), ...(props.config.batchActions || [])].find(
-    (action) => action.key === key && !action.fields?.length,
+    (action) => action.key === key && !action.fields?.length && canRunAction(action),
   )
 }
 
 const hasInlineStatusSwitch = computed(() => Boolean(findInlineStatusAction('enable') && findInlineStatusAction('disable')))
-const rowActionsForMenu = computed(() => (props.config.rowActions || []).filter((action) => !isInlineStatusAction(action)))
-const headerActions = computed(() => props.config.headerActions || [])
+const rowActionsForMenu = computed(() => (props.config.rowActions || [])
+  .filter((action) => !isInlineStatusAction(action) && canRunAction(action)))
+const headerActions = computed(() => (props.config.headerActions || [])
+  .filter((action) => canRunAction(action)))
 // 高频行操作可以配置为直接按钮，减少用户反复展开下拉菜单的成本。
 const inlineActionKeys = computed(() => new Set(props.config.inlineActionKeys || []))
 const inlineRowActions = computed(() => rowActionsForMenu.value.filter((action) => inlineActionKeys.value.has(action.key)))
@@ -261,8 +326,8 @@ function visibleDropdownRowActions(record: AnyRecord) {
   return dropdownRowActions.value.filter((action) => !action.visible || action.visible(record))
 }
 
-const canEditRow = computed(() => !props.config.readOnly && Boolean(props.config.updateFields?.length))
-const canDeleteRow = computed(() => !props.config.readOnly && Boolean(props.config.deleteLabel))
+const canEditRow = computed(() => !props.config.readOnly && Boolean(props.config.updateFields?.length) && canResource('edit'))
+const canDeleteRow = computed(() => !props.config.readOnly && Boolean(props.config.deleteLabel) && canResource('delete'))
 const showDirectDelete = computed(() => canDeleteRow.value && (props.config.directDelete || !dropdownRowActions.value.length))
 const showDropdownDelete = computed(() => canDeleteRow.value && !showDirectDelete.value)
 const showOperationColumn = computed(
@@ -283,13 +348,14 @@ const batchActions = computed<RowActionConfig[]>(() => {
   const actions: RowActionConfig[] = []
   const seen = new Set<string>()
 
-  ;(props.config.batchActions || []).forEach((action) => {
+  ;(props.config.batchActions || [])
+    .filter((action) => canRunAction(action)).forEach((action) => {
     actions.push(action)
     seen.add(action.key)
   })
 
   ;(props.config.rowActions || [])
-    .filter(isInlineStatusAction)
+    .filter((action) => isInlineStatusAction(action) && canRunAction(action))
     .forEach((action) => {
       if (seen.has(action.key)) return
       actions.push({
@@ -300,7 +366,7 @@ const batchActions = computed<RowActionConfig[]>(() => {
       seen.add(action.key)
     })
 
-  if (!props.config.readOnly && props.config.deleteLabel && !seen.has('__delete')) {
+  if (canDeleteRow.value && !seen.has('__delete')) {
     actions.push({
       key: '__delete',
       label: `批量${props.config.deleteLabel}`,
@@ -1106,7 +1172,7 @@ onBeforeUnmount(() => {
           <el-button :icon="RefreshCw" circle :loading="loading" @click="loadRows()" />
         </el-tooltip>
         <el-button
-          v-if="!config.readOnly"
+          v-if="canCreateRow"
           type="primary"
           :icon="Plus"
           :disabled="loading"

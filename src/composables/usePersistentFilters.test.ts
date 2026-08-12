@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
+import type { SystemUser } from '@/api/rbac'
 import { useAuthStore } from '@/stores/auth'
 import { buildUserPreferenceKey } from '@/utils/localPreferences'
 
@@ -16,6 +17,23 @@ class MemoryStorage implements Storage {
   setItem(key: string, value: string) { this.values.set(key, value) }
 }
 
+function createUser(id: string, username: string): SystemUser {
+  return {
+    id,
+    username,
+    display_name: username,
+    roles: ['operator'],
+    role_ids: ['role-operator'],
+    role_names: ['运营角色'],
+    permissions: [],
+    status: 'active',
+    version: 1,
+    created_at: '2026-08-12T00:00:00Z',
+    updated_at: '2026-08-12T00:00:00Z',
+    last_login_at: null,
+  }
+}
+
 describe('统一筛选缓存', () => {
   beforeEach(() => {
     vi.stubGlobal('localStorage', new MemoryStorage())
@@ -24,7 +42,7 @@ describe('统一筛选缓存', () => {
 
   it('同一管理员和筛选域继承缓存但实例状态互不联动', () => {
     const auth = useAuthStore()
-    auth.user = { id: 'admin-filter-1', username: 'admin' }
+    auth.user = createUser('admin-filter-1', 'admin')
 
     const first = usePersistentFilters('selector:devices', {
       keyword: '',
@@ -53,7 +71,7 @@ describe('统一筛选缓存', () => {
 
   it('同一管理员不同筛选域分别保存条件', () => {
     const auth = useAuthStore()
-    auth.user = { id: 'admin-filter-scope', username: 'admin' }
+    auth.user = createUser('admin-filter-scope', 'admin')
 
     const devices = usePersistentFilters('selector:devices', { keyword: '' })
     const comments = usePersistentFilters('selector:interaction-comment-devices', { keyword: '' })
@@ -68,18 +86,18 @@ describe('统一筛选缓存', () => {
 
   it('不同管理员之间隔离筛选条件', () => {
     const auth = useAuthStore()
-    auth.user = { id: 'admin-filter-2', username: 'admin-2' }
+    auth.user = createUser('admin-filter-2', 'admin-2')
     const first = usePersistentFilters('list:accounts', { keyword: '' })
     first.filters.keyword = 'account-a'
 
-    auth.user = { id: 'admin-filter-3', username: 'admin-3' }
+    auth.user = createUser('admin-filter-3', 'admin-3')
     const second = usePersistentFilters('list:accounts', { keyword: '' })
     expect(second.filters.keyword).toBe('')
   })
 
   it('恢复本地筛选并忽略类型不兼容的字段', () => {
     const auth = useAuthStore()
-    auth.user = { id: 'admin-filter-4', username: 'admin-4' }
+    auth.user = createUser('admin-filter-4', 'admin-4')
     const key = buildUserPreferenceKey('admin-filter-4', 'filters:list:tasks')
     localStorage.setItem(key, JSON.stringify({
       keyword: '任务名称',

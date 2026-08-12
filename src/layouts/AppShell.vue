@@ -10,6 +10,7 @@ import {
   Gauge,
   History,
   Image,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -21,10 +22,11 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-vue-next'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElNotification } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 
+import { changeCurrentPassword } from '@/api/rbac'
 import {
   getSystemNotificationUnreadCount,
   listSystemNotifications,
@@ -50,16 +52,17 @@ const notificationLoading = ref(false)
 const unreadNotificationCount = ref(0)
 const systemNotifications = ref<SystemNotification[]>([])
 const activeNotification = ref<SystemNotification | null>(null)
+const passwordDialogVisible = ref(false)
+const passwordForm = reactive({ old_password: '', new_password: '', confirm_password: '' })
 
-const navGroups = [
+const rawNavGroups = [
   {
     label: '工作台',
     index: 'workspace',
     icon: LayoutDashboard,
     children: [
-      { label: '总览', to: '/', icon: LayoutDashboard },
-      { label: '运营报表', to: '/reports', icon: BarChart3 },
-      { label: '系统配置', to: '/settings', icon: Settings },
+      { label: '总览', to: '/', icon: LayoutDashboard, permission: 'dashboard.view' },
+      { label: '运营报表', to: '/reports', icon: BarChart3, permission: 'reports.view' },
     ],
   },
   {
@@ -67,8 +70,8 @@ const navGroups = [
     index: 'account',
     icon: Users,
     children: [
-      { label: '账号管理', to: '/accounts', icon: Users },
-      { label: '账号数据', to: '/account-data', icon: Activity },
+      { label: '账号管理', to: '/accounts', icon: Users, permission: 'accounts.view' },
+      { label: '账号数据', to: '/account-data', icon: Activity, permission: 'accounts.view' },
 
     ],
   },
@@ -76,21 +79,21 @@ const navGroups = [
     label: '设备中心',
     index: 'device',
     icon: Boxes,
-    children: [{ label: '设备管理', to: '/slots', icon: Boxes }],
+    children: [{ label: '设备管理', to: '/slots', icon: Boxes, permission: 'devices.view' }],
   },
   {
     label: '资源中心',
     index: 'resource',
     icon: ShieldCheck,
-    children: [{ label: '代理资源', to: '/proxies', icon: ShieldCheck }],
+    children: [{ label: '代理资源', to: '/proxies', icon: ShieldCheck, permission: 'proxies.view' }],
   },
   {
     label: '内容中心',
     index: 'content',
     icon: FileText,
     children: [
-      { label: '内容库', to: '/contents', icon: FileText },
-      { label: '素材库', to: '/media-assets', icon: Image },
+      { label: '内容库', to: '/contents', icon: FileText, permission: 'content.view' },
+      { label: '素材库', to: '/media-assets', icon: Image, permission: 'media.view' },
     ],
   },
   {
@@ -98,9 +101,9 @@ const navGroups = [
     index: 'interaction',
     icon: ScrollText,
     children: [
-      { label: '互动会话', to: '/interaction-sessions', icon: PlaySquare },
-      { label: '回复审核', to: '/comment-replies', icon: MessageSquareReply },
-      { label: '发布内容', to: '/published-contents', icon: FileText },
+      { label: '互动会话', to: '/interaction-sessions', icon: PlaySquare, permission: 'operations.view' },
+      { label: '回复审核', to: '/comment-replies', icon: MessageSquareReply, permission: 'operations.view' },
+      { label: '发布内容', to: '/published-contents', icon: FileText, permission: 'operations.view' },
     ],
   },
   {
@@ -108,9 +111,9 @@ const navGroups = [
     index: 'task',
     icon: ClipboardList,
     children: [
-      { label: '脚本管理', to: '/scripts', icon: ScrollText },
-      { label: '任务模板', to: '/task-templates', icon: ClipboardList },
-      { label: '任务记录', to: '/tasks', icon: PlaySquare },
+      { label: '脚本管理', to: '/scripts', icon: ScrollText, permission: 'scripts.view' },
+      { label: '任务模板', to: '/task-templates', icon: ClipboardList, permission: 'templates.view' },
+      { label: '任务记录', to: '/tasks', icon: PlaySquare, permission: 'tasks.view' },
     ],
   },
   {
@@ -118,17 +121,30 @@ const navGroups = [
     index: 'runtime',
     icon: Server,
     children: [
-      { label: 'Runtime 状态', to: '/runtimes', icon: Server },
-      { label: '采集同步日志', to: '/benchmark-sync-records', icon: History },
-      { label: '评论数据日志', to: '/content-comments', icon: ScrollText },
-      { label: '操作日志', to: '/operation-logs', icon: History },
+      { label: 'Runtime 状态', to: '/runtimes', icon: Server, permission: 'runtimes.view' },
+      { label: '采集同步日志', to: '/benchmark-sync-records', icon: History, permission: 'monitoring.view' },
+      { label: '评论数据日志', to: '/content-comments', icon: ScrollText, permission: 'monitoring.view' },
+      { label: '操作日志', to: '/operation-logs', icon: History, permission: 'audit.view' },
+    ],
+  },
+  {
+    label: '系统管理',
+    index: 'system',
+    icon: Settings,
+    children: [
+      { label: '用户管理', to: '/users', icon: Users, permission: 'users.view' },
+      { label: '角色管理', to: '/roles', icon: ShieldCheck, permission: 'roles.view' },
+      { label: '系统配置', to: '/settings', icon: Settings, permission: 'system_settings.view' },
     ],
   },
 ]
 
 // 移动端横向导航空间有限，仍然展开成扁平入口便于快速切换。
-const mobileNavItems = computed(() => navGroups.flatMap((group) => group.children))
-const defaultOpeneds = navGroups.map((group) => group.index)
+const navGroups = computed(() => rawNavGroups
+  .map((group) => ({ ...group, children: group.children.filter((item) => auth.can(item.permission)) }))
+  .filter((group) => group.children.length > 0))
+const mobileNavItems = computed(() => navGroups.value.flatMap((group) => group.children))
+const defaultOpeneds = computed(() => navGroups.value.map((group) => group.index))
 const userInitial = computed(() => auth.displayName.slice(0, 1).toUpperCase())
 
 function formatNotificationTime(value: string) {
@@ -137,7 +153,7 @@ function formatNotificationTime(value: string) {
 }
 
 async function loadNotificationUnreadCount() {
-  if (!auth.token) return
+  if (!auth.token || !auth.can('notifications.view')) return
   try {
     const data = await getSystemNotificationUnreadCount()
     unreadNotificationCount.value = data.unread_count
@@ -147,7 +163,7 @@ async function loadNotificationUnreadCount() {
 }
 
 async function loadSystemNotifications() {
-  if (!auth.token || notificationLoading.value) return
+  if (!auth.token || !auth.can('notifications.view') || notificationLoading.value) return
   notificationLoading.value = true
   try {
     const [data, unread] = await Promise.all([
@@ -167,7 +183,7 @@ async function showNotificationDetail(notification: SystemNotification) {
   activeNotification.value = notification
   notificationDialogVisible.value = true
   notificationPopoverVisible.value = false
-  if (notification.is_read) return
+  if (notification.is_read || !auth.can('notifications.manage')) return
   try {
     await markSystemNotificationRead(notification.id)
     notification.is_read = true
@@ -178,7 +194,7 @@ async function showNotificationDetail(notification: SystemNotification) {
 }
 
 async function markAllNotificationsRead() {
-  if (unreadNotificationCount.value <= 0) return
+  if (unreadNotificationCount.value <= 0 || !auth.can('notifications.manage')) return
   try {
     await markAllSystemNotificationsRead()
     systemNotifications.value.forEach((item) => {
@@ -203,12 +219,42 @@ async function logout() {
   router.push('/login')
 }
 
+function openPasswordDialog() {
+  passwordForm.old_password = ''
+  passwordForm.new_password = ''
+  passwordForm.confirm_password = ''
+  passwordDialogVisible.value = true
+}
+
+async function submitPasswordChange() {
+  if (passwordForm.new_password.length < 8 || !/[A-Za-z]/.test(passwordForm.new_password) || !/\d/.test(passwordForm.new_password)) {
+    ElMessage.warning('新密码至少 8 位，且必须同时包含字母和数字')
+    return
+  }
+  if (passwordForm.new_password !== passwordForm.confirm_password) {
+    ElMessage.warning('两次输入的新密码不一致')
+    return
+  }
+  try {
+    await changeCurrentPassword({
+      old_password: passwordForm.old_password,
+      new_password: passwordForm.new_password,
+    })
+    ElMessage.success('密码已修改，请重新登录')
+    passwordDialogVisible.value = false
+    await logout()
+  } catch (error) {
+    ElNotification.error({ title: '修改密码失败', message: error instanceof Error ? error.message : '请稍后重试' })
+  }
+}
+
 function handleRealtimeEvent(event: Event) {
   const payload = (event as CustomEvent<RealtimeEventPayload>).detail
   if (payload?.type === 'realtime.connected') {
     void loadNotificationUnreadCount()
     return
   }
+  if (payload?.topic === 'system_notification' && !auth.can('notifications.view')) return
   if (payload?.topic === 'system_notification') {
     void loadSystemNotifications()
     const data = payload.data && typeof payload.data === 'object'
@@ -322,6 +368,7 @@ watch(
           <div class="hidden text-sm text-slate-500 lg:block">运营管理工作台</div>
           <div class="flex items-center gap-3">
             <el-popover
+              v-if="auth.can('notifications.view')"
               v-model:visible="notificationPopoverVisible"
               placement="bottom-end"
               :width="400"
@@ -347,7 +394,7 @@ watch(
                     <Megaphone class="h-4 w-4 text-brand-600" />
                     <strong class="text-sm text-slate-800">系统通知</strong>
                   </div>
-                  <el-button v-if="unreadNotificationCount > 0" text size="small" :icon="CheckCheck" @click="markAllNotificationsRead">
+                  <el-button v-if="unreadNotificationCount > 0 && auth.can('notifications.manage')" text size="small" :icon="CheckCheck" @click="markAllNotificationsRead">
                     全部已读
                   </el-button>
                 </div>
@@ -376,6 +423,9 @@ watch(
             </el-popover>
             <el-avatar :size="28">{{ userInitial }}</el-avatar>
             <span class="max-w-40 truncate text-sm text-slate-600">{{ auth.displayName }}</span>
+            <el-tooltip content="修改密码" placement="bottom">
+              <el-button circle :icon="KeyRound" @click="openPasswordDialog" />
+            </el-tooltip>
             <el-tooltip content="退出登录" placement="bottom">
               <el-button circle :icon="LogOut" @click="logout" />
             </el-tooltip>
@@ -424,6 +474,24 @@ watch(
         </div>
         <template #footer>
           <el-button type="primary" @click="notificationDialogVisible = false">我知道了</el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog v-model="passwordDialogVisible" title="修改登录密码" width="460px" destroy-on-close>
+        <el-form label-position="top">
+          <el-form-item label="当前密码" required>
+            <el-input v-model="passwordForm.old_password" type="password" show-password autocomplete="current-password" />
+          </el-form-item>
+          <el-form-item label="新密码" required>
+            <el-input v-model="passwordForm.new_password" type="password" show-password autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
+          </el-form-item>
+          <el-form-item label="确认新密码" required>
+            <el-input v-model="passwordForm.confirm_password" type="password" show-password autocomplete="new-password" @keyup.enter="submitPasswordChange" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="passwordDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitPasswordChange">确认修改</el-button>
         </template>
       </el-dialog>
     </div>

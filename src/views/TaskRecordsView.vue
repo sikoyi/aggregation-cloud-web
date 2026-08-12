@@ -5,9 +5,11 @@ import { useRoute, useRouter } from 'vue-router'
 
 import CrudPage from '@/components/CrudPage.vue'
 import { resources } from '@/config/resources'
+import { useAuthStore } from '@/stores/auth'
 
 const taskConfig = computed(() => resources.tasks)
 const taskPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
+const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -49,7 +51,7 @@ watch(
           <el-tooltip content="刷新" placement="bottom">
             <el-button :icon="RefreshCw" circle @click="refreshTasks" />
           </el-tooltip>
-          <el-button type="primary" :icon="Plus" @click="openDispatch">下发任务</el-button>
+          <el-button v-if="auth.can('tasks.dispatch')" type="primary" :icon="Plus" @click="openDispatch">下发任务</el-button>
         </div>
       </div>
 

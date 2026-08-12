@@ -1,31 +1,33 @@
 import { defineStore } from 'pinia'
 
 import { http } from '@/api/http'
+import type { SystemUser } from '@/api/rbac'
 
 interface LoginData {
   access_token: string
   token_type: string
   expires_in: number
-  user: User
+  user: SystemUser
 }
 
-interface User {
-  id: string
-  username: string
-  display_name?: string | null
-  role?: string
-  status?: string
-}
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null as User | null,
+    user: null as SystemUser | null,
     token: localStorage.getItem('access_token') || '',
     loading: false,
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.token),
     displayName: (state) => state.user?.display_name || state.user?.username || '未登录',
+    isSuperAdmin: (state) => Boolean(state.user?.roles.includes('super_admin')),
+    can: (state) => (code: string) =>
+      Boolean(state.user?.roles.includes('super_admin') || state.user?.permissions.includes(code)),
+    canAny: (state) => (codes: string[]) =>
+      Boolean(
+        state.user?.roles.includes('super_admin')
+        || codes.some((code) => state.user?.permissions.includes(code)),
+      ),
   },
   actions: {
     async login(username: string, password: string) {
@@ -53,7 +55,7 @@ export const useAuthStore = defineStore('auth', {
     },
     async loadMe() {
       if (!this.token) return
-      this.user = await http.get<User>('/api/auth/me')
+      this.user = await http.get<SystemUser>('/api/auth/me')
     },
     clearSession() {
       this.token = ''

@@ -5,11 +5,13 @@ import { useRoute, useRouter } from 'vue-router'
 
 import CrudPage from '@/components/CrudPage.vue'
 import { resources } from '@/config/resources'
+import { useAuthStore } from '@/stores/auth'
 
 type DeviceCenterTab = 'slots' | 'groups'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const slotConfig = computed(() => resources.slots)
 const slotGroupConfig = computed(() => resources.slotGroups)
@@ -71,13 +73,13 @@ watch(
             <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
           </el-tooltip>
           <el-button
-            v-if="activeTab === 'slots'"
+            v-if="activeTab === 'slots' && auth.can('devices.sync')"
             :icon="RotateCcw"
             @click="openSlotSync"
           >
             主动同步
           </el-button>
-          <el-button type="primary" :icon="Plus" @click="openActiveCreate">
+          <el-button v-if="auth.can('devices.create')" type="primary" :icon="Plus" @click="openActiveCreate">
             {{ activeCreateLabel }}
           </el-button>
         </div>

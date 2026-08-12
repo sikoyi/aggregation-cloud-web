@@ -21,10 +21,12 @@ import {
 } from '@/api/commentReplies'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
+import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
+const auth = useAuthStore()
 const statusOptions = [
   { label: '生成中', value: 'generating', type: 'primary' },
   { label: '待审核', value: 'pending_review', type: 'warning' },
@@ -58,7 +60,7 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
 let refreshTimer: number | undefined
 
 const hasFilters = computed(() => Boolean(filters.status || filters.keyword))
-const canApprove = computed(() => activeJob.value?.status === 'pending_review')
+const canApprove = computed(() => activeJob.value?.status === 'pending_review' && auth.can('operations.review'))
 
 function statusMeta(value: unknown) {
   return statusOptions.find((item) => item.value === value) || { label: String(value || '-'), type: 'info' }
@@ -267,8 +269,8 @@ onBeforeUnmount(() => {
             <el-table-column label="操作" width="220" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button text type="primary" :icon="Eye" @click="openJob(row)">{{ row.status === 'pending_review' ? '审核' : '查看' }}</el-button>
-                <el-button v-if="row.status === 'pending_review'" text type="primary" :icon="RotateCcw" @click="regenerate(row)">重生成</el-button>
-                <el-button v-if="['failed', 'blocked'].includes(row.status)" text type="danger" :icon="RefreshCw" @click="retry(row)">重试</el-button>
+                <el-button v-if="row.status === 'pending_review' && auth.can('operations.review')" text type="primary" :icon="RotateCcw" @click="regenerate(row)">重生成</el-button>
+                <el-button v-if="['failed', 'blocked'].includes(row.status) && auth.can('operations.retry')" text type="danger" :icon="RefreshCw" @click="retry(row)">重试</el-button>
               </template>
             </el-table-column>
           </el-table>
