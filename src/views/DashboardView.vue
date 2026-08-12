@@ -93,7 +93,7 @@ const defaultQuickEntries = [
   {
     id: 'published-contents',
     label: '发布内容',
-    section: '互动中心',
+    section: '运营中心',
     to: { path: '/published-contents', query: { action: 'create' } },
     icon: FileText,
     tone: 'green',
@@ -101,7 +101,7 @@ const defaultQuickEntries = [
   {
     id: 'interaction-sessions',
     label: '互动会话',
-    section: '互动中心',
+    section: '运营中心',
     to: { path: '/interaction-sessions', query: { action: 'create' } },
     icon: MessageSquareReply,
     tone: 'violet',

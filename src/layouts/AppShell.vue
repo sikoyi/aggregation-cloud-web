@@ -77,7 +77,7 @@ const navGroups = [
     children: [{ label: '内容库', to: '/contents', icon: FileText }],
   },
   {
-    label: '互动中心',
+    label: '运营中心',
     index: 'interaction',
     icon: ScrollText,
     children: [

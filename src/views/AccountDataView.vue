@@ -130,7 +130,8 @@ const benchmarkForm = reactive({
 let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
 
-const hasFilters = computed(() => Object.values(filters).some(Boolean))
+const activeFilterCount = computed(() => Object.values(filters).filter(Boolean).length)
+const hasFilters = computed(() => activeFilterCount.value > 0)
 const monitorAccountFilters = computed(() => ({
   business_platform: monitorForm.business_platform,
 }))
@@ -557,45 +558,75 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="account-data__filters">
-          <div class="filter-title"><Search :size="16" />筛选条件</div>
-          <div class="filter-grid">
-            <el-select v-model="filters.business_platform" clearable placeholder="业务 App">
-              <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
-            </el-select>
-            <el-select v-model="filters.country" clearable filterable placeholder="国家 / 地区">
-              <el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
-            </el-select>
-            <el-select v-model="filters.login_status" clearable placeholder="登录状态">
-              <el-option v-for="option in loginStatusOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
-            </el-select>
-            <el-select v-model="filters.tag_id" clearable filterable placeholder="账号标签">
-              <el-option v-for="tag in accountTags" :key="String(tag.id)" :label="String(tag.name || tag.id)" :value="String(tag.id)" />
-            </el-select>
-            <el-select v-model="filters.slot_group_id" clearable filterable placeholder="设备分组">
-              <el-option v-for="group in slotGroups" :key="String(group.id)" :label="String(group.name || group.id)" :value="String(group.id)" />
-            </el-select>
-            <el-select v-model="filters.runtime_platform" clearable placeholder="执行平台">
-              <el-option v-for="option in runtimePlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
-            </el-select>
-            <el-select v-model="filters.provider" clearable placeholder="设备供应商">
-              <el-option v-for="option in providerOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
-            </el-select>
-            <el-input v-model="filters.device_keyword" clearable placeholder="设备名称 / Provider ID" @keyup.enter="searchRows" />
-            <el-select v-model="filters.monitor_state" clearable placeholder="监听状态">
-              <el-option v-for="option in monitorStateOptions" :key="option.value" :label="option.label" :value="option.value" />
-            </el-select>
-            <el-select v-model="filters.benchmark_state" clearable placeholder="对标状态">
-              <el-option v-for="option in benchmarkStateOptions" :key="option.value" :label="option.label" :value="option.value" />
-            </el-select>
-            <el-select v-model="filters.comment_reply_mode" clearable placeholder="自动回复模式">
-              <el-option v-for="option in commentReplyModeOptions" :key="option.value" :label="option.label" :value="option.value" />
-            </el-select>
-            <el-input v-model="filters.keyword" clearable placeholder="账号 / 昵称 / 主页链接" @keyup.enter="searchRows" />
+          <div class="filter-title">
+            <Search :size="16" />
+            <span>筛选条件</span>
+            <el-tag v-if="hasFilters" size="small" type="info" effect="plain">{{ activeFilterCount }} 项已生效</el-tag>
           </div>
-          <div class="filter-actions">
-            <el-button :disabled="!hasFilters" @click="resetFilters">清空</el-button>
-            <el-button type="primary" :icon="Search" @click="searchRows">查询</el-button>
-          </div>
+          <el-form inline label-position="left" class="compact-filter-form">
+            <div class="filter-grid">
+              <el-form-item label="业务 App">
+                <el-select v-model="filters.business_platform" clearable placeholder="全部">
+                  <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="国家">
+                <el-select v-model="filters.country" clearable filterable placeholder="全部">
+                  <el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="登录状态">
+                <el-select v-model="filters.login_status" clearable placeholder="全部">
+                  <el-option v-for="option in loginStatusOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="账号标签">
+                <el-select v-model="filters.tag_id" clearable filterable placeholder="全部">
+                  <el-option v-for="tag in accountTags" :key="String(tag.id)" :label="String(tag.name || tag.id)" :value="String(tag.id)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="设备分组">
+                <el-select v-model="filters.slot_group_id" clearable filterable placeholder="全部">
+                  <el-option v-for="group in slotGroups" :key="String(group.id)" :label="String(group.name || group.id)" :value="String(group.id)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="执行平台">
+                <el-select v-model="filters.runtime_platform" clearable placeholder="全部">
+                  <el-option v-for="option in runtimePlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="设备供应商">
+                <el-select v-model="filters.provider" clearable placeholder="全部">
+                  <el-option v-for="option in providerOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="设备">
+                <el-input v-model="filters.device_keyword" clearable placeholder="名称 / Provider ID" @keyup.enter="searchRows" />
+              </el-form-item>
+              <el-form-item label="监听状态">
+                <el-select v-model="filters.monitor_state" clearable placeholder="全部">
+                  <el-option v-for="option in monitorStateOptions" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="对标状态">
+                <el-select v-model="filters.benchmark_state" clearable placeholder="全部">
+                  <el-option v-for="option in benchmarkStateOptions" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="自动回复">
+                <el-select v-model="filters.comment_reply_mode" clearable placeholder="全部">
+                  <el-option v-for="option in commentReplyModeOptions" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="账号信息">
+                <el-input v-model="filters.keyword" clearable placeholder="账号 / 昵称 / 主页链接" @keyup.enter="searchRows" />
+              </el-form-item>
+            </div>
+            <div class="filter-actions">
+              <el-button :disabled="!hasFilters" @click="resetFilters">清空</el-button>
+              <el-button type="primary" :icon="Search" @click="searchRows">查询</el-button>
+            </div>
+          </el-form>
         </div>
 
         <div class="account-data__split">
@@ -1127,8 +1158,21 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 .filter-title { gap: 6px; margin-bottom: 10px; color: #26384a; font-size: 13px; font-weight: 700; }
-.filter-grid { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: 10px; }
-.filter-actions { gap: 10px; margin-top: 10px; }
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 14px;
+}
+.filter-grid :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; }
+.filter-grid :deep(.el-form-item__label) {
+  min-width: 72px;
+  color: #52606d;
+  font-size: 12px;
+  font-weight: 600;
+}
+.filter-grid :deep(.el-select),
+.filter-grid :deep(.el-input) { width: 100%; }
+.filter-actions { gap: 10px; margin-top: 12px; }
 
 .account-data__split {
   display: grid;
