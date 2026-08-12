@@ -23,7 +23,6 @@ interface CommentNode extends AnyRecord {
 
 type MetricKey = 'comment_count' | 'like_count' | 'share_count' | 'view_count'
 type PeriodValue = '24h' | '7d' | '30d' | 'all'
-type MonitorMode = 'system' | 'custom'
 
 const metricDefs: Array<{ key: MetricKey; label: string; color: string }> = [
   { key: 'comment_count', label: '评论', color: '#2563eb' },
@@ -36,10 +35,6 @@ const periodOptions: Array<{ label: string; value: PeriodValue }> = [
   { label: '近 7 天', value: '7d' },
   { label: '近 30 天', value: '30d' },
   { label: '全部', value: 'all' },
-]
-const monitorModeOptions: Array<{ label: string; value: MonitorMode; description: string }> = [
-  { label: '跟随账号', value: 'system', description: '跟随所属账号的监听间隔；账号未配置时默认 60 分钟' },
-  { label: '帖子自定义', value: 'custom', description: '该帖子使用独立间隔，不再跟随账号设置' },
 ]
 
 const visible = computed({
@@ -54,11 +49,7 @@ const error = ref('')
 const activeTab = ref('basic')
 const metricPeriod = ref<PeriodValue>('7d')
 const detail = ref<AnyRecord | null>(null)
-const monitorForm = ref<{ mode: MonitorMode; enabled: boolean; interval_minutes: number }>({
-  mode: 'system',
-  enabled: true,
-  interval_minutes: 60,
-})
+const monitorEnabled = ref(true)
 
 const content = computed<AnyRecord | null>(() => {
   const value = detail.value?.content
@@ -75,21 +66,6 @@ const curvePoints = computed<AnyRecord[]>(() => {
   return [...metrics.value].sort((a, b) => new Date(String(a.captured_at || '')).getTime() - new Date(String(b.captured_at || '')).getTime())
 })
 const trendItems = computed<AnyRecord[]>(() => Array.isArray(metricCurve.value?.trends) ? metricCurve.value.trends as AnyRecord[] : [])
-const monitorSetting = computed<AnyRecord | null>(() => {
-  const value = detail.value?.monitor_setting
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as AnyRecord : null
-})
-const monitorIsAbnormal = computed(() => monitorSetting.value?.monitor_status === 'abnormal')
-const monitorStatusLabel = computed(() => {
-  if (monitorIsAbnormal.value) return '监听异常'
-  if (monitorSetting.value?.enabled === false) return '已暂停'
-  return '监听中'
-})
-const monitorStatusType = computed(() => {
-  if (monitorIsAbnormal.value) return 'danger'
-  if (monitorSetting.value?.enabled === false) return 'info'
-  return 'success'
-})
 const comments = computed<AnyRecord[]>(() => Array.isArray(detail.value?.comments) ? detail.value.comments : [])
 const contentMediaUrls = computed<string[]>(() => {
   const urls = content.value?.media_urls
@@ -176,24 +152,6 @@ function trendLabel(value: unknown) {
   return labels[direction] || '暂无趋势'
 }
 
-function monitorModeLabel(value: unknown) {
-  const mode = String(value || '')
-  return monitorModeOptions.find((item) => item.value === mode)?.label || mode || '-'
-}
-
-function monitorModeDescription(value: unknown) {
-  const mode = String(value || '')
-  return monitorModeOptions.find((item) => item.value === mode)?.description || ''
-}
-
-function resetMonitorForm(setting: AnyRecord | null) {
-  monitorForm.value = {
-    mode: String(setting?.mode || 'system') as MonitorMode,
-    enabled: setting?.enabled !== false,
-    interval_minutes: Number(setting?.interval_minutes || setting?.effective_interval_minutes || 60),
-  }
-}
-
 function chartPolyline(key: MetricKey) {
   const points = curvePoints.value
   if (points.length < 2) return ''
@@ -245,7 +203,7 @@ async function loadDetail(contentId: string) {
   error.value = ''
   try {
     detail.value = await http.get<AnyRecord>(`/api/interaction-center/published-contents/${encodeURIComponent(contentId)}`)
-    resetMonitorForm(monitorSetting.value)
+    monitorEnabled.value = content.value?.monitor_enabled !== false
     await loadMetricCurve(contentId)
   } catch (err) {
     error.value = notifyError(err, '加载失败', '加载发布内容详情失败')
@@ -258,28 +216,17 @@ async function saveMonitorSetting() {
   if (!props.contentId) return
   monitorSaving.value = true
   try {
-    const payload = {
-      mode: monitorForm.value.mode,
-      enabled: monitorForm.value.enabled,
-      interval_minutes: monitorForm.value.mode === 'custom' ? monitorForm.value.interval_minutes : undefined,
-    }
-    const setting = await http.put<AnyRecord>(
-      `/api/interaction-center/published-contents/${encodeURIComponent(props.contentId)}/monitor-setting`,
-      payload,
+    const updatedContent = await http.put<AnyRecord>(
+      `/api/interaction-center/published-contents/${encodeURIComponent(props.contentId)}/monitor-state`,
+      { enabled: monitorEnabled.value },
     )
-    if (detail.value) detail.value = { ...detail.value, monitor_setting: setting }
-    resetMonitorForm(setting)
-    ElMessage.success('监听配置已保存')
+    if (detail.value) detail.value = { ...detail.value, content: updatedContent }
+    ElMessage.success(monitorEnabled.value ? "该帖子已参与账号监听" : "该帖子已停止监听")
   } catch (err) {
-    notifyError(err, '保存监听配置失败', '保存监听配置失败')
+    notifyError(err, "保存监听状态失败", "保存监听状态失败")
   } finally {
     monitorSaving.value = false
   }
-}
-
-async function recoverMonitor() {
-  monitorForm.value.enabled = true
-  await saveMonitorSetting()
 }
 
 async function loadMetricCurve(contentId: string) {
@@ -308,7 +255,7 @@ watch(
     if (!open) {
       detail.value = null
       error.value = ''
-      resetMonitorForm(null)
+      monitorEnabled.value = true
     }
   },
   { immediate: true },
@@ -376,6 +323,21 @@ watch(metricPeriod, () => {
               </el-descriptions-item>
               <el-descriptions-item label="发布时间">{{ formatDate(content.published_at) }}</el-descriptions-item>
               <el-descriptions-item label="最近采集">{{ formatDate(content.last_collected_at) }}</el-descriptions-item>
+              <el-descriptions-item label="监听状态" :span="2">
+                <div class="monitor-inline">
+                  <div class="monitor-inline__control">
+                    <el-switch
+                      v-model="monitorEnabled"
+                      active-text="监听"
+                      inactive-text="停止"
+                    />
+                    <span>监听周期由所属账号统一管理，仅控制当前帖子是否参与采集。</span>
+                  </div>
+                  <el-button type="primary" plain :loading="monitorSaving" @click="saveMonitorSetting">
+                    保存
+                  </el-button>
+                </div>
+              </el-descriptions-item>
               <el-descriptions-item label="内容链接" :span="2">
                 <el-link v-if="contentUrl" :href="contentUrl" target="_blank" type="primary">
                   {{ contentUrl }}
@@ -396,92 +358,6 @@ watch(metricPeriod, () => {
                   <el-link v-else :href="mediaUrl(url)" target="_blank" type="primary">{{ url }}</el-link>
                 </div>
               </div>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="监听配置" name="monitor">
-            <div class="monitor-panel">
-              <div v-if="monitorIsAbnormal" class="monitor-abnormal">
-                <el-alert
-                  type="error"
-                  :closable="false"
-                  show-icon
-                  title="监听已因连续三轮失败自动停止"
-                  :description="String(monitorSetting?.last_error_message || '请检查 Runtime、监听脚本和目标帖子后再恢复监听。')"
-                />
-                <el-button type="danger" plain :loading="monitorSaving" @click="recoverMonitor">
-                  恢复监听
-                </el-button>
-              </div>
-
-              <div class="monitor-summary">
-                <div>
-                  <span>当前模式</span>
-                  <strong>{{ monitorModeLabel(monitorSetting?.mode) }}</strong>
-                  <small>{{ monitorModeDescription(monitorSetting?.mode) }}</small>
-                </div>
-                <div>
-                  <span>监听状态</span>
-                  <strong><el-tag :type="monitorStatusType" effect="light">{{ monitorStatusLabel }}</el-tag></strong>
-                  <small>下次监听：{{ formatDate(monitorSetting?.next_run_at) }}</small>
-                </div>
-                <div>
-                  <span>生效间隔</span>
-                  <strong>{{ numberText(monitorSetting?.effective_interval_minutes) }} 分钟</strong>
-                  <small>上次监听：{{ formatDate(monitorSetting?.last_run_at) }}</small>
-                </div>
-                <div>
-                  <span>运行健康</span>
-                  <strong>{{ numberText(monitorSetting?.consecutive_failed_rounds) }} 轮失败</strong>
-                  <small>最近成功：{{ formatDate(monitorSetting?.last_success_at) }}</small>
-                </div>
-              </div>
-
-              <el-form label-position="top" class="monitor-form">
-                <el-form-item label="监听模式">
-                  <el-radio-group v-model="monitorForm.mode">
-                    <el-radio-button v-for="option in monitorModeOptions" :key="option.value" :label="option.value">
-                      {{ option.label }}
-                    </el-radio-button>
-                  </el-radio-group>
-                  <div class="monitor-form__hint">{{ monitorModeDescription(monitorForm.mode) }}</div>
-                </el-form-item>
-
-                <div class="monitor-form__row">
-                  <el-form-item label="是否启用">
-                    <el-switch
-                      v-model="monitorForm.enabled"
-                      active-text="启用监听"
-                      inactive-text="暂停监听"
-                    />
-                  </el-form-item>
-                  <el-form-item :label="monitorForm.mode === 'custom' ? '帖子监听间隔' : '当前继承间隔'">
-                    <el-input-number
-                      v-model="monitorForm.interval_minutes"
-                      :min="1"
-                      :max="1440"
-                      :disabled="monitorForm.mode !== 'custom'"
-                      controls-position="right"
-                    />
-                    <span class="monitor-form__unit">分钟</span>
-                    <span v-if="monitorForm.mode === 'system'" class="monitor-form__inherited">
-                      修改账号监听间隔后会自动同步
-                    </span>
-                  </el-form-item>
-                </div>
-
-                <div class="monitor-actions">
-                  <el-alert
-                    type="info"
-                    :closable="false"
-                    show-icon
-                    title="每轮失败后会间隔 10 分钟重试，最多重试 3 次；连续 3 轮全部失败后自动停止监听。"
-                  />
-                  <el-button type="primary" :loading="monitorSaving" @click="saveMonitorSetting">
-                    保存监听配置
-                  </el-button>
-                </div>
-              </el-form>
             </div>
           </el-tab-pane>
 
@@ -636,91 +512,23 @@ watch(metricPeriod, () => {
   font-size: 20px;
 }
 
-.monitor-panel {
-  display: grid;
-  gap: 16px;
-}
-
-.monitor-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.monitor-abnormal {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.monitor-abnormal .el-alert {
-  flex: 1;
-}
-
-.monitor-summary > div {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 12px;
-  background: #fff;
-}
-
-.monitor-summary span,
-.monitor-summary small {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.monitor-summary strong {
-  display: block;
-  margin: 6px 0;
-  color: #0f172a;
-  font-size: 20px;
-}
-
-.monitor-form {
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
-  padding: 14px;
-  background: #fff;
-}
-
-.monitor-form__hint {
-  margin-top: 8px;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.monitor-form__row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  align-items: end;
-}
-
-.monitor-form__unit {
-  margin-left: 8px;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.monitor-form__inherited {
-  display: block;
-  width: 100%;
-  margin-top: 6px;
-  color: #64748b;
-  font-size: 12px;
-}
-
-.monitor-actions {
+.monitor-inline {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+}
+
+.monitor-inline__control {
+  display: flex;
+  min-width: 0;
+  align-items: center;
   gap: 12px;
 }
 
-.monitor-actions .el-alert {
-  flex: 1;
+.monitor-inline__control span {
+  color: #64748b;
+  font-size: 12px;
 }
 
 .trend-grid {
@@ -939,21 +747,6 @@ watch(metricPeriod, () => {
 @media (max-width: 768px) {
   .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .monitor-summary,
-  .monitor-form__row {
-    grid-template-columns: 1fr;
-  }
-
-  .monitor-abnormal {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .monitor-actions {
-    align-items: stretch;
-    flex-direction: column;
   }
 
   .trend-grid {
