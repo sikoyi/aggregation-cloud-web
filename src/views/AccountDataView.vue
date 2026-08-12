@@ -10,6 +10,7 @@ import {
   GitCompareArrows,
   Play,
   RefreshCw,
+  RotateCcw,
   Search,
   Minus,
   Users,
@@ -623,7 +624,7 @@ onBeforeUnmount(() => {
               </el-form-item>
             </div>
             <div class="filter-actions">
-              <el-button :disabled="!hasFilters" @click="resetFilters">清空</el-button>
+              <el-button :icon="RotateCcw" :disabled="!hasFilters" @click="resetFilters">清空</el-button>
               <el-button type="primary" :icon="Search" @click="searchRows">查询</el-button>
             </div>
           </el-form>
