@@ -69,6 +69,10 @@ export type ColumnType =
   | 'assetPreview'
   | 'contentTextPreview'
   | 'contentMediaPreview'
+  | 'contentIdentity'
+  | 'contentPools'
+  | 'contentProfile'
+  | 'contentTimeline'
   | 'relation'
 
 export interface SelectOption {

@@ -253,6 +253,24 @@ watch(
   font-weight: 600;
 }
 
+.content-preview--compact.content-preview--media .content-preview__assets {
+  flex-wrap: nowrap;
+  justify-content: center;
+  margin-top: 0;
+}
+
+.content-preview--compact.content-preview--media .content-preview__media,
+.content-preview--compact.content-preview--media .content-preview__video {
+  width: 58px;
+  height: 58px;
+}
+
+.content-preview--compact.content-preview--media .content-preview__empty {
+  display: inline-flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+}
 .content-preview__player {
   display: flex;
   align-items: center;

@@ -26,6 +26,7 @@ import { getEnabledAiProviderOptions, resolveEnabledAiProvider } from '@/api/int
 import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import AccountTableCell from '@/components/AccountTableCell.vue'
 import DeviceTableCell from '@/components/DeviceTableCell.vue'
+import ContentTableCell from '@/components/ContentTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import ProxyTableCell from '@/components/ProxyTableCell.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -1250,6 +1251,12 @@ onBeforeUnmount(() => {
             <DeviceTableCell
               v-else-if="column.type && ['deviceIdentity', 'deviceGroup', 'devicePlatform', 'deviceState', 'deviceAccount', 'deviceProxy', 'deviceActivity'].includes(column.type)"
               :kind="column.type as 'deviceIdentity' | 'deviceGroup' | 'devicePlatform' | 'deviceState' | 'deviceAccount' | 'deviceProxy' | 'deviceActivity'"
+              :row="row"
+              :column="column"
+            />
+            <ContentTableCell
+              v-else-if="column.type && ['contentIdentity', 'contentPools', 'contentProfile', 'contentTimeline'].includes(column.type)"
+              :kind="column.type as 'contentIdentity' | 'contentPools' | 'contentProfile' | 'contentTimeline'"
               :row="row"
               :column="column"
             />

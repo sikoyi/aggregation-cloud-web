@@ -2030,15 +2030,14 @@ export const resources: Record<string, ResourceConfig> = {
       },
     ],
     columns: [
-      { key: "id", label: "ID", type: "id", align: "center" },
-      { key: "title", label: "内容标题", minWidth: 220 },
-      { key: "text_body", label: "正文预览", type: "contentTextPreview", minWidth: 320 },
-      { key: "material_assets", label: "媒体资源", type: "contentMediaPreview", minWidth: 260, align: "center" },
-      { key: "content_group_names", label: "所属内容池", type: "list", minWidth: 180 },
-      { key: "business_platform", label: "业务 App", align: "center" },
-      { key: "content_type", label: "内容类型", options: contentTypeOptions, align: "center" },
-      { key: "status", label: "状态", type: "status", align: "center" },
-      { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170, align: "center" },
+      { key: "id", label: "ID", type: "id", width: 82, align: "center" },
+      { key: "title", label: "内容信息", type: "contentIdentity", minWidth: 230 },
+      { key: "text_body", label: "正文预览", type: "contentTextPreview", minWidth: 300 },
+      { key: "material_assets", label: "媒体资源", type: "contentMediaPreview", minWidth: 190, align: "center" },
+      { key: "content_group_names", label: "所属内容池", type: "contentPools", minWidth: 180 },
+      { key: "business_platform", label: "内容属性", type: "contentProfile", minWidth: 140, align: "center" },
+      { key: "status", label: "使用状态", type: "status", width: 100, align: "center" },
+      { key: "updated_at", label: "更新时间", type: "contentTimeline", minWidth: 130, align: "center" },
     ],
     filters: [
       {
