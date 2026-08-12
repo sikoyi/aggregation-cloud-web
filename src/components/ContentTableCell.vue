@@ -39,7 +39,7 @@ const groupNames = computed(() => {
   return values.map((item) => String(item).trim()).filter(Boolean)
 })
 const contentType = computed(() => String(props.row.content_type || 'text'))
-const updatedAt = computed(() => compactDate(props.row.updated_at))
+const timelineValue = computed(() => compactDate(props.row[props.column.key]))
 </script>
 
 <template>
@@ -88,7 +88,7 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
 
   <div v-else class="content-cell content-timeline">
     <Clock3 />
-    <strong>{{ updatedAt }}</strong>
+    <strong>{{ timelineValue }}</strong>
   </div>
 </template>
 

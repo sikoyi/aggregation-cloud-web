@@ -2039,6 +2039,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "content_type", label: "内容类型", type: "contentType", minWidth: 105, align: "center" },
       { key: "status", label: "使用状态", type: "status", width: 100, align: "center" },
       { key: "updated_at", label: "更新时间", type: "contentTimeline", minWidth: 175, align: "center" },
+      { key: "created_at", label: "创建时间", type: "contentTimeline", minWidth: 175, align: "center" },
     ],
     filters: [
       {
