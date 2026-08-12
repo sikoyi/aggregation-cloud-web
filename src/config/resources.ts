@@ -2037,7 +2037,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "content_group_names", label: "所属内容池", type: "contentPools", minWidth: 180 },
       { key: "business_platform", label: "内容属性", type: "contentProfile", minWidth: 140, align: "center" },
       { key: "status", label: "使用状态", type: "status", width: 100, align: "center" },
-      { key: "updated_at", label: "更新时间", type: "contentTimeline", minWidth: 130, align: "center" },
+      { key: "updated_at", label: "更新时间", type: "contentTimeline", minWidth: 175, align: "center" },
     ],
     filters: [
       {

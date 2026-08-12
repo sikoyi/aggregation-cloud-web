@@ -23,14 +23,11 @@ function optionLabel(options: SelectOption[], value: unknown) {
 }
 
 function compactDate(value: unknown) {
-  if (!value) return { date: '-', time: '' }
+  if (!value) return '-'
   const date = new Date(String(value))
-  if (Number.isNaN(date.getTime())) return { date: String(value), time: '' }
+  if (Number.isNaN(date.getTime())) return String(value)
   const part = (number: number) => String(number).padStart(2, '0')
-  return {
-    date: `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}`,
-    time: `${part(date.getHours())}:${part(date.getMinutes())}`,
-  }
+  return `${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())} ${part(date.getHours())}:${part(date.getMinutes())}`
 }
 
 const contentTags = computed(() => {
@@ -86,10 +83,7 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
 
   <div v-else class="content-cell content-timeline">
     <Clock3 />
-    <span>
-      <strong>{{ updatedAt.date }}</strong>
-      <small>{{ updatedAt.time || '更新时间' }}</small>
-    </span>
+    <strong>{{ updatedAt }}</strong>
   </div>
 </template>
 
@@ -120,7 +114,5 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
 .content-profile > span svg { width: 13px; height: 13px; color: #39759b; }
 .content-timeline { display: flex; align-items: center; justify-content: center; gap: 7px; }
 .content-timeline > svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
-.content-timeline > span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
-.content-timeline strong { color: #40566c; font-size: 11px; white-space: nowrap; }
-.content-timeline small { color: #8a9aab; font-size: 10px; white-space: nowrap; }
+.content-timeline strong { color: #40566c; font-size: 12px; white-space: nowrap; }
 </style>
