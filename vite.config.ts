@@ -25,7 +25,7 @@ export default defineConfig({
         target: process.env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
-      '/media': {
+      '/media/': {
         target: process.env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
