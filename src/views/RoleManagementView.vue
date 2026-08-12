@@ -199,7 +199,7 @@ onMounted(async () => {
         <div class="access-page__icon"><ShieldCheck :size="20" /></div>
         <div>
           <h1>角色管理</h1>
-          <p>通过角色组合业务权限，内置角色由系统统一维护。</p>
+          <p>通过角色组合业务权限，超级管理员由系统维护，运营角色权限可按需调整。</p>
         </div>
       </div>
       <div class="access-page__commands">
@@ -264,14 +264,14 @@ onMounted(async () => {
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
-            <div v-if="!row.is_system" class="row-actions">
-              <el-tooltip v-if="auth.can('roles.edit')" content="编辑">
+            <div v-if="!row.is_system || row.code === 'operator'" class="row-actions">
+              <el-tooltip v-if="auth.can('roles.edit')" content="编辑角色与权限">
                 <el-button circle text :icon="Pencil" @click="openEdit(asRole(row))" />
               </el-tooltip>
-              <el-button v-if="auth.can('roles.disable')" link :type="row.status === 'active' ? 'warning' : 'success'" @click="toggleStatus(asRole(row))">
+              <el-button v-if="!row.is_system && auth.can('roles.disable')" link :type="row.status === 'active' ? 'warning' : 'success'" @click="toggleStatus(asRole(row))">
                 {{ row.status === 'active' ? '禁用' : '启用' }}
               </el-button>
-              <el-tooltip v-if="auth.can('roles.delete')" content="删除">
+              <el-tooltip v-if="!row.is_system && auth.can('roles.delete')" content="删除">
                 <el-button circle text type="danger" :icon="Trash2" @click="removeRole(asRole(row))" />
               </el-tooltip>
             </div>
