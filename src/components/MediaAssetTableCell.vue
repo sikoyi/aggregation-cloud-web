@@ -61,7 +61,7 @@ const groupNames = computed(() => {
 const dimensions = computed(() => {
   const width = Number(props.row.width)
   const height = Number(props.row.height)
-  return width > 0 && height > 0 ? `${width} × ${height}` : '-'
+  return width > 0 && height > 0 ? `${width} × ${height}` : ''
 })
 const timelineValue = computed(() => compactDate(props.row[props.column.key]))
 </script>
@@ -128,7 +128,7 @@ const timelineValue = computed(() => compactDate(props.row[props.column.key]))
 
   <div v-else-if="kind === 'mediaAssetSpec'" class="asset-cell asset-spec">
     <strong>{{ fileSize(row.file_size) }}</strong>
-    <small>{{ dimensions }}</small>
+    <small v-if="dimensions">{{ dimensions }}</small>
   </div>
 
   <div v-else class="asset-cell asset-timeline">
