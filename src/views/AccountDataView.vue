@@ -26,7 +26,13 @@ import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPane
 import StatusBadge from '@/components/StatusBadge.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
-import { businessPlatformOptions, loginStatusOptions } from '@/config/options'
+import {
+  accountCountryOptions,
+  businessPlatformOptions,
+  loginStatusOptions,
+  providerOptions,
+  runtimePlatformOptions,
+} from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -51,6 +57,17 @@ const monitorStateOptions = [
   { label: '已关闭', value: 'paused' },
   { label: '监听异常', value: 'abnormal' },
 ]
+const benchmarkStateOptions = [
+  { label: '未开启', value: 'not_configured' },
+  { label: '跟踪中', value: 'monitoring' },
+  { label: '已关闭', value: 'paused' },
+  { label: '跟踪异常', value: 'abnormal' },
+]
+const commentReplyModeOptions = [
+  { label: '未开启', value: 'disabled' },
+  { label: '自动回复', value: 'automatic' },
+  { label: '审核后回复', value: 'review' },
+]
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -61,6 +78,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const slotGroups = ref<AnyRecord[]>([])
+const accountTags = ref<AnyRecord[]>([])
 const aiProviderOptions = ref<EnabledAiProviderOption[]>([])
 const summary = reactive({
   total_accounts: 0,
@@ -73,9 +91,16 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:account-data',
   {
     business_platform: '',
+    country: '',
     login_status: '',
+    tag_id: '',
     slot_group_id: '',
+    runtime_platform: '',
+    provider: '',
+    device_keyword: '',
     monitor_state: '',
+    benchmark_state: '',
+    comment_reply_mode: '',
     keyword: '',
   },
 )
@@ -185,6 +210,14 @@ async function loadSlotGroups() {
     slotGroups.value = await getAllPages<AnyRecord>('/api/slot-groups')
   } catch (err) {
     notifyError(err, '加载失败', '加载设备分组失败')
+  }
+}
+
+async function loadAccountTags() {
+  try {
+    accountTags.value = await getAllPages<AnyRecord>('/api/account-tags')
+  } catch (err) {
+    notifyError(err, '加载失败', '加载账号标签失败')
   }
 }
 
@@ -468,6 +501,7 @@ watch(
 
 onMounted(() => {
   loadSlotGroups()
+  loadAccountTags()
   loadReplyOptions()
   loadRows()
   window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
@@ -528,14 +562,33 @@ onBeforeUnmount(() => {
             <el-select v-model="filters.business_platform" clearable placeholder="业务 App">
               <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
-            <el-select v-model="filters.slot_group_id" clearable filterable placeholder="设备分组">
-              <el-option v-for="group in slotGroups" :key="String(group.id)" :label="String(group.name || group.id)" :value="String(group.id)" />
+            <el-select v-model="filters.country" clearable filterable placeholder="国家 / 地区">
+              <el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
             <el-select v-model="filters.login_status" clearable placeholder="登录状态">
               <el-option v-for="option in loginStatusOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
+            <el-select v-model="filters.tag_id" clearable filterable placeholder="账号标签">
+              <el-option v-for="tag in accountTags" :key="String(tag.id)" :label="String(tag.name || tag.id)" :value="String(tag.id)" />
+            </el-select>
+            <el-select v-model="filters.slot_group_id" clearable filterable placeholder="设备分组">
+              <el-option v-for="group in slotGroups" :key="String(group.id)" :label="String(group.name || group.id)" :value="String(group.id)" />
+            </el-select>
+            <el-select v-model="filters.runtime_platform" clearable placeholder="执行平台">
+              <el-option v-for="option in runtimePlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+            </el-select>
+            <el-select v-model="filters.provider" clearable placeholder="设备供应商">
+              <el-option v-for="option in providerOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+            </el-select>
+            <el-input v-model="filters.device_keyword" clearable placeholder="设备名称 / Provider ID" @keyup.enter="searchRows" />
             <el-select v-model="filters.monitor_state" clearable placeholder="监听状态">
               <el-option v-for="option in monitorStateOptions" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+            <el-select v-model="filters.benchmark_state" clearable placeholder="对标状态">
+              <el-option v-for="option in benchmarkStateOptions" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+            <el-select v-model="filters.comment_reply_mode" clearable placeholder="自动回复模式">
+              <el-option v-for="option in commentReplyModeOptions" :key="option.value" :label="option.label" :value="option.value" />
             </el-select>
             <el-input v-model="filters.keyword" clearable placeholder="账号 / 昵称 / 主页链接" @keyup.enter="searchRows" />
           </div>
@@ -1074,7 +1127,7 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 .filter-title { gap: 6px; margin-bottom: 10px; color: #26384a; font-size: 13px; font-weight: 700; }
-.filter-grid { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)) minmax(220px, 1.35fr); gap: 10px; }
+.filter-grid { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: 10px; }
 .filter-actions { gap: 10px; margin-top: 10px; }
 
 .account-data__split {
