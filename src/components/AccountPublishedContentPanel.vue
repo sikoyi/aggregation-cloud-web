@@ -270,11 +270,13 @@ onBeforeUnmount(() => {
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="88" align="center" fixed="right">
+      <el-table-column label="操作" width="88" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-tooltip content="查看详情" placement="top">
-            <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
-          </el-tooltip>
+          <div class="content-action">
+            <el-tooltip content="查看详情" placement="top">
+              <el-button text type="primary" :icon="Eye" @click="openDetail(row)">详情</el-button>
+            </el-tooltip>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -494,6 +496,17 @@ onBeforeUnmount(() => {
   font-style: normal;
 }
 
+.content-action {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-action :deep(.el-button) {
+  margin: 0;
+}
 .account-published-content__table :deep(.el-table__cell) {
   padding: 10px 0;
 }
