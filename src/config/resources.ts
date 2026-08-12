@@ -2201,14 +2201,13 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "上传素材",
     mediaAssetBatchUpload: true,
     columns: [
-      { key: "id", label: "ID", type: "id", align: "center" },
-      { key: "name", label: "素材名称", minWidth: 220 },
-      { key: "group_names", label: "所属素材组", type: "list", minWidth: 180, align: "center" },
-      { key: "business_platform", label: "业务 App", align: "center" },
-      { key: "asset_type", label: "素材类型", options: mediaAssetTypeOptions, align: "center" },
-      { key: "source_url", label: "素材预览", type: "assetPreview", options: mediaAssetTypeOptions, width: 180, align: "center" },
-      { key: "status", label: "状态", type: "status", align: "center" },
-      { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170, align: "center" },
+      { key: "name", label: "素材信息", type: "mediaAssetIdentity", minWidth: 300 },
+      { key: "group_names", label: "所属素材组", type: "mediaAssetGroups", minWidth: 180, align: "center" },
+      { key: "business_platform", label: "业务 App", type: "mediaAssetPlatform", width: 130, align: "center" },
+      { key: "asset_type", label: "素材类型", type: "mediaAssetType", width: 110, align: "center" },
+      { key: "file_size", label: "规格", type: "mediaAssetSpec", width: 120, align: "center" },
+      { key: "status", label: "状态", type: "status", width: 100, align: "center" },
+      { key: "created_at", label: "创建时间", type: "mediaAssetTimeline", minWidth: 175, align: "center" },
     ],
     filters: [
       {

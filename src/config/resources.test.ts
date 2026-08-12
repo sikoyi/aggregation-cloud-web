@@ -586,3 +586,17 @@ describe('任务下发执行模式', () => {
     expect(body.scheduled_at).toBe('2026-08-06T12:00:00Z')
   })
 })
+
+describe('素材资源表格', () => {
+  it('把预览与基础信息整合，并保留运营需要的独立属性列', () => {
+    expect(resources.mediaAssets.columns.map((column) => [column.key, column.type])).toEqual([
+      ['name', 'mediaAssetIdentity'],
+      ['group_names', 'mediaAssetGroups'],
+      ['business_platform', 'mediaAssetPlatform'],
+      ['asset_type', 'mediaAssetType'],
+      ['file_size', 'mediaAssetSpec'],
+      ['status', 'status'],
+      ['created_at', 'mediaAssetTimeline'],
+    ])
+  })
+})

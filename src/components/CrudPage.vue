@@ -28,6 +28,7 @@ import AccountTableCell from '@/components/AccountTableCell.vue'
 import DeviceTableCell from '@/components/DeviceTableCell.vue'
 import ContentTableCell from '@/components/ContentTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
+import MediaAssetTableCell from '@/components/MediaAssetTableCell.vue'
 import ProxyTableCell from '@/components/ProxyTableCell.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
@@ -397,11 +398,6 @@ function assetInlinePreviewKind(record: AnyRecord) {
   return 'other'
 }
 
-function assetTypeLabel(record: AnyRecord, column: ColumnConfig) {
-  const value = String(record.asset_type || '')
-  const option = column.options?.find((item) => String(item.value) === value)
-  return option?.label || value || '文件'
-}
 
 function openAssetViewer(record: AnyRecord) {
   const kind = assetInlinePreviewKind(record)
@@ -1260,6 +1256,14 @@ onBeforeUnmount(() => {
               :row="row"
               :column="column"
             />
+            <MediaAssetTableCell
+              v-else-if="column.type && ['mediaAssetIdentity', 'mediaAssetGroups', 'mediaAssetPlatform', 'mediaAssetType', 'mediaAssetSpec', 'mediaAssetTimeline'].includes(column.type)"
+              :kind="column.type as 'mediaAssetIdentity' | 'mediaAssetGroups' | 'mediaAssetPlatform' | 'mediaAssetType' | 'mediaAssetSpec' | 'mediaAssetTimeline'"
+              :row="row"
+              :column="column"
+              :preview-url="getAssetUrl(row, 'source_url')"
+              @preview="openAssetViewer(row)"
+            />
             <ProxyTableCell
               v-else-if="column.type && ['proxyIdentity', 'proxyGroup', 'proxyEndpoint', 'proxyProfile'].includes(column.type)"
               :kind="column.type as 'proxyIdentity' | 'proxyGroup' | 'proxyEndpoint' | 'proxyProfile'"
@@ -1302,42 +1306,6 @@ onBeforeUnmount(() => {
               :config="column.relation"
               :row="row"
             />
-            <template v-else-if="column.type === 'assetPreview'">
-              <div class="asset-inline-preview">
-                <button
-                  v-if="assetInlinePreviewKind(row) === 'image' && getAssetUrl(row, 'source_url')"
-                  type="button"
-                  class="asset-inline-preview__button"
-                  :aria-label="`查看图片：${String(row.name || '素材图片')}`"
-                  @click="openAssetViewer(row)"
-                >
-                  <img
-                    class="asset-inline-preview__media"
-                    :src="getAssetUrl(row, 'source_url')"
-                    :alt="String(row.name || '素材图片')"
-                  >
-                </button>
-                <button
-                  v-else-if="assetInlinePreviewKind(row) === 'video' && getAssetUrl(row, 'source_url')"
-                  type="button"
-                  class="asset-inline-preview__button"
-                  :aria-label="`播放视频：${String(row.name || '素材视频')}`"
-                  @click="openAssetViewer(row)"
-                >
-                  <video
-                    class="asset-inline-preview__media"
-                    :src="getAssetUrl(row, 'source_url')"
-                    muted
-                    playsinline
-                    preload="metadata"
-                  />
-                  <span class="asset-inline-preview__play">
-                    <Play class="h-4 w-4" />
-                  </span>
-                </button>
-                <el-tag v-else effect="plain">{{ assetTypeLabel(row, column) }}</el-tag>
-              </div>
-            </template>
             <ContentPreview v-else-if="column.type === 'contentTextPreview'" :record="row" mode="compact" section="text" />
             <ContentPreview v-else-if="column.type === 'contentMediaPreview'" :record="row" mode="compact" section="media" />
             <span v-else-if="column.type === 'id'" :title="String(row[column.key] || '')" class="font-mono text-xs">
@@ -1888,53 +1856,6 @@ onBeforeUnmount(() => {
   border: 1px solid #dce6ef;
   border-radius: 8px;
   background: #f8fbfd;
-}
-
-.asset-inline-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 84px;
-}
-
-.asset-inline-preview__button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.asset-inline-preview__media {
-  width: 144px;
-  height: 80px;
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
-  background: #0f172a;
-  object-fit: cover;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
-}
-
-.asset-inline-preview__button:hover .asset-inline-preview__media {
-  border-color: #2563eb;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
-  transform: translateY(-1px);
-}
-
-.asset-inline-preview__play {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  color: #ffffff;
-  background: rgba(15, 23, 42, 0.72);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.25);
 }
 
 .asset-viewer {
