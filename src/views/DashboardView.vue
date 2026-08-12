@@ -85,7 +85,7 @@ const defaultQuickEntries = [
   {
     id: 'media-assets',
     label: '素材库',
-    section: '资源中心',
+    section: '内容中心',
     to: '/media-assets',
     icon: Image,
     tone: 'amber',
