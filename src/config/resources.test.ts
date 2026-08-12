@@ -588,9 +588,10 @@ describe('任务下发执行模式', () => {
 })
 
 describe('素材资源表格', () => {
-  it('把预览与基础信息整合，并保留运营需要的独立属性列', () => {
+  it('单独展示媒体预览，并保留运营需要的独立属性列', () => {
     expect(resources.mediaAssets.columns.map((column) => [column.key, column.type])).toEqual([
       ['name', 'mediaAssetIdentity'],
+      ['source_url', 'mediaAssetPreview'],
       ['group_names', 'mediaAssetGroups'],
       ['business_platform', 'mediaAssetPlatform'],
       ['asset_type', 'mediaAssetType'],

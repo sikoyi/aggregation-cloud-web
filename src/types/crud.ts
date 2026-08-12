@@ -67,6 +67,7 @@ export type ColumnType =
   | 'id'
   | 'boolean'
   | 'mediaAssetIdentity'
+  | 'mediaAssetPreview'
   | 'mediaAssetGroups'
   | 'mediaAssetPlatform'
   | 'mediaAssetType'

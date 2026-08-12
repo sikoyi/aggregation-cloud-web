@@ -8,6 +8,7 @@ import type { ColumnConfig, SelectOption } from '@/types/crud'
 
 type MediaAssetCellKind =
   | 'mediaAssetIdentity'
+  | 'mediaAssetPreview'
   | 'mediaAssetGroups'
   | 'mediaAssetPlatform'
   | 'mediaAssetType'
@@ -67,20 +68,6 @@ const timelineValue = computed(() => compactDate(props.row[props.column.key]))
 
 <template>
   <div v-if="kind === 'mediaAssetIdentity'" class="asset-cell asset-identity">
-    <button
-      type="button"
-      class="asset-identity__preview"
-      :class="{ 'is-empty': !previewUrl }"
-      :disabled="!previewUrl"
-      :aria-label="`预览素材：${text(row.name)}`"
-      @click="emit('preview')"
-    >
-      <img v-if="assetType === 'image' && previewUrl" :src="previewUrl" :alt="text(row.name)" />
-      <video v-else-if="assetType === 'video' && previewUrl" :src="previewUrl" muted playsinline preload="metadata" />
-      <Film v-else-if="assetType === 'video'" />
-      <ImageIcon v-else />
-      <span v-if="previewUrl" class="asset-identity__zoom"><Maximize2 /></span>
-    </button>
     <span class="asset-identity__main">
       <el-tooltip :content="text(row.name)" placement="top" :show-after="500">
         <strong>{{ text(row.name) }}</strong>
@@ -96,6 +83,23 @@ const timelineValue = computed(() => compactDate(props.row[props.column.key]))
         <span v-else class="asset-identity__empty"><Tags />暂无标签</span>
       </span>
     </span>
+  </div>
+
+  <div v-else-if="kind === 'mediaAssetPreview'" class="asset-cell asset-preview">
+    <button
+      type="button"
+      class="asset-preview__button"
+      :class="{ 'is-empty': !previewUrl }"
+      :disabled="!previewUrl"
+      :aria-label="'预览素材：' + text(row.name)"
+      @click="emit('preview')"
+    >
+      <img v-if="assetType === 'image' && previewUrl" :src="previewUrl" :alt="text(row.name)" />
+      <video v-else-if="assetType === 'video' && previewUrl" :src="previewUrl" muted playsinline preload="metadata" />
+      <Film v-else-if="assetType === 'video'" />
+      <ImageIcon v-else />
+      <span v-if="previewUrl" class="asset-preview__zoom"><Maximize2 /></span>
+    </button>
   </div>
 
   <div v-else-if="kind === 'mediaAssetGroups'" class="asset-cell asset-groups">
@@ -135,15 +139,16 @@ const timelineValue = computed(() => compactDate(props.row[props.column.key]))
 
 <style scoped>
 .asset-cell { min-width: 0; }
-.asset-identity { display: flex; align-items: center; gap: 12px; min-height: 64px; }
-.asset-identity__preview { position: relative; display: inline-flex; width: 56px; height: 56px; flex: 0 0 56px; overflow: hidden; align-items: center; justify-content: center; padding: 0; border: 1px solid #d5e2ec; border-radius: 7px; color: #4f718a; background: #edf4f8; cursor: pointer; }
-.asset-identity__preview.is-empty { cursor: default; }
-.asset-identity__preview > img,
-.asset-identity__preview > video { width: 100%; height: 100%; object-fit: cover; }
-.asset-identity__preview > svg { width: 22px; height: 22px; }
-.asset-identity__zoom { position: absolute; inset: auto 4px 4px auto; display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 5px; color: #fff; background: rgb(27 55 76 / 76%); opacity: 0; transition: opacity 0.16s ease; }
-.asset-identity__zoom svg { width: 11px; height: 11px; }
-.asset-identity__preview:hover .asset-identity__zoom { opacity: 1; }
+.asset-identity { display: flex; align-items: center; min-height: 52px; }
+.asset-preview { display: flex; align-items: center; justify-content: center; min-height: 64px; }
+.asset-preview__button { position: relative; display: inline-flex; width: 72px; height: 56px; overflow: hidden; align-items: center; justify-content: center; padding: 0; border: 1px solid #d5e2ec; border-radius: 7px; color: #4f718a; background: #edf4f8; cursor: pointer; }
+.asset-preview__button.is-empty { cursor: default; }
+.asset-preview__button > img,
+.asset-preview__button > video { width: 100%; height: 100%; object-fit: cover; }
+.asset-preview__button > svg { width: 22px; height: 22px; }
+.asset-preview__zoom { position: absolute; inset: auto 4px 4px auto; display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 5px; color: #fff; background: rgb(27 55 76 / 76%); opacity: 0; transition: opacity 0.16s ease; }
+.asset-preview__zoom svg { width: 11px; height: 11px; }
+.asset-preview__button:hover .asset-preview__zoom { opacity: 1; }
 .asset-identity__main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 7px; }
 .asset-identity__main > strong { overflow: hidden; color: #243b53; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .asset-identity__meta { display: flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }

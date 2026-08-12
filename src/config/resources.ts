@@ -2201,7 +2201,8 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "上传素材",
     mediaAssetBatchUpload: true,
     columns: [
-      { key: "name", label: "素材信息", type: "mediaAssetIdentity", minWidth: 300 },
+      { key: "name", label: "素材信息", type: "mediaAssetIdentity", minWidth: 240 },
+      { key: "source_url", label: "媒体资源", type: "mediaAssetPreview", width: 130, align: "center" },
       { key: "group_names", label: "所属素材组", type: "mediaAssetGroups", minWidth: 180, align: "center" },
       { key: "business_platform", label: "业务 App", type: "mediaAssetPlatform", width: 130, align: "center" },
       { key: "asset_type", label: "素材类型", type: "mediaAssetType", width: 110, align: "center" },

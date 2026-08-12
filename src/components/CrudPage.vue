@@ -1257,8 +1257,8 @@ onBeforeUnmount(() => {
               :column="column"
             />
             <MediaAssetTableCell
-              v-else-if="column.type && ['mediaAssetIdentity', 'mediaAssetGroups', 'mediaAssetPlatform', 'mediaAssetType', 'mediaAssetSpec', 'mediaAssetTimeline'].includes(column.type)"
-              :kind="column.type as 'mediaAssetIdentity' | 'mediaAssetGroups' | 'mediaAssetPlatform' | 'mediaAssetType' | 'mediaAssetSpec' | 'mediaAssetTimeline'"
+              v-else-if="column.type && ['mediaAssetIdentity', 'mediaAssetPreview', 'mediaAssetGroups', 'mediaAssetPlatform', 'mediaAssetType', 'mediaAssetSpec', 'mediaAssetTimeline'].includes(column.type)"
+              :kind="column.type as 'mediaAssetIdentity' | 'mediaAssetPreview' | 'mediaAssetGroups' | 'mediaAssetPlatform' | 'mediaAssetType' | 'mediaAssetSpec' | 'mediaAssetTimeline'"
               :row="row"
               :column="column"
               :preview-url="getAssetUrl(row, 'source_url')"
