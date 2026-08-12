@@ -52,7 +52,7 @@ const navGroups = [
     children: [
       { label: '账号管理', to: '/accounts', icon: Users },
       { label: '账号数据', to: '/account-data', icon: Activity },
-      { label: '数据同步记录', to: '/benchmark-sync-records', icon: History },
+
     ],
   },
   {
@@ -84,8 +84,6 @@ const navGroups = [
       { label: '互动会话', to: '/interaction-sessions', icon: PlaySquare },
       { label: '回复审核', to: '/comment-replies', icon: MessageSquareReply },
       { label: '发布内容', to: '/published-contents', icon: FileText },
-      { label: '评论记录', to: '/content-comments', icon: ScrollText },
-      { label: '互动动作', to: '/interaction-actions', icon: PlaySquare },
     ],
   },
   {
@@ -104,6 +102,9 @@ const navGroups = [
     icon: Server,
     children: [
       { label: 'Runtime 状态', to: '/runtimes', icon: Server },
+      { label: '采集同步日志', to: '/benchmark-sync-records', icon: History },
+      { label: '评论数据日志', to: '/content-comments', icon: ScrollText },
+      { label: '互动执行日志', to: '/interaction-actions', icon: PlaySquare },
       { label: '操作日志', to: '/operation-logs', icon: History },
     ],
   },

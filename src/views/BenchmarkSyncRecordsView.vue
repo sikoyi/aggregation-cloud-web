@@ -235,7 +235,7 @@ onMounted(loadRows)
           <div class="page-title">
             <span class="page-title__icon"><FileClock :size="19" /></span>
             <div>
-              <h1>数据同步记录</h1>
+              <h1>采集同步日志</h1>
               <p>统一查看账号指标采集，以及对标资料和内容的同步结果。</p>
             </div>
           </div>

@@ -2904,7 +2904,7 @@ export const resources: Record<string, ResourceConfig> = {
 
   contentComments: {
     key: "contentComments",
-    title: "评论记录",
+    title: "评论数据日志",
     endpoint: "/api/interaction-center/comments",
     readOnly: true,
     columns: [
@@ -2939,7 +2939,7 @@ export const resources: Record<string, ResourceConfig> = {
 
   interactionActions: {
     key: "interactionActions",
-    title: "互动动作",
+    title: "互动执行日志",
     endpoint: "/api/interaction-center/actions",
     readOnly: true,
     columns: [
