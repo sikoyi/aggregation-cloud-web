@@ -20,7 +20,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { getAllPages, http, resolveBackendUrl } from '@/api/http'
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider, type EnabledAiProviderOption } from '@/api/interactionAi'
-import { getSystemDefaults } from '@/api/systemSettings'
+import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults } from '@/api/systemSettings'
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
@@ -34,6 +34,7 @@ import {
   providerOptions,
   runtimePlatformOptions,
 } from '@/config/options'
+import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -70,6 +71,7 @@ const commentReplyModeOptions = [
   { label: '审核后回复', value: 'review' },
 ]
 
+const auth = useAuthStore()
 const loading = ref(false)
 const submitting = ref(false)
 const disablingAccountId = ref('')
@@ -226,7 +228,9 @@ async function loadAccountTags() {
 async function loadReplyOptions() {
   try {
     const [defaults, options] = await Promise.all([
-      getSystemDefaults(),
+      auth.can('system_settings.view')
+        ? getSystemDefaults()
+        : Promise.resolve(FALLBACK_SYSTEM_DEFAULTS),
       getEnabledAiProviderOptions(),
     ])
     aiProviderOptions.value = options

@@ -101,7 +101,10 @@ export function useRealtimeEvents() {
   const auth = useAuthStore()
 
   function connect() {
-    if (!auth.token) return
+    if (!auth.token || !auth.can('monitoring.view')) {
+      disconnect()
+      return
+    }
     if (controller && currentToken === auth.token) return
     disconnect()
     currentToken = auth.token
