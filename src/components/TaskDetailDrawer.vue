@@ -5,6 +5,7 @@ import { http } from '@/api/http'
 import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord } from '@/types/api'
+import { businessPlatformLabel } from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -297,7 +298,7 @@ watch(
                 <StatusBadge :value="task.status" />
               </el-descriptions-item>
               <el-descriptions-item label="任务名称">{{ text(task.title) }}</el-descriptions-item>
-              <el-descriptions-item label="业务平台">{{ text(task.business_platform) }}</el-descriptions-item>
+              <el-descriptions-item label="业务平台">{{ businessPlatformLabel(task.business_platform) }}</el-descriptions-item>
               <el-descriptions-item label="脚本">
                 <RelationCell :value="task.script_key" :config="scriptRelationConfig" />
               </el-descriptions-item>

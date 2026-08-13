@@ -7,7 +7,7 @@ import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
-import { runtimePlatformOptions } from '@/config/options'
+import { businessPlatformLabel, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
@@ -358,7 +358,7 @@ onMounted(loadMembers)
           <el-descriptions-item label="名称">{{ text(slotDetail.display_name) }}</el-descriptions-item>
           <el-descriptions-item label="Provider 编号">{{ text(slotDetail.provider_slot_no) }}</el-descriptions-item>
           <el-descriptions-item label="供应商">{{ text(slotDetail.provider) }}</el-descriptions-item>
-          <el-descriptions-item label="业务 App">{{ text(slotDetail.business_platform) }}</el-descriptions-item>
+          <el-descriptions-item label="业务 App">{{ businessPlatformLabel(slotDetail.business_platform) }}</el-descriptions-item>
           <el-descriptions-item label="执行平台">{{ runtimePlatformLabel(slotDetail.runtime_platform) }}</el-descriptions-item>
           <el-descriptions-item label="账号 ID">
             <span class="font-mono text-xs">{{ text(slotDetail.bound_account_id) }}</span>

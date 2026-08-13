@@ -2,9 +2,14 @@ import type { SelectOption } from '@/types/crud'
 
 export const businessPlatformOptions: SelectOption[] = [
   { label: 'Threads', value: 'threads' },
-  { label: 'X', value: 'x' },
+  { label: 'X(Twitter)', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
 ]
+
+export function businessPlatformLabel(value: unknown) {
+  return businessPlatformOptions.find((item) => String(item.value) === String(value))?.label
+    || String(value || '-')
+}
 
 const accountCountryNames = [
   '阿富汗',

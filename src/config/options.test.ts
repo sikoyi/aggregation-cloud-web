@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  businessPlatformLabel,
+  businessPlatformOptions,
   providerOptions,
   registrationCountryOptions,
   registrationProviderOptions,
@@ -40,5 +42,12 @@ describe('registration country options', () => {
       { label: 'AdsPower', value: 'adspower' },
       { label: 'VMOS', value: 'vmos' },
     ])
+  })
+})
+
+describe('business platform options', () => {
+  it('displays X(Twitter) while preserving the x API value', () => {
+    expect(businessPlatformOptions).toContainEqual({ label: 'X(Twitter)', value: 'x' })
+    expect(businessPlatformLabel('x')).toBe('X(Twitter)')
   })
 })

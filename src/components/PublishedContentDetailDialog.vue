@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { businessPlatformLabel } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import { formatDate, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -323,7 +324,7 @@ watch(metricPeriod, () => {
               <el-descriptions-item label="状态">
                 <StatusBadge :value="content.status" />
               </el-descriptions-item>
-              <el-descriptions-item label="业务 App">{{ text(content.business_platform) }}</el-descriptions-item>
+              <el-descriptions-item label="业务 App">{{ businessPlatformLabel(content.business_platform) }}</el-descriptions-item>
               <el-descriptions-item label="内容类型">{{ text(content.content_type) }}</el-descriptions-item>
               <el-descriptions-item label="平台内容 ID">
                 <el-button v-if="content.platform_content_id" text type="primary" @click="copyText(content.platform_content_id)">

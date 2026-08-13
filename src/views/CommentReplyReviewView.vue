@@ -21,6 +21,7 @@ import {
 } from '@/api/commentReplies'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
+import { businessPlatformLabel } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
@@ -239,7 +240,7 @@ onBeforeUnmount(() => {
               <template #default="{ row }">
                 <div class="account-copy">
                   <strong>{{ row.operator_account_name || row.operator_account_id }}</strong>
-                  <el-tag size="small" effect="plain">{{ row.business_platform }}</el-tag>
+                  <el-tag size="small" effect="plain">{{ businessPlatformLabel(row.business_platform) }}</el-tag>
                 </div>
               </template>
             </el-table-column>

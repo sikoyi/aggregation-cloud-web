@@ -7,7 +7,7 @@ import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
-import { loginStatusOptions } from '@/config/options'
+import { businessPlatformLabel, loginStatusOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, truncateId } from '@/utils/format'
@@ -381,7 +381,7 @@ onMounted(loadMembers)
           <el-descriptions-item label="登录账号">{{ text(accountDetail.login_username) }}</el-descriptions-item>
           <el-descriptions-item label="公开用户名">{{ text(accountDetail.username) }}</el-descriptions-item>
           <el-descriptions-item label="国家">{{ text(accountDetail.country) }}</el-descriptions-item>
-          <el-descriptions-item label="业务 App">{{ text(accountDetail.business_platform) }}</el-descriptions-item>
+          <el-descriptions-item label="业务 App">{{ businessPlatformLabel(accountDetail.business_platform) }}</el-descriptions-item>
           <el-descriptions-item label="密码">{{ text(accountDetail.password_secret_ref) }}</el-descriptions-item>
           <el-descriptions-item label="2FA">{{ text(accountDetail.totp_secret_ref) }}</el-descriptions-item>
           <el-descriptions-item label="代理 ID">

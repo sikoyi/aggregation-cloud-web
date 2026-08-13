@@ -7,7 +7,7 @@ import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
-import { contentStatusOptions, contentTypeOptions } from '@/config/options'
+import { businessPlatformLabel, contentStatusOptions, contentTypeOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, truncateId } from '@/utils/format'
@@ -356,7 +356,7 @@ onMounted(loadMembers)
             <span class="font-mono text-xs">{{ text(contentDetail.id) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="标题">{{ text(contentDetail.title) }}</el-descriptions-item>
-          <el-descriptions-item label="业务 App">{{ text(contentDetail.business_platform) }}</el-descriptions-item>
+          <el-descriptions-item label="业务 App">{{ businessPlatformLabel(contentDetail.business_platform) }}</el-descriptions-item>
           <el-descriptions-item label="类型">{{ contentTypeLabel(contentDetail.content_type) }}</el-descriptions-item>
           <el-descriptions-item label="状态"><StatusBadge :value="contentDetail.status" /></el-descriptions-item>
           <el-descriptions-item label="素材数量">{{ materialAssetCount(contentDetail.material_asset_ids) }}</el-descriptions-item>

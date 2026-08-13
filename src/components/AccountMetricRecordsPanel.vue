@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
-import { businessPlatformOptions } from '@/config/options'
+import { businessPlatformLabel, businessPlatformOptions } from '@/config/options'
 import type { PageResult } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -174,7 +174,7 @@ onMounted(loadRows)
         </el-table-column>
         <el-table-column label="业务 App" width="105" align="center">
           <template #default="{ row }">
-            <el-tag effect="plain">{{ row.business_platform }}</el-tag>
+            <el-tag effect="plain">{{ businessPlatformLabel(row.business_platform) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="账号指标" min-width="255">
