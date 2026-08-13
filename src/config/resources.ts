@@ -895,25 +895,7 @@ async function loadProxyForEdit(record: AnyRecord) {
 
 async function loadSlotForEdit(record: AnyRecord) {
   const slot = await http.get<AnyRecord>(`/api/execution-slots/${record.id}`);
-  return { ...record, ...slot, slot_group_id: slot.group_id || "" };
-}
-
-async function updateSlotGroup(_updatedSlot: AnyRecord, payload: AnyRecord, record: AnyRecord) {
-  if (!Object.prototype.hasOwnProperty.call(payload, "slot_group_id")) return undefined;
-  const nextGroupId = String(payload.slot_group_id || "");
-  const currentGroupId = String(record.group_id || "");
-  if (nextGroupId === currentGroupId) return undefined;
-  if (nextGroupId) {
-    return http.post(`/api/slot-groups/${encodeURIComponent(nextGroupId)}/slots`, {
-      slot_id: String(record.id),
-    });
-  }
-  if (currentGroupId) {
-    return http.delete(
-      `/api/slot-groups/${encodeURIComponent(currentGroupId)}/slots/${encodeURIComponent(String(record.id))}`,
-    );
-  }
-  return undefined;
+  return { ...record, ...slot, group_id: slot.group_id || "" };
 }
 
 async function loadContentForEdit(record: AnyRecord) {
@@ -1364,8 +1346,7 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "新增设备",
     loadEditRecord: loadSlotForEdit,
     updateBody: (payload) =>
-      pickPayload(payload, ["provider_slot_no", "display_name"]),
-    afterUpdate: updateSlotGroup,
+      pickPayload(payload, ["provider_slot_no", "display_name", "group_id"]),
     headerActions: [
       {
         key: "request-runtime-slot-sync",
@@ -1512,7 +1493,7 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "display_name", label: "设备名称", placeholder: "请输入运营识别名称" },
       { key: "provider_slot_no", label: "Provider 编号" },
       {
-        key: "slot_group_id",
+        key: "group_id",
         label: "所属分组",
         type: "remoteSelect",
         remote: slotGroupForSlotEditRemoteSelect,
