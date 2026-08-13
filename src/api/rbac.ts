@@ -9,6 +9,9 @@ export interface SystemUser {
   role_ids: string[]
   role_names: string[]
   permissions: string[]
+  business_platform_scope: string[] | null
+  runtime_platform_scope: string[] | null
+  provider_scope: string[] | null
   status: 'active' | 'disabled'
   version: number
   created_at: string
@@ -25,6 +28,9 @@ export interface Role {
   status: 'active' | 'disabled'
   version: number
   permission_codes: string[]
+  business_platform_scope: string[] | null
+  runtime_platform_scope: string[] | null
+  provider_scope: string[] | null
   user_count: number
   created_at: string
   updated_at: string
@@ -116,6 +122,9 @@ export function createRole(payload: {
   name: string
   description?: string
   permission_codes: string[]
+  business_platform_scope: string[] | null
+  runtime_platform_scope: string[] | null
+  provider_scope: string[] | null
 }) {
   return http.post<Role>('/api/roles', payload)
 }
@@ -126,6 +135,9 @@ export function updateRole(
     name: string
     description?: string
     permission_codes: string[]
+    business_platform_scope: string[] | null
+    runtime_platform_scope: string[] | null
+    provider_scope: string[] | null
     version: number
   },
 ) {

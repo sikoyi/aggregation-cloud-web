@@ -13,9 +13,12 @@ import {
   type PermissionGroup,
   type Role,
 } from '@/api/rbac'
+import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+
+type ScopeMode = 'all' | 'selected'
 
 const auth = useAuthStore()
 const loading = ref(false)
@@ -34,12 +37,60 @@ const editor = reactive({
   name: '',
   description: '',
   permission_codes: [] as string[],
+  business_platform_scope_mode: 'all' as ScopeMode,
+  business_platform_scope: [] as string[],
+  runtime_platform_scope_mode: 'all' as ScopeMode,
+  runtime_platform_scope: [] as string[],
+  provider_scope_mode: 'all' as ScopeMode,
+  provider_scope: [] as string[],
 })
 
 const allPermissionCodes = computed(() =>
   permissionGroups.value.flatMap((group) => group.items.map((item) => item.code)),
 )
 const selectedCount = computed(() => editor.permission_codes.length)
+
+function resetDataScope() {
+  editor.business_platform_scope_mode = 'all'
+  editor.business_platform_scope = []
+  editor.runtime_platform_scope_mode = 'all'
+  editor.runtime_platform_scope = []
+  editor.provider_scope_mode = 'all'
+  editor.provider_scope = []
+}
+
+function loadDataScope(role: Role) {
+  editor.business_platform_scope_mode = role.business_platform_scope === null ? 'all' : 'selected'
+  editor.business_platform_scope = [...(role.business_platform_scope || [])]
+  editor.runtime_platform_scope_mode = role.runtime_platform_scope === null ? 'all' : 'selected'
+  editor.runtime_platform_scope = [...(role.runtime_platform_scope || [])]
+  editor.provider_scope_mode = role.provider_scope === null ? 'all' : 'selected'
+  editor.provider_scope = [...(role.provider_scope || [])]
+}
+
+function scopePayload(mode: ScopeMode, values: string[]) {
+  return mode === 'all' ? null : [...values]
+}
+
+function validateDataScope() {
+  const scopes = [
+    { mode: editor.business_platform_scope_mode, values: editor.business_platform_scope, label: '业务 App' },
+    { mode: editor.runtime_platform_scope_mode, values: editor.runtime_platform_scope, label: '执行平台' },
+    { mode: editor.provider_scope_mode, values: editor.provider_scope, label: '设备供应商' },
+  ]
+  const emptyScope = scopes.find((item) => item.mode === 'selected' && item.values.length === 0)
+  if (!emptyScope) return true
+  ElMessage.warning(`请至少选择一个${emptyScope.label}，或切换为全部`)
+  return false
+}
+
+function scopeText(scope: string[] | null, options: Array<{ label: string; value: unknown }>) {
+  if (scope === null) return '全部'
+  if (scope.length === 0) return '无'
+  return scope
+    .map((value) => options.find((option) => String(option.value) === value)?.label || value)
+    .join('、')
+}
 
 async function loadPermissionCatalog() {
   try {
@@ -84,6 +135,7 @@ function openCreate() {
   editor.name = ''
   editor.description = ''
   editor.permission_codes = []
+  resetDataScope()
   editorVisible.value = true
 }
 
@@ -93,6 +145,7 @@ function openEdit(role: Role) {
   editor.name = role.name
   editor.description = role.description || ''
   editor.permission_codes = [...role.permission_codes]
+  loadDataScope(role)
   editorVisible.value = true
 }
 
@@ -124,6 +177,7 @@ async function submitEditor() {
     ElMessage.warning('请填写角色名称')
     return
   }
+  if (!validateDataScope()) return
   submitting.value = true
   try {
     if (editorMode.value === 'create') {
@@ -131,6 +185,9 @@ async function submitEditor() {
         name: editor.name.trim(),
         description: editor.description.trim() || undefined,
         permission_codes: editor.permission_codes,
+        business_platform_scope: scopePayload(editor.business_platform_scope_mode, editor.business_platform_scope),
+        runtime_platform_scope: scopePayload(editor.runtime_platform_scope_mode, editor.runtime_platform_scope),
+        provider_scope: scopePayload(editor.provider_scope_mode, editor.provider_scope),
       })
       ElMessage.success('角色已创建')
     } else if (editingRole.value) {
@@ -138,6 +195,9 @@ async function submitEditor() {
         name: editor.name.trim(),
         description: editor.description.trim() || undefined,
         permission_codes: editor.permission_codes,
+        business_platform_scope: scopePayload(editor.business_platform_scope_mode, editor.business_platform_scope),
+        runtime_platform_scope: scopePayload(editor.runtime_platform_scope_mode, editor.runtime_platform_scope),
+        provider_scope: scopePayload(editor.provider_scope_mode, editor.provider_scope),
         version: editingRole.value.version,
       })
       ElMessage.success('角色已更新，相关用户需要重新登录')
@@ -253,6 +313,15 @@ onMounted(async () => {
         <el-table-column label="权限数量" width="110" align="center">
           <template #default="{ row }">{{ row.code === 'super_admin' ? '全部' : row.permission_codes.length }}</template>
         </el-table-column>
+        <el-table-column label="数据范围" min-width="270">
+          <template #default="{ row }">
+            <div class="role-scope-cell">
+              <span><small>业务 App</small>{{ scopeText(row.business_platform_scope, businessPlatformOptions) }}</span>
+              <span><small>执行平台</small>{{ scopeText(row.runtime_platform_scope, runtimePlatformOptions) }}</span>
+              <span><small>设备供应商</small>{{ scopeText(row.provider_scope, providerOptions) }}</span>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="user_count" label="用户数" width="100" align="center" />
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
@@ -292,12 +361,84 @@ onMounted(async () => {
       </div>
     </div>
 
-    <el-dialog v-model="editorVisible" :title="editorMode === 'create' ? '新增角色' : '编辑角色'" width="760px" destroy-on-close>
+    <el-dialog v-model="editorVisible" :title="editorMode === 'create' ? '新增角色' : '编辑角色'" width="920px" destroy-on-close>
       <el-form label-position="top">
         <div class="form-grid">
           <el-form-item label="角色名称" required><el-input v-model="editor.name" maxlength="80" /></el-form-item>
           <el-form-item label="角色说明"><el-input v-model="editor.description" maxlength="500" /></el-form-item>
         </div>
+
+        <section class="data-scope-section">
+          <div class="section-heading">
+            <strong>数据范围</strong>
+            <span>限制该角色可以查看和操作的账号、设备数据</span>
+          </div>
+          <div class="data-scope-grid">
+            <div class="data-scope-item">
+              <div class="data-scope-item__header">
+                <strong>业务 App</strong>
+                <el-radio-group v-model="editor.business_platform_scope_mode" size="small">
+                  <el-radio-button value="all">全部</el-radio-button>
+                  <el-radio-button value="selected">指定</el-radio-button>
+                </el-radio-group>
+              </div>
+              <el-select
+                v-if="editor.business_platform_scope_mode === 'selected'"
+                v-model="editor.business_platform_scope"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="请选择业务 App"
+              >
+                <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+              </el-select>
+              <span v-else class="data-scope-item__all">可访问全部业务 App</span>
+            </div>
+
+            <div class="data-scope-item">
+              <div class="data-scope-item__header">
+                <strong>执行平台</strong>
+                <el-radio-group v-model="editor.runtime_platform_scope_mode" size="small">
+                  <el-radio-button value="all">全部</el-radio-button>
+                  <el-radio-button value="selected">指定</el-radio-button>
+                </el-radio-group>
+              </div>
+              <el-select
+                v-if="editor.runtime_platform_scope_mode === 'selected'"
+                v-model="editor.runtime_platform_scope"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="请选择执行平台"
+              >
+                <el-option v-for="option in runtimePlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+              </el-select>
+              <span v-else class="data-scope-item__all">可访问全部执行平台</span>
+            </div>
+
+            <div class="data-scope-item">
+              <div class="data-scope-item__header">
+                <strong>设备供应商</strong>
+                <el-radio-group v-model="editor.provider_scope_mode" size="small">
+                  <el-radio-button value="all">全部</el-radio-button>
+                  <el-radio-button value="selected">指定</el-radio-button>
+                </el-radio-group>
+              </div>
+              <el-select
+                v-if="editor.provider_scope_mode === 'selected'"
+                v-model="editor.provider_scope"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="请选择设备供应商"
+              >
+                <el-option v-for="option in providerOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+              </el-select>
+              <span v-else class="data-scope-item__all">可访问全部设备供应商</span>
+            </div>
+          </div>
+        </section>
+
         <el-form-item required>
           <template #label>
             <div class="permission-heading">
@@ -353,16 +494,31 @@ onMounted(async () => {
 .role-cell { gap: 10px; }
 .role-cell__icon { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid #cfe3f2; border-radius: 8px; color: #1f668f; background: #f3f9fd; }
 .role-cell strong, .role-cell span { display: block; }
+.role-scope-cell { display: grid; gap: 5px; color: #34495e; font-size: 12px; }
+.role-scope-cell span { display: flex; min-width: 0; align-items: baseline; gap: 8px; white-space: nowrap; }
+.role-scope-cell small { width: 68px; flex: 0 0 68px; color: #7b8794; font-size: 11px; }
+.data-scope-section { margin-bottom: 16px; padding: 14px 0 16px; border-top: 1px solid #e6edf3; border-bottom: 1px solid #e6edf3; }
+.section-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.section-heading strong { color: #1f2933; font-size: 14px; }
+.section-heading span { color: #7b8794; font-size: 12px; }
+.data-scope-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.data-scope-item { min-width: 0; padding: 0 14px; border-left: 1px solid #e6edf3; }
+.data-scope-item:first-child { padding-left: 0; border-left: 0; }
+.data-scope-item:last-child { padding-right: 0; }
+.data-scope-item__header { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.data-scope-item__header strong { color: #52606d; font-size: 12px; }
+.data-scope-item :deep(.el-select) { width: 100%; }
+.data-scope-item__all { display: flex; height: 32px; align-items: center; color: #66788a; font-size: 12px; }
 .role-cell strong { color: #1f2933; font-size: 13px; }
 .role-cell span, .immutable-hint { margin-top: 3px; color: #7b8794; font-size: 12px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .permission-heading { width: 100%; gap: 10px; }
 .permission-heading span:nth-child(2) { margin-left: auto; color: #7b8794; font-size: 12px; }
-.permission-grid { display: grid; width: 100%; max-height: 440px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; overflow-y: auto; }
+.permission-grid { display: grid; width: 100%; max-height: 330px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; overflow-y: auto; }
 .permission-group { overflow: hidden; border: 1px solid #dbe4ed; border-radius: 6px; }
 .permission-group__header { padding: 9px 11px; border-bottom: 1px solid #e6edf3; background: #f8fafc; }
 .permission-group__items { display: flex; min-height: 74px; flex-direction: column; align-items: flex-start; gap: 5px; padding: 10px 12px; }
 .permission-group__items :deep(.el-checkbox) { height: 24px; margin-right: 0; }
-@media (max-width: 900px) { .permission-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .permission-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .data-scope-grid { grid-template-columns: 1fr; gap: 12px; } .data-scope-item { padding: 12px 0 0; border-top: 1px solid #e6edf3; border-left: 0; } .data-scope-item:first-child { padding-top: 0; border-top: 0; } }
 @media (max-width: 620px) { .permission-grid, .form-grid { grid-template-columns: 1fr; } .filter-item, .filter-item--keyword { width: 100%; } }
 </style>
