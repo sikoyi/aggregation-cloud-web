@@ -4,10 +4,12 @@ import {
   CalendarDays,
   Eye,
   EyeOff,
+  Network,
   Pencil,
   PlugZap,
   Plus,
   RefreshCw,
+  Save,
   Trash2,
   WalletCards,
 } from 'lucide-vue-next'
@@ -18,6 +20,8 @@ import { http } from '@/api/http'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+
+type MonitorProvider = 'apify' | 'threads_protocol'
 
 interface ProviderToken {
   id: string
@@ -71,12 +75,25 @@ const businessPlatform = 'threads'
 const loading = ref(false)
 const usageLoading = ref(false)
 const savingEnabled = ref(false)
+const savingProvider = ref(false)
+const testingProtocol = ref(false)
 const submitting = ref(false)
 const testingTokenId = ref('')
 const dialogVisible = ref(false)
 const editingTokenId = ref('')
 const revealedTokenIds = ref<string[]>([])
 const enabled = ref(false)
+const provider = ref<MonitorProvider>('apify')
+const persistedProvider = ref<MonitorProvider>('apify')
+const providerOptions = [
+  { label: 'Apify', value: 'apify' },
+  { label: 'Threads 内部协议', value: 'threads_protocol' },
+]
+const protocolForm = reactive({
+  base_url: '',
+  token: '',
+  token_configured: false,
+})
 const tokens = ref<ProviderToken[]>([])
 const updatedAt = ref('')
 const usage = ref<UsageSummary>(emptyUsage())
@@ -89,6 +106,11 @@ const usageByTokenId = computed(() => {
 })
 const recentDailyUsages = computed(() => usage.value.daily_usages.slice(-14))
 const maxDailyUsage = computed(() => Math.max(...recentDailyUsages.value.map((item) => item.usage_usd), 0.000001))
+const providerDirty = computed(() => provider.value !== persistedProvider.value)
+const providerLabel = computed(() => provider.value === 'threads_protocol' ? '内部协议' : 'Apify')
+const providerDescription = computed(() => provider.value === 'threads_protocol'
+  ? '服务端调用 Threads 协议采集账号资料、帖子和评论；采集账号池由协议服务自行维护。'
+  : '服务端固定使用 Apify Actor，多个 Token 按轮换顺序承接新的监听任务。')
 
 function emptyUsage(): UsageSummary {
   return {
@@ -114,17 +136,23 @@ async function loadConfig() {
   try {
     const data = await http.get<AnyRecord>(endpoint())
     enabled.value = data.enabled === true
+    const loadedProvider = data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
+    provider.value = loadedProvider
+    persistedProvider.value = loadedProvider
+    protocolForm.base_url = String(data.protocol_base_url || '')
+    protocolForm.token = ''
+    protocolForm.token_configured = data.protocol_token_configured === true
     tokens.value = Array.isArray(data.tokens) ? data.tokens as unknown as ProviderToken[] : []
     updatedAt.value = String(data.updated_at || '')
   } catch (err) {
-    notifyError(err, '加载失败', '加载 Apify 配置失败')
+    notifyError(err, '加载失败', '加载账号监听配置失败')
   } finally {
     loading.value = false
   }
 }
 
 async function loadUsage() {
-  if (!tokens.value.length) {
+  if (provider.value !== 'apify' || !tokens.value.length) {
     usage.value = emptyUsage()
     return
   }
@@ -143,7 +171,65 @@ async function refreshAll() {
   await loadUsage()
 }
 
+async function saveProviderConfig() {
+  if (provider.value === 'threads_protocol' && !protocolForm.base_url.trim()) {
+    ElNotification.warning({ title: '请完善配置', message: '请填写 Threads 协议服务地址' })
+    return
+  }
+  savingProvider.value = true
+  try {
+    const payload: AnyRecord = {
+      provider: provider.value,
+      enabled: enabled.value,
+    }
+    if (provider.value === 'threads_protocol') {
+      payload.protocol_base_url = protocolForm.base_url.trim()
+      if (protocolForm.token.trim()) payload.protocol_token = protocolForm.token.trim()
+    }
+    const data = await http.put<AnyRecord>(endpoint(), payload)
+    const savedProvider = data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
+    provider.value = savedProvider
+    persistedProvider.value = savedProvider
+    enabled.value = data.enabled === true
+    protocolForm.base_url = String(data.protocol_base_url || '')
+    protocolForm.token = ''
+    protocolForm.token_configured = data.protocol_token_configured === true
+    updatedAt.value = String(data.updated_at || '')
+    ElNotification.success({ title: '保存成功', message: providerLabel.value + '采集通道已生效' })
+    await loadUsage()
+  } catch (err) {
+    notifyError(err, '保存失败', '账号监听采集通道保存失败')
+  } finally {
+    savingProvider.value = false
+  }
+}
+
+async function testProtocolConnection() {
+  if (!protocolForm.base_url.trim()) {
+    ElNotification.warning({ title: '请完善配置', message: '请填写 Threads 协议服务地址' })
+    return
+  }
+  testingProtocol.value = true
+  try {
+    const payload: AnyRecord = {
+      provider: 'threads_protocol',
+      protocol_base_url: protocolForm.base_url.trim(),
+    }
+    if (protocolForm.token.trim()) payload.protocol_token = protocolForm.token.trim()
+    await http.post(endpoint('/test'), payload)
+    ElNotification.success({ title: '连接成功', message: 'Threads 协议服务可以正常访问' })
+  } catch (err) {
+    notifyError(err, '连接失败', 'Threads 协议服务当前不可用')
+  } finally {
+    testingProtocol.value = false
+  }
+}
+
 async function saveEnabled(value: boolean) {
+  if (providerDirty.value) {
+    ElNotification.warning({ title: '请先保存采集通道', message: '采集通道尚未保存，暂不能修改监听状态' })
+    return
+  }
   savingEnabled.value = true
   try {
     const data = await http.put<AnyRecord>(endpoint(), { enabled: value })
@@ -282,16 +368,75 @@ onMounted(refreshAll)
   <div v-loading="loading" class="monitor-config">
     <div class="monitor-header">
       <div>
-        <div class="monitor-title"><span class="provider-mark">Apify</span><h2>内容监听</h2></div>
-        <p>服务端固定使用 Apify 采集适配器，多个 Token 按轮换顺序承接新的监听任务。</p>
+        <div class="monitor-title"><span class="provider-mark">{{ providerLabel }}</span><h2>账号内容监听</h2></div>
+        <p>{{ providerDescription }}</p>
       </div>
       <div class="monitor-switch">
-        <div><strong>{{ enabled ? '监听已启用' : '监听已停止' }}</strong><span>同时控制账号与帖子监听</span></div>
-        <el-switch :model-value="enabled" :loading="savingEnabled" @change="saveEnabled(Boolean($event))" />
+        <div><strong>{{ enabled ? '监听已启用' : '监听已停止' }}</strong><span>控制当前业务 App 的账号监听</span></div>
+        <el-switch
+          :model-value="enabled"
+          :loading="savingEnabled"
+          :disabled="providerDirty"
+          @change="saveEnabled(Boolean($event))"
+        />
       </div>
     </div>
 
-    <div class="summary-strip" v-loading="usageLoading">
+    <div class="provider-config">
+      <div class="provider-choice">
+        <span class="provider-choice__icon"><Network :size="18" /></span>
+        <div>
+          <strong>采集通道</strong>
+          <small>按业务 App 独立配置，通道失败时不会自动切换</small>
+        </div>
+        <el-segmented v-model="provider" :options="providerOptions" />
+      </div>
+      <div class="provider-actions">
+        <el-button
+          v-if="provider === 'threads_protocol'"
+          :icon="PlugZap"
+          :loading="testingProtocol"
+          @click="testProtocolConnection"
+        >
+          测试连接
+        </el-button>
+        <el-button type="primary" :icon="Save" :loading="savingProvider" @click="saveProviderConfig">保存通道</el-button>
+      </div>
+    </div>
+
+    <div v-if="provider === 'threads_protocol'" class="protocol-config">
+      <el-form label-position="top">
+        <div class="protocol-fields">
+          <el-form-item label="协议服务地址" required>
+            <el-input v-model="protocolForm.base_url" placeholder="例如：http://crawler-service:8000" />
+          </el-form-item>
+          <el-form-item>
+            <template #label>
+              <span class="field-label">
+                服务 Token
+                <el-tag v-if="protocolForm.token_configured" type="success" size="small" effect="light">已配置</el-tag>
+              </span>
+            </template>
+            <el-input
+              v-model="protocolForm.token"
+              type="password"
+              show-password
+              autocomplete="new-password"
+              :placeholder="protocolForm.token_configured ? '已保存，留空保持不变' : '可选：请输入协议服务 Token'"
+            />
+          </el-form-item>
+        </div>
+      </el-form>
+      <el-alert
+        title="协议服务只接收目标账号主页和帖子标识；协议端使用的采集账号池由协议服务自行维护。"
+        type="info"
+        :closable="false"
+        show-icon
+      />
+    </div>
+
+    <template v-if="provider === 'apify'">
+      <div class="summary-strip" v-loading="usageLoading">
       <div class="summary-item">
         <span class="summary-icon summary-icon--blue"><WalletCards :size="18" /></span>
         <div><span>月度总额度</span><strong>{{ money(usage.total_monthly_quota_usd) }} <small>{{ usage.account_count }} 个账号</small></strong></div>
@@ -386,6 +531,8 @@ onMounted(refreshAll)
       </div>
     </div>
 
+    </template>
+
     <div class="config-footer">{{ updatedAt ? `配置最近更新：${formatDate(updatedAt)}` : '配置尚未创建' }}</div>
 
     <el-dialog v-model="dialogVisible" :title="editingTokenId ? '编辑 Apify Token' : '添加 Apify Token'" width="520px" destroy-on-close>
@@ -420,6 +567,21 @@ onMounted(refreshAll)
 .row-actions,
 .enabled-field { display: flex; align-items: center; }
 .monitor-header { justify-content: space-between; gap: 24px; padding-bottom: 16px; border-bottom: 1px solid #e4ebf2; }
+.provider-config,
+.provider-choice,
+.provider-actions,
+.field-label { display: flex; align-items: center; }
+.provider-config { justify-content: space-between; gap: 18px; margin: 16px 0; padding: 14px 16px; border: 1px solid #dce5ed; border-radius: 6px; background: #fff; }
+.provider-choice { min-width: 0; gap: 11px; }
+.provider-choice > div { display: grid; min-width: 170px; gap: 2px; }
+.provider-choice strong { color: #25384a; font-size: 13px; }
+.provider-choice small { color: #8793a3; font-size: 11px; }
+.provider-choice__icon { display: inline-flex; width: 34px; height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 7px; color: #236b97; background: #eaf5fc; }
+.provider-actions { flex: 0 0 auto; gap: 8px; }
+.protocol-config { margin-bottom: 18px; padding: 16px; border: 1px solid #dce5ed; border-radius: 6px; background: #fff; }
+.protocol-fields { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+.protocol-fields :deep(.el-form-item) { margin-bottom: 14px; }
+.field-label { gap: 8px; }
 .monitor-title { gap: 9px; }
 .monitor-title h2 { font-size: 17px; font-weight: 700; }
 .provider-mark { padding: 3px 8px; border-radius: 5px; color: #fff; background: #1d2939; font-size: 12px; font-weight: 700; }
@@ -482,7 +644,12 @@ onMounted(refreshAll)
   .daily-chart { overflow-x: auto; grid-template-columns: repeat(14, minmax(42px, 1fr)); }
 }
 @media (max-width: 680px) {
-  .monitor-header { align-items: flex-start; flex-direction: column; }
+  .monitor-header,
+  .provider-config { align-items: flex-start; flex-direction: column; }
+  .provider-choice { width: 100%; align-items: flex-start; flex-wrap: wrap; }
+  .provider-choice :deep(.el-segmented) { width: 100%; }
+  .provider-actions { width: 100%; justify-content: flex-end; }
+  .protocol-fields { grid-template-columns: 1fr; gap: 0; }
   .monitor-switch { width: 100%; justify-content: space-between; padding: 10px 0 0; border-top: 1px solid #e5ebf1; border-left: 0; }
   .monitor-switch div { text-align: left; }
   .summary-strip { grid-template-columns: 1fr; }
