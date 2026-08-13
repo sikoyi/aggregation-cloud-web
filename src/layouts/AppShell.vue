@@ -117,6 +117,16 @@ const rawNavGroups = [
     ],
   },
   {
+    label: '系统管理',
+    index: 'system',
+    icon: Settings,
+    children: [
+      { label: '用户管理', to: '/users', icon: Users, permission: 'users.view' },
+      { label: '角色管理', to: '/roles', icon: ShieldCheck, permission: 'roles.view' },
+      { label: '系统配置', to: '/settings', icon: Settings, permission: 'system_settings.view' },
+    ],
+  },
+  {
     label: '运行监控',
     index: 'runtime',
     icon: Server,
@@ -125,16 +135,6 @@ const rawNavGroups = [
       { label: '采集同步日志', to: '/benchmark-sync-records', icon: History, permission: 'monitoring.view' },
       { label: '评论数据日志', to: '/content-comments', icon: ScrollText, permission: 'monitoring.view' },
       { label: '操作日志', to: '/operation-logs', icon: History, permission: 'audit.view' },
-    ],
-  },
-  {
-    label: '系统管理',
-    index: 'system',
-    icon: Settings,
-    children: [
-      { label: '用户管理', to: '/users', icon: Users, permission: 'users.view' },
-      { label: '角色管理', to: '/roles', icon: ShieldCheck, permission: 'roles.view' },
-      { label: '系统配置', to: '/settings', icon: Settings, permission: 'system_settings.view' },
     ],
   },
 ]
