@@ -341,7 +341,8 @@ onMounted(async () => {
 .access-page__title h1 { margin: 0; color: #1f2933; font-size: 18px; }
 .access-page__title p { margin: 3px 0 0; color: #66788a; font-size: 12px; }
 .access-page__icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 8px; color: #1f668f; background: #eef8ff; }
-.access-page__commands, .row-actions { gap: 8px; }
+.access-page__commands { gap: 8px; }
+.row-actions { width: 100%; justify-content: center; gap: 8px; }
 .access-page__filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #e6edf3; background: #f8fafc; }
 .filter-item { width: 180px; }
 .filter-item--keyword { width: 300px; }
