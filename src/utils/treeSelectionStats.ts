@@ -43,6 +43,26 @@ export function countFilteredTreeLeaves<T extends SearchableTreeNode>(
   return filteredTreeLeaves(groups, keyword).length
 }
 
+/**
+ * 仅按叶子节点过滤树，分组名称不参与关键词匹配。
+ */
+export function filterTreeByLeafKeyword<
+  T extends SearchableTreeNode,
+  G extends SearchableTreeGroup<T>,
+>(groups: G[], keyword: unknown): G[] {
+  const normalizedKeyword = String(keyword || '').trim().toLowerCase()
+  if (!normalizedKeyword) return groups
+
+  return groups
+    .map((group) => ({
+      ...group,
+      children: (group.children || []).filter(
+        (child) => matchesKeyword(child, normalizedKeyword),
+      ),
+    }))
+    .filter((group) => Boolean(group.children?.length)) as G[]
+}
+
 export function filterTreeByAccountPresence<
   T extends AccountAwareTreeNode,
   G extends SearchableTreeGroup<T>,

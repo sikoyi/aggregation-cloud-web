@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   countFilteredTreeLeaves,
   filterTreeByAccountPresence,
+  filterTreeByLeafKeyword,
   filteredTreeLeaves,
   mergeFilteredTreeSelection,
   toggleFilteredTreeSelection,
@@ -48,6 +49,15 @@ describe('树形选择器数量统计', () => {
     ])
   })
 
+  it('设备搜索只匹配叶子节点并移除空分组', () => {
+    expect(
+      filterTreeByLeafKeyword(groups, 'provider-003').map((group) => ({
+        label: group.label,
+        children: group.children?.map((child) => child.label),
+      })),
+    ).toEqual([{ label: '日本设备', children: ['窗口 C'] }])
+    expect(filterTreeByLeafKeyword(groups, '韩国')).toEqual([])
+  })
   it('搜索后分组全选只更新可见节点并保留隐藏选择', () => {
     expect(
       mergeFilteredTreeSelection(['slot-3'], ['slot-1', 'slot-2', 'slot-3'], [

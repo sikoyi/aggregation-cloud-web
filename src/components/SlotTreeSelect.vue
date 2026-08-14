@@ -9,6 +9,7 @@ import { statusLabel, statusTagType } from '@/utils/format'
 import {
   countFilteredTreeLeaves,
   filterTreeByAccountPresence,
+  filterTreeByLeafKeyword,
   filteredTreeLeaves,
   mergeFilteredTreeSelection,
   toggleFilteredTreeSelection,
@@ -102,13 +103,14 @@ const visibleTreeData = computed(() => {
     ? fixedTreeData.value.filter((node) => selectedIds.has(node.id))
     : fixedTreeData.value
   const accountFilter = props.showAccountPresenceFilter ? accountPresenceFilter.value : 'all'
-  return filterTreeByAccountPresence(grouped, accountFilter).map((node) => ({
+  const accountFiltered = filterTreeByAccountPresence(grouped, accountFilter)
+  return filterTreeByLeafKeyword(accountFiltered, searchKeyword.value).map((node) => ({
     ...node,
     deviceCount: node.children?.length || 0,
   }))
 })
 const filteredSlotCount = computed(() =>
-  countFilteredTreeLeaves(visibleTreeData.value, searchKeyword.value),
+  countFilteredTreeLeaves(visibleTreeData.value, ''),
 )
 const filterSignature = computed(() => JSON.stringify({
   runtime_platform: String(props.filters?.runtime_platform || ''),
@@ -162,6 +164,7 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
 function filterNode(value: string, data: AnyRecord) {
   const keyword = value.trim().toLowerCase()
   if (!keyword) return true
+  if (Array.isArray(data.children)) return true
   return String(data.searchText || data.label).toLowerCase().includes(keyword)
 }
 
