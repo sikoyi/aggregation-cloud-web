@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { FileImage, Film, RotateCcw, Trash2, UploadCloud } from 'lucide-vue-next'
 import { ElNotification, type UploadFile } from 'element-plus'
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import { uploadMediaAssets, type MediaAssetUploadResult } from '@/api/mediaAssets'
-import { businessPlatformOptions, mediaAssetStatusOptions } from '@/config/options'
+import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
+import { mediaAssetStatusOptions } from '@/config/options'
 
 interface UploadItem {
   id: string
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   'uploading-change': [value: boolean]
 }>()
 
+const businessPlatformOptions = useScopedBusinessPlatformOptions()
 const form = reactive({
   businessPlatform: 'threads',
   status: 'enabled',
@@ -167,6 +169,13 @@ async function startUpload() {
     emit('uploading-change', false)
   }
 }
+
+watch(businessPlatformOptions, (options) => {
+  const allowedValues = options.map((option) => String(option.value))
+  if (!allowedValues.includes(form.businessPlatform)) {
+    form.businessPlatform = allowedValues[0] || ''
+  }
+}, { immediate: true })
 
 onBeforeUnmount(releasePreviews)
 </script>

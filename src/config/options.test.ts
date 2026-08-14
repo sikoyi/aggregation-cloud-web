@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   businessPlatformLabel,
   businessPlatformOptions,
+  businessPlatformOptionsForScope,
   providerOptions,
   registrationCountryOptions,
   registrationProviderOptions,
@@ -49,5 +50,19 @@ describe('business platform options', () => {
   it('displays X(Twitter) while preserving the x API value', () => {
     expect(businessPlatformOptions).toContainEqual({ label: 'X(Twitter)', value: 'x' })
     expect(businessPlatformLabel('x')).toBe('X(Twitter)')
+  })
+
+  it('keeps all options for an unrestricted account', () => {
+    expect(businessPlatformOptionsForScope(null)).toEqual(businessPlatformOptions)
+  })
+
+  it('only exposes options included in the current account scope', () => {
+    expect(businessPlatformOptionsForScope(['instagram'])).toEqual([
+      { label: 'Instagram', value: 'instagram' },
+    ])
+  })
+
+  it('exposes no options when the current account scope is empty', () => {
+    expect(businessPlatformOptionsForScope([])).toEqual([])
   })
 })

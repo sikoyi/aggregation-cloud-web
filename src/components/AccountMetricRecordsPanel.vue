@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { RefreshCw, Search, SlidersHorizontal } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
-import { businessPlatformLabel, businessPlatformOptions } from '@/config/options'
+import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
+import { businessPlatformLabel } from '@/config/options'
 import type { PageResult } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -27,6 +28,7 @@ interface AccountMetricRecord {
   task_run_id?: string | null
 }
 
+const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const loading = ref(false)
 const rows = ref<AccountMetricRecord[]>([])
 const total = ref(0)
@@ -40,6 +42,14 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
     capturedRange: [] as string[],
   },
 )
+watch(availableBusinessPlatformOptions, (options) => {
+  const value = String(filters.businessPlatform || '')
+  const allowedValues = options.map((option) => String(option.value))
+  if (value && !allowedValues.includes(value)) {
+    filters.businessPlatform = ''
+  }
+}, { immediate: true })
+
 const capturedRange = computed<[Date, Date] | null>({
   get: () => {
     if (filters.capturedRange.length !== 2) return null
@@ -131,7 +141,7 @@ onMounted(loadRows)
         />
         <el-select v-model="filters.businessPlatform" clearable placeholder="业务 App">
           <el-option
-            v-for="item in businessPlatformOptions"
+            v-for="item in availableBusinessPlatformOptions"
             :key="String(item.value)"
             :label="item.label"
             :value="item.value"

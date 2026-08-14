@@ -4,6 +4,8 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
+import { filterOptionsByScope, isBusinessPlatformFieldKey } from '@/config/options'
+import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
 
@@ -25,6 +27,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: AnyRecord]
 }>()
 
+const auth = useAuthStore()
 const templateLoading = ref(false)
 const scriptScopeLoading = ref(false)
 const scriptScope = ref<AnyRecord | null>(null)
@@ -143,15 +146,26 @@ function isFieldDisabled(field: FieldConfig) {
   )
 }
 
+function scopedBaseFieldOptions(field: FieldConfig) {
+  const options = field.options || []
+  if (!isBusinessPlatformFieldKey(field.key)) return options
+  return filterOptionsByScope(options, auth.user?.business_platform_scope)
+}
+
 function fieldOptions(field: FieldConfig) {
-  if (!field.scriptScopeKey) return field.options || []
+  const options = scopedBaseFieldOptions(field)
+  if (!field.scriptScopeKey) return options
 
   const rawValues = scriptScope.value?.[field.scriptScopeKey]
   const values = Array.isArray(rawValues)
     ? rawValues.map((value) => String(value)).filter(Boolean)
     : []
-  const configured = new Map((field.options || []).map((option) => [String(option.value), option]))
-  return values.map((value) => configured.get(value) || { label: value, value })
+  const configured = new Map(options.map((option) => [String(option.value), option]))
+  return values.flatMap((value) => {
+    const option = configured.get(value)
+    if (option) return [option]
+    return isBusinessPlatformFieldKey(field.key) ? [] : [{ label: value, value }]
+  })
 }
 
 function applyScriptScopeDefaults(scope: AnyRecord | null) {
@@ -271,6 +285,37 @@ function fieldColumnSpan(field: FieldConfig) {
   if (field.span === 2 || ['datetimeRange', 'scriptParams', 'templateParams', 'slotTree', 'textImport', 'file'].includes(field.type || '')) return 24
   return 12
 }
+
+watch(
+  () => [
+    auth.user?.business_platform_scope,
+    props.fields
+      .filter((field) => isBusinessPlatformFieldKey(field.key))
+      .map((field) => `${field.key}:${JSON.stringify(props.modelValue[field.key])}`)
+      .join('|'),
+  ],
+  () => {
+    const updates: AnyRecord = {}
+    for (const field of props.fields.filter((item) => isBusinessPlatformFieldKey(item.key))) {
+      const allowedValues = scopedBaseFieldOptions(field).map((option) => String(option.value))
+      const current = props.modelValue[field.key]
+      if (field.multiple) {
+        const values = Array.isArray(current) ? current.map(String) : []
+        const retained = values.filter((value) => allowedValues.includes(value))
+        if (retained.join('|') !== values.join('|')) updates[field.key] = retained
+        continue
+      }
+      const value = String(current || '')
+      if (value && !allowedValues.includes(value)) {
+        updates[field.key] = field.required && allowedValues.length ? allowedValues[0] : ''
+      }
+    }
+    if (Object.keys(updates).length) {
+      emit('update:modelValue', { ...props.modelValue, ...updates })
+    }
+  },
+  { immediate: true, deep: true },
+)
 
 watch(
   () => props.fields.map((field) => `${field.key}:${isVisibleByRule(field)}`).join('|'),

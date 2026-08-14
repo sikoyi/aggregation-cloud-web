@@ -27,6 +27,7 @@ import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPane
 import StatusBadge from '@/components/StatusBadge.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
+import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import {
   accountCountryOptions,
   businessPlatformOptions,
@@ -72,6 +73,7 @@ const commentReplyModeOptions = [
 ]
 
 const auth = useAuthStore()
+const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const loading = ref(false)
 const submitting = ref(false)
 const disablingAccountId = ref('')
@@ -107,6 +109,14 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
     keyword: '',
   },
 )
+watch(availableBusinessPlatformOptions, (options) => {
+  const value = String(filters.business_platform || '')
+  const allowedValues = options.map((option) => String(option.value))
+  if (value && !allowedValues.includes(value)) {
+    filters.business_platform = ''
+  }
+}, { immediate: true })
+
 const monitorVisible = ref(false)
 const monitorFeature = ref<'account_data' | 'benchmark'>('account_data')
 const monitorAccountLocked = ref(false)
@@ -572,7 +582,7 @@ onBeforeUnmount(() => {
             <div class="filter-grid">
               <el-form-item label="业务 App">
                 <el-select v-model="filters.business_platform" clearable placeholder="全部">
-                  <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                  <el-option v-for="option in availableBusinessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
                 </el-select>
               </el-form-item>
               <el-form-item label="国家">
@@ -893,7 +903,7 @@ onBeforeUnmount(() => {
             <div class="dialog-section-title">账号数据监听</div>
             <el-form-item v-if="!monitorAccountLocked" label="业务 App">
               <el-select v-model="monitorForm.business_platform" disabled class="w-full">
-                <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                <el-option v-for="option in availableBusinessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
               </el-select>
             </el-form-item>
             <el-form-item label="账号主页链接" required>

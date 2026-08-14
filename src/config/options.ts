@@ -6,6 +6,27 @@ export const businessPlatformOptions: SelectOption[] = [
   { label: 'Instagram', value: 'instagram' },
 ]
 
+export function filterOptionsByScope(
+  options: SelectOption[],
+  scope: string[] | null | undefined,
+): SelectOption[] {
+  if (scope == null) return options
+  const allowedValues = new Set(scope.map(String))
+  return options.filter((option) => allowedValues.has(String(option.value)))
+}
+
+export function businessPlatformOptionsForScope(scope: string[] | null | undefined) {
+  return filterOptionsByScope(businessPlatformOptions, scope)
+}
+
+export function isBusinessPlatformFieldKey(key: string) {
+  return [
+    'business_platform',
+    'supported_business_platforms',
+    'default_business_platform',
+  ].includes(key)
+}
+
 export function businessPlatformLabel(value: unknown) {
   return businessPlatformOptions.find((item) => String(item.value) === String(value))?.label
     || String(value || '-')

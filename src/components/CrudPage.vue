@@ -39,6 +39,7 @@ import TemplateTableCell from '@/components/TemplateTableCell.vue'
 import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
+import { filterOptionsByScope, isBusinessPlatformFieldKey } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
@@ -258,6 +259,21 @@ const permissionModule = computed(
 function canResource(action: string) {
   if (!permissionModule.value) return true
   return auth.can(`${permissionModule.value}.${action}`)
+}
+
+function scopedFieldOptions(field: FieldConfig) {
+  const options = field.options || []
+  if (!isBusinessPlatformFieldKey(field.key)) return options
+  return filterOptionsByScope(options, auth.user?.business_platform_scope)
+}
+
+function normalizeScopedBusinessPlatformFilters() {
+  for (const field of (props.config.filters || []).filter((item) => isBusinessPlatformFieldKey(item.key))) {
+    const value = String(filters[field.key] || '')
+    if (!value) continue
+    const allowedValues = scopedFieldOptions(field).map((option) => String(option.value))
+    if (!allowedValues.includes(value)) filters[field.key] = ''
+  }
 }
 
 function actionPermission(action: RowActionConfig) {
@@ -584,6 +600,7 @@ function buildListParams() {
 }
 
 async function loadRows(options?: { silent?: boolean } | number) {
+  normalizeScopedBusinessPlatformFilters()
   const silent = typeof options === 'object' && Boolean(options?.silent)
   const requestId = ++listRequestId
   if (!silent) {
@@ -1226,7 +1243,7 @@ onBeforeUnmount(() => {
                 @change="applyFilters"
               >
                 <el-option
-                  v-for="option in filter.options || []"
+                  v-for="option in scopedFieldOptions(filter)"
                   :key="String(option.value)"
                   :label="option.label"
                   :value="String(option.value)"

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { Save } from 'lucide-vue-next'
 import { ElNotification } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider, type EnabledAiProviderOption } from '@/api/interactionAi'
 import { cacheSystemDefaults, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import { http } from '@/api/http'
+import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import {
-  businessPlatformOptions,
   providerOptions,
   runtimePlatformOptions,
 } from '@/config/options'
@@ -15,6 +15,7 @@ import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
 const aiProviderOptions = ref<EnabledAiProviderOption[]>([])
+const businessPlatformOptions = useScopedBusinessPlatformOptions()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -68,6 +69,16 @@ async function saveConfig() {
     saving.value = false
   }
 }
+
+watch(
+  [businessPlatformOptions, () => form.default_business_platform],
+  ([options, currentValue]) => {
+    const value = String(currentValue || '')
+    const allowedValues = options.map((option) => String(option.value))
+    if (value && !allowedValues.includes(value)) form.default_business_platform = null
+  },
+  { immediate: true },
+)
 
 onMounted(loadConfig)
 defineExpose({ loadConfig })

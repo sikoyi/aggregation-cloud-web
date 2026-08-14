@@ -13,6 +13,7 @@ import {
   type PermissionGroup,
   type Role,
 } from '@/api/rbac'
+import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
@@ -21,6 +22,7 @@ import { notifyError } from '@/utils/notify'
 type ScopeMode = 'all' | 'selected'
 
 const auth = useAuthStore()
+const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const loading = ref(false)
 const submitting = ref(false)
 const roles = ref<Role[]>([])
@@ -390,7 +392,7 @@ onMounted(async () => {
                 collapse-tags-tooltip
                 placeholder="请选择业务 App"
               >
-                <el-option v-for="option in businessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                <el-option v-for="option in availableBusinessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
               </el-select>
               <span v-else class="data-scope-item__all">可访问全部业务 App</span>
             </div>
