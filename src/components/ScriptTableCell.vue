@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AppWindow, Building2, Clock3, Code2, Layers3, Monitor } from 'lucide-vue-next'
+import { AppWindow, Building2, Clock3, Code2, Layers3, Monitor, UserRoundCog } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import {
@@ -7,6 +7,7 @@ import {
   providerOptions,
   runtimePlatformOptions,
   scriptPurposeOptions,
+  scriptAccountUsageModeOptions,
 } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig, SelectOption } from '@/types/crud'
@@ -74,6 +75,9 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
       <strong>{{ optionLabel(scriptPurposeOptions, row.purpose) }}</strong>
     </div>
     <div class="script-scope__items">
+      <span :title="optionLabel(scriptAccountUsageModeOptions, row.account_usage_mode)">
+        <UserRoundCog />{{ optionLabel(scriptAccountUsageModeOptions, row.account_usage_mode) }}
+      </span>
       <span :title="optionLabels(businessPlatformOptions, row.supported_business_platforms)">
         <AppWindow />{{ optionLabels(businessPlatformOptions, row.supported_business_platforms) }}
       </span>

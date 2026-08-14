@@ -6,6 +6,13 @@ export const businessPlatformOptions: SelectOption[] = [
   { label: 'Instagram', value: 'instagram' },
 ]
 
+export const scriptAccountUsageModeOptions: SelectOption[] = [
+  { label: '使用设备当前账号', value: 'slot_current' },
+  { label: '运营选择账号', value: 'operator_selected' },
+  { label: '脚本创建账号', value: 'runtime_created' },
+  { label: '不需要账号', value: 'none' },
+]
+
 export function filterOptionsByScope(
   options: SelectOption[],
   scope: string[] | null | undefined,

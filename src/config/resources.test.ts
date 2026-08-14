@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { proxyProtocolOptions, scriptPurposeOptions } from './options'
+import { proxyProtocolOptions, scriptAccountUsageModeOptions, scriptPurposeOptions } from './options'
 import { resources } from './resources'
 
 
@@ -36,6 +36,36 @@ describe('脚本执行平台约束', () => {
       script_key: 'threads-cloud-phone',
       supported_runtime_platforms: ['cloud_phone'],
     })).toBe('云手机')
+  })
+})
+
+describe('脚本账号使用方式', () => {
+  it('新增和编辑均由脚本开发人员明确维护账号来源', () => {
+    const createField = (resources.scripts.createFields || [])
+      .find((field) => field.key === 'account_usage_mode')
+    const updateField = (resources.scripts.updateFields || [])
+      .find((field) => field.key === 'account_usage_mode')
+
+    expect(scriptAccountUsageModeOptions.map((option) => option.value)).toEqual([
+      'slot_current',
+      'operator_selected',
+      'runtime_created',
+      'none',
+    ])
+    expect(createField?.defaultValue).toBe('slot_current')
+    expect(createField?.required).toBe(true)
+    expect(updateField?.required).toBe(true)
+  })
+
+  it('提交脚本时保留账号使用方式', () => {
+    const body = resources.scripts.createBody?.({
+      script_key: 'threads-login-check',
+      name: '登录检测',
+      account_usage_mode: 'slot_current',
+      supported_runtime_platforms: 'fingerprint_browser',
+    }) as Record<string, unknown>
+
+    expect(body.account_usage_mode).toBe('slot_current')
   })
 })
 
