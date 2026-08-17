@@ -4,7 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { http } from '@/api/http'
 import RelationCell from '@/components/RelationCell.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import type { AnyRecord } from '@/types/api'
+import type { AnyRecord, PageResult } from '@/types/api'
 import { businessPlatformLabel } from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
@@ -25,6 +25,10 @@ const task = ref<AnyRecord | null>(null)
 const events = ref<AnyRecord[]>([])
 const assignments = ref<AnyRecord[]>([])
 const children = ref<AnyRecord[]>([])
+const childLoading = ref(false)
+const childPage = ref(1)
+const childPageSize = ref(20)
+const childTotal = ref(0)
 const paramRows = ref<Array<{ key: string; label: string; value: string }>>([])
 const activeTab = ref('basic')
 const currentTaskId = ref<string | null>(null)
@@ -80,6 +84,7 @@ const HIDDEN_PARAM_KEYS = new Set([
   'slot_id',
   'selected_account_id',
   'selected_account_ids',
+  '_generation_plan',
 ])
 
 interface ScriptParamDefinition {
@@ -236,21 +241,52 @@ function timelineTitle(event: AnyRecord) {
   return String(event.event_type || '任务事件')
 }
 
+async function loadChildren(taskId: string) {
+  childLoading.value = true
+  try {
+    const childData = await http.get<PageResult<AnyRecord>>(
+      '/api/tasks/' + encodeURIComponent(taskId) + '/children',
+      { page: childPage.value, page_size: childPageSize.value },
+    )
+    children.value = childData.items || []
+    childTotal.value = Number(childData.total || 0)
+  } catch (err) {
+    error.value = notifyError(err, '加载失败', '加载设备执行记录失败')
+  } finally {
+    childLoading.value = false
+  }
+}
+
+async function changeChildPage(page: number) {
+  if (!currentTaskId.value) return
+  childPage.value = page
+  await loadChildren(currentTaskId.value)
+}
+
+async function changeChildPageSize(pageSize: number) {
+  if (!currentTaskId.value) return
+  childPageSize.value = pageSize
+  childPage.value = 1
+  await loadChildren(currentTaskId.value)
+}
+
 async function loadDetail(taskId: string) {
   loading.value = true
   error.value = ''
   paramRows.value = []
+  children.value = []
+  childTotal.value = 0
+  childPage.value = 1
   try {
-    const [detail, eventData, assignmentData, childData] = await Promise.all([
+    const [detail, eventData, assignmentData] = await Promise.all([
       http.get<AnyRecord>(`/api/tasks/${encodeURIComponent(taskId)}`),
       http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/events`),
       http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/assignments`),
-      http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/children`),
     ])
     task.value = detail
     events.value = eventData.items || []
     assignments.value = assignmentData.items || []
-    children.value = childData.items || []
+    await loadChildren(taskId)
     paramRows.value = await buildParamRows(detail)
   } catch (err) {
     error.value = notifyError(err, '加载失败', '加载任务详情失败')
@@ -350,7 +386,7 @@ watch(
           </el-tab-pane>
 
           <el-tab-pane label="设备执行记录" name="children">
-            <el-table :data="children" border stripe empty-text="暂无设备执行记录">
+            <el-table v-loading="childLoading" :data="children" border stripe empty-text="暂无设备执行记录">
               <el-table-column label="子任务 ID" min-width="130">
                 <template #default="{ row }">
                   <span class="font-mono text-xs" :title="String(row.id || '')">{{ truncateId(row.id) }}</span>
@@ -384,6 +420,18 @@ watch(
                 </template>
               </el-table-column>
             </el-table>
+            <div class="task-child-pagination">
+              <el-pagination
+                v-model:current-page="childPage"
+                v-model:page-size="childPageSize"
+                :page-sizes="[20, 50, 100]"
+                :total="childTotal"
+                layout="total, sizes, prev, pager, next"
+                background
+                @current-change="changeChildPage"
+                @size-change="changeChildPageSize"
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane label="执行时间线" name="events">
@@ -460,6 +508,12 @@ watch(
   color: #1f2937;
   font-size: 13px;
   font-weight: 700;
+}
+
+.task-child-pagination {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 14px;
 }
 
 .task-device-cell {
