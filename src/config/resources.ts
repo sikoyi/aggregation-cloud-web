@@ -221,7 +221,9 @@ const runtimeSlotSyncRemoteSelect = {
   pageSize: 100,
   multiple: true,
   optionDisabled: (runtime: AnyRecord) => (
-    runtime.status !== "online" || runtime.runtime_platform !== "fingerprint_browser"
+    runtime.lifecycle_status === "retired"
+    || runtime.status !== "online"
+    || runtime.runtime_platform !== "fingerprint_browser"
   ),
   emptyText: "暂无在线指纹浏览器 Runtime，请先启动脚本端并完成连接",
 };
@@ -241,6 +243,7 @@ const onlineFingerprintRuntimeRemoteSelect = {
   }),
   matchesContext: (runtime: AnyRecord, context?: AnyRecord) => (
     runtime.status === "online"
+    && runtime.lifecycle_status !== "retired"
     && runtime.runtime_platform === "fingerprint_browser"
     && (!context?.provider || runtime.provider === context.provider)
   ),
@@ -3654,7 +3657,17 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "runtime_id", label: "Runtime ID" },
       { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
-      { key: "status", label: "状态", type: "status" },
+      { key: "status", label: "连接状态", type: "status", align: "center" },
+      {
+        key: "lifecycle_status",
+        label: "生命周期",
+        type: "status",
+        align: "center",
+        options: [
+          { label: "正常", value: "active" },
+          { label: "已退役", value: "retired" },
+        ],
+      },
       { key: "max_concurrent_slots", label: "并发上限" },
       { key: "slot_total", label: "设备总数" },
       { key: "slot_idle", label: "空闲设备" },
@@ -3680,8 +3693,17 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: runtimePlatformOptions,
       },
+      {
+        key: "lifecycle_status",
+        label: "生命周期",
+        type: "select",
+        options: [
+          { label: "正常", value: "active" },
+          { label: "已退役", value: "retired" },
+        ],
+      },
     ],
-    inlineActionKeys: ["detail"],
+    inlineActionKeys: ["detail", "sync", "retire", "restore"],
     rowActions: [
       {
         key: "detail",
@@ -3690,6 +3712,43 @@ export const resources: Record<string, ResourceConfig> = {
         icon: "list",
         path: (record) => `/api/runtimes/${record.id}`,
         refresh: false,
+      },
+      {
+        key: "sync",
+        permission: "runtimes.sync",
+        label: "主动同步",
+        method: "POST",
+        icon: "rotate",
+        visible: (record) => record.lifecycle_status !== "retired" && record.status === "online",
+        path: () => "/api/runtimes/request-slot-sync",
+        body: (_payload, record) => ({ runtime_instance_ids: [String(record.id)] }),
+      },
+      {
+        key: "retire",
+        permission: "runtimes.lifecycle",
+        label: "退役",
+        method: "POST",
+        icon: "powerOff",
+        variant: "danger",
+        visible: (record) => record.lifecycle_status !== "retired",
+        path: (record) => `/api/runtimes/${record.id}/retire`,
+        previewPath: (record) => `/api/runtimes/${record.id}/retirement-preview`,
+        confirmFromPreview: (preview, record) => (
+          `确认退役 Runtime「${record.runtime_id}」？历史绑定 ${preview.historical_binding_count || 0} 台，`
+          + `仅由它持有 ${preview.exclusive_binding_count || 0} 台，`
+          + `存在非终态任务 ${preview.active_task_slot_count || 0} 台，`
+          + `关联账号 ${preview.bound_account_count || 0} 个。在线连接会立即关闭，设备将在后续权威快照确认后清理。`
+        ),
+      },
+      {
+        key: "restore",
+        permission: "runtimes.lifecycle",
+        label: "恢复启用",
+        method: "POST",
+        icon: "rotate",
+        visible: (record) => record.lifecycle_status === "retired",
+        path: (record) => `/api/runtimes/${record.id}/restore`,
+        confirm: (record) => `确认恢复 Runtime「${record.runtime_id}」？恢复后需要重新启动 Agent 建立连接。`,
       },
       {
         key: "slots",

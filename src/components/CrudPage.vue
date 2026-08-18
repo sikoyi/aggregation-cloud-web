@@ -1085,8 +1085,17 @@ async function submitBatchAction() {
 }
 
 async function executeRequest(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
-  const message = typeof action.confirm === 'function' ? action.confirm(record) : action.confirm
+  let message = typeof action.confirm === 'function' ? action.confirm(record) : action.confirm
   const isDanger = action.variant === 'danger' || action.method === 'DELETE'
+  if (action.previewPath && action.confirmFromPreview) {
+    try {
+      const preview = await http.get<AnyRecord>(action.previewPath(record))
+      message = action.confirmFromPreview(preview, record)
+    } catch (err) {
+      error.value = notifyError(err, '预览失败', '无法加载操作影响范围')
+      return
+    }
+  }
   if (!(await confirmAction(message, isDanger ? 'error' : 'warning'))) return
 
   submitting.value = true

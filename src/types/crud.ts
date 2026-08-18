@@ -209,6 +209,8 @@ export interface RowActionConfig {
   params?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => AnyRecord)
   batchParams?: AnyRecord | ((payload: AnyRecord, records: AnyRecord[]) => AnyRecord)
   confirm?: string | ((record: AnyRecord) => string)
+  previewPath?: (record: AnyRecord) => string
+  confirmFromPreview?: (data: AnyRecord, record: AnyRecord) => string
   refresh?: boolean
   variant?: 'default' | 'danger' | 'success'
   icon?: string
