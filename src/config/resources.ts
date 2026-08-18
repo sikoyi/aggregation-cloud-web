@@ -1226,6 +1226,26 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     rowActions: [
       {
+        key: "sync-detail",
+        label: "同步详情",
+        visible: (record) => Boolean(record.control_command_id),
+        method: "GET",
+        icon: "list",
+        path: (record) =>
+          `/api/runtime-controls/${encodeURIComponent(String(record.control_command_id))}/targets`,
+        showResult: true,
+        refresh: false,
+        resultColumns: [
+          { key: "target_role", label: "角色", type: "status", width: 105, align: "center" },
+          { key: "runtime_id", label: "Runtime", minWidth: 180 },
+          { key: "runtime_status", label: "在线状态", type: "status", width: 110, align: "center" },
+          { key: "status", label: "同步状态", type: "status", width: 125, align: "center" },
+          { key: "attempts", label: "通知次数", width: 100, align: "center" },
+          { key: "last_error", label: "异常信息", minWidth: 220 },
+          { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 175 },
+        ],
+      },
+      {
         key: "account-onboarding",
         label: "上号",
         visible: canOnboardAccount,
@@ -1619,7 +1639,7 @@ export const resources: Record<string, ResourceConfig> = {
         },
       },
     ],
-    inlineActionKeys: ["retry-sync"],
+    inlineActionKeys: ["sync-detail", "retry-sync"],
   },
 
   slotGroups: {

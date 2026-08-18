@@ -31,6 +31,8 @@ const STATUS_LABELS: Record<string, string> = {
   offline: '离线',
   online: '在线',
   pending: '待处理',
+  propagating: '同步收敛中',
+  notified: '已通知',
   queued: '排队中',
   rate_limited: '限流中',
   restricted: '封禁',
@@ -49,10 +51,12 @@ const STATUS_LABELS: Record<string, string> = {
   waiting_runtime: '等待 Runtime',
   waiting_capture: '等待采集确认',
   waiting_slot: '等待设备',
+  executor: '执行方',
+  observer: '观察方',
 }
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used']
-const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'generating']
+const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'generating', 'propagating', 'notified']
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked']
 const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked']
 
