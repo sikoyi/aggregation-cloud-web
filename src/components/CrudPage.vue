@@ -593,7 +593,16 @@ function buildListParams() {
     page: page.value,
     page_size: pageSize.value,
   }
-  Object.entries(filters).forEach(([key, value]) => {
+  ;(props.config.filters || []).forEach((filter) => {
+    const value = filters[filter.key]
+    if (filter.type === 'datetimeRange') {
+      // 日期范围在前端保存为一个数组，请求时拆成后端可直接建立索引条件的起止参数。
+      const range = Array.isArray(value) ? value.filter(Boolean) : []
+      if (range[0]) params[filter.key] = new Date(String(range[0])).toISOString()
+      if (range[1] && filter.endKey) params[filter.endKey] = new Date(String(range[1])).toISOString()
+      return
+    }
+    const key = filter.key
     if (value !== '' && value !== undefined && value !== null) params[key] = value
   })
   return params
@@ -1222,7 +1231,12 @@ onBeforeUnmount(() => {
       </div>
       <el-form inline label-position="left" class="compact-filter-form">
         <div class="filter-grid">
-          <el-form-item v-for="filter in config.filters" :key="filter.key" :label="filter.label">
+          <el-form-item
+            v-for="filter in config.filters"
+            :key="filter.key"
+            :label="filter.label"
+            :class="{ 'filter-grid__item--wide': filter.type === 'datetimeRange' }"
+          >
               <RemoteSelect
                 v-if="filter.type === 'remoteSelect' && filter.remote"
                 :model-value="filters[filter.key]"
@@ -1249,6 +1263,20 @@ onBeforeUnmount(() => {
                   :value="String(option.value)"
                 />
               </el-select>
+              <el-date-picker
+                v-else-if="filter.type === 'datetimeRange'"
+                :model-value="Array.isArray(filters[filter.key]) ? filters[filter.key] : []"
+                class="w-full"
+                type="datetimerange"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DDTHH:mm:ss"
+                range-separator="至"
+                start-placeholder="开始时间"
+                end-placeholder="结束时间"
+                clearable
+                @update:model-value="filters[filter.key] = $event || []; clearTableSelection()"
+                @change="applyFilters"
+              />
               <el-input
                 v-else
                 :model-value="String(filters[filter.key] ?? '')"
@@ -1694,8 +1722,13 @@ onBeforeUnmount(() => {
 }
 
 .filter-grid :deep(.el-select),
-.filter-grid :deep(.el-input) {
+.filter-grid :deep(.el-input),
+.filter-grid :deep(.el-date-editor) {
   width: 100%;
+}
+
+.filter-grid :deep(.filter-grid__item--wide) {
+  grid-column: span 2;
 }
 
 .filter-actions {
@@ -1980,6 +2013,10 @@ onBeforeUnmount(() => {
 
   .filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .filter-grid :deep(.filter-grid__item--wide) {
+    grid-column: span 1;
   }
 
   .batch-toolbar {

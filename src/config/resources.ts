@@ -3396,6 +3396,16 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     filters: [
       {
+        key: "task_id",
+        label: "任务 ID",
+        placeholder: "请输入任务 ID",
+      },
+      {
+        key: "task_title",
+        label: "任务名称",
+        placeholder: "请输入任务名称",
+      },
+      {
         key: "status",
         label: "状态",
         type: "select",
@@ -3403,9 +3413,21 @@ export const resources: Record<string, ResourceConfig> = {
       },
       {
         key: "business_platform",
-        label: "业务平台",
+        label: "业务 App",
         type: "select",
         options: businessPlatformOptions,
+      },
+      {
+        key: "runtime_platform",
+        label: "执行平台",
+        type: "select",
+        options: runtimePlatformOptions,
+      },
+      {
+        key: "provider",
+        label: "设备供应商",
+        type: "select",
+        options: providerOptions,
       },
       {
         key: "script_key",
@@ -3422,9 +3444,16 @@ export const resources: Record<string, ResourceConfig> = {
         placeholder: "全部模板",
       },
       {
-        key: "keyword",
-        label: "关键词",
-        placeholder: "任务 ID / 标题 / 错误信息",
+        key: "operator_keyword",
+        label: "操作员",
+        placeholder: "姓名 / 登录账号",
+      },
+      {
+        key: "created_from",
+        endKey: "created_to",
+        label: "创建时间",
+        type: "datetimeRange",
+        defaultValue: [],
       },
     ],
     createFields: [

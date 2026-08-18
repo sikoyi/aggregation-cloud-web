@@ -468,6 +468,29 @@ describe('账号注册任务下发', () => {
   })
 })
 
+describe('任务记录筛选', () => {
+  const filters = resources.tasks.filters || []
+
+  it('按任务、运行环境、操作员和创建时间提供独立筛选项', () => {
+    expect(filters.map((field) => field.key)).toEqual([
+      'task_id',
+      'task_title',
+      'status',
+      'business_platform',
+      'runtime_platform',
+      'provider',
+      'script_key',
+      'template_id',
+      'operator_keyword',
+      'created_from',
+    ])
+    expect(filters.find((field) => field.key === 'created_from')).toMatchObject({
+      type: 'datetimeRange',
+      endKey: 'created_to',
+    })
+  })
+})
+
 describe('账号批量设置标签', () => {
   const action = resources.accounts.batchActions?.find((item) => item.key === 'batch-set-tags')
   const tagField = action?.fields?.find((field) => field.key === 'tag_ids')
