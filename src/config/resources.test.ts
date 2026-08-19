@@ -410,12 +410,12 @@ describe('发布内容来源', () => {
 
     expect(delayField?.type).toBe('numberRange')
     expect(delayField?.defaultValue).toBe(1)
-    expect(delayField?.endDefaultValue).toBe(2)
+    expect(delayField?.endDefaultValue).toBe(8)
     expect(resources.publishedContents.createBody?.({
       content_source_type: 'content',
     })).toMatchObject({
       dispatch_delay_min_minutes: 1,
-      dispatch_delay_max_minutes: 2,
+      dispatch_delay_max_minutes: 8,
     })
     expect(body.dispatch_delay_min_minutes).toBe(2)
     expect(body.dispatch_delay_max_minutes).toBe(5)

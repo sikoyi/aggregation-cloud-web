@@ -695,7 +695,7 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
   body.comment_delay_min_minutes = commentDelayMinMinutes;
   body.comment_delay_max_minutes = commentDelayMaxMinutes;
   const delayMinMinutes = Number(payload.dispatch_delay_min_minutes ?? 1);
-  const delayMaxMinutes = Number(payload.dispatch_delay_max_minutes ?? 2);
+  const delayMaxMinutes = Number(payload.dispatch_delay_max_minutes ?? 8);
   if (delayMinMinutes > delayMaxMinutes) {
     throw new Error("最短延迟不能大于最长延迟");
   }
@@ -2912,7 +2912,7 @@ export const resources: Record<string, ResourceConfig> = {
         label: "延迟下发时间（分钟）",
         type: "numberRange",
         defaultValue: 1,
-        endDefaultValue: 2,
+        endDefaultValue: 8,
         min: 0,
         max: 1440,
         step: 1,
