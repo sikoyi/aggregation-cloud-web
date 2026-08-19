@@ -1499,7 +1499,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "keyword",
         label: "综合搜索",
-        placeholder: "编号 / 账号 / 分组",
+        placeholder: "序号 / 账号 / 分组",
       },
     ],
     createFields: [
@@ -1525,13 +1525,13 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "fingerprint_profile",
       },
       { key: "provider_slot_id", label: "设备 ID", required: true, placeholder: "请输入供应商侧 Provider ID" },
-      { key: "provider_slot_no", label: "Provider 编号" },
+      { key: "provider_slot_no", label: "Provider 序号" },
       { key: "display_name", label: "显示名称" },
     ],
     updateFields: [
       { key: "provider_slot_id", label: "设备 ID（Provider ID）", readonly: true },
       { key: "display_name", label: "设备名称", placeholder: "请输入运营识别名称" },
-      { key: "provider_slot_no", label: "Provider 编号" },
+      { key: "provider_slot_no", label: "Provider 序号" },
       {
         key: "group_id",
         label: "所属分组",

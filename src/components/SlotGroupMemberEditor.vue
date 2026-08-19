@@ -302,7 +302,7 @@ onBeforeUnmount(() => {
         v-model="keyword"
         clearable
         @input="clearMemberSelection"
-        placeholder="搜索设备名称 / 设备 ID / 编号"
+        placeholder="搜索设备名称 / 设备 ID / 序号"
         @keydown.enter="searchMembers"
       />
       <el-button :icon="Search" :loading="loading" @click="searchMembers">搜索</el-button>
@@ -338,7 +338,7 @@ onBeforeUnmount(() => {
       <el-table-column type="selection" width="44" reserve-selection />
       <el-table-column prop="provider_slot_id" label="设备 ID" min-width="170" />
       <el-table-column prop="display_name" label="名称" min-width="170" />
-      <el-table-column prop="provider_slot_no" label="编号" min-width="130" />
+      <el-table-column prop="provider_slot_no" label="序号" min-width="130" />
       <el-table-column prop="status" label="状态" min-width="110" align="center" header-align="center">
         <template #default="{ row }">
           <StatusBadge :value="row.status" />
@@ -397,7 +397,7 @@ onBeforeUnmount(() => {
             <StatusBadge :value="slotDetail.status" />
           </el-descriptions-item>
           <el-descriptions-item label="名称">{{ text(slotDetail.display_name) }}</el-descriptions-item>
-          <el-descriptions-item label="Provider 编号">{{ text(slotDetail.provider_slot_no) }}</el-descriptions-item>
+          <el-descriptions-item label="Provider 序号">{{ text(slotDetail.provider_slot_no) }}</el-descriptions-item>
           <el-descriptions-item label="供应商">{{ text(slotDetail.provider) }}</el-descriptions-item>
           <el-descriptions-item label="业务 App">{{ businessPlatformLabel(slotDetail.business_platform) }}</el-descriptions-item>
           <el-descriptions-item label="执行平台">{{ runtimePlatformLabel(slotDetail.runtime_platform) }}</el-descriptions-item>
