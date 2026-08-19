@@ -64,7 +64,7 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
       <el-tooltip :content="deviceId" placement="top" :show-after="500">
         <code>{{ deviceId }}</code>
       </el-tooltip>
-      <small v-if="providerNumber && providerNumber !== deviceId">序号 {{ providerNumber }}</small>
+      <small v-if="providerNumber && providerNumber !== deviceId">编号 {{ providerNumber }}</small>
     </span>
   </div>
 
