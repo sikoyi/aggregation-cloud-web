@@ -862,8 +862,23 @@ function canOnboardAccount(record: AnyRecord) {
 }
 
 function canRetryRuntimeSync(record: AnyRecord) {
-  return ["failed", "expired"].includes(String(record.sync_status || record.tag_sync_status || ""))
-    && Boolean(record.control_command_id || record.tag_control_command_id);
+  return ["failed", "expired"].includes(
+    String(record.group_sync_status || record.sync_status || record.tag_sync_status || ""),
+  ) && Boolean(
+    record.group_control_command_id
+    || record.control_command_id
+    || record.tag_control_command_id
+    || record.control_batch_id,
+  );
+}
+
+function runtimeSyncCommandId(record: AnyRecord) {
+  return String(
+    record.group_control_command_id
+    || record.control_command_id
+    || record.tag_control_command_id
+    || "",
+  );
 }
 
 function formatContentImportSuccess(data: AnyRecord) {
@@ -1590,7 +1605,7 @@ export const resources: Record<string, ResourceConfig> = {
         method: "POST",
         icon: "rotate",
         path: (record) =>
-          `/api/runtime-controls/${encodeURIComponent(String(record.control_command_id))}/retry`,
+          `/api/runtime-controls/${encodeURIComponent(runtimeSyncCommandId(record))}/retry`,
         successTitle: "设备同步已重新排队",
       },
     ],
@@ -1615,9 +1630,18 @@ export const resources: Record<string, ResourceConfig> = {
         batchBody: (_payload, records) => ({
           slot_ids: records.map((record) => String(record.id)),
         }),
-        successTitle: "设备分组完成",
-        successMessage: (data) =>
-          `已分组 ${Number(data.added_count || 0)} 台设备，跳过 ${Number(data.skipped_count || 0)} 台已在组内设备`,
+        successTitle: "设备分组处理完成",
+        successMessage: (data) => {
+          const parts = [
+            `本地生效 ${Number(data.local_applied_count || 0)} 台`,
+            `远端已提交 ${Number(data.submitted_count || 0)} 台`,
+            `跳过 ${Number(data.skipped_count || 0)} 台`,
+          ];
+          const failed = Number(data.failed_count || 0);
+          if (failed) parts.push(`失败 ${failed} 台`);
+          return parts.join("，");
+        },
+        successNotificationType: (data) => Number(data.failed_count || 0) ? "warning" : "success",
       },
       {
         key: "__delete",
@@ -1655,10 +1679,24 @@ export const resources: Record<string, ResourceConfig> = {
     directDelete: true,
     deleteConfirm:
       "确认删除该设备组？删除后组内设备会自动解绑，设备本身不会删除。",
+    updateSuccessTitle: "设备组更新",
+    updateSuccessMessage: (data) =>
+      ["queued", "sent", "acknowledged", "propagating"].includes(String(data.group_sync_status || ""))
+        ? "设备组改名已提交，供应商确认后生效"
+        : "设备组更新成功",
+    updateNotificationType: (data) =>
+      ["queued", "sent", "acknowledged", "propagating"].includes(String(data.group_sync_status || ""))
+        ? "info"
+        : "success",
+    deleteSuccessTitle: "设备组删除",
+    deleteSuccessMessage: (data) => data.deleted
+      ? "设备组已删除"
+      : `设备组删除已提交至 ${Number(data.submitted_count || 0)} 台设备，供应商确认后删除`,
+    deleteNotificationType: (data) => data.deleted ? "success" : "info",
     createLabel: "新增设备组",
     columns: [
       { key: "id", label: "ID", type: "id" },
-      { key: "name", label: "名称" },
+      { key: "name", label: "名称", type: "deviceGroup", minWidth: 145 },
       { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
       { key: "member_count", label: "成员数" },
@@ -1701,6 +1739,27 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "name", label: "名称" },
       { key: "description", label: "描述", type: "textarea", span: 2 },
     ],
+    rowActions: [
+      {
+        key: "retry-group-sync",
+        label: "重试同步",
+        visible: (record) => canRetryRuntimeSync(record) && Boolean(record.control_batch_id),
+        method: "POST",
+        icon: "rotate",
+        path: (record) =>
+          `/api/runtime-controls/batches/${encodeURIComponent(String(record.control_batch_id))}/retry`,
+        successTitle: "设备组同步重试",
+        successMessage: (data) => {
+          const retried = Number(data.retried_count || 0);
+          const failed = Number(data.failed_count || 0);
+          return failed
+            ? `已重新提交 ${retried} 台设备，仍有 ${failed} 台因离线等原因未提交`
+            : `已重新提交 ${retried} 台设备`;
+        },
+        successNotificationType: (data) => Number(data.failed_count || 0) ? "warning" : "info",
+      },
+    ],
+    inlineActionKeys: ["retry-group-sync"],
   },
 
   proxies: {

@@ -636,6 +636,7 @@ function shouldRefreshForRealtime(event: RealtimeEventPayload) {
   if (props.config.key === 'tasks') return event.topic === 'task'
   if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
+  if (props.config.key === 'slotGroups') return event.topic === 'runtime'
   if (props.config.key === 'publishedContents') return event.topic === 'content_monitor'
   if (props.config.key === 'interactionSessions') return event.topic === 'task'
   return false
@@ -831,7 +832,7 @@ async function submitEntity() {
   let successMessage = '保存成功'
   let successTitle = '操作成功'
   let useSuccessNotification = false
-  let notificationType: 'success' | 'warning' | 'error' = 'success'
+  let notificationType: 'success' | 'warning' | 'error' | 'info' = 'success'
   let keepCreateOpen = false
   try {
     if (modal.type === 'create') {
@@ -853,6 +854,12 @@ async function submitEntity() {
       const body = props.config.updateBody ? props.config.updateBody(payload, modal.record) : payload
       const data = await http.put<AnyRecord>(`${props.config.endpoint}/${rowId(modal.record)}`, body)
       if (props.config.afterUpdate) await props.config.afterUpdate(data, payload, modal.record)
+      if (props.config.updateSuccessMessage) {
+        successMessage = props.config.updateSuccessMessage(data, payload)
+        successTitle = props.config.updateSuccessTitle || successTitle
+        notificationType = props.config.updateNotificationType?.(data, payload) || 'success'
+        useSuccessNotification = true
+      }
     }
     if (!keepCreateOpen) closeModal()
     if (useSuccessNotification) {
@@ -895,6 +902,13 @@ async function deleteRow(record: AnyRecord) {
       refresh: true,
       variant: 'danger',
       icon: 'trash',
+      successTitle: props.config.deleteSuccessTitle,
+      successMessage: props.config.deleteSuccessMessage
+        ? (data) => props.config.deleteSuccessMessage!(data, record)
+        : undefined,
+      successNotificationType: props.config.deleteNotificationType
+        ? (data) => props.config.deleteNotificationType!(data, record)
+        : undefined,
     },
     record,
   )
@@ -1008,11 +1022,19 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
     if (action.showResult && batchData) {
       openResultDialog(action, batchData, false)
     } else {
-      ElMessage.success(
-        action.successMessage && batchData
-          ? action.successMessage(batchData as AnyRecord, payload)
-          : `已处理 ${rowsToHandle.length} 条`,
-      )
+      const message = action.successMessage && batchData
+        ? action.successMessage(batchData as AnyRecord, payload)
+        : `已处理 ${rowsToHandle.length} 条`
+      if (action.successMessage && batchData) {
+        ElNotification({
+          type: action.successNotificationType?.(batchData as AnyRecord, payload) || 'success',
+          title: action.successTitle || '批量操作完成',
+          message,
+          duration: 7000,
+        })
+      } else {
+        ElMessage.success(message)
+      }
     }
     clearSelection()
     if (action.refresh !== false) await loadRows()
@@ -1107,7 +1129,8 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
 
     if (action.method !== 'GET' && !action.showResult) {
       if (action.successMessage) {
-        ElNotification.success({
+        ElNotification({
+          type: action.successNotificationType?.(data as AnyRecord, payload) || 'success',
           title: action.successTitle || '操作完成',
           message: action.successMessage(data as AnyRecord, payload),
           duration: 7000,

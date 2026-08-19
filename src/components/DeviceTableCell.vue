@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Clock3, Cpu, Layers3, MonitorSmartphone, Network, UserRound } from 'lucide-vue-next'
+import { AlertTriangle, Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network, UserRound } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -34,7 +34,17 @@ function optionLabel(options: Array<{ label: string; value: unknown }>, value: u
 const deviceName = computed(() => String(props.row.display_name || props.row.provider_slot_no || props.row.provider_slot_id || '-'))
 const deviceId = computed(() => text(props.row.provider_slot_id))
 const providerNumber = computed(() => String(props.row.provider_slot_no || '').trim())
-const groupName = computed(() => String(props.row.group_name || '').trim())
+const groupName = computed(() => String(props.row.group_name || props.row.name || '').trim())
+const groupSyncStatus = computed(() => String(props.row.group_sync_status || '').trim())
+const groupSyncError = computed(() => String(props.row.group_sync_error || '').trim())
+const pendingGroupName = computed(() => String(props.row.pending_group_name || props.row.pending_name || '').trim())
+const groupSyncPending = computed(() => ['queued', 'sent', 'acknowledged', 'propagating'].includes(groupSyncStatus.value))
+const groupSyncFailed = computed(() => ['failed', 'expired'].includes(groupSyncStatus.value))
+const pendingGroupLabel = computed(() => {
+  if (pendingGroupName.value) return pendingGroupName.value
+  if (props.row.group_control_command_id) return '未分组'
+  return ''
+})
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.provider))
 const accountBusinessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.bound_account_business_platform))
@@ -58,12 +68,26 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
     </span>
   </div>
 
-  <div v-else-if="kind === 'deviceGroup'" class="device-cell">
+  <div v-else-if="kind === 'deviceGroup'" class="device-cell device-group">
     <el-tag v-if="groupName" type="primary" effect="plain" round class="device-group-tag">
       <Layers3 />
       <span>{{ groupName }}</span>
     </el-tag>
     <el-tag v-else type="info" effect="plain" round>未分组</el-tag>
+    <div v-if="groupSyncPending" class="device-group__sync device-group__sync--pending">
+      <LoaderCircle class="device-group__spinner" />
+      <span>{{ pendingGroupLabel ? `同步至 ${pendingGroupLabel}` : '同步中' }}</span>
+    </div>
+    <el-tooltip
+      v-else-if="groupSyncFailed"
+      :content="groupSyncError || (groupSyncStatus === 'expired' ? '同步已过期' : '供应商同步失败')"
+      placement="top"
+    >
+      <div class="device-group__sync device-group__sync--failed">
+        <AlertTriangle />
+        <span>{{ groupSyncStatus === 'expired' ? '同步过期' : '同步失败' }}</span>
+      </div>
+    </el-tooltip>
   </div>
 
   <div v-else-if="kind === 'devicePlatform'" class="device-cell device-platform">
@@ -141,6 +165,14 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
 .device-group-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; }
 .device-group-tag svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .device-group-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-group { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 5px; }
+.device-group__sync { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; font-size: 10px; line-height: 1.3; }
+.device-group__sync svg { width: 11px; height: 11px; flex: 0 0 11px; }
+.device-group__sync span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-group__sync--pending { color: #28719f; }
+.device-group__sync--failed { color: #c2413b; cursor: help; }
+.device-group__spinner { animation: device-group-spin 1s linear infinite; }
+@keyframes device-group-spin { to { transform: rotate(360deg); } }
 .device-platform { display: flex; flex-direction: column; gap: 7px; }
 .device-platform__primary { display: flex; align-items: center; gap: 6px; color: #334e68; }
 .device-platform__primary svg { width: 14px; height: 14px; color: #527a98; }

@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { Eye, Plus, Search, Trash2 } from 'lucide-vue-next'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
+import DeviceTableCell from '@/components/DeviceTableCell.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
+import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import { businessPlatformLabel, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord, PageResult } from '@/types/api'
-import type { RemoteSelectConfig } from '@/types/crud'
+import type { ColumnConfig, RemoteSelectConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
-import { notifyError } from '@/utils/notify'
+import { getErrorMessage, notifyError } from '@/utils/notify'
 
 const props = defineProps<{
   group: AnyRecord
@@ -39,6 +41,8 @@ const selectedSlotIds = ref<string[]>([])
 const slotDetailVisible = ref(false)
 const slotDetailLoading = ref(false)
 const slotDetail = ref<AnyRecord | null>(null)
+const groupSyncColumn: ColumnConfig = { key: 'group_name', label: '分组同步' }
+let realtimeRefreshTimer: number | undefined
 
 const groupId = computed(() => String(props.group?.id || ''))
 const selectedMemberIds = computed(() => selectedMembers.value.map((item) => String(item.id)))
@@ -89,20 +93,21 @@ async function addMembers() {
 
   submitting.value = true
   const slotIds = [...selectedSlotIds.value]
-  const failed: string[] = []
   try {
-    for (const slotId of slotIds) {
-      try {
-        await http.post<AnyRecord>(`/api/slot-groups/${groupId.value}/slots`, {
-          slot_id: slotId,
-        })
-      } catch {
-        failed.push(slotId)
-      }
-    }
-    if (failed.length) throw new Error(`有 ${failed.length} 台设备添加失败`)
+    const data = await http.post<AnyRecord>(`/api/slot-groups/${groupId.value}/slots/batch`, {
+      slot_ids: slotIds,
+    })
+    const localApplied = Number(data.local_applied_count || 0)
+    const submitted = Number(data.submitted_count || 0)
+    const skipped = Number(data.skipped_count || 0)
+    const failed = Number(data.failed_count || 0)
     selectedSlotIds.value = []
-    ElMessage.success(`已添加 ${slotIds.length} 台设备`)
+    ElNotification({
+      type: failed ? 'warning' : submitted ? 'info' : 'success',
+      title: failed ? '设备分组部分失败' : '设备分组处理完成',
+      message: `本地生效 ${localApplied} 台，远端已提交 ${submitted} 台，跳过 ${skipped} 台，失败 ${failed} 台`,
+      duration: 7000,
+    })
     page.value = 1
     await loadMembers()
     emit('changed')
@@ -143,8 +148,14 @@ async function removeMember(slot: AnyRecord) {
 
   submitting.value = true
   try {
-    await http.delete(`/api/slot-groups/${groupId.value}/slots/${slot.id}`)
-    ElMessage.success('设备已移出分组')
+    const data = await http.delete<AnyRecord>(`/api/slot-groups/${groupId.value}/slots/${slot.id}`)
+    const remoteSubmitted = data.mode === 'remote_submitted'
+    ElNotification({
+      type: remoteSubmitted ? 'info' : 'success',
+      title: remoteSubmitted ? '移出分组已提交' : '设备已移出分组',
+      message: remoteSubmitted ? '供应商确认后，系统中的成员关系才会更新' : '分组成员关系已更新',
+      duration: 6000,
+    })
     if (members.value.length === 1 && page.value > 1) page.value -= 1
     clearMemberSelection()
     await loadMembers()
@@ -178,17 +189,25 @@ async function removeSelectedMembers() {
 
   submitting.value = true
   const slotIds = [...selectedMemberIds.value]
-  const failed: string[] = []
+  let localApplied = 0
+  let submitted = 0
+  const failures: string[] = []
   try {
     for (const slotId of slotIds) {
       try {
-        await http.delete(`/api/slot-groups/${groupId.value}/slots/${slotId}`)
-      } catch {
-        failed.push(slotId)
+        const data = await http.delete<AnyRecord>(`/api/slot-groups/${groupId.value}/slots/${slotId}`)
+        if (data.mode === 'remote_submitted') submitted += 1
+        else if (data.changed) localApplied += 1
+      } catch (err) {
+        failures.push(`${slotId}：${getErrorMessage(err, '移除失败')}`)
       }
     }
-    if (failed.length) throw new Error(`有 ${failed.length} 台设备移除失败`)
-    ElMessage.success(`已移除 ${slotIds.length} 台设备`)
+    ElNotification({
+      type: failures.length ? 'warning' : submitted ? 'info' : 'success',
+      title: failures.length ? '批量移除部分失败' : '批量移除处理完成',
+      message: `本地生效 ${localApplied} 台，远端已提交 ${submitted} 台，失败 ${failures.length} 台${failures.length ? `；${failures.slice(0, 2).join('；')}` : ''}`,
+      duration: 8000,
+    })
     clearMemberSelection()
     if (members.value.length <= slotIds.length && page.value > 1) page.value -= 1
     await loadMembers()
@@ -225,6 +244,15 @@ function resetSearch() {
   searchMembers()
 }
 
+function handleRealtimeEvent(event: Event) {
+  const payload = (event as CustomEvent<RealtimeEventPayload>).detail
+  if (payload?.topic !== 'runtime' || realtimeRefreshTimer) return
+  realtimeRefreshTimer = window.setTimeout(async () => {
+    realtimeRefreshTimer = undefined
+    await loadMembers()
+  }, 1200)
+}
+
 watch(
   () => props.group?.id,
   () => {
@@ -236,7 +264,15 @@ watch(
   },
 )
 
-onMounted(loadMembers)
+onMounted(() => {
+  loadMembers()
+  window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
+  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+})
 </script>
 
 <template>
@@ -306,6 +342,11 @@ onMounted(loadMembers)
       <el-table-column prop="status" label="状态" min-width="110" align="center" header-align="center">
         <template #default="{ row }">
           <StatusBadge :value="row.status" />
+        </template>
+      </el-table-column>
+      <el-table-column label="分组同步" min-width="160">
+        <template #default="{ row }">
+          <DeviceTableCell kind="deviceGroup" :row="row" :column="groupSyncColumn" />
         </template>
       </el-table-column>
       <el-table-column prop="last_seen_at" label="心跳" min-width="170" align="center" header-align="center">

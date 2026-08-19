@@ -216,6 +216,7 @@ export interface RowActionConfig {
   icon?: string
   successTitle?: string
   successMessage?: (data: AnyRecord, payload: AnyRecord) => string
+  successNotificationType?: (data: AnyRecord, payload: AnyRecord) => 'success' | 'warning' | 'error' | 'info'
   showResult?: boolean
   clientAction?: 'download'
   urlKey?: string
@@ -234,6 +235,12 @@ export interface ResourceConfig {
   createSuccessMessage?: (createdRecord: AnyRecord, payload: AnyRecord) => string
   createSuccessTitle?: string
   createNotificationType?: (createdRecord: AnyRecord, payload: AnyRecord) => 'success' | 'warning' | 'error'
+  updateSuccessMessage?: (updatedRecord: AnyRecord, payload: AnyRecord) => string
+  updateSuccessTitle?: string
+  updateNotificationType?: (updatedRecord: AnyRecord, payload: AnyRecord) => 'success' | 'warning' | 'error' | 'info'
+  deleteSuccessMessage?: (deletedRecord: AnyRecord, record: AnyRecord) => string
+  deleteSuccessTitle?: string
+  deleteNotificationType?: (deletedRecord: AnyRecord, record: AnyRecord) => 'success' | 'warning' | 'error' | 'info'
   keepCreateOpenWhen?: (createdRecord: AnyRecord, payload: AnyRecord) => boolean
   createBody?: (payload: AnyRecord) => unknown
   afterCreate?: (createdRecord: AnyRecord, payload: AnyRecord) => Promise<unknown>
