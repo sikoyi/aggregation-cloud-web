@@ -549,6 +549,7 @@ watch(
                     : '今日未发' }}
             </el-tag>
             <el-tag
+              v-if="!showPublishStats || data.status !== 'idle'"
               size="small"
               :type="statusTagType(data.status)"
               effect="light"

@@ -227,8 +227,6 @@ export interface RowActionConfig {
 export interface ResourceConfig {
   key: string
   title: string
-  tableTitle?: string
-  tableDescription?: string
   permissionModule?: string
   endpoint: string
   idKey?: string

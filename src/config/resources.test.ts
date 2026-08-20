@@ -262,20 +262,12 @@ describe('发布内容来源', () => {
     expect(body).not.toHaveProperty('account_ids')
   })
 
-  it('列表展示发布批次和执行结果，真实帖子留在账号数据', () => {
-    expect(resources.publishedContents.endpoint).toBe('/api/interaction-center/published-dispatches')
-    expect(resources.publishedContents.tableTitle).toBe('发布记录')
-    expect(resources.publishedContents.columns.map((column) => column.key)).toEqual([
-      'id',
-      'title',
-      'content_source_label',
-      'creator_display_name',
-      'business_platform',
-      'child_total',
-      'child_succeeded',
-      'status',
-      'created_at',
-    ])
+  it('列表展示真实发布内容，任务执行进度统一在任务记录查看', () => {
+    expect(resources.publishedContents.endpoint).toBe('/api/interaction-center/published-contents')
+    expect(resources.publishedContents.columns.map((column) => column.key)).toContain('author_account_name')
+    expect(resources.publishedContents.columns.map((column) => column.key)).toContain('platform_content_id')
+    const detail = resources.publishedContents.rowActions?.find((action) => action.key === 'detail')
+    expect(detail?.path?.({ id: 'content-1' })).toBe('/api/interaction-center/published-contents/content-1')
   })
 
   it('为发布配置展示准确的必填标记', () => {
