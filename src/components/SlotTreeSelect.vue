@@ -38,6 +38,7 @@ interface SlotTreeNode {
   status?: string
   hasAccount?: boolean
   deviceCount?: number
+  separatorAfter?: boolean
   disabled?: boolean
   children?: SlotTreeNode[]
 }
@@ -104,10 +105,17 @@ const visibleTreeData = computed(() => {
     : fixedTreeData.value
   const accountFilter = props.showAccountPresenceFilter ? accountPresenceFilter.value : 'all'
   const accountFiltered = filterTreeByAccountPresence(grouped, accountFilter)
-  return filterTreeByLeafKeyword(accountFiltered, searchKeyword.value).map((node) => ({
-    ...node,
-    deviceCount: node.children?.length || 0,
-  }))
+  return filterTreeByLeafKeyword(accountFiltered, searchKeyword.value).map((node) => {
+    const children = node.children || []
+    return {
+      ...node,
+      deviceCount: children.length,
+      children: children.map((child, index) => ({
+        ...child,
+        separatorAfter: (index + 1) % 10 === 0 && index < children.length - 1,
+      })),
+    }
+  })
 })
 const filteredSlotCount = computed(() =>
   countFilteredTreeLeaves(visibleTreeData.value, ''),
@@ -437,7 +445,10 @@ watch(
       @node-collapse="handleNodeCollapse"
     >
       <template #default="{ data }">
-        <span class="slot-tree-node">
+        <span
+          class="slot-tree-node"
+          :class="{ 'slot-tree-node--section-end': data.separatorAfter }"
+        >
           <span class="slot-tree-node__copy">
             <span class="slot-tree-node__label">{{ data.label }}</span>
             <span v-if="data.providerSlotId" class="slot-tree-node__id">{{ data.providerSlotId }}</span>
@@ -611,12 +622,18 @@ watch(
 
 .slot-tree-node {
   display: flex;
+  height: 100%;
   min-width: 0;
+  box-sizing: border-box;
   flex: 1;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding-right: 8px;
+}
+
+.slot-tree-node--section-end {
+  border-bottom: 1px solid #cbd8e6;
 }
 
 .slot-tree-node__label {
