@@ -226,6 +226,11 @@ function syncCheckedKeys() {
   treeRef.value?.setCheckedKeys?.(selectedSlotIds.value.map(slotNodeId))
 }
 
+function syncTreeData() {
+  // el-tree-v2 does not rebuild its internal node map after nested children mutate.
+  treeRef.value?.setData?.(visibleTreeData.value)
+}
+
 function syncExpandedKeys() {
   const visibleIds = new Set(visibleTreeData.value.map((node) => node.id))
   expandedGroupKeys.value = expandedGroupKeys.value.filter((id) => visibleIds.has(id))
@@ -270,6 +275,7 @@ async function loadGroupPage(group: SlotTreeNode, requestedPage?: number) {
           ? [placeholderNode(group.groupId)]
           : []
       await nextTick()
+      syncTreeData()
       syncCheckedKeys()
       syncExpandedKeys()
     }
