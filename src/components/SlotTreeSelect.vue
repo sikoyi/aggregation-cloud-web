@@ -432,7 +432,7 @@ watch(
       :data="visibleTreeData"
       :props="treeProps"
       :height="treeHeight"
-      :item-size="38"
+      :item-size="42"
       show-checkbox
       :default-expanded-keys="defaultExpandedGroupKeys"
       :check-strictly="false"
@@ -635,13 +635,17 @@ watch(
 
 .slot-tree-node--section-end::after {
   position: absolute;
-  right: 14px;
-  bottom: 1px;
-  left: 10px;
+  right: 10px;
+  bottom: 2px;
+  left: 4px;
   height: 1px;
-  background: #e3e9f0;
+  background: #c8d5e2;
   content: '';
   pointer-events: none;
+}
+
+.slot-tree-node--section-end {
+  padding-bottom: 6px;
 }
 
 .slot-tree-node__label {
