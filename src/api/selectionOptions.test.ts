@@ -6,6 +6,9 @@ import {
   loadAccountSelectionOptions,
   loadMonitoredAccountSelectionOptions,
   loadPublishSlotSelectionOptions,
+  loadSlotSelectionGroups,
+  loadSlotSelectionIds,
+  loadSlotSelectionPage,
   loadSlotSelectionOptions,
 } from '@/api/selectionOptions'
 
@@ -87,6 +90,77 @@ describe('selection options cache', () => {
         runtime_platform: 'fingerprint_browser',
         provider: 'morelogin',
         content_id: 'content-8',
+      },
+    )
+  })
+
+  it('loads device groups first and only requests a group page when expanded', async () => {
+    vi.mocked(http.get)
+      .mockResolvedValueOnce({
+        groups: [{ id: 'group-1', name: '韩国设备', device_count: 120 }],
+        total: 120,
+      })
+      .mockResolvedValueOnce({
+        items: [{ id: 'slot-1' }],
+        total: 120,
+        page: 1,
+        page_size: 50,
+      })
+
+    const filters = { runtime_platform: 'fingerprint_browser', provider: 'morelogin' }
+    const query = { accountPresence: 'bound' as const, keyword: '测试' }
+    const groups = await loadSlotSelectionGroups(filters, query)
+    const page = await loadSlotSelectionPage(filters, query, 'group-1', 1)
+
+    expect(groups.total).toBe(120)
+    expect(page.items).toEqual([{ id: 'slot-1' }])
+    expect(http.get).toHaveBeenNthCalledWith(1, '/api/execution-slots/selection-groups', {
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+      account_presence: 'bound',
+      publish_usage: undefined,
+      content_id: undefined,
+      keyword: '测试',
+    })
+    expect(http.get).toHaveBeenNthCalledWith(2, '/api/execution-slots/selection-page', {
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+      account_presence: 'bound',
+      publish_usage: undefined,
+      content_id: undefined,
+      keyword: '测试',
+      group_id: 'group-1',
+      ungrouped: undefined,
+      page: 1,
+      page_size: 50,
+    })
+  })
+
+  it('loads only ids when selecting a complete publish device group', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({ slot_ids: ['slot-1', 'slot-2'] })
+
+    const result = await loadSlotSelectionIds(
+      { runtime_platform: 'fingerprint_browser', provider: 'morelogin' },
+      {
+        publish: true,
+        publishUsage: 'content_not_sent',
+        contentId: 'content-8',
+      },
+      'ungrouped',
+    )
+
+    expect(result.slot_ids).toEqual(['slot-1', 'slot-2'])
+    expect(http.get).toHaveBeenCalledWith(
+      '/api/interaction-center/published-dispatches/slot-ids',
+      {
+        runtime_platform: 'fingerprint_browser',
+        provider: 'morelogin',
+        account_presence: undefined,
+        publish_usage: 'content_not_sent',
+        content_id: 'content-8',
+        keyword: undefined,
+        group_id: undefined,
+        ungrouped: true,
       },
     )
   })

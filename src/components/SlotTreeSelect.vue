@@ -2,19 +2,15 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ListFilter, Search, X } from 'lucide-vue-next'
 
-import { loadPublishSlotSelectionOptions, loadSlotSelectionOptions } from '@/api/selectionOptions'
+import {
+  loadSlotSelectionGroups,
+  loadSlotSelectionIds,
+  loadSlotSelectionPage,
+  type SlotSelectionTreeQuery,
+} from '@/api/selectionOptions'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
-import {
-  countFilteredTreeLeaves,
-  filterTreeByAccountPresence,
-  filterTreeByLeafKeyword,
-  filteredTreeLeaves,
-  mergeFilteredTreeSelection,
-  toggleFilteredTreeSelection,
-} from '@/utils/treeSelectionStats'
-import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
 const props = defineProps<{
   modelValue: unknown
@@ -31,38 +27,52 @@ const emit = defineEmits<{
   'update:modelValue': [value: string[]]
 }>()
 
+type PublishUsage = 'all' | 'today_not_sent' | 'today_sent' | 'content_not_sent' | 'content_sent'
+type NodeType = 'group' | 'slot' | 'placeholder' | 'load-more'
+
 interface SlotTreeNode {
   id: string
+  nodeType: NodeType
+  groupId?: string
   slotId?: string
   providerSlotId?: string
   label: string
-  searchText?: string
   status?: string
-  hasAccount?: boolean
   accountName?: string
-  accountLoginStatus?: string
   todayPublishCount?: number
   lastPublishedAt?: string
   selectedContentSucceededCount?: number
   selectedContentActiveCount?: number
   selectedContentFailedCount?: number
   deviceCount?: number
+  loadedCount?: number
+  page?: number
+  hasMore?: boolean
+  loading?: boolean
   separatorAfter?: boolean
   disabled?: boolean
   children?: SlotTreeNode[]
 }
+
+const PAGE_SIZE = 50
+const DEFAULT_TREE_HEIGHT = 350
 
 const treeRef = ref()
 const rootRef = ref<HTMLElement>()
 const toolbarRef = ref<HTMLElement>()
 const loading = ref(false)
 const treeData = ref<SlotTreeNode[]>([])
+const totalCandidateCount = ref(0)
+const expandedGroupKeys = ref<string[]>([])
+const collapsedGroupIds = new Set<string>()
+const treeHeight = ref(DEFAULT_TREE_HEIGHT)
 const { filters: persistentFilters } = usePersistentFilters('selector:devices', {
   keyword: '',
   groupNodeIds: [] as string[],
   accountPresence: 'all' as 'all' | 'bound' | 'unbound',
   publishUsage: 'all' as PublishUsage,
 })
+
 const searchKeyword = computed({
   get: () => String(persistentFilters.keyword || ''),
   set: (value: string) => { persistentFilters.keyword = value },
@@ -79,7 +89,6 @@ const accountPresenceFilter = computed<'all' | 'bound' | 'unbound'>({
     : 'all',
   set: (value) => { persistentFilters.accountPresence = value },
 })
-type PublishUsage = 'all' | 'today_not_sent' | 'today_sent' | 'content_not_sent' | 'content_sent'
 const publishUsageFilter = computed<PublishUsage>({
   get: () => {
     const value = String(persistentFilters.publishUsage || 'all') as PublishUsage
@@ -91,96 +100,65 @@ const publishUsageFilter = computed<PublishUsage>({
   },
   set: (value) => { persistentFilters.publishUsage = value },
 })
-const loadedSlotIds = ref<Set<string>>(new Set())
-const defaultExpandedGroupKeys = ref<string[]>([])
-const collapsedGroupIds = new Set<string>()
+const selectedSlotIds = computed(() =>
+  Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
+)
+const effectiveAccountPresence = computed<'all' | 'bound' | 'unbound'>(() => {
+  const fixed = props.accountPresence || 'all'
+  if (fixed !== 'all') return fixed
+  return props.showAccountPresenceFilter ? accountPresenceFilter.value : 'all'
+})
+const selectionQuery = computed<SlotSelectionTreeQuery>(() => ({
+  accountPresence: effectiveAccountPresence.value,
+  keyword: searchKeyword.value,
+  publish: Boolean(props.showPublishStats),
+  publishUsage: publishUsageFilter.value,
+  contentId: props.publishContentId,
+}))
+const visibleTreeData = computed(() => {
+  const selected = new Set(selectedGroupNodeIds.value)
+  return selected.size
+    ? treeData.value.filter((node) => selected.has(node.id))
+    : treeData.value
+})
+const groupOptions = computed(() => treeData.value.map((node) => ({
+  value: node.id,
+  label: node.label,
+})))
+const totalSlotCount = computed(() => totalCandidateCount.value)
+const filteredSlotCount = computed(() => {
+  if (!selectedGroupNodeIds.value.length) return totalCandidateCount.value
+  return visibleTreeData.value.reduce((total, node) => total + Number(node.deviceCount || 0), 0)
+})
+const selectedSlotCount = computed(() => selectedSlotIds.value.length)
+const activeFilterCount = computed(() => (
+  selectedGroupNodeIds.value.length
+  + (props.showAccountPresenceFilter && accountPresenceFilter.value !== 'all' ? 1 : 0)
+  + (props.showPublishStats && publishUsageFilter.value !== 'all' ? 1 : 0)
+))
 const treeProps = {
   label: 'label',
   children: 'children',
   disabled: 'disabled',
   value: 'id',
 }
-const treeHeight = ref(350)
-
-const selectedSlotIds = computed(() =>
-  Array.isArray(props.modelValue) ? props.modelValue.filter(Boolean).map(String) : [],
-)
-const selectedSlotCount = computed(() =>
-  selectedSlotIds.value.filter((slotId) => loadedSlotIds.value.has(slotId)).length,
-)
-const fixedTreeData = computed(() =>
-  filterTreeByAccountPresence(treeData.value, props.accountPresence || 'all'),
-)
-const totalSlotCount = computed(() => countFilteredTreeLeaves(fixedTreeData.value, ''))
-const groupOptions = computed(() => fixedTreeData.value.map((node) => ({
-  value: node.id,
-  label: node.label,
-})))
-const activeFilterCount = computed(() => (
-  selectedGroupNodeIds.value.length
-  + (props.showAccountPresenceFilter && accountPresenceFilter.value !== 'all' ? 1 : 0)
-  + (props.showPublishStats && publishUsageFilter.value !== 'all' ? 1 : 0)
-))
-
-function matchesPublishUsage(node: SlotTreeNode) {
-  const usage = publishUsageFilter.value
-  if (!props.showPublishStats || usage === 'all') return true
-  if (usage === 'today_not_sent') return Number(node.todayPublishCount || 0) === 0
-  if (usage === 'today_sent') return Number(node.todayPublishCount || 0) > 0
-  if (usage === 'content_not_sent') {
-    return Number(node.selectedContentSucceededCount || 0) === 0
-      && Number(node.selectedContentActiveCount || 0) === 0
-  }
-  return Number(node.selectedContentSucceededCount || 0) > 0
-}
-
-function filterTreeByPublishUsage(nodes: SlotTreeNode[]) {
-  if (!props.showPublishStats || publishUsageFilter.value === 'all') return nodes
-  return nodes
-    .map((node) => ({
-      ...node,
-      children: (node.children || []).filter(matchesPublishUsage),
-    }))
-    .filter((node) => Boolean(node.children?.length))
-}
-
-const visibleTreeData = computed(() => {
-  const selectedIds = new Set(selectedGroupNodeIds.value)
-  const grouped = selectedGroupNodeIds.value.length
-    ? fixedTreeData.value.filter((node) => selectedIds.has(node.id))
-    : fixedTreeData.value
-  const accountFilter = props.showAccountPresenceFilter ? accountPresenceFilter.value : 'all'
-  const accountFiltered = filterTreeByAccountPresence(grouped, accountFilter)
-  const publishFiltered = filterTreeByPublishUsage(accountFiltered)
-  return filterTreeByLeafKeyword(publishFiltered, searchKeyword.value).map((node) => {
-    const children = node.children || []
-    return {
-      ...node,
-      deviceCount: children.length,
-      children: children.map((child, index) => ({
-        ...child,
-        separatorAfter: (index + 1) % 10 === 0 && index < children.length - 1,
-      })),
-    }
-  })
-})
-const filteredSlotCount = computed(() =>
-  countFilteredTreeLeaves(visibleTreeData.value, ''),
-)
-const filterSignature = computed(() => JSON.stringify({
+const requestSignature = computed(() => JSON.stringify({
   runtime_platform: String(props.filters?.runtime_platform || ''),
   provider: String(props.filters?.provider || ''),
-  account_presence: String(props.accountPresence || 'all'),
+  account_presence: effectiveAccountPresence.value,
   publish_stats: Boolean(props.showPublishStats),
+  publish_usage: publishUsageFilter.value,
   content_id: String(props.publishContentId || ''),
+  keyword: searchKeyword.value.trim(),
 }))
+
 let loadRequestId = 0
-let filterReloadTimer: number | undefined
+let reloadTimer: number | undefined
 let resizeObserver: ResizeObserver | undefined
 
 function updateTreeHeight() {
   if (!props.fillHeight || !rootRef.value) {
-    treeHeight.value = 350
+    treeHeight.value = DEFAULT_TREE_HEIGHT
     return
   }
   const toolbarHeight = toolbarRef.value?.offsetHeight || 0
@@ -191,31 +169,23 @@ function slotNodeId(slotId: string) {
   return `slot:${slotId}`
 }
 
+function groupNodeId(groupId: string) {
+  return `group:${groupId}`
+}
+
 function slotLabel(slot: AnyRecord) {
-  return String(
-    slot.display_name ||
-      slot.provider_slot_no ||
-      slot.provider_slot_id ||
-      '未命名设备',
-  )
+  return String(slot.display_name || slot.provider_slot_no || slot.provider_slot_id || '未命名设备')
 }
 
 function toSlotNode(slot: AnyRecord): SlotTreeNode {
-  const label = slotLabel(slot)
-  const providerSlotId = String(slot.provider_slot_id || '')
   return {
     id: slotNodeId(String(slot.id)),
+    nodeType: 'slot',
     slotId: String(slot.id),
-    providerSlotId,
-    label,
-    searchText: [label, providerSlotId, slot.provider_slot_no, slot.bound_account_name]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase(),
+    providerSlotId: String(slot.provider_slot_id || ''),
+    label: slotLabel(slot),
     status: String(slot.status || 'offline'),
-    hasAccount: Boolean(slot.bound_account_id),
     accountName: String(slot.bound_account_name || ''),
-    accountLoginStatus: String(slot.bound_account_login_status || ''),
     todayPublishCount: Number(slot.today_publish_count || 0),
     lastPublishedAt: String(slot.last_published_at || ''),
     selectedContentSucceededCount: Number(slot.selected_content_succeeded_count || 0),
@@ -225,158 +195,200 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
   }
 }
 
-function filterNode(value: string, data: AnyRecord) {
-  const keyword = value.trim().toLowerCase()
-  if (!keyword) return true
-  if (Array.isArray(data.children)) return true
-  return String(data.searchText || data.label).toLowerCase().includes(keyword)
+function placeholderNode(groupId: string, loadingState = false): SlotTreeNode {
+  return {
+    id: `placeholder:${groupId}`,
+    nodeType: 'placeholder',
+    groupId,
+    label: loadingState ? '正在加载设备...' : '展开后加载设备',
+    disabled: true,
+  }
+}
+
+function decorateChildren(group: SlotTreeNode, slots: SlotTreeNode[]) {
+  const children: SlotTreeNode[] = slots.map((slot, index) => ({
+    ...slot,
+    separatorAfter: (index + 1) % 10 === 0 && index < slots.length - 1,
+  }))
+  if (group.hasMore) {
+    children.push({
+      id: `load-more:${group.groupId}:${group.page}`,
+      nodeType: 'load-more',
+      groupId: group.groupId,
+      label: group.loading ? '正在加载更多...' : '加载更多设备',
+      disabled: true,
+    })
+  }
+  return children
 }
 
 function syncCheckedKeys() {
-  const keys = selectedSlotIds.value.map(slotNodeId)
-  treeRef.value?.setCheckedKeys?.(keys)
+  treeRef.value?.setCheckedKeys?.(selectedSlotIds.value.map(slotNodeId))
 }
 
 function syncExpandedKeys() {
-  const visibleGroupIds = new Set(visibleTreeData.value.map((node) => node.id))
-  defaultExpandedGroupKeys.value = reconcileExpandedGroupKeys(
-    treeData.value.map((node) => node.id),
-    collapsedGroupIds,
-  ).filter((groupId) => visibleGroupIds.has(groupId))
-  treeRef.value?.setExpandedKeys?.(defaultExpandedGroupKeys.value)
+  const visibleIds = new Set(visibleTreeData.value.map((node) => node.id))
+  expandedGroupKeys.value = expandedGroupKeys.value.filter((id) => visibleIds.has(id))
+  treeRef.value?.setExpandedKeys?.(expandedGroupKeys.value)
 }
 
-function handleNodeExpand(data: AnyRecord) {
-  const nodeId = String(data.id || '')
-  if (nodeId && Array.isArray(data.children) && data.children.length) {
-    collapsedGroupIds.delete(nodeId)
-    if (!defaultExpandedGroupKeys.value.includes(nodeId)) {
-      defaultExpandedGroupKeys.value = [...defaultExpandedGroupKeys.value, nodeId]
+async function loadGroupPage(group: SlotTreeNode, requestedPage?: number) {
+  if (!group.groupId || group.loading) return
+  const page = requestedPage || Math.max(1, Number(group.page || 0) + 1)
+  const requestId = loadRequestId
+  const existingSlots = (group.children || []).filter((node) => node.nodeType === 'slot')
+  group.loading = true
+  group.children = existingSlots.length
+    ? decorateChildren(group, existingSlots)
+    : [placeholderNode(group.groupId, true)]
+  try {
+    const result = await loadSlotSelectionPage(
+      props.filters || {},
+      selectionQuery.value,
+      group.groupId,
+      page,
+      PAGE_SIZE,
+    )
+    if (requestId !== loadRequestId) return
+    const knownIds = new Set(existingSlots.map((node) => node.slotId))
+    const appended = result.items
+      .map(toSlotNode)
+      .filter((node) => !knownIds.has(node.slotId))
+    const slots = [...existingSlots, ...appended]
+    group.page = page
+    group.loadedCount = slots.length
+    group.deviceCount = Number(result.total || group.deviceCount || 0)
+    group.hasMore = slots.length < Number(result.total || 0)
+    group.children = decorateChildren(group, slots)
+  } finally {
+    group.loading = false
+    if (requestId === loadRequestId) {
+      const slots = (group.children || []).filter((node) => node.nodeType === 'slot')
+      group.children = slots.length
+        ? decorateChildren(group, slots)
+        : group.hasMore
+          ? [placeholderNode(group.groupId)]
+          : []
+      await nextTick()
+      syncCheckedKeys()
+      syncExpandedKeys()
     }
   }
 }
 
-function handleNodeCollapse(data: AnyRecord) {
-  const nodeId = String(data.id || '')
-  if (nodeId && Array.isArray(data.children) && data.children.length) {
-    collapsedGroupIds.add(nodeId)
-    defaultExpandedGroupKeys.value = defaultExpandedGroupKeys.value.filter(
-      (groupId) => groupId !== nodeId,
-    )
+async function fillInitialViewport() {
+  const itemSize = props.showPublishStats ? 56 : 42
+  const targetRows = Math.max(8, Math.ceil(treeHeight.value / itemSize))
+  let filledRows = 0
+  for (const group of visibleTreeData.value) {
+    if (filledRows >= targetRows) break
+    if (collapsedGroupIds.has(group.id)) continue
+    if (!group.loadedCount) await loadGroupPage(group, 1)
+    if (!expandedGroupKeys.value.includes(group.id)) {
+      expandedGroupKeys.value.push(group.id)
+    }
+    filledRows += Math.max(1, Number(group.loadedCount || 0))
   }
+  await nextTick()
+  syncExpandedKeys()
+  syncCheckedKeys()
 }
 
 async function loadTree() {
   const requestId = ++loadRequestId
   loading.value = true
   try {
-    const slots = props.showPublishStats
-      ? await loadPublishSlotSelectionOptions(props.filters || {}, props.publishContentId)
-      : await loadSlotSelectionOptions(props.filters || {})
+    const result = await loadSlotSelectionGroups(props.filters || {}, selectionQuery.value)
     if (requestId !== loadRequestId) return
-
-    const slotsByGroup = new Map<string, AnyRecord[]>()
-    const groupNames = new Map<string, string>()
-    const groupedSlotIds = new Set<string>()
-
-    // 精简接口已带回分组信息，选择器只需一次请求即可组装完整设备树。
-    slots.forEach((slot) => {
-      const groupId = String(slot.group_id || '')
-      if (!groupId) return
-      const items = slotsByGroup.get(groupId) || []
-      items.push(slot)
-      slotsByGroup.set(groupId, items)
-      groupNames.set(groupId, String(slot.group_name || groupId))
-      groupedSlotIds.add(String(slot.id))
-    })
-
-    const groupNodes = Array.from(slotsByGroup.entries()).map(([groupId, items]) => {
-      const label = groupNames.get(groupId) || groupId
+    treeData.value = (Array.isArray(result.groups) ? result.groups : []).map((item) => {
+      const groupId = String(item.id || 'ungrouped')
       return {
-        id: `group:${groupId}`,
-        label,
-        searchText: label.toLowerCase(),
-        deviceCount: items.length,
-        disabled: Boolean(props.disabled) || !items.length,
-        children: items.map(toSlotNode),
-      }
+        id: groupNodeId(groupId),
+        nodeType: 'group',
+        groupId,
+        label: String(item.name || (groupId === 'ungrouped' ? '未分组设备' : groupId)),
+        deviceCount: Number(item.device_count || 0),
+        loadedCount: 0,
+        page: 0,
+        hasMore: Number(item.device_count || 0) > 0,
+        disabled: Boolean(props.disabled) || Number(item.device_count || 0) === 0,
+        children: Number(item.device_count || 0) > 0 ? [placeholderNode(groupId)] : [],
+      } satisfies SlotTreeNode
     })
-
-    const ungroupedSlots = slots.filter((slot) => !groupedSlotIds.has(String(slot.id)))
-    const nextTreeData = [
-      ...groupNodes.filter((node) => node.children.length),
-      ...(ungroupedSlots.length
-        ? [
-            {
-              id: 'group:ungrouped',
-              label: '未分组设备',
-              searchText: '未分组设备',
-              deviceCount: ungroupedSlots.length,
-              children: ungroupedSlots.map(toSlotNode),
-            },
-          ]
-        : []),
-    ]
-    treeData.value = nextTreeData
-    const selectableTreeData = filterTreeByAccountPresence(
-      nextTreeData,
-      props.accountPresence || 'all',
-    )
-    loadedSlotIds.value = new Set(
-      filteredTreeLeaves(selectableTreeData, '')
-        .map((node) => node.slotId)
-        .filter((slotId): slotId is string => Boolean(slotId)),
-    )
-
+    const availableGroupIds = new Set(treeData.value.map((group) => group.id))
+    const validSelectedGroups = selectedGroupNodeIds.value.filter((id) => availableGroupIds.has(id))
+    if (validSelectedGroups.length !== selectedGroupNodeIds.value.length) {
+      selectedGroupNodeIds.value = validSelectedGroups
+    }
+    totalCandidateCount.value = Number(result.total || 0)
+    expandedGroupKeys.value = []
     await nextTick()
-    syncCheckedKeys()
-    syncExpandedKeys()
-    treeRef.value?.filter?.(searchKeyword.value)
+    await fillInitialViewport()
   } finally {
     if (requestId === loadRequestId) loading.value = false
   }
 }
 
-function emitChecked(node: unknown) {
-  const checkedNode = node as SlotTreeNode
-  if (searchKeyword.value.trim() && checkedNode.children?.length) {
-    const groupVisibleSlotIds = filteredTreeLeaves(
-      [checkedNode],
-      searchKeyword.value,
-    )
-      .map((node) => node.slotId)
-      .filter((slotId): slotId is string => Boolean(slotId))
+async function handleNodeExpand(rawData: AnyRecord) {
+  const data = rawData as unknown as SlotTreeNode
+  if (data.nodeType !== 'group') return
+  collapsedGroupIds.delete(data.id)
+  if (!expandedGroupKeys.value.includes(data.id)) expandedGroupKeys.value.push(data.id)
+  if (!data.loadedCount) await loadGroupPage(data, 1)
+}
 
-    // 隐藏成员会让分组节点保持半选，分组点击需按当前可见成员主动切换全选或反选。
-    emit(
-      'update:modelValue',
-      toggleFilteredTreeSelection(selectedSlotIds.value, groupVisibleSlotIds),
-    )
+function handleNodeCollapse(rawData: AnyRecord) {
+  const data = rawData as unknown as SlotTreeNode
+  if (data.nodeType !== 'group') return
+  collapsedGroupIds.add(data.id)
+  expandedGroupKeys.value = expandedGroupKeys.value.filter((id) => id !== data.id)
+}
+
+async function handleLoadMore(rawData: AnyRecord) {
+  const data = rawData as unknown as SlotTreeNode
+  if (data.nodeType !== 'load-more' || !data.groupId) return
+  const group = treeData.value.find((item) => item.groupId === data.groupId)
+  if (group) await loadGroupPage(group)
+}
+
+async function emitChecked(rawNode: AnyRecord, state: { checkedKeys?: Array<string | number> }) {
+  const node = rawNode as unknown as SlotTreeNode
+  if (node.nodeType === 'group' && node.groupId) {
+    node.loading = true
+    try {
+      const result = await loadSlotSelectionIds(
+        props.filters || {},
+        selectionQuery.value,
+        node.groupId,
+      )
+      const targetIds = (result.slot_ids || []).map(String)
+      const selected = new Set(selectedSlotIds.value)
+      const shouldSelect = (state.checkedKeys || []).includes(node.id)
+      targetIds.forEach((slotId) => {
+        if (shouldSelect) selected.add(slotId)
+        else selected.delete(slotId)
+      })
+      emit('update:modelValue', [...selected])
+    } finally {
+      node.loading = false
+      await nextTick()
+      syncCheckedKeys()
+    }
     return
   }
-
-  const checkedNodes = (treeRef.value?.getCheckedNodes?.(true) || []) as SlotTreeNode[]
-  const checkedSlotIds = checkedNodes
-    .map((node) => node.slotId)
-    .filter((slotId): slotId is string => Boolean(slotId))
-  const visibleSlotIds = filteredTreeLeaves(
-    visibleTreeData.value,
-    searchKeyword.value,
-  )
-    .map((node) => node.slotId)
-    .filter((slotId): slotId is string => Boolean(slotId))
-
-  // 搜索只改变本次勾选范围，不能覆盖搜索结果之外已经选中的设备。
-  emit(
-    'update:modelValue',
-    mergeFilteredTreeSelection(selectedSlotIds.value, checkedSlotIds, visibleSlotIds),
-  )
+  if (node.nodeType !== 'slot' || !node.slotId) return
+  const selected = new Set(selectedSlotIds.value)
+  if ((state.checkedKeys || []).includes(node.id)) selected.add(node.slotId)
+  else selected.delete(node.slotId)
+  emit('update:modelValue', [...selected])
 }
 
 onMounted(() => {
   loadTree()
   if (!props.fillHeight || typeof ResizeObserver === 'undefined') return
-  resizeObserver = new ResizeObserver(updateTreeHeight)
+  resizeObserver = new ResizeObserver(() => {
+    updateTreeHeight()
+  })
   if (rootRef.value) resizeObserver.observe(rootRef.value)
   if (toolbarRef.value) resizeObserver.observe(toolbarRef.value)
   nextTick(updateTreeHeight)
@@ -384,29 +396,25 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   loadRequestId += 1
-  if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
+  if (reloadTimer) window.clearTimeout(reloadTimer)
   resizeObserver?.disconnect()
 })
 
 watch(selectedSlotIds, () => nextTick(syncCheckedKeys))
 
-watch(searchKeyword, (value) => treeRef.value?.filter?.(value))
-
-watch(visibleTreeData, async () => {
+watch(selectedGroupNodeIds, async () => {
   await nextTick()
-  syncCheckedKeys()
-  syncExpandedKeys()
-  treeRef.value?.filter?.(searchKeyword.value)
+  await fillInitialViewport()
 })
 
 watch(
-  filterSignature,
+  requestSignature,
   () => {
-    if (filterReloadTimer) window.clearTimeout(filterReloadTimer)
-    filterReloadTimer = window.setTimeout(() => {
-      filterReloadTimer = undefined
+    if (reloadTimer) window.clearTimeout(reloadTimer)
+    reloadTimer = window.setTimeout(() => {
+      reloadTimer = undefined
       loadTree()
-    }, 250)
+    }, 300)
   },
 )
 </script>
@@ -503,10 +511,9 @@ watch(
       :height="treeHeight"
       :item-size="showPublishStats ? 56 : 42"
       show-checkbox
-      :default-expanded-keys="defaultExpandedGroupKeys"
+      :default-expanded-keys="expandedGroupKeys"
       :check-strictly="false"
       :expand-on-click-node="false"
-      :filter-method="filterNode"
       scrollbar-always-on
       empty-text="暂无可选设备"
       @check="emitChecked"
@@ -514,7 +521,17 @@ watch(
       @node-collapse="handleNodeCollapse"
     >
       <template #default="{ data }">
+        <button
+          v-if="data.nodeType === 'load-more'"
+          type="button"
+          class="slot-tree-load-more"
+          :disabled="data.loading"
+          @click.stop="handleLoadMore(data)"
+        >
+          {{ data.label }}
+        </button>
         <span
+          v-else
           class="slot-tree-node"
           :class="{ 'slot-tree-node--section-end': data.separatorAfter }"
         >
@@ -558,8 +575,14 @@ watch(
               {{ statusLabel(data.status) }}
             </el-tag>
           </span>
-          <el-tag v-else-if="data.deviceCount !== undefined" size="small" type="info" effect="plain" round>
-            {{ data.deviceCount }} 台
+          <el-tag
+            v-else-if="data.nodeType === 'group'"
+            size="small"
+            type="info"
+            effect="plain"
+            round
+          >
+            {{ data.loading ? '加载中' : `${data.deviceCount || 0} 台` }}
           </el-tag>
         </span>
       </template>
@@ -570,9 +593,9 @@ watch(
 <style scoped>
 .slot-tree-select {
   width: 100%;
-  box-sizing: border-box;
   min-height: 260px;
   max-height: 420px;
+  box-sizing: border-box;
   overflow: auto;
   padding: 10px 12px;
   border: 1px solid #dbe4f0;
@@ -664,7 +687,6 @@ watch(
   content: attr(data-filter-count);
   font-size: 10px;
   line-height: 13px;
-  pointer-events: none;
 }
 
 .group-filter-popover__header {
@@ -729,6 +751,10 @@ watch(
   padding-right: 8px;
 }
 
+.slot-tree-node--section-end {
+  padding-bottom: 6px;
+}
+
 .slot-tree-node--section-end::after {
   position: absolute;
   right: 10px;
@@ -737,18 +763,6 @@ watch(
   height: 1px;
   background: #c8d5e2;
   content: '';
-  pointer-events: none;
-}
-
-.slot-tree-node--section-end {
-  padding-bottom: 6px;
-}
-
-.slot-tree-node__label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .slot-tree-node__copy {
@@ -758,21 +772,23 @@ watch(
   line-height: 1.3;
 }
 
-.slot-tree-node__id {
+.slot-tree-node__label,
+.slot-tree-node__id,
+.slot-tree-node__account {
   overflow: hidden;
-  color: #7b8da1;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.slot-tree-node__id {
+  color: #7b8da1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+}
+
 .slot-tree-node__account {
-  overflow: hidden;
   color: #65778a;
   font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .slot-tree-node__tags {
@@ -782,7 +798,25 @@ watch(
   gap: 4px;
 }
 
-.slot-tree-node__tags :deep(.el-tag) {
-  max-width: 92px;
+.slot-tree-load-more {
+  width: 100%;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: #1f668f;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+}
+
+.slot-tree-load-more:hover {
+  color: #164e73;
+  text-decoration: underline;
+}
+
+.slot-tree-load-more:disabled {
+  color: #9aa8b7;
+  cursor: wait;
+  text-decoration: none;
 }
 </style>

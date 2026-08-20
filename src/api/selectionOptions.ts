@@ -1,5 +1,5 @@
 import { getAllPages, http } from '@/api/http'
-import type { AnyRecord } from '@/types/api'
+import type { AnyRecord, PageResult } from '@/types/api'
 
 interface CacheEntry {
   expiresAt: number
@@ -7,11 +7,27 @@ interface CacheEntry {
   pending?: Promise<AnyRecord[]>
 }
 
+interface ValueCacheEntry<T> {
+  expiresAt: number
+  data?: T
+  pending?: Promise<T>
+}
+
+export interface SlotSelectionTreeQuery {
+  accountPresence?: 'all' | 'bound' | 'unbound'
+  keyword?: string
+  publish?: boolean
+  publishUsage?: 'all' | 'today_not_sent' | 'today_sent' | 'content_not_sent' | 'content_sent'
+  contentId?: unknown
+}
+
 const CACHE_TTL_MS = 15_000
 const slotCache = new Map<string, CacheEntry>()
 const publishSlotCache = new Map<string, CacheEntry>()
 const accountCache = new Map<string, CacheEntry>()
 const monitoredAccountCache = new Map<string, CacheEntry>()
+const slotGroupCache = new Map<string, ValueCacheEntry<AnyRecord>>()
+const slotPageCache = new Map<string, ValueCacheEntry<PageResult<AnyRecord>>>()
 
 function normalizedFilters(filters: AnyRecord = {}) {
   return {
@@ -53,6 +69,95 @@ async function loadCached(
     })
   cache.set(key, { expiresAt: 0, pending })
   return pending
+}
+
+async function loadValueCached<T>(
+  cache: Map<string, ValueCacheEntry<T>>,
+  key: string,
+  loader: () => Promise<T>,
+) {
+  const now = Date.now()
+  const existing = cache.get(key)
+  if (existing?.data !== undefined && existing.expiresAt > now) return existing.data
+  if (existing?.pending) return existing.pending
+
+  const pending = loader()
+    .then((data) => {
+      cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS })
+      return data
+    })
+    .catch((error) => {
+      cache.delete(key)
+      throw error
+    })
+  cache.set(key, { expiresAt: 0, pending })
+  return pending
+}
+
+function slotTreeParams(filters: AnyRecord, query: SlotSelectionTreeQuery = {}) {
+  return {
+    ...normalizedSlotFilters(filters),
+    account_presence: query.publish ? undefined : query.accountPresence || 'all',
+    publish_usage: query.publish ? query.publishUsage || 'all' : undefined,
+    content_id: query.publish ? String(query.contentId || '') || undefined : undefined,
+    keyword: String(query.keyword || '').trim() || undefined,
+  }
+}
+
+function slotTreePath(query: SlotSelectionTreeQuery, suffix: 'groups' | 'page' | 'ids') {
+  return query.publish
+    ? `/api/interaction-center/published-dispatches/slot-${suffix}`
+    : `/api/execution-slots/selection-${suffix}`
+}
+
+export function loadSlotSelectionGroups(
+  filters: AnyRecord = {},
+  query: SlotSelectionTreeQuery = {},
+) {
+  const params = slotTreeParams(filters, query)
+  const path = slotTreePath(query, 'groups')
+  const key = JSON.stringify({ path, ...params })
+  return loadValueCached(
+    slotGroupCache,
+    key,
+    () => http.get<AnyRecord>(path, params),
+  )
+}
+
+export function loadSlotSelectionPage(
+  filters: AnyRecord,
+  query: SlotSelectionTreeQuery,
+  groupId: string,
+  page: number,
+  pageSize = 50,
+) {
+  const params = {
+    ...slotTreeParams(filters, query),
+    group_id: groupId === 'ungrouped' ? undefined : groupId,
+    ungrouped: groupId === 'ungrouped' || undefined,
+    page,
+    page_size: pageSize,
+  }
+  const path = slotTreePath(query, 'page')
+  const key = JSON.stringify({ path, ...params })
+  return loadValueCached(
+    slotPageCache,
+    key,
+    () => http.get<PageResult<AnyRecord>>(path, params),
+  )
+}
+
+export function loadSlotSelectionIds(
+  filters: AnyRecord,
+  query: SlotSelectionTreeQuery,
+  groupId: string,
+) {
+  const params = {
+    ...slotTreeParams(filters, query),
+    group_id: groupId === 'ungrouped' ? undefined : groupId,
+    ungrouped: groupId === 'ungrouped' || undefined,
+  }
+  return http.get<{ slot_ids: string[] }>(slotTreePath(query, 'ids'), params)
 }
 
 export function loadSlotSelectionOptions(filters: AnyRecord = {}) {
@@ -122,4 +227,6 @@ export function clearSelectionOptionsCache() {
   publishSlotCache.clear()
   accountCache.clear()
   monitoredAccountCache.clear()
+  slotGroupCache.clear()
+  slotPageCache.clear()
 }
