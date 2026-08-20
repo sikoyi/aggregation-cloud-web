@@ -519,7 +519,7 @@ watch(
       show-checkbox
       :default-expanded-keys="expandedGroupKeys"
       :check-strictly="false"
-      :expand-on-click-node="false"
+      :expand-on-click-node="true"
       scrollbar-always-on
       empty-text="暂无可选设备"
       @check="emitChecked"
