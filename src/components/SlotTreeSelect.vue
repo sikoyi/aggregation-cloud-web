@@ -621,6 +621,7 @@ watch(
 }
 
 .slot-tree-node {
+  position: relative;
   display: flex;
   height: 100%;
   min-width: 0;
@@ -632,8 +633,15 @@ watch(
   padding-right: 8px;
 }
 
-.slot-tree-node--section-end {
-  border-bottom: 1px solid #cbd8e6;
+.slot-tree-node--section-end::after {
+  position: absolute;
+  right: 14px;
+  bottom: 1px;
+  left: 10px;
+  height: 1px;
+  background: #e3e9f0;
+  content: '';
+  pointer-events: none;
 }
 
 .slot-tree-node__label {
