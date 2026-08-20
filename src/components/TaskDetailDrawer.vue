@@ -65,6 +65,30 @@ function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
 }
 
+function childExecutionTitle(row: AnyRecord) {
+  const params = row.params && typeof row.params === 'object' ? row.params as AnyRecord : {}
+  const account = params.account_info && typeof params.account_info === 'object'
+    ? params.account_info as AnyRecord
+    : {}
+  const content = params.content_info && typeof params.content_info === 'object'
+    ? params.content_info as AnyRecord
+    : {}
+  return text(
+    account.login_username
+      || account.username
+      || account.account_id
+      || row.title,
+  )
+}
+
+function childExecutionSecondary(row: AnyRecord) {
+  const params = row.params && typeof row.params === 'object' ? row.params as AnyRecord : {}
+  const rawContent = params.content_info
+  if (!rawContent || typeof rawContent !== 'object') return ''
+  const content = rawContent as AnyRecord
+  return String(content.title || content.text_content || content.content_id || '')
+}
+
 const PARAM_LABELS: Record<string, string> = {
   slot_ids: '设备列表',
   execution_count: '每台设备执行次数',
@@ -390,6 +414,14 @@ watch(
               <el-table-column label="子任务 ID" min-width="130">
                 <template #default="{ row }">
                   <span class="font-mono text-xs" :title="String(row.id || '')">{{ truncateId(row.id) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="账号 / 内容" min-width="190">
+                <template #default="{ row }">
+                  <div class="task-device-cell">
+                    <span>{{ childExecutionTitle(row) }}</span>
+                    <code v-if="childExecutionSecondary(row)">{{ childExecutionSecondary(row) }}</code>
+                  </div>
                 </template>
               </el-table-column>
               <el-table-column label="设备" min-width="190">

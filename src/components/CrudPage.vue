@@ -56,7 +56,6 @@ const InteractionSessionDetailDialog = defineAsyncComponent(() => import('@/comp
 const MediaAssetBatchUploader = defineAsyncComponent(() => import('@/components/MediaAssetBatchUploader.vue'))
 const MediaAssetGroupMemberEditor = defineAsyncComponent(() => import('@/components/MediaAssetGroupMemberEditor.vue'))
 const ProxyGroupMemberEditor = defineAsyncComponent(() => import('@/components/ProxyGroupMemberEditor.vue'))
-const PublishedContentDetailDialog = defineAsyncComponent(() => import('@/components/PublishedContentDetailDialog.vue'))
 const SlotGroupMemberEditor = defineAsyncComponent(() => import('@/components/SlotGroupMemberEditor.vue'))
 const TaskDetailDrawer = defineAsyncComponent(() => import('@/components/TaskDetailDrawer.vue'))
 
@@ -116,8 +115,6 @@ const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
 const interactionSessionDetailVisible = ref(false)
 const interactionSessionDetailId = ref<string | null>(null)
-const publishedContentDetailVisible = ref(false)
-const publishedContentDetailId = ref<string | null>(null)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -151,7 +148,6 @@ const hasActiveUserOperation = computed(() => Boolean(
   || selectedRows.value.length
   || taskDetailVisible.value
   || interactionSessionDetailVisible.value
-  || publishedContentDetailVisible.value
   || assetViewerVisible.value,
 ))
 
@@ -432,11 +428,6 @@ function openInteractionSessionDetail(record: AnyRecord) {
   interactionSessionDetailVisible.value = true
 }
 
-function openPublishedContentDetail(record: AnyRecord) {
-  publishedContentDetailId.value = rowId(record)
-  publishedContentDetailVisible.value = true
-}
-
 function openResultDialog(action: RowActionConfig, data: unknown, loading = false) {
   resultTitle.value = action.label
   resultValue.value = data
@@ -637,7 +628,7 @@ function shouldRefreshForRealtime(event: RealtimeEventPayload) {
   if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slotGroups') return event.topic === 'runtime'
-  if (props.config.key === 'publishedContents') return event.topic === 'content_monitor'
+  if (props.config.key === 'publishedContents') return event.topic === 'task'
   if (props.config.key === 'interactionSessions') return event.topic === 'task'
   return false
 }
@@ -1079,7 +1070,7 @@ async function runAction(action: RowActionConfig, record: AnyRecord) {
     return
   }
   if (props.config.key === 'publishedContents' && action.key === 'detail') {
-    openPublishedContentDetail(record)
+    openTaskDetail(record)
     return
   }
   if (action.clientAction === 'download') {
@@ -1174,8 +1165,6 @@ function initFilters() {
   resultColumns.value = []
   taskDetailVisible.value = false
   taskDetailId.value = null
-  publishedContentDetailVisible.value = false
-  publishedContentDetailId.value = null
 }
 
 watch(
@@ -1354,6 +1343,12 @@ onBeforeUnmount(() => {
     </div>
 
     <el-card shadow="never" class="table-card">
+      <div v-if="config.tableTitle" class="table-card__header">
+        <div>
+          <h2>{{ config.tableTitle }}</h2>
+          <p v-if="config.tableDescription">{{ config.tableDescription }}</p>
+        </div>
+      </div>
       <el-table
         ref="tableRef"
         v-loading="loading"
@@ -1678,21 +1673,45 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
-    <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
+    <TaskDetailDrawer
+      v-if="['tasks', 'publishedContents'].includes(config.key)"
+      v-model="taskDetailVisible"
+      :task-id="taskDetailId"
+    />
     <InteractionSessionDetailDialog
       v-if="config.key === 'interactionSessions'"
       v-model="interactionSessionDetailVisible"
       :session-id="interactionSessionDetailId"
     />
-    <PublishedContentDetailDialog
-      v-if="config.key === 'publishedContents'"
-      v-model="publishedContentDetailVisible"
-      :content-id="publishedContentDetailId"
-    />
   </section>
 </template>
 
 <style scoped>
+.table-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 2px 2px 14px;
+  border-bottom: 1px solid #e7edf4;
+}
+
+.table-card__header h2 {
+  margin: 0;
+  color: #243b53;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.table-card__header p {
+  margin: 4px 0 0;
+  color: #7b8da1;
+  font-size: 12px;
+}
+
+.table-card__header + :deep(.el-table) {
+  margin-top: 14px;
+}
+
 .filter-card__header {
   display: flex;
   align-items: center;

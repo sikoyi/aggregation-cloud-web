@@ -9,6 +9,7 @@ interface CacheEntry {
 
 const CACHE_TTL_MS = 15_000
 const slotCache = new Map<string, CacheEntry>()
+const publishSlotCache = new Map<string, CacheEntry>()
 const accountCache = new Map<string, CacheEntry>()
 const monitoredAccountCache = new Map<string, CacheEntry>()
 
@@ -63,6 +64,21 @@ export function loadSlotSelectionOptions(filters: AnyRecord = {}) {
   )
 }
 
+export function loadPublishSlotSelectionOptions(
+  filters: AnyRecord = {},
+  contentId?: unknown,
+) {
+  const params = {
+    ...normalizedSlotFilters(filters),
+    content_id: String(contentId || '') || undefined,
+  }
+  return loadCached(
+    publishSlotCache,
+    JSON.stringify(params),
+    () => http.get<AnyRecord[]>('/api/interaction-center/published-dispatches/slot-options', params),
+  )
+}
+
 export function loadAccountSelectionOptions(
   filters: AnyRecord = {},
   options: { associationOnly?: boolean } = {},
@@ -103,6 +119,7 @@ export function loadMonitoredAccountSelectionOptions(filters: AnyRecord = {}) {
 
 export function clearSelectionOptionsCache() {
   slotCache.clear()
+  publishSlotCache.clear()
   accountCache.clear()
   monitoredAccountCache.clear()
 }

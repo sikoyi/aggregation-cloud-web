@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ListFilter, Search, X } from 'lucide-vue-next'
 
-import { loadSlotSelectionOptions } from '@/api/selectionOptions'
+import { loadPublishSlotSelectionOptions, loadSlotSelectionOptions } from '@/api/selectionOptions'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
@@ -23,6 +23,8 @@ const props = defineProps<{
   showAccountPresenceFilter?: boolean
   accountPresence?: 'all' | 'bound' | 'unbound'
   fillHeight?: boolean
+  showPublishStats?: boolean
+  publishContentId?: unknown
 }>()
 
 const emit = defineEmits<{
@@ -37,6 +39,13 @@ interface SlotTreeNode {
   searchText?: string
   status?: string
   hasAccount?: boolean
+  accountName?: string
+  accountLoginStatus?: string
+  todayPublishCount?: number
+  lastPublishedAt?: string
+  selectedContentSucceededCount?: number
+  selectedContentActiveCount?: number
+  selectedContentFailedCount?: number
   deviceCount?: number
   separatorAfter?: boolean
   disabled?: boolean
@@ -52,6 +61,7 @@ const { filters: persistentFilters } = usePersistentFilters('selector:devices', 
   keyword: '',
   groupNodeIds: [] as string[],
   accountPresence: 'all' as 'all' | 'bound' | 'unbound',
+  publishUsage: 'all' as PublishUsage,
 })
 const searchKeyword = computed({
   get: () => String(persistentFilters.keyword || ''),
@@ -68,6 +78,18 @@ const accountPresenceFilter = computed<'all' | 'bound' | 'unbound'>({
     ? persistentFilters.accountPresence as 'bound' | 'unbound'
     : 'all',
   set: (value) => { persistentFilters.accountPresence = value },
+})
+type PublishUsage = 'all' | 'today_not_sent' | 'today_sent' | 'content_not_sent' | 'content_sent'
+const publishUsageFilter = computed<PublishUsage>({
+  get: () => {
+    const value = String(persistentFilters.publishUsage || 'all') as PublishUsage
+    if (!['all', 'today_not_sent', 'today_sent', 'content_not_sent', 'content_sent'].includes(value)) {
+      return 'all'
+    }
+    if (!props.publishContentId && value.startsWith('content_')) return 'all'
+    return value
+  },
+  set: (value) => { persistentFilters.publishUsage = value },
 })
 const loadedSlotIds = ref<Set<string>>(new Set())
 const defaultExpandedGroupKeys = ref<string[]>([])
@@ -97,7 +119,31 @@ const groupOptions = computed(() => fixedTreeData.value.map((node) => ({
 const activeFilterCount = computed(() => (
   selectedGroupNodeIds.value.length
   + (props.showAccountPresenceFilter && accountPresenceFilter.value !== 'all' ? 1 : 0)
+  + (props.showPublishStats && publishUsageFilter.value !== 'all' ? 1 : 0)
 ))
+
+function matchesPublishUsage(node: SlotTreeNode) {
+  const usage = publishUsageFilter.value
+  if (!props.showPublishStats || usage === 'all') return true
+  if (usage === 'today_not_sent') return Number(node.todayPublishCount || 0) === 0
+  if (usage === 'today_sent') return Number(node.todayPublishCount || 0) > 0
+  if (usage === 'content_not_sent') {
+    return Number(node.selectedContentSucceededCount || 0) === 0
+      && Number(node.selectedContentActiveCount || 0) === 0
+  }
+  return Number(node.selectedContentSucceededCount || 0) > 0
+}
+
+function filterTreeByPublishUsage(nodes: SlotTreeNode[]) {
+  if (!props.showPublishStats || publishUsageFilter.value === 'all') return nodes
+  return nodes
+    .map((node) => ({
+      ...node,
+      children: (node.children || []).filter(matchesPublishUsage),
+    }))
+    .filter((node) => Boolean(node.children?.length))
+}
+
 const visibleTreeData = computed(() => {
   const selectedIds = new Set(selectedGroupNodeIds.value)
   const grouped = selectedGroupNodeIds.value.length
@@ -105,7 +151,8 @@ const visibleTreeData = computed(() => {
     : fixedTreeData.value
   const accountFilter = props.showAccountPresenceFilter ? accountPresenceFilter.value : 'all'
   const accountFiltered = filterTreeByAccountPresence(grouped, accountFilter)
-  return filterTreeByLeafKeyword(accountFiltered, searchKeyword.value).map((node) => {
+  const publishFiltered = filterTreeByPublishUsage(accountFiltered)
+  return filterTreeByLeafKeyword(publishFiltered, searchKeyword.value).map((node) => {
     const children = node.children || []
     return {
       ...node,
@@ -124,6 +171,8 @@ const filterSignature = computed(() => JSON.stringify({
   runtime_platform: String(props.filters?.runtime_platform || ''),
   provider: String(props.filters?.provider || ''),
   account_presence: String(props.accountPresence || 'all'),
+  publish_stats: Boolean(props.showPublishStats),
+  content_id: String(props.publishContentId || ''),
 }))
 let loadRequestId = 0
 let filterReloadTimer: number | undefined
@@ -159,12 +208,19 @@ function toSlotNode(slot: AnyRecord): SlotTreeNode {
     slotId: String(slot.id),
     providerSlotId,
     label,
-    searchText: [label, providerSlotId, slot.provider_slot_no]
+    searchText: [label, providerSlotId, slot.provider_slot_no, slot.bound_account_name]
       .filter(Boolean)
       .join(' ')
       .toLowerCase(),
     status: String(slot.status || 'offline'),
     hasAccount: Boolean(slot.bound_account_id),
+    accountName: String(slot.bound_account_name || ''),
+    accountLoginStatus: String(slot.bound_account_login_status || ''),
+    todayPublishCount: Number(slot.today_publish_count || 0),
+    lastPublishedAt: String(slot.last_published_at || ''),
+    selectedContentSucceededCount: Number(slot.selected_content_succeeded_count || 0),
+    selectedContentActiveCount: Number(slot.selected_content_active_count || 0),
+    selectedContentFailedCount: Number(slot.selected_content_failed_count || 0),
     disabled: Boolean(props.disabled),
   }
 }
@@ -214,7 +270,9 @@ async function loadTree() {
   const requestId = ++loadRequestId
   loading.value = true
   try {
-    const slots = await loadSlotSelectionOptions(props.filters || {})
+    const slots = props.showPublishStats
+      ? await loadPublishSlotSelectionOptions(props.filters || {}, props.publishContentId)
+      : await loadSlotSelectionOptions(props.filters || {})
     if (requestId !== loadRequestId) return
 
     const slotsByGroup = new Map<string, AnyRecord[]>()
@@ -394,7 +452,7 @@ watch(
                 link
                 type="primary"
                 :icon="X"
-                @click="selectedGroupNodeIds = []; accountPresenceFilter = 'all'"
+                @click="selectedGroupNodeIds = []; accountPresenceFilter = 'all'; publishUsageFilter = 'all'"
               >
                 显示全部
               </el-button>
@@ -412,6 +470,17 @@ watch(
               />
             </div>
             <el-divider v-if="showAccountPresenceFilter" />
+            <div v-if="showPublishStats" class="account-presence-filter">
+              <span>发布情况</span>
+              <el-select v-model="publishUsageFilter" size="small">
+                <el-option label="全部账号" value="all" />
+                <el-option label="今日未发布" value="today_not_sent" />
+                <el-option label="今日已发布" value="today_sent" />
+                <el-option v-if="publishContentId" label="未发当前内容" value="content_not_sent" />
+                <el-option v-if="publishContentId" label="已发当前内容" value="content_sent" />
+              </el-select>
+            </div>
+            <el-divider v-if="showPublishStats" />
             <el-scrollbar max-height="260px">
               <el-checkbox-group v-model="selectedGroupNodeIds" class="group-filter-popover__options">
                 <el-checkbox
@@ -432,7 +501,7 @@ watch(
       :data="visibleTreeData"
       :props="treeProps"
       :height="treeHeight"
-      :item-size="42"
+      :item-size="showPublishStats ? 56 : 42"
       show-checkbox
       :default-expanded-keys="defaultExpandedGroupKeys"
       :check-strictly="false"
@@ -451,17 +520,43 @@ watch(
         >
           <span class="slot-tree-node__copy">
             <span class="slot-tree-node__label">{{ data.label }}</span>
-            <span v-if="data.providerSlotId" class="slot-tree-node__id">{{ data.providerSlotId }}</span>
+            <span v-if="showPublishStats && data.slotId" class="slot-tree-node__account">
+              {{ data.accountName || '未绑定账号' }}
+            </span>
+            <span v-else-if="data.providerSlotId" class="slot-tree-node__id">{{ data.providerSlotId }}</span>
           </span>
-          <el-tag
-            v-if="data.slotId"
-            size="small"
-            :type="statusTagType(data.status)"
-            effect="light"
-            round
-          >
-            {{ statusLabel(data.status) }}
-          </el-tag>
+          <span v-if="data.slotId" class="slot-tree-node__tags">
+            <el-tag
+              v-if="showPublishStats"
+              size="small"
+              :type="data.selectedContentActiveCount > 0
+                ? 'warning'
+                : publishContentId && data.selectedContentSucceededCount > 0
+                  ? 'success'
+                  : data.todayPublishCount > 0
+                    ? 'primary'
+                    : 'info'"
+              effect="light"
+              round
+              :title="data.lastPublishedAt ? `最近发布：${data.lastPublishedAt}` : '暂无发布记录'"
+            >
+              {{ data.selectedContentActiveCount > 0
+                ? '发送中'
+                : publishContentId && data.selectedContentSucceededCount > 0
+                  ? `当前已发 ${data.selectedContentSucceededCount}`
+                  : data.todayPublishCount > 0
+                    ? `今日已发 ${data.todayPublishCount}`
+                    : '今日未发' }}
+            </el-tag>
+            <el-tag
+              size="small"
+              :type="statusTagType(data.status)"
+              effect="light"
+              round
+            >
+              {{ statusLabel(data.status) }}
+            </el-tag>
+          </span>
           <el-tag v-else-if="data.deviceCount !== undefined" size="small" type="info" effect="plain" round>
             {{ data.deviceCount }} 台
           </el-tag>
@@ -669,5 +764,24 @@ watch(
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.slot-tree-node__account {
+  overflow: hidden;
+  color: #65778a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-tree-node__tags {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.slot-tree-node__tags :deep(.el-tag) {
+  max-width: 92px;
 }
 </style>

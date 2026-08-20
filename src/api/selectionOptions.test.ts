@@ -5,6 +5,7 @@ import {
   clearSelectionOptionsCache,
   loadAccountSelectionOptions,
   loadMonitoredAccountSelectionOptions,
+  loadPublishSlotSelectionOptions,
   loadSlotSelectionOptions,
 } from '@/api/selectionOptions'
 
@@ -65,6 +66,29 @@ describe('selection options cache', () => {
       bound_slot_group_id: '3',
       bound_slot_group_name: '韩国账号',
     })])
+  })
+
+  it('loads publish hints with the selected content in an independent cache', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce([{
+      id: 'slot-1',
+      today_publish_count: 2,
+      selected_content_succeeded_count: 1,
+    }])
+
+    const options = await loadPublishSlotSelectionOptions({
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+    }, 'content-8')
+
+    expect(options).toEqual([expect.objectContaining({ id: 'slot-1' })])
+    expect(http.get).toHaveBeenCalledWith(
+      '/api/interaction-center/published-dispatches/slot-options',
+      {
+        runtime_platform: 'fingerprint_browser',
+        provider: 'morelogin',
+        content_id: 'content-8',
+      },
+    )
   })
 
   it('keeps logged-in and association account candidates in separate caches', async () => {

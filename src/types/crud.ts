@@ -150,6 +150,7 @@ export interface FieldConfig {
   slotTreeAccountPresence?: 'all' | 'bound' | 'unbound'
   slotTreeProviderFilter?: boolean
   slotTreeFillHeight?: boolean
+  slotTreePublishStats?: boolean
   defaultValue?: unknown | ((record?: AnyRecord) => unknown)
   endKey?: string
   endDefaultValue?: number
@@ -226,6 +227,8 @@ export interface RowActionConfig {
 export interface ResourceConfig {
   key: string
   title: string
+  tableTitle?: string
+  tableDescription?: string
   permissionModule?: string
   endpoint: string
   idKey?: string

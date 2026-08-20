@@ -376,6 +376,10 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :show-account-presence-filter="field.slotTreeAccountPresenceFilter"
             :account-presence="field.slotTreeAccountPresence"
             :fill-height="field.slotTreeFillHeight"
+            :show-publish-stats="field.slotTreePublishStats"
+            :publish-content-id="field.slotTreePublishStats && modelValue.content_source_type === 'content'
+              ? modelValue.content_id
+              : undefined"
             :filters="{
               runtime_platform: modelValue.runtime_platform,
               provider: field.slotTreeProviderFilter || modelValue.template_id ? modelValue.provider : undefined,

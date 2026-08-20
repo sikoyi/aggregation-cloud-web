@@ -247,6 +247,7 @@ describe('发布内容来源', () => {
     expect(slotField?.slotTreeAccountPresenceFilter).not.toBe(true)
     expect(slotField?.slotTreeProviderFilter).toBe(true)
     expect(slotField?.slotTreeFillHeight).toBe(true)
+    expect(slotField?.slotTreePublishStats).toBe(true)
     expect(fields.some((field) => field.key === 'account_ids')).toBe(false)
 
     const body = resources.publishedContents.createBody?.({
@@ -259,6 +260,22 @@ describe('发布内容来源', () => {
 
     expect(body.slot_ids).toEqual(['slot-1'])
     expect(body).not.toHaveProperty('account_ids')
+  })
+
+  it('列表展示发布批次和执行结果，真实帖子留在账号数据', () => {
+    expect(resources.publishedContents.endpoint).toBe('/api/interaction-center/published-dispatches')
+    expect(resources.publishedContents.tableTitle).toBe('发布记录')
+    expect(resources.publishedContents.columns.map((column) => column.key)).toEqual([
+      'id',
+      'title',
+      'content_source_label',
+      'creator_display_name',
+      'business_platform',
+      'child_total',
+      'child_succeeded',
+      'status',
+      'created_at',
+    ])
   })
 
   it('为发布配置展示准确的必填标记', () => {
