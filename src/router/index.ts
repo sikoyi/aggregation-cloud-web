@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 const AppShell = () => import('@/layouts/AppShell.vue')
 const AccountCenterView = () => import('@/views/AccountCenterView.vue')
 const AccountDataView = () => import('@/views/AccountDataView.vue')
+const AccountWarmupView = () => import('@/views/AccountWarmupView.vue')
 const BenchmarkSyncRecordsView = () => import('@/views/BenchmarkSyncRecordsView.vue')
 const ContentCenterView = () => import('@/views/ContentCenterView.vue')
 const CommentReplyReviewView = () => import('@/views/CommentReplyReviewView.vue')
@@ -38,6 +39,7 @@ export const router = createRouter({
         { path: 'roles', component: RoleManagementView, meta: { permission: 'roles.view' } },
         { path: 'accounts', component: AccountCenterView, meta: { permission: 'accounts.view' } },
         { path: 'account-data', component: AccountDataView, meta: { permission: 'accounts.view' } },
+        { path: 'account-warmup', component: AccountWarmupView, meta: { permission: 'account_warmup.view' } },
         { path: 'benchmark-sync-records', component: BenchmarkSyncRecordsView, meta: { permission: 'monitoring.view' } },
         { path: 'slots', component: DeviceCenterView, meta: { permission: 'devices.view' } },
         { path: 'slot-groups', redirect: { path: '/slots', query: { tab: 'groups' } } },

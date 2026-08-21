@@ -3,6 +3,7 @@ import type { ColumnConfig } from '@/types/crud'
 
 const STATUS_LABELS: Record<string, string> = {
   active: '生效',
+  abnormal_paused: '异常暂停',
   acknowledged: '已确认',
   assigned: '已分配',
   banned: '封禁',
@@ -27,10 +28,14 @@ const STATUS_LABELS: Record<string, string> = {
   locked: '待前置步骤',
   lost: '已丢失',
   normal: '正常',
+  new: '新号',
   not_logged_in: '未登录',
+  not_started: '未养号',
+  old: '老号',
   offline: '离线',
   online: '在线',
   pending: '待处理',
+  pending_review: '待验收',
   propagating: '同步收敛中',
   notified: '已通知',
   queued: '排队中',
@@ -38,6 +43,7 @@ const STATUS_LABELS: Record<string, string> = {
   restricted: '封禁',
   retry_wait: '等待重试',
   running: '运行中',
+  maintenance: '日常维护',
   starting: '启动中',
   sent: '已下发',
   stopping: '停止中',
@@ -55,10 +61,10 @@ const STATUS_LABELS: Record<string, string> = {
   observer: '观察方',
 }
 
-const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used']
+const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used', 'old']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'generating', 'propagating', 'notified']
-const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked']
-const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked']
+const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked', 'not_started']
+const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked', 'abnormal_paused']
 
 export function getCellValue(row: AnyRecord, key: string) {
   if (!key.includes('.')) return row[key]

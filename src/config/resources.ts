@@ -13,8 +13,10 @@ import { normalizeThreadsPostUrl } from "@/utils/platformUrls";
 import type { FieldConfig, ResourceConfig } from "@/types/crud";
 
 import {
+  accountAgeTypeOptions,
   accountCountryOptions,
   accountDelimiterOptions,
+  accountWarmupStatusOptions,
   businessPlatformOptions,
   contentStatusFilterOptions,
   contentStatusOptions,
@@ -484,6 +486,14 @@ const accountTagRemoteSelect = {
   detailPath: (value: string) =>
     `/api/account-tags/${encodeURIComponent(value)}`,
   secondaryKey: "member_count",
+  searchParam: "keyword",
+  pageSize: 50,
+};
+
+const accountWarmupPlanRemoteSelect = {
+  endpoint: "/api/account-warmup/plans",
+  labelKey: "name",
+  valueKey: "id",
   searchParam: "keyword",
   pageSize: 50,
 };
@@ -973,6 +983,7 @@ export const resources: Record<string, ResourceConfig> = {
         "totp_secret_ref",
         "display_name",
         "login_status",
+        "account_age_type",
     ]),
     afterUpdate: updateAccountTags,
     columns: [
@@ -983,6 +994,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "password_secret_ref", label: "登录凭证", type: "accountCredentials", minWidth: 235 },
       { key: "business_platform", label: "平台 / 国家", type: "accountPlatform", minWidth: 125 },
       { key: "login_status", label: "登录状态", type: "status", width: 170, align: "center" },
+      { key: "account_age_type", label: "账号类型", type: "status", width: 90, align: "center" },
+      { key: "warmup_status", label: "养号状态", type: "status", width: 105, align: "center" },
       {
         key: "bound_slot_provider_id",
         label: "设备环境",
@@ -1049,6 +1062,25 @@ export const resources: Record<string, ResourceConfig> = {
         label: "登录状态",
         type: "select",
         options: loginStatusOptions,
+      },
+      {
+        key: "account_age_type",
+        label: "账号类型",
+        type: "select",
+        options: accountAgeTypeOptions,
+      },
+      {
+        key: "warmup_status",
+        label: "养号状态",
+        type: "select",
+        options: accountWarmupStatusOptions,
+      },
+      {
+        key: "warmup_plan_id",
+        label: "养号计划",
+        type: "remoteSelect",
+        remote: accountWarmupPlanRemoteSelect,
+        placeholder: "全部养号计划",
       },
       {
         key: "runtime_platform",
@@ -1206,6 +1238,12 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
       {
+        key: "account_age_type",
+        label: "账号类型",
+        type: "select",
+        options: accountAgeTypeOptions,
+      },
+      {
         key: "country",
         label: "账号国家",
         type: "select",
@@ -1279,6 +1317,30 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     inlineActionKeys: ["account-onboarding"],
     batchActions: [
+      {
+        key: "batch-update-account-age-type",
+        label: "修改账号类型",
+        method: "PUT",
+        icon: "edit",
+        batchPath: () => "/api/accounts/age-type/batch",
+        batchBody: (payload, records) => ({
+          account_ids: records.map((record) => String(record.id)),
+          account_age_type: String(payload.account_age_type || ""),
+        }),
+        successTitle: "账号类型修改完成",
+        successMessage: (data) =>
+          `已修改 ${Number(data.updated_count || 0)} 个账号${Number(data.not_found_count || 0) ? `，跳过 ${Number(data.not_found_count || 0)} 个不存在的账号` : ""}`,
+        fields: [
+          {
+            key: "account_age_type",
+            label: "账号类型",
+            type: "select",
+            options: accountAgeTypeOptions,
+            required: true,
+            placeholder: "请选择目标账号类型",
+          },
+        ],
+      },
       {
         key: "batch-update-login-status",
         label: "修改登录状态",

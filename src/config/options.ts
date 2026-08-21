@@ -296,6 +296,21 @@ export const loginStatusOptions: SelectOption[] = [
   { label: '封禁', value: 'banned' },
 ]
 
+export const accountAgeTypeOptions: SelectOption[] = [
+  { label: '新号', value: 'new' },
+  { label: '老号', value: 'old' },
+  { label: '未知', value: 'unknown' },
+]
+
+export const accountWarmupStatusOptions: SelectOption[] = [
+  { label: '未养号', value: 'not_started' },
+  { label: '养号中', value: 'running' },
+  { label: '待验收', value: 'pending_review' },
+  { label: '已养成', value: 'completed' },
+  { label: '日常维护', value: 'maintenance' },
+  { label: '异常暂停', value: 'abnormal_paused' },
+]
+
 export const accountSelectionStrategyOptions: SelectOption[] = [
   { label: '仅未登录账号', value: 'not_logged_in' },
   { label: '全部账号', value: 'all' },
@@ -415,6 +430,7 @@ export const scriptPurposeOptions: SelectOption[] = [
   { label: '账号注册', value: 'account_registration' },
   { label: '账号资料同步', value: 'account_profile_sync' },
   { label: '删除发布内容', value: 'content_delete' },
+  { label: '账号养号', value: 'account_warmup' },
 ]
 
 export const slotStatusOptions: SelectOption[] = [
