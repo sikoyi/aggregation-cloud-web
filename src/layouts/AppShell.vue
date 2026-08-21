@@ -72,7 +72,6 @@ const rawNavGroups = [
     children: [
       { label: '账号管理', to: '/accounts', icon: Users, permission: 'accounts.view' },
       { label: '账号数据', to: '/account-data', icon: Activity, permission: 'accounts.view' },
-      { label: '账号养号', to: '/account-warmup', icon: Activity, permission: 'account_warmup.view' },
 
     ],
   },
@@ -105,6 +104,7 @@ const rawNavGroups = [
       { label: '互动会话', to: '/interaction-sessions', icon: PlaySquare, permission: 'operations.view' },
       { label: '回复审核', to: '/comment-replies', icon: MessageSquareReply, permission: 'operations.view' },
       { label: '发布内容', to: '/published-contents', icon: FileText, permission: 'operations.view' },
+      { label: '账号养号', to: '/account-warmup', icon: Activity, permission: 'account_warmup.view' },
     ],
   },
   {
