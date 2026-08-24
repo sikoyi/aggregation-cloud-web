@@ -6,6 +6,7 @@ import {
   loadSlotSelectionGroups,
   loadSlotSelectionIds,
   loadSlotSelectionPage,
+  loadSlotSelectionPages,
   type SlotSelectionTreeQuery,
 } from '@/api/selectionOptions'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
@@ -49,12 +50,14 @@ interface SlotTreeNode {
   page?: number
   hasMore?: boolean
   loading?: boolean
+  loadError?: boolean
+  selecting?: boolean
   separatorAfter?: boolean
   disabled?: boolean
   children?: SlotTreeNode[]
 }
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 100
 const DEFAULT_TREE_HEIGHT = 350
 
 const treeRef = ref()
@@ -66,6 +69,7 @@ const totalCandidateCount = ref(0)
 const expandedGroupKeys = ref<string[]>([])
 const collapsedGroupIds = new Set<string>()
 const treeHeight = ref(DEFAULT_TREE_HEIGHT)
+const selectedWholeGroupIds = new Set<string>()
 const { filters: persistentFilters } = usePersistentFilters('selector:devices', {
   keyword: '',
   groupNodeIds: [] as string[],
@@ -155,6 +159,7 @@ const requestSignature = computed(() => JSON.stringify({
 let loadRequestId = 0
 let reloadTimer: number | undefined
 let resizeObserver: ResizeObserver | undefined
+const groupLoadPromises = new Map<string, Promise<void>>()
 
 function updateTreeHeight() {
   if (!props.fillHeight || !rootRef.value) {
@@ -215,7 +220,8 @@ function decorateChildren(group: SlotTreeNode, slots: SlotTreeNode[]) {
       id: `load-more:${group.groupId}:${group.page}`,
       nodeType: 'load-more',
       groupId: group.groupId,
-      label: group.loading ? '正在加载更多...' : '加载更多设备',
+      label: group.loadError ? '加载失败，点击重试' : group.loading ? '正在加载更多...' : '继续加载剩余设备',
+      loading: group.loading,
       disabled: true,
     })
   }
@@ -223,7 +229,22 @@ function decorateChildren(group: SlotTreeNode, slots: SlotTreeNode[]) {
 }
 
 function syncCheckedKeys() {
-  treeRef.value?.setCheckedKeys?.(selectedSlotIds.value.map(slotNodeId))
+  const selected = new Set(selectedSlotIds.value)
+  const checkedKeys = selectedSlotIds.value.map(slotNodeId)
+  treeData.value.forEach((group) => {
+    const slots = (group.children || []).filter((node) => node.nodeType === 'slot' && node.slotId)
+    const allLoadedSlotsSelected = slots.every((slot) => selected.has(String(slot.slotId)))
+    if (selectedWholeGroupIds.has(group.id) && !allLoadedSlotsSelected) {
+      selectedWholeGroupIds.delete(group.id)
+    }
+    if (
+      (selectedWholeGroupIds.has(group.id) && allLoadedSlotsSelected)
+      || (!group.hasMore && slots.length > 0 && allLoadedSlotsSelected)
+    ) {
+      checkedKeys.push(group.id)
+    }
+  })
+  treeRef.value?.setCheckedKeys?.(checkedKeys)
 }
 
 function syncTreeData() {
@@ -237,12 +258,22 @@ function syncExpandedKeys() {
   treeRef.value?.setExpandedKeys?.(expandedGroupKeys.value)
 }
 
-async function loadGroupPage(group: SlotTreeNode, requestedPage?: number) {
-  if (!group.groupId || group.loading) return
+async function expandGroup(group: SlotTreeNode) {
+  collapsedGroupIds.delete(group.id)
+  if (!expandedGroupKeys.value.includes(group.id)) {
+    expandedGroupKeys.value.push(group.id)
+  }
+  await nextTick()
+  syncExpandedKeys()
+}
+
+async function loadGroupPage(group: SlotTreeNode, requestedPage?: number): Promise<boolean> {
+  if (!group.groupId || group.loading) return false
   const page = requestedPage || Math.max(1, Number(group.page || 0) + 1)
   const requestId = loadRequestId
   const existingSlots = (group.children || []).filter((node) => node.nodeType === 'slot')
   group.loading = true
+  group.loadError = false
   group.children = existingSlots.length
     ? decorateChildren(group, existingSlots)
     : [placeholderNode(group.groupId, true)]
@@ -254,7 +285,7 @@ async function loadGroupPage(group: SlotTreeNode, requestedPage?: number) {
       page,
       PAGE_SIZE,
     )
-    if (requestId !== loadRequestId) return
+    if (requestId !== loadRequestId) return false
     const knownIds = new Set(existingSlots.map((node) => node.slotId))
     const appended = result.items
       .map(toSlotNode)
@@ -265,6 +296,10 @@ async function loadGroupPage(group: SlotTreeNode, requestedPage?: number) {
     group.deviceCount = Number(result.total || group.deviceCount || 0)
     group.hasMore = slots.length < Number(result.total || 0)
     group.children = decorateChildren(group, slots)
+    return appended.length > 0 || !group.hasMore
+  } catch {
+    if (requestId === loadRequestId) group.loadError = true
+    return false
   } finally {
     group.loading = false
     if (requestId === loadRequestId) {
@@ -282,6 +317,67 @@ async function loadGroupPage(group: SlotTreeNode, requestedPage?: number) {
   }
 }
 
+function loadExpandedGroup(group: SlotTreeNode) {
+  if (!group.groupId) return Promise.resolve()
+  const existing = groupLoadPromises.get(group.id)
+  if (existing) return existing
+  const requestId = loadRequestId
+  const pending = (async () => {
+    group.loading = true
+    group.loadError = false
+    try {
+      await loadSlotSelectionPages(
+        props.filters || {},
+        selectionQuery.value,
+        group.groupId!,
+        {
+          startPage: Math.max(1, Number(group.page || 0) + 1),
+          pageSize: PAGE_SIZE,
+          shouldContinue: () => (
+            requestId === loadRequestId
+            && Boolean(group.hasMore)
+            && expandedGroupKeys.value.includes(group.id)
+          ),
+          onPage: async (result) => {
+            if (requestId !== loadRequestId) return
+            const existingSlots = (group.children || []).filter((node) => node.nodeType === 'slot')
+            const knownIds = new Set(existingSlots.map((node) => node.slotId))
+            const appended = result.items
+              .map(toSlotNode)
+              .filter((node) => !knownIds.has(node.slotId))
+            const slots = [...existingSlots, ...appended]
+            group.page = Number(result.page || group.page || 0)
+            group.loadedCount = slots.length
+            group.deviceCount = Number(result.total || group.deviceCount || 0)
+            group.hasMore = slots.length < Number(result.total || 0)
+            group.children = decorateChildren(group, slots)
+            await nextTick()
+            syncTreeData()
+            syncCheckedKeys()
+            syncExpandedKeys()
+          },
+        },
+      )
+    } catch {
+      if (requestId === loadRequestId) group.loadError = true
+    } finally {
+      group.loading = false
+      if (requestId === loadRequestId) {
+        const slots = (group.children || []).filter((node) => node.nodeType === 'slot')
+        group.children = decorateChildren(group, slots)
+        await nextTick()
+        syncTreeData()
+        syncCheckedKeys()
+        syncExpandedKeys()
+      }
+    }
+  })().finally(() => {
+    if (groupLoadPromises.get(group.id) === pending) groupLoadPromises.delete(group.id)
+  })
+  groupLoadPromises.set(group.id, pending)
+  return pending
+}
+
 async function fillInitialViewport() {
   const itemSize = props.showPublishStats ? 56 : 42
   const targetRows = Math.max(8, Math.ceil(treeHeight.value / itemSize))
@@ -293,6 +389,7 @@ async function fillInitialViewport() {
     if (!expandedGroupKeys.value.includes(group.id)) {
       expandedGroupKeys.value.push(group.id)
     }
+    void loadExpandedGroup(group)
     filledRows += Math.max(1, Number(group.loadedCount || 0))
   }
   await nextTick()
@@ -306,6 +403,7 @@ async function loadTree() {
   try {
     const result = await loadSlotSelectionGroups(props.filters || {}, selectionQuery.value)
     if (requestId !== loadRequestId) return
+    selectedWholeGroupIds.clear()
     treeData.value = (Array.isArray(result.groups) ? result.groups : []).map((item) => {
       const groupId = String(item.id || 'ungrouped')
       return {
@@ -338,9 +436,9 @@ async function loadTree() {
 async function handleNodeExpand(rawData: AnyRecord) {
   const data = rawData as unknown as SlotTreeNode
   if (data.nodeType !== 'group') return
-  collapsedGroupIds.delete(data.id)
-  if (!expandedGroupKeys.value.includes(data.id)) expandedGroupKeys.value.push(data.id)
+  await expandGroup(data)
   if (!data.loadedCount) await loadGroupPage(data, 1)
+  void loadExpandedGroup(data)
 }
 
 function handleNodeCollapse(rawData: AnyRecord) {
@@ -350,39 +448,63 @@ function handleNodeCollapse(rawData: AnyRecord) {
   expandedGroupKeys.value = expandedGroupKeys.value.filter((id) => id !== data.id)
 }
 
+async function handleGroupLabelClick(rawData: AnyRecord) {
+  const data = rawData as unknown as SlotTreeNode
+  if (data.nodeType !== 'group') return
+  if (expandedGroupKeys.value.includes(data.id)) {
+    handleNodeCollapse(data as unknown as AnyRecord)
+    await nextTick()
+    syncExpandedKeys()
+    return
+  }
+  await handleNodeExpand(data as unknown as AnyRecord)
+}
+
 async function handleLoadMore(rawData: AnyRecord) {
   const data = rawData as unknown as SlotTreeNode
   if (data.nodeType !== 'load-more' || !data.groupId) return
   const group = treeData.value.find((item) => item.groupId === data.groupId)
-  if (group) await loadGroupPage(group)
+  if (group) await loadExpandedGroup(group)
 }
 
 async function emitChecked(rawNode: AnyRecord, state: { checkedKeys?: Array<string | number> }) {
   const node = rawNode as unknown as SlotTreeNode
   if (node.nodeType === 'group' && node.groupId) {
-    node.loading = true
+    if (node.selecting) return
+    const shouldSelect = (state.checkedKeys || []).includes(node.id)
+    node.selecting = true
     try {
-      const result = await loadSlotSelectionIds(
+      const selectionIdsPromise = loadSlotSelectionIds(
         props.filters || {},
         selectionQuery.value,
         node.groupId,
       )
+      const result = await selectionIdsPromise
       const targetIds = (result.slot_ids || []).map(String)
       const selected = new Set(selectedSlotIds.value)
-      const shouldSelect = (state.checkedKeys || []).includes(node.id)
       targetIds.forEach((slotId) => {
         if (shouldSelect) selected.add(slotId)
         else selected.delete(slotId)
       })
       emit('update:modelValue', [...selected])
-    } finally {
-      node.loading = false
+      if (shouldSelect) selectedWholeGroupIds.add(node.id)
+      else selectedWholeGroupIds.delete(node.id)
       await nextTick()
       syncCheckedKeys()
+    } finally {
+      node.selecting = false
+      await nextTick()
+      syncCheckedKeys()
+      syncExpandedKeys()
     }
     return
   }
   if (node.nodeType !== 'slot' || !node.slotId) return
+  treeData.value.forEach((group) => {
+    if ((group.children || []).some((child) => child.id === node.id)) {
+      selectedWholeGroupIds.delete(group.id)
+    }
+  })
   const selected = new Set(selectedSlotIds.value)
   if ((state.checkedKeys || []).includes(node.id)) selected.add(node.slotId)
   else selected.delete(node.slotId)
@@ -402,6 +524,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   loadRequestId += 1
+  groupLoadPromises.clear()
   if (reloadTimer) window.clearTimeout(reloadTimer)
   resizeObserver?.disconnect()
 })
@@ -518,8 +641,8 @@ watch(
       :item-size="showPublishStats ? 56 : 42"
       show-checkbox
       :default-expanded-keys="expandedGroupKeys"
-      :check-strictly="false"
-      :expand-on-click-node="true"
+      :check-strictly="true"
+      :expand-on-click-node="false"
       scrollbar-always-on
       empty-text="暂无可选设备"
       @check="emitChecked"
@@ -542,7 +665,11 @@ watch(
           :class="{ 'slot-tree-node--section-end': data.separatorAfter }"
         >
           <span class="slot-tree-node__copy">
-            <span class="slot-tree-node__label">{{ data.label }}</span>
+            <span
+              class="slot-tree-node__label"
+              :class="{ 'slot-tree-node__label--group': data.nodeType === 'group' }"
+              @click.stop="handleGroupLabelClick(data)"
+            >{{ data.label }}</span>
             <span v-if="showPublishStats && data.slotId" class="slot-tree-node__account">
               {{ data.accountName || '未绑定账号' }}
             </span>
@@ -784,6 +911,10 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.slot-tree-node__label--group {
+  cursor: pointer;
 }
 
 .slot-tree-node__id {

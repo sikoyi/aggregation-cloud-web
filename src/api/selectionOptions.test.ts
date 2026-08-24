@@ -9,6 +9,7 @@ import {
   loadSlotSelectionGroups,
   loadSlotSelectionIds,
   loadSlotSelectionPage,
+  loadSlotSelectionPages,
   loadSlotSelectionOptions,
 } from '@/api/selectionOptions'
 
@@ -134,6 +135,52 @@ describe('selection options cache', () => {
       page: 1,
       page_size: 50,
     })
+  })
+
+  it('loads every page for one expanded device group', async () => {
+    vi.mocked(http.get)
+      .mockResolvedValueOnce({ items: Array.from({ length: 100 }, (_, index) => ({ id: `slot-${index + 1}` })), total: 205, page: 1, page_size: 100 })
+      .mockResolvedValueOnce({ items: Array.from({ length: 100 }, (_, index) => ({ id: `slot-${index + 101}` })), total: 205, page: 2, page_size: 100 })
+      .mockResolvedValueOnce({ items: Array.from({ length: 5 }, (_, index) => ({ id: `slot-${index + 201}` })), total: 205, page: 3, page_size: 100 })
+
+    const receivedPages: number[] = []
+    const result = await loadSlotSelectionPages(
+      { runtime_platform: 'fingerprint_browser', provider: 'morelogin' },
+      { accountPresence: 'bound' },
+      'group-1',
+      {
+        pageSize: 100,
+        onPage: (page) => { receivedPages.push(page.page) },
+      },
+    )
+
+    expect(receivedPages).toEqual([1, 2, 3])
+    expect(result).toEqual({ loaded: 205, total: 205, lastPage: 3 })
+    expect(http.get).toHaveBeenCalledTimes(3)
+  })
+
+  it('stops loading an expanded group after it is collapsed', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({
+      items: Array.from({ length: 100 }, (_, index) => ({ id: `slot-${index + 1}` })),
+      total: 300,
+      page: 1,
+      page_size: 100,
+    })
+    let expanded = true
+
+    const result = await loadSlotSelectionPages(
+      {},
+      {},
+      'group-1',
+      {
+        pageSize: 100,
+        shouldContinue: () => expanded,
+        onPage: () => { expanded = false },
+      },
+    )
+
+    expect(result).toEqual({ loaded: 100, total: 300, lastPage: 1 })
+    expect(http.get).toHaveBeenCalledTimes(1)
   })
 
   it('loads only ids when selecting a complete publish device group', async () => {

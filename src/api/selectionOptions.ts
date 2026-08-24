@@ -21,6 +21,13 @@ export interface SlotSelectionTreeQuery {
   contentId?: unknown
 }
 
+export interface SlotSelectionPagesOptions {
+  startPage?: number
+  pageSize?: number
+  shouldContinue?: () => boolean
+  onPage?: (result: PageResult<AnyRecord>) => void | Promise<void>
+}
+
 const CACHE_TTL_MS = 15_000
 const slotCache = new Map<string, CacheEntry>()
 const publishSlotCache = new Map<string, CacheEntry>()
@@ -145,6 +152,31 @@ export function loadSlotSelectionPage(
     key,
     () => http.get<PageResult<AnyRecord>>(path, params),
   )
+}
+
+export async function loadSlotSelectionPages(
+  filters: AnyRecord,
+  query: SlotSelectionTreeQuery,
+  groupId: string,
+  options: SlotSelectionPagesOptions = {},
+) {
+  const pageSize = Math.max(1, Number(options.pageSize || 100))
+  let page = Math.max(1, Number(options.startPage || 1))
+  let lastLoadedPage = page - 1
+  let total = 0
+  let loaded = 0
+
+  while (options.shouldContinue?.() !== false) {
+    const result = await loadSlotSelectionPage(filters, query, groupId, page, pageSize)
+    lastLoadedPage = page
+    total = Number(result.total || 0)
+    loaded += result.items.length
+    await options.onPage?.(result)
+    if (!result.items.length || page * pageSize >= total) break
+    page += 1
+  }
+
+  return { loaded, total, lastPage: lastLoadedPage }
 }
 
 export function loadSlotSelectionIds(
