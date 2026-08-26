@@ -35,6 +35,7 @@ describe('registration country options', () => {
       { label: 'Hero SMS', value: 'hero_sms' },
       { label: '火狐狸', value: 'firefox' },
       { label: 'SMSBower', value: 'smsbower' },
+      { label: 'WorldCode', value: 'worldcode' },
     ])
   })
 

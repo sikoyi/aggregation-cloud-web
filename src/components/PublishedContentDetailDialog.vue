@@ -80,6 +80,17 @@ const paginatedMetricRecordRows = computed<AnyRecord[]>(() => {
   return metricRecordRows.value.slice(start, start + METRIC_RECORD_PAGE_SIZE)
 })
 const comments = computed<AnyRecord[]>(() => Array.isArray(detail.value?.comments) ? detail.value.comments : [])
+const storedCommentCount = computed(() => {
+  const value = Number(detail.value?.comment_total)
+  return Number.isFinite(value) && value >= 0 ? value : comments.value.length
+})
+const unavailableCommentCount = computed(() => {
+  if (String(content.value?.business_platform || '').toLowerCase() !== 'x') return 0
+  const platformCount = Number(content.value?.comment_count)
+  if (!Number.isFinite(platformCount) || platformCount <= storedCommentCount.value) return 0
+  return platformCount - storedCommentCount.value
+})
+const showXCommentCoverageNotice = computed(() => unavailableCommentCount.value > 0)
 const contentMediaUrls = computed<string[]>(() => {
   const urls = content.value?.media_urls
   return Array.isArray(urls) ? urls.map(String).filter(Boolean) : []
@@ -465,7 +476,20 @@ watch(metricPeriod, () => {
           </el-tab-pane>
 
           <el-tab-pane label="评论树" name="comments">
-            <el-empty v-if="!commentTree.length" description="暂无评论" :image-size="70" />
+            <el-alert
+              v-if="showXCommentCoverageNotice"
+              :title="`X 显示 ${numberText(content?.comment_count)} 条评论，当前采集到 ${storedCommentCount} 条可见评论`"
+              :description="`其余 ${unavailableCommentCount} 条可能已删除、来自私密账号，或被 X 隐藏和过滤，因此无法展示作者与评论内容。`"
+              type="warning"
+              :closable="false"
+              show-icon
+              class="comment-coverage-notice"
+            />
+            <el-empty
+              v-if="!commentTree.length"
+              :description="showXCommentCoverageNotice ? '暂无可展示的公开评论' : '暂无评论'"
+              :image-size="70"
+            />
             <el-tree
               v-else
               :data="commentTree"
@@ -721,6 +745,10 @@ watch(metricPeriod, () => {
   display: flex;
   justify-content: flex-end;
   padding-top: 12px;
+}
+
+.comment-coverage-notice {
+  margin-bottom: 14px;
 }
 
 .comment-tree {

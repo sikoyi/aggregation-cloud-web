@@ -62,6 +62,7 @@ interface UsageSummary {
   enabled_token_count: number
   available_token_count: number
   account_count: number
+  total_included_credits_usd: number
   total_monthly_quota_usd: number
   total_monthly_usage_usd: number
   total_remaining_quota_usd: number
@@ -71,7 +72,11 @@ interface UsageSummary {
   refreshed_at?: string
 }
 
-const businessPlatform = 'threads'
+const businessPlatform = ref<'threads' | 'x'>('threads')
+const businessPlatformOptions = [
+  { label: 'Threads', value: 'threads' },
+  { label: 'X(Twitter)', value: 'x' },
+]
 const loading = ref(false)
 const usageLoading = ref(false)
 const savingEnabled = ref(false)
@@ -85,10 +90,12 @@ const revealedTokenIds = ref<string[]>([])
 const enabled = ref(false)
 const provider = ref<MonitorProvider>('apify')
 const persistedProvider = ref<MonitorProvider>('apify')
-const providerOptions = [
+const providerOptions = computed(() => businessPlatform.value === 'x' ? [
+  { label: 'Apify', value: 'apify' },
+] : [
   { label: 'Apify', value: 'apify' },
   { label: 'Threads 内部协议', value: 'threads_protocol' },
-]
+])
 const protocolForm = reactive({
   base_url: '',
   token: '',
@@ -104,13 +111,18 @@ const usageByTokenId = computed(() => {
   usage.value.tokens.forEach((item) => values.set(item.token_id, item))
   return values
 })
+const xFreePlanTokens = computed(() => businessPlatform.value === 'x'
+  ? usage.value.tokens.filter((item) => item.available && String(item.plan_name || '').toUpperCase() === 'FREE')
+  : [])
 const recentDailyUsages = computed(() => usage.value.daily_usages.slice(-14))
 const maxDailyUsage = computed(() => Math.max(...recentDailyUsages.value.map((item) => item.usage_usd), 0.000001))
 const providerDirty = computed(() => provider.value !== persistedProvider.value)
 const providerLabel = computed(() => provider.value === 'threads_protocol' ? '内部协议' : 'Apify')
 const providerDescription = computed(() => provider.value === 'threads_protocol'
   ? '服务端调用 Threads 协议采集账号资料、帖子和评论；采集账号池由协议服务自行维护。'
-  : '服务端固定使用 Apify Actor，多个 Token 按轮换顺序承接新的监听任务。')
+  : businessPlatform.value === 'x'
+    ? '服务端通过 Apify 采集 X 账号资料、背景图、推文和回复；多个 Token 按轮换顺序承接任务。'
+    : '服务端固定使用 Apify Actor，多个 Token 按轮换顺序承接新的监听任务。')
 
 function emptyUsage(): UsageSummary {
   return {
@@ -118,6 +130,7 @@ function emptyUsage(): UsageSummary {
     enabled_token_count: 0,
     available_token_count: 0,
     account_count: 0,
+    total_included_credits_usd: 0,
     total_monthly_quota_usd: 0,
     total_monthly_usage_usd: 0,
     total_remaining_quota_usd: 0,
@@ -128,7 +141,14 @@ function emptyUsage(): UsageSummary {
 }
 
 function endpoint(suffix = '') {
-  return `/api/interaction-center/content-monitor/provider-config/${businessPlatform}${suffix}`
+  return `/api/interaction-center/content-monitor/provider-config/${businessPlatform.value}${suffix}`
+}
+
+async function changeBusinessPlatform() {
+  provider.value = 'apify'
+  persistedProvider.value = 'apify'
+  usage.value = emptyUsage()
+  await refreshAll()
 }
 
 async function loadConfig() {
@@ -136,7 +156,9 @@ async function loadConfig() {
   try {
     const data = await http.get<AnyRecord>(endpoint())
     enabled.value = data.enabled === true
-    const loadedProvider = data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
+    const loadedProvider = businessPlatform.value === 'x'
+      ? 'apify'
+      : data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
     provider.value = loadedProvider
     persistedProvider.value = loadedProvider
     protocolForm.base_url = String(data.protocol_base_url || '')
@@ -187,7 +209,9 @@ async function saveProviderConfig() {
       if (protocolForm.token.trim()) payload.protocol_token = protocolForm.token.trim()
     }
     const data = await http.put<AnyRecord>(endpoint(), payload)
-    const savedProvider = data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
+    const savedProvider = businessPlatform.value === 'x'
+      ? 'apify'
+      : data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
     provider.value = savedProvider
     persistedProvider.value = savedProvider
     enabled.value = data.enabled === true
@@ -371,6 +395,12 @@ onMounted(refreshAll)
         <div class="monitor-title"><span class="provider-mark">{{ providerLabel }}</span><h2>账号内容监听</h2></div>
         <p>{{ providerDescription }}</p>
       </div>
+      <el-segmented
+        v-model="businessPlatform"
+        :options="businessPlatformOptions"
+        class="platform-switcher"
+        @change="changeBusinessPlatform"
+      />
       <div class="monitor-switch">
         <div><strong>{{ enabled ? '监听已启用' : '监听已停止' }}</strong><span>控制当前业务 App 的账号监听</span></div>
         <el-switch
@@ -436,14 +466,26 @@ onMounted(refreshAll)
     </div>
 
     <template v-if="provider === 'apify'">
+      <el-alert
+        v-if="xFreePlanTokens.length"
+        title="当前 X(Twitter) Token 使用 Apify FREE 计划，回复 Actor 每次最多返回 10 条数据，无法可靠生成评论树和回复审核记录。请升级 Apify 付费计划后重新测试连接。"
+        type="error"
+        :closable="false"
+        show-icon
+        class="plan-warning"
+      />
       <div class="summary-strip" v-loading="usageLoading">
       <div class="summary-item">
         <span class="summary-icon summary-icon--blue"><WalletCards :size="18" /></span>
-        <div><span>月度总额度</span><strong>{{ money(usage.total_monthly_quota_usd) }} <small>{{ usage.account_count }} 个账号</small></strong></div>
+        <div><span>套餐赠送额度</span><strong>{{ money(usage.total_included_credits_usd) }} <small>{{ usage.account_count }} 个账号</small></strong></div>
+      </div>
+      <div class="summary-item">
+        <span class="summary-icon summary-icon--cyan"><WalletCards :size="18" /></span>
+        <div><span>月消费上限</span><strong>{{ money(usage.total_monthly_quota_usd) }}</strong></div>
       </div>
       <div class="summary-item">
         <span class="summary-icon summary-icon--green"><WalletCards :size="18" /></span>
-        <div><span>剩余可用额度</span><strong>{{ money(usage.total_remaining_quota_usd) }}</strong></div>
+        <div><span>剩余消费空间</span><strong>{{ money(usage.total_remaining_quota_usd) }}</strong></div>
       </div>
       <div class="summary-item">
         <span class="summary-icon summary-icon--amber"><CalendarDays :size="18" /></span>
@@ -489,9 +531,9 @@ onMounted(refreshAll)
       <el-table-column label="额度 / 消耗" min-width="240">
         <template #default="{ row }">
           <div v-if="usageByTokenId.get(row.id)?.available" class="usage-cell">
-            <div><span>额度 {{ money(usageByTokenId.get(row.id)?.monthly_quota_usd) }}</span><span>剩余 {{ money(usageByTokenId.get(row.id)?.remaining_quota_usd) }}</span></div>
+            <div><span>消费上限 {{ money(usageByTokenId.get(row.id)?.monthly_quota_usd) }}</span><span>剩余空间 {{ money(usageByTokenId.get(row.id)?.remaining_quota_usd) }}</span></div>
             <el-progress :percentage="usageRate(usageByTokenId.get(row.id))" :stroke-width="6" :show-text="false" />
-            <small>账号共享额度 · 本账期已用 {{ money(usageByTokenId.get(row.id)?.monthly_usage_usd, 6) }} · 今日 {{ money(usageByTokenId.get(row.id)?.today_usage_usd, 6) }}</small>
+            <small>套餐赠送 {{ money(usageByTokenId.get(row.id)?.included_credits_usd) }} · 本账期已用 {{ money(usageByTokenId.get(row.id)?.monthly_usage_usd, 6) }} · 今日 {{ money(usageByTokenId.get(row.id)?.today_usage_usd, 6) }}</small>
           </div>
           <span v-else class="muted-text">暂无可用数据</span>
         </template>
@@ -567,6 +609,7 @@ onMounted(refreshAll)
 .row-actions,
 .enabled-field { display: flex; align-items: center; }
 .monitor-header { justify-content: space-between; gap: 24px; padding-bottom: 16px; border-bottom: 1px solid #e4ebf2; }
+.platform-switcher { width: 220px; flex: 0 0 220px; }
 .provider-config,
 .provider-choice,
 .provider-actions,
@@ -590,7 +633,8 @@ onMounted(refreshAll)
 .monitor-switch div { display: grid; gap: 2px; text-align: right; }
 .monitor-switch strong { font-size: 13px; }
 .monitor-switch span { color: #8793a3; font-size: 11px; }
-.summary-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 16px 0 20px; border: 1px solid #dce5ed; border-radius: 6px; background: #f9fbfd; }
+.summary-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 16px 0 20px; border: 1px solid #dce5ed; border-radius: 6px; background: #f9fbfd; }
+.plan-warning { margin: 16px 0; }
 .summary-item { gap: 10px; min-height: 78px; padding: 12px 16px; border-right: 1px solid #e2e9f0; }
 .summary-item:last-child { border-right: 0; }
 .summary-item > div { display: grid; gap: 3px; }
@@ -599,6 +643,7 @@ onMounted(refreshAll)
 .summary-item small { color: #8793a3; font-size: 12px; font-weight: 500; }
 .summary-icon { display: inline-flex; width: 34px; height: 34px; align-items: center; justify-content: center; border-radius: 7px; }
 .summary-icon--blue { color: #236b97; background: #eaf5fc; }
+.summary-icon--cyan { color: #0f7384; background: #e8f7f9; }
 .summary-icon--green { color: #26845a; background: #eaf7f0; }
 .summary-icon--amber { color: #a76912; background: #fff4df; }
 .summary-icon--red { color: #c15454; background: #fff0f0; }
@@ -639,8 +684,8 @@ onMounted(refreshAll)
 .enabled-field { min-height: 32px; color: #66788a; font-size: 12px; }
 @media (max-width: 980px) {
   .summary-strip { grid-template-columns: repeat(2, 1fr); }
-  .summary-item:nth-child(2) { border-right: 0; }
-  .summary-item:nth-child(-n+2) { border-bottom: 1px solid #e2e9f0; }
+  .summary-item:nth-child(even) { border-right: 0; }
+  .summary-item:nth-child(-n+4) { border-bottom: 1px solid #e2e9f0; }
   .daily-chart { overflow-x: auto; grid-template-columns: repeat(14, minmax(42px, 1fr)); }
 }
 @media (max-width: 680px) {
@@ -651,6 +696,7 @@ onMounted(refreshAll)
   .provider-actions { width: 100%; justify-content: flex-end; }
   .protocol-fields { grid-template-columns: 1fr; gap: 0; }
   .monitor-switch { width: 100%; justify-content: space-between; padding: 10px 0 0; border-top: 1px solid #e5ebf1; border-left: 0; }
+  .platform-switcher { width: 100%; flex-basis: auto; }
   .monitor-switch div { text-align: left; }
   .summary-strip { grid-template-columns: 1fr; }
   .summary-item { border-right: 0; border-bottom: 1px solid #e2e9f0; }

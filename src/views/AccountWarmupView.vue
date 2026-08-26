@@ -132,10 +132,12 @@ function initialForm(): WarmupPlanPayload {
     consecutive_failure_pause_threshold: 3,
     retry_override: null,
     completion_mode: 'automatic',
+    auto_convert_to_old: true,
     target_mode: 'fixed',
     target_rules: { account_ids: [], slot_ids: [], account_tag_ids: [], slot_group_ids: [] },
     behavior_rules: {
       browse: { enabled: true, start_day: 1, min_minutes: 10, max_minutes: 30 },
+      detail_view: { enabled: false, start_day: 1, probability: 20 },
       like: { enabled: true, start_day: 1, probability: 20 },
       follow: { enabled: true, start_day: 3, probability: 5 },
       publish: { enabled: false, start_day: 3, content_group_id: null, content_usage_status: 'unused' },
@@ -225,6 +227,10 @@ function openEdit(tableRow: unknown) {
   suspendFormWatch.value = true
   editingPlan.value = row
   Object.assign(form, JSON.parse(JSON.stringify(row)))
+  form.behavior_rules = {
+    ...initialForm().behavior_rules,
+    ...form.behavior_rules,
+  }
   fixedSource.value = form.target_rules.slot_ids.length && !form.target_rules.account_ids.length ? 'slot' : 'account'
   editorTab.value = 'basic'
   editorVisible.value = true
@@ -239,6 +245,7 @@ function normalizedPayload(): WarmupPlanPayload {
     payload.maintenance_weekdays = []
   } else {
     payload.target_days = null
+    payload.auto_convert_to_old = false
   }
   if (payload.target_mode === 'fixed') {
     payload.target_rules.account_tag_ids = []
@@ -438,7 +445,7 @@ onMounted(() => {
       <el-table v-loading="loading" :data="rows" border stripe class="plan-table">
         <el-table-column prop="id" label="计划 ID" width="88" align="center" />
         <el-table-column label="计划信息" min-width="230">
-          <template #default="{ row }"><strong>{{ row.name }}</strong><div class="subline">{{ planTypeLabel(row.plan_type) }} · {{ optionLabel(platformOptions, row.business_platform) }}</div><div class="subline">创建人：{{ row.creator_name || '-' }}</div></template>
+          <template #default="{ row }"><strong>{{ row.name }}</strong><div class="subline">{{ planTypeLabel(row.plan_type) }} · {{ optionLabel(platformOptions, row.business_platform) }}<template v-if="row.plan_type === 'full' && row.auto_convert_to_old"> · 完成后转老号</template></div><div class="subline">创建人：{{ row.creator_name || '-' }}</div></template>
         </el-table-column>
         <el-table-column label="执行范围" min-width="180" align="center">
           <template #default="{ row }"><el-tag effect="plain">{{ optionLabel(runtimeOptions, row.runtime_platform) }}</el-tag><el-tag effect="plain" class="ml6">{{ row.provider }}</el-tag></template>
@@ -471,12 +478,12 @@ onMounted(() => {
         <el-tab-pane label="基础规则" name="basic">
           <el-form label-position="top" class="form-grid">
             <el-form-item label="计划名称" required><el-input v-model="form.name" maxlength="200" /></el-form-item>
-            <el-form-item label="计划类型" required><el-segmented v-model="form.plan_type" :options="[{ label: '完整养号', value: 'full' }, { label: '日常维护', value: 'maintenance' }]" /></el-form-item>
+            <el-form-item label="计划类型" required><el-segmented v-model="form.plan_type" :disabled="Boolean(editingPlan && editingPlan.status !== 'draft')" :options="[{ label: '完整养号', value: 'full' }, { label: '日常维护', value: 'maintenance' }]" /></el-form-item>
             <el-form-item label="业务 App" required><el-select v-model="form.business_platform"><el-option v-for="item in platformOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
             <el-form-item label="执行平台" required><el-select v-model="form.runtime_platform"><el-option v-for="item in runtimeOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
             <el-form-item label="供应商" required><el-select v-model="form.provider"><el-option v-for="item in providerOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
             <el-form-item label="养号脚本"><el-select v-model="form.script_id" clearable filterable placeholder="不选择时激活自动匹配"><el-option v-for="script in scriptOptions" :key="String(script.id)" :label="`${script.name} · ${optionLabel(runtimeOptions, String((script.supported_runtime_platforms as string[])?.[0] || ''))}`" :value="String(script.id)" /></el-select><div v-if="!scriptOptions.length" class="field-help">当前范围暂无启用的养号脚本，草稿可保存，激活前需要先配置脚本。</div></el-form-item>
-            <el-form-item v-if="form.plan_type === 'full'" label="目标养号天数" required><el-input-number v-model="form.target_days" :min="1" :max="365" /></el-form-item>
+            <el-form-item v-if="form.plan_type === 'full'" label="目标养号天数" required><el-input-number v-model="form.target_days" :min="1" :max="365" :disabled="Boolean(editingPlan && editingPlan.status !== 'draft')" /><div v-if="editingPlan && editingPlan.status !== 'draft'" class="field-help">计划开始执行后不可修改</div></el-form-item>
             <el-form-item v-else label="维护周期" required><el-select v-model="form.maintenance_schedule_type"><el-option label="每天" value="daily" /><el-option label="间隔天数" value="interval_days" /><el-option label="按星期" value="weekdays" /></el-select></el-form-item>
             <el-form-item v-if="form.plan_type === 'maintenance' && form.maintenance_schedule_type === 'interval_days'" label="间隔天数" required><el-input-number v-model="form.maintenance_interval_days" :min="1" :max="365" /></el-form-item>
             <el-form-item v-if="form.plan_type === 'maintenance' && form.maintenance_schedule_type === 'weekdays'" label="执行星期" required class="span-2"><el-checkbox-group v-model="form.maintenance_weekdays"><el-checkbox-button v-for="item in weekdayOptions" :key="item.value" :value="item.value">{{ item.label }}</el-checkbox-button></el-checkbox-group></el-form-item>
@@ -484,6 +491,13 @@ onMounted(() => {
             <el-form-item label="最大并发账号数" required><el-input-number v-model="form.max_concurrency" :min="1" :max="10000" /></el-form-item>
             <el-form-item label="连续失败暂停阈值" required><el-input-number v-model="form.consecutive_failure_pause_threshold" :min="1" :max="100" /></el-form-item>
             <el-form-item label="完成方式"><el-select v-model="form.completion_mode"><el-option label="自动完成" value="automatic" /><el-option label="人工验收" value="manual_review" /></el-select></el-form-item>
+            <el-form-item v-if="form.plan_type === 'full'" label="完成后的账号类型">
+              <div class="switch-field">
+                <el-switch v-model="form.auto_convert_to_old" />
+                <span>完成后自动转为老号</span>
+              </div>
+              <div class="field-help">自动完成时立即转换；人工验收时在审核通过后转换。</div>
+            </el-form-item>
             <el-form-item label="失败策略"><div class="switches"><el-checkbox v-model="form.failure_counts_as_day">失败计入养号天数</el-checkbox><el-checkbox v-model="form.continue_after_failure">失败后继续后续计划</el-checkbox></div></el-form-item>
           </el-form>
         </el-tab-pane>
@@ -504,8 +518,11 @@ onMounted(() => {
         <el-tab-pane label="行为规则" name="behavior">
           <div class="behavior-list">
             <div class="behavior-item"><div class="behavior-title"><div><strong>浏览内容</strong><p>随机生成脚本本次需要浏览的时长。</p></div><el-switch v-model="form.behavior_rules.browse.enabled" /></div><div v-if="form.behavior_rules.browse.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.browse.start_day" :min="1" /></label><label>时长范围（分钟） <span class="inline-range"><el-input-number v-model="form.behavior_rules.browse.min_minutes" :min="0" /> - <el-input-number v-model="form.behavior_rules.browse.max_minutes" :min="0" /></span></label></div></div>
-            <div class="behavior-item"><div class="behavior-title"><div><strong>随机点赞</strong><p>概率原样下发给脚本，由脚本按浏览内容判断。</p></div><el-switch v-model="form.behavior_rules.like.enabled" /></div><div v-if="form.behavior_rules.like.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.like.start_day" :min="1" /></label><label>点赞概率（%） <el-input-number v-model="form.behavior_rules.like.probability" :min="0" :max="100" /></label></div></div>
-            <div class="behavior-item"><div class="behavior-title"><div><strong>随机关注</strong><p>概率原样下发给脚本。</p></div><el-switch v-model="form.behavior_rules.follow.enabled" /></div><div v-if="form.behavior_rules.follow.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.follow.start_day" :min="1" /></label><label>关注概率（%） <el-input-number v-model="form.behavior_rules.follow.probability" :min="0" :max="100" /></label></div></div>
+            <div class="behavior-probability-grid">
+              <div class="behavior-item"><div class="behavior-title"><div><strong>查看帖子详情</strong><p>按概率进入帖子详情页查看。</p></div><el-switch v-model="form.behavior_rules.detail_view.enabled" /></div><div v-if="form.behavior_rules.detail_view.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.detail_view.start_day" :min="1" /></label><label>查看概率（%） <el-input-number v-model="form.behavior_rules.detail_view.probability" :min="0" :max="100" /></label></div></div>
+              <div class="behavior-item"><div class="behavior-title"><div><strong>随机点赞</strong><p>按浏览内容独立随机判断。</p></div><el-switch v-model="form.behavior_rules.like.enabled" /></div><div v-if="form.behavior_rules.like.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.like.start_day" :min="1" /></label><label>点赞概率（%） <el-input-number v-model="form.behavior_rules.like.probability" :min="0" :max="100" /></label></div></div>
+              <div class="behavior-item"><div class="behavior-title"><div><strong>随机关注</strong><p>按浏览到的账号独立随机判断。</p></div><el-switch v-model="form.behavior_rules.follow.enabled" /></div><div v-if="form.behavior_rules.follow.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.follow.start_day" :min="1" /></label><label>关注概率（%） <el-input-number v-model="form.behavior_rules.follow.probability" :min="0" :max="100" /></label></div></div>
+            </div>
             <div class="behavior-item"><div class="behavior-title"><div><strong>发布内容</strong><p>从指定内容池中随机分配一条内容，失败后不释放。</p></div><el-switch v-model="form.behavior_rules.publish.enabled" /></div><div v-if="form.behavior_rules.publish.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.publish.start_day" :min="1" /></label><label>内容池 <el-select v-model="form.behavior_rules.publish.content_group_id" filterable><el-option v-for="item in contentGroups.filter((group) => group.business_platform === form.business_platform)" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></label><label>内容使用状态 <el-select v-model="form.behavior_rules.publish.content_usage_status"><el-option label="未使用" value="unused" /><el-option label="已使用" value="used" /><el-option label="全部" value="all" /></el-select></label></div></div>
           </div>
         </el-tab-pane>
@@ -562,10 +579,15 @@ h1 { font-size: 20px; color: #17233d; }
 .pagination { display: flex; justify-content: flex-end; padding-top: 14px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
 .span-2 { grid-column: span 2; }.time-range, .inline-range { gap: 10px; }.switches { display: flex; flex-direction: column; gap: 8px; }
+.switch-field { display: flex; align-items: center; gap: 10px; min-height: 32px; color: #334155; }
 .target-mode { margin-bottom: 16px; }.target-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .selector-panel { border: 1px solid #dce5ef; border-radius: 6px; padding: 14px; }.selector-panel h3 { font-size: 14px; margin-bottom: 10px; }
 .target-selects { padding-top: 10px; }.behavior-list { display: grid; gap: 12px; }
+.behavior-probability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .behavior-item { border: 1px solid #dce5ef; border-radius: 6px; padding: 15px 16px; }.behavior-title { justify-content: space-between; }.behavior-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 14px; border-top: 1px solid #edf1f5; margin-top: 14px; }.behavior-fields label { display: grid; gap: 7px; color: #52677d; font-size: 13px; }
+.behavior-fields--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.behavior-fields--compact :deep(.el-input-number) { width: 100%; }
 .detail-toolbar { gap: 10px; margin-bottom: 12px; }.detail-toolbar .el-input, .detail-toolbar .el-select { width: 220px; }
 @media (max-width: 1200px) { .filter-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px) { .behavior-probability-grid { grid-template-columns: 1fr; } }
 </style>

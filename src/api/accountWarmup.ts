@@ -38,9 +38,10 @@ export interface WarmupPlanPayload {
   consecutive_failure_pause_threshold: number
   retry_override?: number | null
   completion_mode: 'automatic' | 'manual_review'
+  auto_convert_to_old: boolean
   target_mode: 'fixed' | 'account_tags' | 'slot_groups' | 'dynamic_intersection'
   target_rules: WarmupTargetRules
-  behavior_rules: Record<'browse' | 'like' | 'follow' | 'publish', WarmupBehaviorRule>
+  behavior_rules: Record<'browse' | 'detail_view' | 'like' | 'follow' | 'publish', WarmupBehaviorRule>
 }
 
 export interface WarmupPlan extends WarmupPlanPayload {

@@ -148,6 +148,12 @@ const hasFilters = computed(() => activeFilterCount.value > 0)
 const monitorAccountFilters = computed(() => ({
   business_platform: monitorForm.business_platform,
 }))
+const monitorFeatureOptions = computed(() => monitorForm.business_platform === 'threads'
+  ? [
+      { label: '账号数据监听', value: 'account_data' },
+      { label: '对标账号跟踪', value: 'benchmark' },
+    ]
+  : [{ label: '账号数据监听', value: 'account_data' }])
 const profileMetricItems = computed(() => {
   const account = selectedAccount.value
   if (!account) return []
@@ -709,7 +715,10 @@ onBeforeUnmount(() => {
 
           <main class="account-profile">
             <template v-if="selectedAccount">
-              <header class="account-profile__header">
+              <div v-if="selectedAccount.cover_url" class="account-profile__cover">
+                <img :src="resolveBackendUrl(selectedAccount.cover_url)" alt="账号背景图" />
+              </div>
+              <header class="account-profile__header" :class="{ 'has-cover': selectedAccount.cover_url }">
                 <el-avatar
                   :size="76"
                   :src="resolveBackendUrl(selectedAccount.avatar_url) || undefined"
@@ -881,10 +890,7 @@ onBeforeUnmount(() => {
           <div class="monitor-type-switch">
             <el-segmented
               v-model="monitorFeature"
-              :options="[
-                { label: '账号数据监听', value: 'account_data' },
-                { label: '对标账号跟踪', value: 'benchmark' },
-              ]"
+              :options="monitorFeatureOptions"
               class="w-full"
             />
           </div>
@@ -907,7 +913,10 @@ onBeforeUnmount(() => {
               </el-select>
             </el-form-item>
             <el-form-item label="账号主页链接" required>
-              <el-input v-model="monitorForm.profile_url" placeholder="例如：https://www.threads.com/@username" />
+              <el-input
+                v-model="monitorForm.profile_url"
+                :placeholder="monitorForm.business_platform === 'x' ? '例如：https://x.com/username' : '例如：https://www.threads.com/@username'"
+              />
             </el-form-item>
             <div class="monitor-form-row">
               <el-form-item label="监听规则">
@@ -1286,12 +1295,26 @@ onBeforeUnmount(() => {
   padding: 18px 20px 22px;
   background: #fff;
 }
+.account-profile__cover {
+  height: 150px;
+  margin: -18px -20px 0;
+  overflow: hidden;
+  border-bottom: 1px solid #dce5ed;
+  background: #eef3f7;
+}
+.account-profile__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .account-profile__header {
   align-items: flex-start;
   gap: 16px;
   padding-bottom: 18px;
   border-bottom: 1px solid #e7edf3;
 }
+.account-profile__header.has-cover { padding-top: 16px; }
+.account-profile__header.has-cover .account-profile__avatar { margin-top: -52px; }
 .account-profile__avatar { box-shadow: 0 0 0 4px #f3f8fb; }
 .account-profile__identity { min-width: 0; flex: 1; }
 .account-profile__name-row { flex-wrap: wrap; gap: 9px; }
