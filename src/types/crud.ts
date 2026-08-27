@@ -121,6 +121,7 @@ export interface RemoteSelectConfig {
   matchesContext?: (option: AnyRecord, context?: AnyRecord) => boolean
   optionDisabled?: (option: AnyRecord, context?: AnyRecord) => boolean
   emptyText?: string | ((context?: AnyRecord) => string)
+  fixedOptions?: AnyRecord[]
   group?: RemoteSelectGroupConfig
   create?: RemoteSelectCreateConfig
 }
@@ -256,6 +257,7 @@ export interface ResourceConfig {
   deleteNotificationType?: (deletedRecord: AnyRecord, record: AnyRecord) => 'success' | 'warning' | 'error' | 'info'
   keepCreateOpenWhen?: (createdRecord: AnyRecord, payload: AnyRecord) => boolean
   createBody?: (payload: AnyRecord) => unknown
+  listParams?: (params: AnyRecord) => AnyRecord
   afterCreate?: (createdRecord: AnyRecord, payload: AnyRecord) => Promise<unknown>
   loadEditRecord?: (record: AnyRecord) => Promise<AnyRecord>
   updateBody?: (payload: AnyRecord, record: AnyRecord) => unknown

@@ -128,6 +128,13 @@ function optionValue(option: AnyRecord) {
   return String(option[props.config.valueKey] ?? '')
 }
 
+function withFixedOptions(items: AnyRecord[]) {
+  const fixedOptions = props.config.fixedOptions || []
+  if (!fixedOptions.length) return items
+  const fixedValues = new Set(fixedOptions.map(optionValue))
+  return [...fixedOptions, ...items.filter((item) => !fixedValues.has(optionValue(item)))]
+}
+
 function optionSecondary(option: AnyRecord) {
   if (props.config.secondaryFormatter) return props.config.secondaryFormatter(option)
   const keys = props.config.secondaryKeys || (props.config.secondaryKey ? [props.config.secondaryKey] : [])
@@ -238,11 +245,12 @@ async function mergeDetailsForCurrentSelection(items: AnyRecord[]) {
 async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
   const requestId = ++loadRequestId
   if (!canLoad.value) {
-    options.value = []
+    options.value = withFixedOptions([])
     loading.value = false
     return
   }
   loading.value = true
+  options.value = withFixedOptions(options.value)
   try {
     const endpoint = resolvedEndpoint()
     const baseParams = resolvedBaseParams()
@@ -257,8 +265,9 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
     const matchedItems = props.config.matchesContext
       ? data.items.filter((item) => props.config.matchesContext?.(item, props.context))
       : data.items
+    const selectableItems = withFixedOptions(matchedItems)
     if (behavior.clearMissing && props.config.clearWhenMissing) {
-      const items = await mergeDetailsForCurrentSelection(matchedItems)
+      const items = await mergeDetailsForCurrentSelection(selectableItems)
       if (requestId !== loadRequestId) return
       const availableItems = props.config.matchesContext
         ? items.filter((item) => props.config.matchesContext?.(item, props.context))
@@ -276,7 +285,7 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
       }
       return
     }
-    const mergedItems = await mergeSelectedDetails(matchedItems)
+    const mergedItems = await mergeSelectedDetails(selectableItems)
     if (requestId === loadRequestId) options.value = mergedItems
   } finally {
     if (requestId === loadRequestId) loading.value = false

@@ -618,7 +618,7 @@ function buildListParams() {
     const key = filter.key
     if (value !== '' && value !== undefined && value !== null) params[key] = value
   })
-  return params
+  return props.config.listParams?.(params) || params
 }
 
 async function loadRows(options?: { silent?: boolean } | number) {

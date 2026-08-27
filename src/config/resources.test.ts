@@ -545,6 +545,35 @@ describe('账号批量设置标签', () => {
   })
 })
 
+describe('账号列表未分配筛选', () => {
+  const filters = resources.accounts.filters || []
+  const groupFilter = filters.find((field) => field.key === 'slot_group_id')
+  const tagFilter = filters.find((field) => field.key === 'tag_id')
+
+  it('在现有设备分组和账号标签下拉中提供特殊选项', () => {
+    expect(groupFilter?.remote?.fixedOptions).toContainEqual({
+      id: '__ungrouped__',
+      name: '未分组',
+    })
+    expect(tagFilter?.remote?.fixedOptions).toContainEqual({
+      id: '__unassigned__',
+      name: '未分配标签',
+    })
+  })
+
+  it('把特殊选项转换为后端布尔筛选参数', () => {
+    expect(resources.accounts.listParams?.({
+      page: 1,
+      slot_group_id: '__ungrouped__',
+      tag_id: '__unassigned__',
+    })).toEqual({
+      page: 1,
+      slot_group_ungrouped: true,
+      tag_unassigned: true,
+    })
+  })
+})
+
 describe('账号登录状态管理', () => {
   const action = resources.accounts.batchActions?.find(
     (item) => item.key === 'batch-update-login-status',

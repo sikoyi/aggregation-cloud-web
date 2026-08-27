@@ -50,6 +50,22 @@ function includesScopeValue(values: unknown, value: unknown) {
   return Array.isArray(values) && values.map(String).includes(String(value));
 }
 
+const ACCOUNT_UNGROUPED_FILTER_VALUE = "__ungrouped__";
+const ACCOUNT_UNASSIGNED_TAG_FILTER_VALUE = "__unassigned__";
+
+function normalizeAccountListParams(params: AnyRecord) {
+  const normalized = { ...params };
+  if (normalized.slot_group_id === ACCOUNT_UNGROUPED_FILTER_VALUE) {
+    delete normalized.slot_group_id;
+    normalized.slot_group_ungrouped = true;
+  }
+  if (normalized.tag_id === ACCOUNT_UNASSIGNED_TAG_FILTER_VALUE) {
+    delete normalized.tag_id;
+    normalized.tag_unassigned = true;
+  }
+  return normalized;
+}
+
 function scriptMatchesContext(script: AnyRecord, context?: AnyRecord) {
   if (script.status && script.status !== "enabled") return false;
   return (
@@ -968,6 +984,7 @@ export const resources: Record<string, ResourceConfig> = {
     createSuccessTitle: "账号导入完成",
     createSuccessMessage: (data) => formatAccountImportSuccess(data),
     createNotificationType: (data) => accountImportNotificationType(data),
+    listParams: normalizeAccountListParams,
     keepCreateOpenWhen: (data) => Number(data.created_count || 0) === 0 && Number(data.failed_count || 0) > 0,
     createBody: (payload) => buildAccountImportPayload(payload),
     loadEditRecord: loadAccountForEdit,
@@ -1023,14 +1040,24 @@ export const resources: Record<string, ResourceConfig> = {
         key: "slot_group_id",
         label: "设备分组",
         type: "remoteSelect",
-        remote: slotGroupRemoteSelect,
+        remote: {
+          ...slotGroupRemoteSelect,
+          fixedOptions: [
+            { id: ACCOUNT_UNGROUPED_FILTER_VALUE, name: "未分组" },
+          ],
+        },
         placeholder: "全部设备分组",
       },
       {
         key: "tag_id",
         label: "账号标签",
         type: "remoteSelect",
-        remote: accountTagRemoteSelect,
+        remote: {
+          ...accountTagRemoteSelect,
+          fixedOptions: [
+            { id: ACCOUNT_UNASSIGNED_TAG_FILTER_VALUE, name: "未分配标签" },
+          ],
+        },
         placeholder: "全部标签",
       },
       {
