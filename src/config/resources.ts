@@ -29,8 +29,6 @@ import {
   mediaAssetStatusOptions,
   mediaAssetTypeOptions,
   providerOptions,
-  publishedContentStatusOptions,
-  publishedContentTypeOptions,
   proxyModeOptions,
   proxyProtocolOptions,
   proxyUsageStatusOptions,
@@ -1008,7 +1006,7 @@ export const resources: Record<string, ResourceConfig> = {
         type: "accountBackup",
         minWidth: 240,
       },
-      { key: "updated_at", label: "更新时间", type: "datetime", width: 155, align: "center" },
+      { key: "created_at", label: "创建时间", type: "datetime", width: 155, align: "center" },
     ],
     filters: [
       {
@@ -2479,9 +2477,9 @@ export const resources: Record<string, ResourceConfig> = {
     createBody: (payload) => buildInteractionSessionBody(payload),
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
-      { key: "title", label: "会话名称", minWidth: 220 },
+      { key: "title", label: "会话名称", minWidth: 220, align: "center" },
       { key: "interaction_mode", label: "互动场景", type: "status", options: [{ label: "链接内容互动", value: "conversation" }, { label: "广场内容互动", value: "square_numeric" }], minWidth: 130, align: "center" },
-      { key: "target_content_title", label: "目标内容", minWidth: 220 },
+      { key: "target_content_title", label: "目标内容", type: "interactionTargetContent", minWidth: 240, align: "center" },
       {
         key: "content_mode",
         label: "文案来源",
@@ -2494,8 +2492,7 @@ export const resources: Record<string, ResourceConfig> = {
         align: "center",
       },
       { key: "main_account_name", label: "主号 / 目标作者", minWidth: 180, align: "center" },
-      { key: "comment_account_count", label: "评论账号", width: 100, align: "center" },
-      { key: "progress_text", label: "进度", width: 100, align: "center" },
+      { key: "progress_text", label: "进度", type: "interactionProgress", width: 170, align: "center" },
       { key: "status", label: "状态", type: "status", options: interactionSessionStatusOptions, width: 120, align: "center" },
       { key: "updated_at", label: "更新时间", type: "datetime", minWidth: 170, align: "center" },
     ],
@@ -2505,6 +2502,24 @@ export const resources: Record<string, ResourceConfig> = {
         label: "业务 App",
         type: "select",
         options: businessPlatformOptions,
+      },
+      {
+        key: "interaction_mode",
+        label: "互动场景",
+        type: "select",
+        options: [
+          { label: "链接内容互动", value: "conversation" },
+          { label: "广场内容互动", value: "square_numeric" },
+        ],
+      },
+      {
+        key: "content_mode",
+        label: "文案来源",
+        type: "select",
+        options: [
+          { label: "AI 生成", value: "ai" },
+          { label: "自定义内容", value: "custom" },
+        ],
       },
       {
         key: "status",
@@ -2827,6 +2842,8 @@ export const resources: Record<string, ResourceConfig> = {
     key: "publishedContents",
     title: "发布内容",
     endpoint: "/api/interaction-center/published-contents",
+    listEndpoint: "/api/interaction-center/published-results",
+    expandRow: "publishedContentTask",
     createEndpoint: "/api/interaction-center/published-contents/dispatch",
     createLabel: "下发发布任务",
     createBody: (payload) => buildPublishedContentDispatchBody(payload),
@@ -2834,18 +2851,14 @@ export const resources: Record<string, ResourceConfig> = {
     createSuccessTitle: "发布任务已下发",
     createSuccessMessage: (data) => formatPublishedContentDispatchSuccess(data),
     columns: [
-      { key: "id", label: "ID", type: "id", width: 80, align: "center" },
-      { key: "title", label: "标题", minWidth: 220 },
-      { key: "author_account_name", label: "发布账号", minWidth: 160, align: "center" },
-      { key: "business_platform", label: "业务 App", align: "center" },
-      { key: "content_type", label: "内容类型", options: publishedContentTypeOptions, align: "center" },
-      { key: "platform_content_id", label: "平台内容 ID", minWidth: 160, align: "center" },
-      { key: "comment_count", label: "评论", width: 90, align: "center" },
-      { key: "like_count", label: "点赞", width: 90, align: "center" },
-      { key: "share_count", label: "分享", width: 90, align: "center" },
-      { key: "view_count", label: "浏览", width: 90, align: "center" },
-      { key: "status", label: "状态", type: "status", options: publishedContentStatusOptions, align: "center" },
-      { key: "last_collected_at", label: "最近采集", type: "datetime", minWidth: 170, align: "center" },
+      { key: "id", label: "任务 ID", type: "id", width: 90, align: "center" },
+      { key: "title", label: "发布任务", type: "publishedTaskIdentity", minWidth: 220, align: "center" },
+      { key: "created_by", label: "操作员", type: "taskOperator", minWidth: 150 },
+      { key: "business_platform", label: "平台 / 供应商", type: "taskPlatform", minWidth: 150 },
+      { key: "child_finished", label: "执行结果", type: "publishedTaskResult", minWidth: 250 },
+      { key: "published_count", label: "帖子上报", type: "publishedTaskOutput", minWidth: 145 },
+      { key: "status", label: "整体状态", type: "status", options: taskStatusOptions, width: 105, align: "center" },
+      { key: "created_at", label: "任务时间", type: "taskTimeline", width: 210, align: "center" },
     ],
     filters: [
       {
@@ -2855,16 +2868,10 @@ export const resources: Record<string, ResourceConfig> = {
         options: businessPlatformOptions,
       },
       {
-        key: "content_type",
-        label: "内容类型",
-        type: "select",
-        options: publishedContentTypeOptions,
-      },
-      {
         key: "status",
-        label: "状态",
+        label: "整体状态",
         type: "select",
-        options: publishedContentStatusOptions,
+        options: taskStatusOptions,
       },
       {
         key: "author_account_id",
@@ -2872,7 +2879,27 @@ export const resources: Record<string, ResourceConfig> = {
         type: "remoteSelect",
         remote: accountRemoteSelect,
       },
-      { key: "keyword", label: "关键字", placeholder: "标题 / 正文 / 链接 / 平台内容 ID" },
+      {
+        key: "operator_keyword",
+        label: "操作员",
+        placeholder: "登录账号 / 显示名称",
+      },
+      {
+        key: "link_status",
+        label: "帖子链接",
+        type: "select",
+        options: [
+          { label: "已有链接", value: "available" },
+          { label: "链接未上报", value: "missing" },
+        ],
+      },
+      {
+        key: "created_from",
+        endKey: "created_to",
+        label: "下发时间",
+        type: "datetimeRange",
+      },
+      { key: "keyword", label: "关键字", placeholder: "任务 / 内容 / 链接 / 账号 / 设备" },
     ],
     createFields: [
       {
@@ -2987,48 +3014,7 @@ export const resources: Record<string, ResourceConfig> = {
       },
       { key: "scheduled_at", label: "计划时间", type: "datetime", allowEmpty: true, placeholder: "不填则立即下发" },
     ],
-    updateFields: [
-      {
-        key: "content_type",
-        label: "内容类型",
-        type: "select",
-        options: publishedContentTypeOptions,
-      },
-      {
-        key: "status",
-        label: "状态",
-        type: "select",
-        options: publishedContentStatusOptions,
-      },
-      { key: "title", label: "标题", allowEmpty: true },
-      { key: "platform_content_id", label: "平台内容 ID", allowEmpty: true },
-      { key: "content_url", label: "内容链接", allowEmpty: true },
-      {
-        key: "author_account_id",
-        label: "发布账号",
-        type: "remoteSelect",
-        remote: accountRemoteSelect,
-        allowEmpty: true,
-      },
-      { key: "source_task_run_id", label: "来源任务 ID", allowEmpty: true },
-      { key: "published_at", label: "发布时间", type: "datetime", allowEmpty: true },
-      { key: "media_urls", label: "媒体链接", type: "tags", span: 2, allowEmpty: true },
-      { key: "text_content", label: "正文内容", type: "textarea", span: 2, allowEmpty: true },
-    ],
-    inlineActionKeys: ["detail"],
-    rowActions: [
-      {
-        key: "detail",
-        label: "查看详情",
-        method: "GET",
-        icon: "list",
-        path: (record) => `/api/interaction-center/published-contents/${record.id}`,
-        refresh: false,
-      },
-    ],
-    deleteLabel: "删除",
-    directDelete: true,
-    deleteConfirm: "确认删除该发布内容？评论、指标快照和监听记录会一起删除。",
+    updateFields: [],
   },
 
   contentComments: {

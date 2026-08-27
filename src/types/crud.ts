@@ -81,6 +81,16 @@ export type ColumnType =
   | 'contentPlatform'
   | 'contentType'
   | 'contentTimeline'
+  | 'publishedContentIdentity'
+  | 'publishedContentPublisher'
+  | 'publishedContentLink'
+  | 'publishedContentMetrics'
+  | 'publishedContentTimeline'
+  | 'publishedTaskIdentity'
+  | 'publishedTaskResult'
+  | 'publishedTaskOutput'
+  | 'interactionTargetContent'
+  | 'interactionProgress'
   | 'relation'
 
 export interface SelectOption {
@@ -229,6 +239,8 @@ export interface ResourceConfig {
   title: string
   permissionModule?: string
   endpoint: string
+  listEndpoint?: string
+  expandRow?: 'publishedContentTask'
   idKey?: string
   createEndpoint?: string
   createLabel?: string

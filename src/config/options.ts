@@ -34,6 +34,32 @@ export function isBusinessPlatformFieldKey(key: string) {
   ].includes(key)
 }
 
+type DataScopeUser = {
+  business_platform_scope?: string[] | null
+  runtime_platform_scope?: string[] | null
+  provider_scope?: string[] | null
+}
+
+export function dataScopeForFieldKey(
+  key: string,
+  user: DataScopeUser | null | undefined,
+): string[] | null | undefined {
+  if (isBusinessPlatformFieldKey(key)) return user?.business_platform_scope
+  if (['runtime_platform', 'supported_runtime_platforms', 'default_runtime_platform'].includes(key)) {
+    return user?.runtime_platform_scope
+  }
+  if (['provider', 'supported_providers', 'default_provider'].includes(key)) {
+    return user?.provider_scope
+  }
+  return undefined
+}
+
+export function isDataScopedFieldKey(key: string) {
+  return isBusinessPlatformFieldKey(key)
+    || ['runtime_platform', 'supported_runtime_platforms', 'default_runtime_platform'].includes(key)
+    || ['provider', 'supported_providers', 'default_provider'].includes(key)
+}
+
 export function businessPlatformLabel(value: unknown) {
   return businessPlatformOptions.find((item) => String(item.value) === String(value))?.label
     || String(value || '-')

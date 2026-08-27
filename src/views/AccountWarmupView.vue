@@ -32,6 +32,7 @@ import { getAllPages } from '@/api/http'
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import SlotTreeSelect from '@/components/SlotTreeSelect.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
+import { registrationCountryOptions } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import { formatDate, statusTagType } from '@/utils/format'
@@ -110,6 +111,16 @@ const weekdayOptions = [
   { label: '周四', value: 4 }, { label: '周五', value: 5 }, { label: '周六', value: 6 },
   { label: '周日', value: 7 },
 ]
+type BehaviorRuleKey = Exclude<keyof WarmupPlanPayload['behavior_rules'], 'target_languages'>
+
+const behaviorRuleKeys: BehaviorRuleKey[] = ['browse', 'detail_view', 'like', 'follow', 'publish']
+const behaviorRuleLabels: Record<BehaviorRuleKey, string> = {
+  browse: '浏览内容',
+  detail_view: '查看帖子详情',
+  like: '随机点赞',
+  follow: '随机关注',
+  publish: '发布内容',
+}
 
 function initialForm(): WarmupPlanPayload {
   return {
@@ -136,6 +147,7 @@ function initialForm(): WarmupPlanPayload {
     target_mode: 'fixed',
     target_rules: { account_ids: [], slot_ids: [], account_tag_ids: [], slot_group_ids: [] },
     behavior_rules: {
+      target_languages: [],
       browse: { enabled: true, start_day: 1, min_minutes: 10, max_minutes: 30 },
       detail_view: { enabled: false, start_day: 1, probability: 20 },
       like: { enabled: true, start_day: 1, probability: 20 },
@@ -146,6 +158,9 @@ function initialForm(): WarmupPlanPayload {
 }
 
 const form = reactive<WarmupPlanPayload>(initialForm())
+const behaviorStartDayMax = computed(() => (
+  form.plan_type === 'full' ? Math.max(1, Number(form.target_days || 1)) : 365
+))
 const scriptOptions = computed(() => scripts.value.filter((script) => (
   script.purpose === 'account_warmup'
   && script.status === 'enabled'
@@ -282,7 +297,27 @@ function validateForm() {
   if (form.target_mode === 'slot_groups' && !form.target_rules.slot_group_ids.length) return '请选择设备分组'
   if (form.target_mode === 'dynamic_intersection' && !form.target_rules.account_tag_ids.length && !form.target_rules.slot_group_ids.length) return '请至少选择账号标签或设备分组'
   if (form.behavior_rules.publish.enabled && !form.behavior_rules.publish.content_group_id) return '开启发帖后必须选择内容池'
+  if (form.plan_type === 'full') {
+    const targetDays = Number(form.target_days || 0)
+    for (const key of behaviorRuleKeys) {
+      const rule = form.behavior_rules[key]
+      if (rule.enabled && rule.start_day > targetDays) {
+        editorTab.value = 'behavior'
+        return `${behaviorRuleLabels[key]}设置为第 ${rule.start_day} 天开始，但目标养号周期只有 ${targetDays} 天`
+      }
+    }
+  }
   return ''
+}
+
+function clampEnabledBehaviorStartDays() {
+  if (form.plan_type !== 'full') return
+  const targetDays = Number(form.target_days || 0)
+  if (targetDays < 1) return
+  for (const key of behaviorRuleKeys) {
+    const rule = form.behavior_rules[key]
+    if (rule.enabled && rule.start_day > targetDays) rule.start_day = targetDays
+  }
 }
 
 async function savePlan() {
@@ -398,6 +433,16 @@ watch(() => form.runtime_platform, (value) => {
 watch(() => [form.business_platform, form.provider], () => {
   if (!suspendFormWatch.value) form.script_id = null
 })
+watch(
+  () => [
+    form.plan_type,
+    form.target_days,
+    ...behaviorRuleKeys.map((key) => form.behavior_rules[key].enabled),
+  ],
+  () => {
+    if (!suspendFormWatch.value) clampEnabledBehaviorStartDays()
+  },
+)
 watch(scriptOptions, (options) => {
   if (!form.script_id && options.length === 1) form.script_id = String(options[0].id)
 })
@@ -517,13 +562,29 @@ onMounted(() => {
 
         <el-tab-pane label="行为规则" name="behavior">
           <div class="behavior-list">
-            <div class="behavior-item"><div class="behavior-title"><div><strong>浏览内容</strong><p>随机生成脚本本次需要浏览的时长。</p></div><el-switch v-model="form.behavior_rules.browse.enabled" /></div><div v-if="form.behavior_rules.browse.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.browse.start_day" :min="1" /></label><label>时长范围（分钟） <span class="inline-range"><el-input-number v-model="form.behavior_rules.browse.min_minutes" :min="0" /> - <el-input-number v-model="form.behavior_rules.browse.max_minutes" :min="0" /></span></label></div></div>
-            <div class="behavior-probability-grid">
-              <div class="behavior-item"><div class="behavior-title"><div><strong>查看帖子详情</strong><p>按概率进入帖子详情页查看。</p></div><el-switch v-model="form.behavior_rules.detail_view.enabled" /></div><div v-if="form.behavior_rules.detail_view.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.detail_view.start_day" :min="1" /></label><label>查看概率（%） <el-input-number v-model="form.behavior_rules.detail_view.probability" :min="0" :max="100" /></label></div></div>
-              <div class="behavior-item"><div class="behavior-title"><div><strong>随机点赞</strong><p>按浏览内容独立随机判断。</p></div><el-switch v-model="form.behavior_rules.like.enabled" /></div><div v-if="form.behavior_rules.like.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.like.start_day" :min="1" /></label><label>点赞概率（%） <el-input-number v-model="form.behavior_rules.like.probability" :min="0" :max="100" /></label></div></div>
-              <div class="behavior-item"><div class="behavior-title"><div><strong>随机关注</strong><p>按浏览到的账号独立随机判断。</p></div><el-switch v-model="form.behavior_rules.follow.enabled" /></div><div v-if="form.behavior_rules.follow.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.follow.start_day" :min="1" /></label><label>关注概率（%） <el-input-number v-model="form.behavior_rules.follow.probability" :min="0" :max="100" /></label></div></div>
+            <div class="behavior-item behavior-language-filter">
+              <div class="behavior-title">
+                <div><strong>限制帖子语言</strong><p>按国家/地区限制脚本处理的帖子语言；不选择则不限制。</p></div>
+              </div>
+              <el-select
+                v-model="form.behavior_rules.target_languages"
+                multiple
+                filterable
+                clearable
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="不限制帖子语言"
+              >
+                <el-option v-for="item in registrationCountryOptions" :key="String(item.value)" v-bind="item" />
+              </el-select>
             </div>
-            <div class="behavior-item"><div class="behavior-title"><div><strong>发布内容</strong><p>从指定内容池中随机分配一条内容，失败后不释放。</p></div><el-switch v-model="form.behavior_rules.publish.enabled" /></div><div v-if="form.behavior_rules.publish.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.publish.start_day" :min="1" /></label><label>内容池 <el-select v-model="form.behavior_rules.publish.content_group_id" filterable><el-option v-for="item in contentGroups.filter((group) => group.business_platform === form.business_platform)" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></label><label>内容使用状态 <el-select v-model="form.behavior_rules.publish.content_usage_status"><el-option label="未使用" value="unused" /><el-option label="已使用" value="used" /><el-option label="全部" value="all" /></el-select></label></div></div>
+            <div class="behavior-item"><div class="behavior-title"><div><strong>浏览内容</strong><p>随机生成脚本本次需要浏览的时长。</p></div><el-switch v-model="form.behavior_rules.browse.enabled" /></div><div v-if="form.behavior_rules.browse.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.browse.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>时长范围（分钟） <span class="inline-range"><el-input-number v-model="form.behavior_rules.browse.min_minutes" :min="0" /> - <el-input-number v-model="form.behavior_rules.browse.max_minutes" :min="0" /></span></label></div></div>
+            <div class="behavior-probability-grid">
+              <div class="behavior-item"><div class="behavior-title"><div><strong>查看帖子详情</strong><p>按概率进入帖子详情页查看。</p></div><el-switch v-model="form.behavior_rules.detail_view.enabled" /></div><div v-if="form.behavior_rules.detail_view.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.detail_view.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>查看概率（%） <el-input-number v-model="form.behavior_rules.detail_view.probability" :min="0" :max="100" /></label></div></div>
+              <div class="behavior-item"><div class="behavior-title"><div><strong>随机点赞</strong><p>按浏览内容独立随机判断。</p></div><el-switch v-model="form.behavior_rules.like.enabled" /></div><div v-if="form.behavior_rules.like.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.like.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>点赞概率（%） <el-input-number v-model="form.behavior_rules.like.probability" :min="0" :max="100" /></label></div></div>
+              <div class="behavior-item"><div class="behavior-title"><div><strong>随机关注</strong><p>按浏览到的账号独立随机判断。</p></div><el-switch v-model="form.behavior_rules.follow.enabled" /></div><div v-if="form.behavior_rules.follow.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.follow.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>关注概率（%） <el-input-number v-model="form.behavior_rules.follow.probability" :min="0" :max="100" /></label></div></div>
+            </div>
+            <div class="behavior-item"><div class="behavior-title"><div><strong>发布内容</strong><p>从指定内容池中随机分配一条内容，失败后不释放。</p></div><el-switch v-model="form.behavior_rules.publish.enabled" /></div><div v-if="form.behavior_rules.publish.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.publish.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>内容池 <el-select v-model="form.behavior_rules.publish.content_group_id" filterable><el-option v-for="item in contentGroups.filter((group) => group.business_platform === form.business_platform)" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></label><label>内容使用状态 <el-select v-model="form.behavior_rules.publish.content_usage_status"><el-option label="未使用" value="unused" /><el-option label="已使用" value="used" /><el-option label="全部" value="all" /></el-select></label></div></div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -585,6 +646,7 @@ h1 { font-size: 20px; color: #17233d; }
 .target-selects { padding-top: 10px; }.behavior-list { display: grid; gap: 12px; }
 .behavior-probability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .behavior-item { border: 1px solid #dce5ef; border-radius: 6px; padding: 15px 16px; }.behavior-title { justify-content: space-between; }.behavior-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 14px; border-top: 1px solid #edf1f5; margin-top: 14px; }.behavior-fields label { display: grid; gap: 7px; color: #52677d; font-size: 13px; }
+.behavior-language-filter { display: grid; grid-template-columns: minmax(240px, 0.7fr) minmax(360px, 1.3fr); align-items: center; gap: 20px; }
 .behavior-fields--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .behavior-fields--compact :deep(.el-input-number) { width: 100%; }
 .detail-toolbar { gap: 10px; margin-bottom: 12px; }.detail-toolbar .el-input, .detail-toolbar .el-select { width: 220px; }

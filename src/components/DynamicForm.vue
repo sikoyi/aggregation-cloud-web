@@ -4,7 +4,11 @@ import { computed, defineAsyncComponent, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
-import { filterOptionsByScope, isBusinessPlatformFieldKey } from '@/config/options'
+import {
+  dataScopeForFieldKey,
+  filterOptionsByScope,
+  isDataScopedFieldKey,
+} from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
@@ -148,8 +152,8 @@ function isFieldDisabled(field: FieldConfig) {
 
 function scopedBaseFieldOptions(field: FieldConfig) {
   const options = field.options || []
-  if (!isBusinessPlatformFieldKey(field.key)) return options
-  return filterOptionsByScope(options, auth.user?.business_platform_scope)
+  if (!isDataScopedFieldKey(field.key)) return options
+  return filterOptionsByScope(options, dataScopeForFieldKey(field.key, auth.user))
 }
 
 function fieldOptions(field: FieldConfig) {
@@ -164,7 +168,7 @@ function fieldOptions(field: FieldConfig) {
   return values.flatMap((value) => {
     const option = configured.get(value)
     if (option) return [option]
-    return isBusinessPlatformFieldKey(field.key) ? [] : [{ label: value, value }]
+    return isDataScopedFieldKey(field.key) ? [] : [{ label: value, value }]
   })
 }
 
@@ -289,14 +293,16 @@ function fieldColumnSpan(field: FieldConfig) {
 watch(
   () => [
     auth.user?.business_platform_scope,
+    auth.user?.runtime_platform_scope,
+    auth.user?.provider_scope,
     props.fields
-      .filter((field) => isBusinessPlatformFieldKey(field.key))
+      .filter((field) => isDataScopedFieldKey(field.key))
       .map((field) => `${field.key}:${JSON.stringify(props.modelValue[field.key])}`)
       .join('|'),
   ],
   () => {
     const updates: AnyRecord = {}
-    for (const field of props.fields.filter((item) => isBusinessPlatformFieldKey(item.key))) {
+    for (const field of props.fields.filter((item) => isDataScopedFieldKey(item.key))) {
       const allowedValues = scopedBaseFieldOptions(field).map((option) => String(option.value))
       const current = props.modelValue[field.key]
       if (field.multiple) {

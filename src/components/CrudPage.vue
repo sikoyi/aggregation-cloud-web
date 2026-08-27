@@ -30,6 +30,7 @@ import ContentTableCell from '@/components/ContentTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
 import MediaAssetTableCell from '@/components/MediaAssetTableCell.vue'
 import ProxyTableCell from '@/components/ProxyTableCell.vue'
+import PublishedContentTableCell from '@/components/PublishedContentTableCell.vue'
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import RelationCell from '@/components/RelationCell.vue'
 import ScriptTableCell from '@/components/ScriptTableCell.vue'
@@ -39,7 +40,11 @@ import TemplateTableCell from '@/components/TemplateTableCell.vue'
 import { useCrossPageTableSelection } from '@/composables/useCrossPageTableSelection'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
-import { filterOptionsByScope, isBusinessPlatformFieldKey } from '@/config/options'
+import {
+  dataScopeForFieldKey,
+  filterOptionsByScope,
+  isDataScopedFieldKey,
+} from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
@@ -53,10 +58,13 @@ const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/Bus
 const ContentPreview = defineAsyncComponent(() => import('@/components/ContentPreview.vue'))
 const ContentGroupMemberEditor = defineAsyncComponent(() => import('@/components/ContentGroupMemberEditor.vue'))
 const InteractionSessionDetailDialog = defineAsyncComponent(() => import('@/components/InteractionSessionDetailDialog.vue'))
+const InteractionSessionProgressCell = defineAsyncComponent(() => import('@/components/InteractionSessionProgressCell.vue'))
+const InteractionSessionTableCell = defineAsyncComponent(() => import('@/components/InteractionSessionTableCell.vue'))
 const MediaAssetBatchUploader = defineAsyncComponent(() => import('@/components/MediaAssetBatchUploader.vue'))
 const MediaAssetGroupMemberEditor = defineAsyncComponent(() => import('@/components/MediaAssetGroupMemberEditor.vue'))
 const ProxyGroupMemberEditor = defineAsyncComponent(() => import('@/components/ProxyGroupMemberEditor.vue'))
 const PublishedContentDetailDialog = defineAsyncComponent(() => import('@/components/PublishedContentDetailDialog.vue'))
+const PublishedContentTaskItems = defineAsyncComponent(() => import('@/components/PublishedContentTaskItems.vue'))
 const SlotGroupMemberEditor = defineAsyncComponent(() => import('@/components/SlotGroupMemberEditor.vue'))
 const TaskDetailDrawer = defineAsyncComponent(() => import('@/components/TaskDetailDrawer.vue'))
 
@@ -263,12 +271,12 @@ function canResource(action: string) {
 
 function scopedFieldOptions(field: FieldConfig) {
   const options = field.options || []
-  if (!isBusinessPlatformFieldKey(field.key)) return options
-  return filterOptionsByScope(options, auth.user?.business_platform_scope)
+  if (!isDataScopedFieldKey(field.key)) return options
+  return filterOptionsByScope(options, dataScopeForFieldKey(field.key, auth.user))
 }
 
-function normalizeScopedBusinessPlatformFilters() {
-  for (const field of (props.config.filters || []).filter((item) => isBusinessPlatformFieldKey(item.key))) {
+function normalizeScopedFilters() {
+  for (const field of (props.config.filters || []).filter((item) => isDataScopedFieldKey(item.key))) {
     const value = String(filters[field.key] || '')
     if (!value) continue
     const allowedValues = scopedFieldOptions(field).map((option) => String(option.value))
@@ -434,6 +442,11 @@ function openInteractionSessionDetail(record: AnyRecord) {
 
 function openPublishedContentDetail(record: AnyRecord) {
   publishedContentDetailId.value = rowId(record)
+  publishedContentDetailVisible.value = true
+}
+
+function openPublishedContentDetailById(contentId: string) {
+  publishedContentDetailId.value = contentId
   publishedContentDetailVisible.value = true
 }
 
@@ -609,7 +622,7 @@ function buildListParams() {
 }
 
 async function loadRows(options?: { silent?: boolean } | number) {
-  normalizeScopedBusinessPlatformFilters()
+  normalizeScopedFilters()
   const silent = typeof options === 'object' && Boolean(options?.silent)
   const requestId = ++listRequestId
   if (!silent) {
@@ -618,7 +631,7 @@ async function loadRows(options?: { silent?: boolean } | number) {
     error.value = ''
   }
   try {
-    const data = await http.get<PageResult<AnyRecord>>(props.config.endpoint, buildListParams())
+    const data = await http.get<PageResult<AnyRecord>>(props.config.listEndpoint || props.config.endpoint, buildListParams())
     if (requestId !== listRequestId) return
     rows.value = data.items
     total.value = data.total
@@ -1369,6 +1382,17 @@ onBeforeUnmount(() => {
       >
         <el-table-column v-if="batchActions.length" type="selection" width="48" reserve-selection />
 
+        <el-table-column v-if="config.expandRow === 'publishedContentTask'" type="expand" width="48">
+          <template #default="{ row }">
+            <PublishedContentTaskItems
+              :task-id="String(row.id)"
+              :can-delete="canResource('delete')"
+              @open-detail="openPublishedContentDetailById"
+              @changed="loadRows({ silent: true })"
+            />
+          </template>
+        </el-table-column>
+
         <el-table-column
           v-for="column in config.columns"
           :key="column.key"
@@ -1398,6 +1422,19 @@ onBeforeUnmount(() => {
               :kind="column.type as 'contentIdentity' | 'contentPools' | 'contentPlatform' | 'contentType' | 'contentTimeline'"
               :row="row"
               :column="column"
+            />
+            <PublishedContentTableCell
+              v-else-if="column.type && ['publishedContentIdentity', 'publishedContentPublisher', 'publishedContentLink', 'publishedContentMetrics', 'publishedContentTimeline', 'publishedTaskIdentity', 'publishedTaskResult', 'publishedTaskOutput'].includes(column.type)"
+              :kind="column.type as 'publishedContentIdentity' | 'publishedContentPublisher' | 'publishedContentLink' | 'publishedContentMetrics' | 'publishedContentTimeline' | 'publishedTaskIdentity' | 'publishedTaskResult' | 'publishedTaskOutput'"
+              :row="row"
+            />
+            <InteractionSessionTableCell
+              v-else-if="column.type === 'interactionTargetContent'"
+              :row="row"
+            />
+            <InteractionSessionProgressCell
+              v-else-if="column.type === 'interactionProgress'"
+              :row="row"
             />
             <MediaAssetTableCell
               v-else-if="column.type && ['mediaAssetIdentity', 'mediaAssetPreview', 'mediaAssetGroups', 'mediaAssetPlatform', 'mediaAssetType', 'mediaAssetSpec', 'mediaAssetTimeline'].includes(column.type)"

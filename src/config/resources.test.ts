@@ -262,12 +262,46 @@ describe('发布内容来源', () => {
     expect(body).not.toHaveProperty('account_ids')
   })
 
-  it('列表展示真实发布内容，任务执行进度统一在任务记录查看', () => {
+  it('列表按发布父任务展示总览并按需展开帖子明细', () => {
     expect(resources.publishedContents.endpoint).toBe('/api/interaction-center/published-contents')
-    expect(resources.publishedContents.columns.map((column) => column.key)).toContain('author_account_name')
-    expect(resources.publishedContents.columns.map((column) => column.key)).toContain('platform_content_id')
-    const detail = resources.publishedContents.rowActions?.find((action) => action.key === 'detail')
-    expect(detail?.path?.({ id: 'content-1' })).toBe('/api/interaction-center/published-contents/content-1')
+    expect(resources.publishedContents.listEndpoint).toBe('/api/interaction-center/published-results')
+    expect(resources.publishedContents.expandRow).toBe('publishedContentTask')
+    expect(resources.publishedContents.columns.find((column) => column.key === 'title')?.type).toBe('publishedTaskIdentity')
+    expect(resources.publishedContents.columns.map((column) => column.key)).toContain('child_finished')
+    expect(resources.publishedContents.columns.map((column) => column.key)).toContain('published_count')
+    expect(resources.publishedContents.columns.map((column) => column.key)).toContain('created_by')
+    expect(resources.publishedContents.columns.map((column) => column.key)).not.toContain('content_url')
+    expect(resources.publishedContents.rowActions).toBeUndefined()
+    expect(resources.publishedContents.deleteLabel).toBeUndefined()
+    expect(resources.publishedContents.updateFields).toEqual([])
+  })
+
+  it('互动会话列表可通过目标内容跳转帖子', () => {
+    expect(resources.interactionSessions.columns.find((column) => column.key === 'target_content_title')).toMatchObject({
+      label: '目标内容',
+      type: 'interactionTargetContent',
+    })
+    expect(resources.interactionSessions.columns.some((column) => column.key === 'target_content_url')).toBe(false)
+  })
+
+  it('互动会话列表使用进度条展示完成情况', () => {
+    expect(resources.interactionSessions.columns.find((column) => column.key === 'progress_text')).toMatchObject({
+      label: '进度',
+      type: 'interactionProgress',
+      align: 'center',
+    })
+    expect(resources.interactionSessions.columns.some((column) => column.key === 'comment_account_count')).toBe(false)
+  })
+
+  it('互动会话列表支持按场景和文案来源筛选', () => {
+    expect(resources.interactionSessions.filters?.find((field) => field.key === 'interaction_mode')?.options).toEqual([
+      { label: '链接内容互动', value: 'conversation' },
+      { label: '广场内容互动', value: 'square_numeric' },
+    ])
+    expect(resources.interactionSessions.filters?.find((field) => field.key === 'content_mode')?.options).toEqual([
+      { label: 'AI 生成', value: 'ai' },
+      { label: '自定义内容', value: 'custom' },
+    ])
   })
 
   it('为发布配置展示准确的必填标记', () => {

@@ -18,6 +18,15 @@ export interface WarmupBehaviorRule {
   content_usage_status?: 'unused' | 'used' | 'all' | null
 }
 
+export interface WarmupBehaviorRules {
+  target_languages: string[]
+  browse: WarmupBehaviorRule
+  detail_view: WarmupBehaviorRule
+  like: WarmupBehaviorRule
+  follow: WarmupBehaviorRule
+  publish: WarmupBehaviorRule
+}
+
 export interface WarmupPlanPayload {
   name: string
   business_platform: 'threads' | 'x' | 'instagram'
@@ -41,7 +50,7 @@ export interface WarmupPlanPayload {
   auto_convert_to_old: boolean
   target_mode: 'fixed' | 'account_tags' | 'slot_groups' | 'dynamic_intersection'
   target_rules: WarmupTargetRules
-  behavior_rules: Record<'browse' | 'detail_view' | 'like' | 'follow' | 'publish', WarmupBehaviorRule>
+  behavior_rules: WarmupBehaviorRules
 }
 
 export interface WarmupPlan extends WarmupPlanPayload {

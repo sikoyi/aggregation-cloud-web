@@ -3,6 +3,7 @@ import type { ColumnConfig } from '@/types/crud'
 
 const STATUS_LABELS: Record<string, string> = {
   active: '生效',
+  ai: 'AI 生成',
   abnormal_paused: '异常暂停',
   acknowledged: '已确认',
   assigned: '已分配',
@@ -11,6 +12,8 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: '已取消',
   challenge: '封禁',
   connecting: '连接中',
+  conversation: '链接内容互动',
+  custom: '自定义内容',
   generating: '文案生成中',
   all_failed: '全部失败',
   completed: '已完成',
@@ -47,6 +50,7 @@ const STATUS_LABELS: Record<string, string> = {
   starting: '启动中',
   sent: '已下发',
   stopping: '停止中',
+  square_numeric: '广场内容互动',
   superseded: '已替代',
   succeeded: '成功',
   twofa_required: '需要 2FA',
@@ -61,8 +65,8 @@ const STATUS_LABELS: Record<string, string> = {
   observer: '观察方',
 }
 
-const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used', 'old']
-const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'generating', 'propagating', 'notified']
+const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used', 'old', 'square_numeric']
+const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'generating', 'propagating', 'notified', 'conversation']
 const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked', 'not_started']
 const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked', 'abnormal_paused']
 

@@ -137,6 +137,6 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
 .task-timeline__row > svg { width: 13px; height: 13px; flex: 0 0 13px; color: #4f8b68; }
 .task-timeline__row > span { display: grid; min-width: 0; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 5px; }
 .task-timeline__row small { color: #8a9aab; font-size: 10px; }
-.task-timeline__row strong { overflow: hidden; color: #40566c; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.task-timeline__row strong { color: #40566c; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .task-timeline__row--secondary > svg { color: #8a9aab; }
 </style>
