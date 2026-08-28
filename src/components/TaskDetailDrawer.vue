@@ -33,6 +33,7 @@ const paramRows = ref<Array<{ key: string; label: string; value: string }>>([])
 const activeTab = ref('basic')
 const currentTaskId = ref<string | null>(null)
 const taskHistory = ref<string[]>([])
+const activeSlotGroups = ref<string[]>([])
 
 const scriptRelationConfig: RemoteSelectConfig = {
   endpoint: '/api/scripts',
@@ -60,6 +61,28 @@ const detailTitle = computed(() => {
   if (!task.value) return '任务详情'
   return `任务详情：${task.value.title || truncateId(task.value.id)}`
 })
+
+interface TaskParameterSlot {
+  provider_slot_id?: string | null
+  slot_name: string
+  available: boolean
+}
+
+interface TaskParameterSlotGroup {
+  group_id?: string | null
+  group_name: string
+  slot_count: number
+  slots: TaskParameterSlot[]
+}
+
+const parameterSlotGroups = computed<TaskParameterSlotGroup[]>(() => {
+  const groups = task.value?.parameter_slot_groups
+  return Array.isArray(groups) ? groups : []
+})
+
+const parameterSlotTotal = computed(() => (
+  parameterSlotGroups.value.reduce((total, group) => total + group.slot_count, 0)
+))
 
 function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
@@ -99,9 +122,17 @@ async function buildParamRows(currentTask: AnyRecord) {
 
   const definitions = await loadParamDefinitions(String(currentTask.script_key || ''))
   const definitionMap = new Map(definitions.map((item) => [item.param_key, item]))
+  const hasGroupedSlots = Array.isArray(currentTask.parameter_slot_groups)
+    && currentTask.parameter_slot_groups.length > 0
   const rows = await Promise.all(
     Object.entries(params as AnyRecord)
-      .filter(([key, item]) => !HIDDEN_PARAM_KEYS.has(key) && item !== undefined && item !== null && item !== '')
+      .filter(([key, item]) => (
+        !HIDDEN_PARAM_KEYS.has(key)
+        && !(key === 'slot_ids' && hasGroupedSlots)
+        && item !== undefined
+        && item !== null
+        && item !== ''
+      ))
       .map(async ([key, item]) => {
         const definition = definitionMap.get(key)
         return {
@@ -216,6 +247,10 @@ function taskTime(key: string) {
   return formatDate(task.value?.[key])
 }
 
+function slotGroupKey(group: TaskParameterSlotGroup, index: number) {
+  return group.group_id || `${group.group_name}-${index}`
+}
+
 function openChildDetail(row: AnyRecord) {
   const childId = String(row.id || '')
   if (!childId || !currentTaskId.value) return
@@ -274,6 +309,7 @@ async function loadDetail(taskId: string) {
   loading.value = true
   error.value = ''
   paramRows.value = []
+  activeSlotGroups.value = []
   children.value = []
   childTotal.value = 0
   childPage.value = 1
@@ -377,8 +413,45 @@ watch(
 
             <div class="detail-section">
               <div class="detail-section__title">脚本参数快照</div>
-              <el-empty v-if="!paramRows.length" description="暂无脚本参数" :image-size="56" />
-              <el-table v-else :data="paramRows" border stripe>
+              <div v-if="parameterSlotGroups.length" class="task-slot-snapshot">
+                <div class="task-slot-snapshot__header">
+                  <span>设备列表</span>
+                  <span>共 {{ parameterSlotTotal }} 台</span>
+                </div>
+                <el-collapse v-model="activeSlotGroups" class="task-slot-groups">
+                  <el-collapse-item
+                    v-for="(group, index) in parameterSlotGroups"
+                    :key="slotGroupKey(group, index)"
+                    :name="slotGroupKey(group, index)"
+                  >
+                    <template #title>
+                      <div class="task-slot-group__title">
+                        <span>{{ group.group_name }}</span>
+                        <span>{{ group.slot_count }} 台</span>
+                      </div>
+                    </template>
+                    <el-table :data="group.slots" border size="small" empty-text="暂无设备">
+                      <el-table-column label="设备名称" min-width="220">
+                        <template #default="{ row }">
+                          <span :class="{ 'task-slot-unavailable': !row.available }">{{ text(row.slot_name) }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="设备 ID" min-width="240">
+                        <template #default="{ row }">
+                          <code v-if="row.provider_slot_id" class="task-slot-provider-id">{{ row.provider_slot_id }}</code>
+                          <span v-else class="task-slot-unavailable">无法获取</span>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </el-collapse-item>
+                </el-collapse>
+              </div>
+              <el-empty
+                v-if="!paramRows.length && !parameterSlotGroups.length"
+                description="暂无脚本参数"
+                :image-size="56"
+              />
+              <el-table v-if="paramRows.length" :data="paramRows" border stripe class="task-param-table">
                 <el-table-column prop="label" label="参数" width="180" />
                 <el-table-column prop="value" label="值" show-overflow-tooltip />
               </el-table>
@@ -508,6 +581,71 @@ watch(
   color: #1f2937;
   font-size: 13px;
   font-weight: 700;
+}
+
+.task-slot-snapshot {
+  overflow: hidden;
+  border: 1px solid #dbe4ee;
+  border-radius: 4px;
+}
+
+.task-slot-snapshot__header,
+.task-slot-group__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.task-slot-snapshot__header {
+  padding: 10px 14px;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.task-slot-snapshot__header span:last-child,
+.task-slot-group__title span:last-child {
+  color: #64748b;
+  font-weight: 400;
+}
+
+.task-slot-groups {
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 0;
+}
+
+.task-slot-groups :deep(.el-collapse-item__header) {
+  height: 44px;
+  padding: 0 14px;
+  border-bottom-color: #e2e8f0;
+}
+
+.task-slot-groups :deep(.el-collapse-item__wrap) {
+  border-bottom-color: #e2e8f0;
+}
+
+.task-slot-groups :deep(.el-collapse-item__content) {
+  padding: 0 14px 14px;
+}
+
+.task-slot-group__title {
+  width: 100%;
+  padding-right: 10px;
+  color: #1e293b;
+}
+
+.task-slot-provider-id {
+  color: #334155;
+  font-size: 12px;
+}
+
+.task-slot-unavailable {
+  color: #94a3b8;
+}
+
+.task-param-table {
+  margin-top: 12px;
 }
 
 .task-child-pagination {
