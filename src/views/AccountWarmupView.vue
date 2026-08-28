@@ -59,7 +59,6 @@ const dailyRows = ref<WarmupDailyRun[]>([])
 const dailyTotal = ref(0)
 const dailyPage = ref(1)
 const dailyStatus = ref('')
-const scripts = ref<AnyRecord[]>([])
 const accountTags = ref<AnyRecord[]>([])
 const slotGroups = ref<AnyRecord[]>([])
 const contentGroups = ref<AnyRecord[]>([])
@@ -143,15 +142,15 @@ function initialForm(): WarmupPlanPayload {
     consecutive_failure_pause_threshold: 3,
     retry_override: null,
     completion_mode: 'automatic',
-    auto_convert_to_old: true,
+    auto_convert_to_old: false,
     target_mode: 'fixed',
     target_rules: { account_ids: [], slot_ids: [], account_tag_ids: [], slot_group_ids: [] },
     behavior_rules: {
       target_languages: [],
       browse: { enabled: true, start_day: 1, min_minutes: 10, max_minutes: 30 },
       detail_view: { enabled: false, start_day: 1, probability: 20 },
-      like: { enabled: true, start_day: 1, probability: 20 },
-      follow: { enabled: true, start_day: 3, probability: 5 },
+      like: { enabled: false, start_day: 1, probability: 20 },
+      follow: { enabled: false, start_day: 3, probability: 5 },
       publish: { enabled: false, start_day: 3, content_group_id: null, content_usage_status: 'unused' },
     },
   }
@@ -161,13 +160,6 @@ const form = reactive<WarmupPlanPayload>(initialForm())
 const behaviorStartDayMax = computed(() => (
   form.plan_type === 'full' ? Math.max(1, Number(form.target_days || 1)) : 365
 ))
-const scriptOptions = computed(() => scripts.value.filter((script) => (
-  script.purpose === 'account_warmup'
-  && script.status === 'enabled'
-  && (Array.isArray(script.supported_business_platforms) ? script.supported_business_platforms : []).includes(form.business_platform)
-  && (Array.isArray(script.supported_runtime_platforms) ? script.supported_runtime_platforms : []).includes(form.runtime_platform)
-  && (Array.isArray(script.supported_providers) ? script.supported_providers : []).includes(form.provider)
-)))
 const selectorFilters = computed(() => ({
   business_platform: form.business_platform,
   runtime_platform: form.runtime_platform,
@@ -214,13 +206,11 @@ async function loadRows() {
 
 async function loadOptions() {
   try {
-    const [scriptRows, tagRows, groupRows, contentRows] = await Promise.all([
-      getAllPages<AnyRecord>('/api/scripts', { purpose: 'account_warmup' }),
+    const [tagRows, groupRows, contentRows] = await Promise.all([
       getAllPages<AnyRecord>('/api/account-tags'),
       getAllPages<AnyRecord>('/api/slot-groups'),
       getAllPages<AnyRecord>('/api/content-center/content-groups'),
     ])
-    scripts.value = scriptRows
     accountTags.value = tagRows
     slotGroups.value = groupRows
     contentGroups.value = contentRows
@@ -254,6 +244,7 @@ function openEdit(tableRow: unknown) {
 
 function normalizedPayload(): WarmupPlanPayload {
   const payload = JSON.parse(JSON.stringify(form)) as WarmupPlanPayload
+  payload.script_id = null
   if (payload.plan_type === 'full') {
     payload.maintenance_schedule_type = null
     payload.maintenance_interval_days = null
@@ -296,6 +287,21 @@ function validateForm() {
   if (form.target_mode === 'account_tags' && !form.target_rules.account_tag_ids.length) return '请选择账号标签'
   if (form.target_mode === 'slot_groups' && !form.target_rules.slot_group_ids.length) return '请选择设备分组'
   if (form.target_mode === 'dynamic_intersection' && !form.target_rules.account_tag_ids.length && !form.target_rules.slot_group_ids.length) return '请至少选择账号标签或设备分组'
+  const browseRule = form.behavior_rules.browse
+  if (browseRule.enabled) {
+    if (browseRule.min_minutes == null || browseRule.max_minutes == null) {
+      editorTab.value = 'behavior'
+      return '开启浏览内容后必须填写时长范围'
+    }
+    if (browseRule.min_minutes < 1 || browseRule.max_minutes < 1) {
+      editorTab.value = 'behavior'
+      return '浏览时长至少为 1 分钟'
+    }
+    if (browseRule.min_minutes > browseRule.max_minutes) {
+      editorTab.value = 'behavior'
+      return '浏览最小时长不能大于最大时长'
+    }
+  }
   if (form.behavior_rules.publish.enabled && !form.behavior_rules.publish.content_group_id) return '开启发帖后必须选择内容池'
   if (form.plan_type === 'full') {
     const targetDays = Number(form.target_days || 0)
@@ -443,9 +449,6 @@ watch(
     if (!suspendFormWatch.value) clampEnabledBehaviorStartDays()
   },
 )
-watch(scriptOptions, (options) => {
-  if (!form.script_id && options.length === 1) form.script_id = String(options[0].id)
-})
 watch(detailTab, (value) => {
   if (value === 'daily') void loadDailyRuns()
 })
@@ -527,7 +530,6 @@ onMounted(() => {
             <el-form-item label="业务 App" required><el-select v-model="form.business_platform"><el-option v-for="item in platformOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
             <el-form-item label="执行平台" required><el-select v-model="form.runtime_platform"><el-option v-for="item in runtimeOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
             <el-form-item label="供应商" required><el-select v-model="form.provider"><el-option v-for="item in providerOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
-            <el-form-item label="养号脚本"><el-select v-model="form.script_id" clearable filterable placeholder="不选择时激活自动匹配"><el-option v-for="script in scriptOptions" :key="String(script.id)" :label="`${script.name} · ${optionLabel(runtimeOptions, String((script.supported_runtime_platforms as string[])?.[0] || ''))}`" :value="String(script.id)" /></el-select><div v-if="!scriptOptions.length" class="field-help">当前范围暂无启用的养号脚本，草稿可保存，激活前需要先配置脚本。</div></el-form-item>
             <el-form-item v-if="form.plan_type === 'full'" label="目标养号天数" required><el-input-number v-model="form.target_days" :min="1" :max="365" :disabled="Boolean(editingPlan && editingPlan.status !== 'draft')" /><div v-if="editingPlan && editingPlan.status !== 'draft'" class="field-help">计划开始执行后不可修改</div></el-form-item>
             <el-form-item v-else label="维护周期" required><el-select v-model="form.maintenance_schedule_type"><el-option label="每天" value="daily" /><el-option label="间隔天数" value="interval_days" /><el-option label="按星期" value="weekdays" /></el-select></el-form-item>
             <el-form-item v-if="form.plan_type === 'maintenance' && form.maintenance_schedule_type === 'interval_days'" label="间隔天数" required><el-input-number v-model="form.maintenance_interval_days" :min="1" :max="365" /></el-form-item>
@@ -578,13 +580,15 @@ onMounted(() => {
                 <el-option v-for="item in registrationCountryOptions" :key="String(item.value)" v-bind="item" />
               </el-select>
             </div>
-            <div class="behavior-item"><div class="behavior-title"><div><strong>浏览内容</strong><p>随机生成脚本本次需要浏览的时长。</p></div><el-switch v-model="form.behavior_rules.browse.enabled" /></div><div v-if="form.behavior_rules.browse.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.browse.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>时长范围（分钟） <span class="inline-range"><el-input-number v-model="form.behavior_rules.browse.min_minutes" :min="0" /> - <el-input-number v-model="form.behavior_rules.browse.max_minutes" :min="0" /></span></label></div></div>
-            <div class="behavior-probability-grid">
-              <div class="behavior-item"><div class="behavior-title"><div><strong>查看帖子详情</strong><p>按概率进入帖子详情页查看。</p></div><el-switch v-model="form.behavior_rules.detail_view.enabled" /></div><div v-if="form.behavior_rules.detail_view.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.detail_view.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>查看概率（%） <el-input-number v-model="form.behavior_rules.detail_view.probability" :min="0" :max="100" /></label></div></div>
-              <div class="behavior-item"><div class="behavior-title"><div><strong>随机点赞</strong><p>按浏览内容独立随机判断。</p></div><el-switch v-model="form.behavior_rules.like.enabled" /></div><div v-if="form.behavior_rules.like.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.like.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>点赞概率（%） <el-input-number v-model="form.behavior_rules.like.probability" :min="0" :max="100" /></label></div></div>
-              <div class="behavior-item"><div class="behavior-title"><div><strong>随机关注</strong><p>按浏览到的账号独立随机判断。</p></div><el-switch v-model="form.behavior_rules.follow.enabled" /></div><div v-if="form.behavior_rules.follow.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数 <el-input-number v-model="form.behavior_rules.follow.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>关注概率（%） <el-input-number v-model="form.behavior_rules.follow.probability" :min="0" :max="100" /></label></div></div>
+            <div class="behavior-rule-grid">
+              <div class="behavior-item"><div class="behavior-title"><div><strong>浏览内容</strong><p>随机生成脚本本次需要浏览的时长。</p></div><el-switch v-model="form.behavior_rules.browse.enabled" /></div><div v-if="form.behavior_rules.browse.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数：<el-input-number v-model="form.behavior_rules.browse.start_day" :controls="false" :min="1" :max="behaviorStartDayMax" /></label><label>时长范围（分钟）：<span class="inline-range"><el-input-number v-model="form.behavior_rules.browse.min_minutes" :controls="false" :min="1" /> - <el-input-number v-model="form.behavior_rules.browse.max_minutes" :controls="false" :min="1" /></span></label></div></div>
+              <div class="behavior-item"><div class="behavior-title"><div><strong>查看帖子详情</strong><p>按概率进入帖子详情页查看。</p></div><el-switch v-model="form.behavior_rules.detail_view.enabled" /></div><div v-if="form.behavior_rules.detail_view.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数：<el-input-number v-model="form.behavior_rules.detail_view.start_day" :controls="false" :min="1" :max="behaviorStartDayMax" /></label><label>查看概率（%）：<el-input-number v-model="form.behavior_rules.detail_view.probability" :controls="false" :min="0" :max="100" /></label></div></div>
             </div>
-            <div class="behavior-item"><div class="behavior-title"><div><strong>发布内容</strong><p>从指定内容池中随机分配一条内容，失败后不释放。</p></div><el-switch v-model="form.behavior_rules.publish.enabled" /></div><div v-if="form.behavior_rules.publish.enabled" class="behavior-fields"><label>开始天数 <el-input-number v-model="form.behavior_rules.publish.start_day" :min="1" :max="behaviorStartDayMax" /></label><label>内容池 <el-select v-model="form.behavior_rules.publish.content_group_id" filterable><el-option v-for="item in contentGroups.filter((group) => group.business_platform === form.business_platform)" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></label><label>内容使用状态 <el-select v-model="form.behavior_rules.publish.content_usage_status"><el-option label="未使用" value="unused" /><el-option label="已使用" value="used" /><el-option label="全部" value="all" /></el-select></label></div></div>
+            <div class="behavior-rule-grid">
+              <div class="behavior-item"><div class="behavior-title"><div><strong>随机点赞</strong><p>按浏览内容独立随机判断。</p></div><el-switch v-model="form.behavior_rules.like.enabled" /></div><div v-if="form.behavior_rules.like.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数：<el-input-number v-model="form.behavior_rules.like.start_day" :controls="false" :min="1" :max="behaviorStartDayMax" /></label><label>点赞概率（%）：<el-input-number v-model="form.behavior_rules.like.probability" :controls="false" :min="0" :max="100" /></label></div></div>
+              <div class="behavior-item"><div class="behavior-title"><div><strong>随机关注</strong><p>按浏览到的账号独立随机判断。</p></div><el-switch v-model="form.behavior_rules.follow.enabled" /></div><div v-if="form.behavior_rules.follow.enabled" class="behavior-fields behavior-fields--compact"><label>开始天数：<el-input-number v-model="form.behavior_rules.follow.start_day" :controls="false" :min="1" :max="behaviorStartDayMax" /></label><label>关注概率（%）：<el-input-number v-model="form.behavior_rules.follow.probability" :controls="false" :min="0" :max="100" /></label></div></div>
+            </div>
+            <div class="behavior-item"><div class="behavior-title"><div><strong>发布内容</strong><p>从指定内容池中随机分配一条内容，失败后不释放。</p></div><el-switch v-model="form.behavior_rules.publish.enabled" /></div><div v-if="form.behavior_rules.publish.enabled" class="behavior-fields"><label>开始天数：<el-input-number v-model="form.behavior_rules.publish.start_day" :controls="false" :min="1" :max="behaviorStartDayMax" /></label><label>内容池：<el-select v-model="form.behavior_rules.publish.content_group_id" filterable><el-option v-for="item in contentGroups.filter((group) => group.business_platform === form.business_platform)" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></label><label>内容使用状态：<el-select v-model="form.behavior_rules.publish.content_usage_status"><el-option label="未使用" value="unused" /><el-option label="已使用" value="used" /><el-option label="全部" value="all" /></el-select></label></div></div>
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -643,13 +647,16 @@ h1 { font-size: 20px; color: #17233d; }
 .switch-field { display: flex; align-items: center; gap: 10px; min-height: 32px; color: #334155; }
 .target-mode { margin-bottom: 16px; }.target-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .selector-panel { border: 1px solid #dce5ef; border-radius: 6px; padding: 14px; }.selector-panel h3 { font-size: 14px; margin-bottom: 10px; }
+.selector-panel :deep(.account-tree-select) { max-height: none; overflow: hidden; }
 .target-selects { padding-top: 10px; }.behavior-list { display: grid; gap: 12px; }
-.behavior-probability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.behavior-item { border: 1px solid #dce5ef; border-radius: 6px; padding: 15px 16px; }.behavior-title { justify-content: space-between; }.behavior-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 14px; border-top: 1px solid #edf1f5; margin-top: 14px; }.behavior-fields label { display: grid; gap: 7px; color: #52677d; font-size: 13px; }
+.behavior-rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.behavior-item { border: 1px solid #dce5ef; border-radius: 6px; padding: 15px 16px; }.behavior-title { justify-content: space-between; }.behavior-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 14px; border-top: 1px solid #edf1f5; margin-top: 14px; }.behavior-fields label { display: flex; align-items: center; gap: 8px; min-width: 0; color: #52677d; font-size: 13px; white-space: nowrap; }
 .behavior-language-filter { display: grid; grid-template-columns: minmax(240px, 0.7fr) minmax(360px, 1.3fr); align-items: center; gap: 20px; }
-.behavior-fields--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.behavior-fields--compact :deep(.el-input-number) { width: 100%; }
+.behavior-fields--compact { grid-template-columns: minmax(140px, 0.8fr) minmax(230px, 1.2fr); gap: 10px; }
+.behavior-fields label :deep(.el-input-number), .behavior-fields label :deep(.el-select) { flex: 1; min-width: 0; width: auto; }
+.behavior-fields .inline-range { flex: 1; min-width: 0; }
+.behavior-fields .inline-range :deep(.el-input-number) { flex: 1; min-width: 0; width: 0; }
 .detail-toolbar { gap: 10px; margin-bottom: 12px; }.detail-toolbar .el-input, .detail-toolbar .el-select { width: 220px; }
 @media (max-width: 1200px) { .filter-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 900px) { .behavior-probability-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .behavior-rule-grid, .behavior-fields, .behavior-language-filter { grid-template-columns: 1fr; } }
 </style>
