@@ -426,7 +426,7 @@ watch(
                   >
                     <template #title>
                       <div class="task-slot-group__title">
-                        <span>{{ group.group_name }}</span>
+                        <span>- {{ group.group_name }}</span>
                         <span>{{ group.slot_count }} 台</span>
                       </div>
                     </template>
