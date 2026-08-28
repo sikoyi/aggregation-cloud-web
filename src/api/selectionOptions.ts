@@ -1,4 +1,4 @@
-import { getAllPages, http } from '@/api/http'
+import { http } from '@/api/http'
 import type { AnyRecord, PageResult } from '@/types/api'
 
 interface CacheEntry {
@@ -242,15 +242,7 @@ export function loadMonitoredAccountSelectionOptions(filters: AnyRecord = {}) {
   return loadCached(
     monitoredAccountCache,
     cacheKey(params),
-    async () => {
-      const accounts = await getAllPages<AnyRecord>('/api/accounts/data-overview', params)
-      return accounts.map((account) => ({
-        ...account,
-        id: String(account.account_id),
-        bound_slot_group_id: account.slot_group_id,
-        bound_slot_group_name: account.slot_group_name,
-      }))
-    },
+    () => http.get<AnyRecord[]>('/api/accounts/selection-options', params),
   )
 }
 

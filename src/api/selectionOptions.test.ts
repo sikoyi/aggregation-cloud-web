@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getAllPages, http } from '@/api/http'
+import { http } from '@/api/http'
 import {
   clearSelectionOptionsCache,
   loadAccountSelectionOptions,
@@ -14,7 +14,6 @@ import {
 } from '@/api/selectionOptions'
 
 vi.mock('@/api/http', () => ({
-  getAllPages: vi.fn(),
   http: {
     get: vi.fn(),
   },
@@ -24,7 +23,6 @@ describe('selection options cache', () => {
   beforeEach(() => {
     clearSelectionOptionsCache()
     vi.mocked(http.get).mockReset()
-    vi.mocked(getAllPages).mockReset()
   })
 
   it('deduplicates simultaneous slot requests from interaction selectors', async () => {
@@ -49,19 +47,19 @@ describe('selection options cache', () => {
     })
   })
 
-  it('loads monitoring accounts and normalizes device group fields', async () => {
-    vi.mocked(getAllPages).mockResolvedValueOnce([{
-      account_id: '12',
-      account_name: 'target-account',
-      slot_group_id: '3',
-      slot_group_name: '韩国账号',
+  it('loads monitoring accounts from the compact selection endpoint', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce([{
+      id: '12',
+      public_username: 'target-account',
+      bound_slot_group_id: '3',
+      bound_slot_group_name: '韩国账号',
     }])
 
     const accounts = await loadMonitoredAccountSelectionOptions({
       business_platform: 'threads',
     })
 
-    expect(getAllPages).toHaveBeenCalledWith('/api/accounts/data-overview', {
+    expect(http.get).toHaveBeenCalledWith('/api/accounts/selection-options', {
       business_platform: 'threads',
       monitor_state: 'monitoring',
     })

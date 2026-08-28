@@ -1,4 +1,5 @@
 import { http } from "@/api/http";
+import { loadMediaAssetsByIds } from "@/api/mediaAssets";
 import { clearSelectionOptionsCache } from "@/api/selectionOptions";
 import type { AnyRecord } from "@/types/api";
 import {
@@ -290,6 +291,7 @@ const mediaAssetRemoteSelect = {
   valueKey: "id",
   detailPath: (value: string) =>
     `/api/resource-center/media-assets/${encodeURIComponent(value)}`,
+  batchDetailLoader: (values: string[]) => loadMediaAssetsByIds(values),
   secondaryKeys: ["asset_type", "status"],
   searchParam: "keyword",
   params: { status: "enabled" },
@@ -502,6 +504,12 @@ const accountTagRemoteSelect = {
   secondaryKey: "member_count",
   searchParam: "keyword",
   pageSize: 50,
+};
+
+const publishedContentTableRelation = {
+  ...publishedContentRemoteSelect,
+  rowLabelKeys: ["published_content_title", "published_platform_content_id"],
+  rowSecondaryKeys: ["published_content_url"],
 };
 
 const accountWarmupPlanRemoteSelect = {
@@ -3051,7 +3059,7 @@ export const resources: Record<string, ResourceConfig> = {
     readOnly: true,
     columns: [
       { key: "id", label: "ID", type: "id", width: 80, align: "center" },
-      { key: "published_content_id", label: "发布内容", type: "relation", relation: publishedContentRemoteSelect, minWidth: 160, align: "center" },
+      { key: "published_content_id", label: "发布内容", type: "relation", relation: publishedContentTableRelation, minWidth: 160, align: "center" },
       { key: "platform_comment_id", label: "平台评论 ID", minWidth: 160, align: "center" },
       { key: "parent_comment_id", label: "父评论", type: "id", minWidth: 120, align: "center" },
       { key: "author_name", label: "评论账号", minWidth: 160, align: "center" },
@@ -3290,7 +3298,11 @@ export const resources: Record<string, ResourceConfig> = {
         key: "script_key",
         label: "关联脚本",
         type: "relation",
-        relation: scriptRemoteSelect,
+        relation: {
+          ...scriptRemoteSelect,
+          rowLabelKeys: ["script_name"],
+          rowSecondaryKeys: ["runtime_platform"],
+        },
         minWidth: 160,
       },
       { key: "business_platform", label: "执行配置", type: "templateConfig", minWidth: 200 },
@@ -3541,6 +3553,7 @@ export const resources: Record<string, ResourceConfig> = {
     key: "tasks",
     title: "任务记录",
     endpoint: "/api/tasks",
+    listEndpoint: "/api/tasks/summaries",
     createEndpoint: "/api/tasks/from-template",
     createLabel: "下发任务",
     createBody: (payload) => buildTaskDispatchBody(payload),

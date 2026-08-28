@@ -51,6 +51,13 @@ import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfi
 import { buildFormState, buildPayload } from '@/utils/form'
 import { formatCell, getCellValue, truncateId } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
+import {
+  patchRuntimeSummaryRows,
+  patchTaskSummaryRows,
+  realtimeRuntimeSummary,
+  realtimeTaskTouchesRows,
+  rowsContainRealtimeValue,
+} from '@/utils/realtimeRows'
 
 const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
@@ -135,6 +142,8 @@ const assetViewerRecord = ref<AnyRecord | null>(null)
 const pageRootRef = ref<HTMLElement | null>(null)
 const slotGroupEditTab = ref('base')
 let realtimeRefreshTimer: number | undefined
+let realtimeConsistencyTimer: number | undefined
+let realtimeConsistencyDueAt = 0
 let realtimeRefreshPending = false
 let realtimeRefreshRunning = false
 let lastRealtimeRefreshAt = 0
@@ -655,6 +664,22 @@ function shouldRefreshForRealtime(event: RealtimeEventPayload) {
   return false
 }
 
+function realtimeData(event: RealtimeEventPayload) {
+  return event.data && typeof event.data === 'object' ? event.data as AnyRecord : {}
+}
+
+function rowContainsValue(rowKeys: string[], value: unknown) {
+  return rowsContainRealtimeValue(rows.value, rowKeys, value)
+}
+
+function taskTouchesVisibleRows(
+  event: RealtimeEventPayload,
+  rowKeys: string[],
+  taskKeys: string[],
+) {
+  return realtimeTaskTouchesRows(rows.value, event, rowKeys, taskKeys)
+}
+
 function realtimeRefreshInterval() {
   if (props.config.key === 'slots' || props.config.key === 'runtimes') return 8000
   if (props.config.key === 'tasks' || props.config.key === 'interactionSessions') return 3000
@@ -698,13 +723,96 @@ function scheduleRealtimeRefresh() {
   realtimeRefreshTimer = window.setTimeout(runRealtimeRefresh, delay)
 }
 
+function scheduleRealtimeConsistencyRefresh(delay = 15_000) {
+  const dueAt = Date.now() + delay
+  if (realtimeConsistencyTimer && realtimeConsistencyDueAt <= dueAt) return
+  if (realtimeConsistencyTimer) window.clearTimeout(realtimeConsistencyTimer)
+  realtimeConsistencyDueAt = dueAt
+  realtimeConsistencyTimer = window.setTimeout(() => {
+    realtimeConsistencyTimer = undefined
+    realtimeConsistencyDueAt = 0
+    scheduleRealtimeRefresh()
+  }, delay)
+}
+
 function flushPendingRealtimeRefresh() {
   if (realtimeRefreshPending && !isRealtimeRefreshBlocked()) scheduleRealtimeRefresh()
 }
 
 function handleRealtimeEvent(event: Event) {
   const payload = (event as CustomEvent<RealtimeEventPayload>).detail
-  if (payload && shouldRefreshForRealtime(payload)) scheduleRealtimeRefresh()
+  if (!payload || !shouldRefreshForRealtime(payload)) return
+
+  if (props.config.key === 'tasks' && payload.topic === 'task') {
+    const patched = patchTaskSummaryRows(rows.value, payload)
+    if (patched.result === 'patched') {
+      rows.value = patched.rows
+      return
+    }
+    if (patched.result === 'stale') return
+    if (patched.result === 'child') {
+      if (taskTouchesVisibleRows(payload, ['id'], ['parent_task_run_id'])) {
+        scheduleRealtimeConsistencyRefresh(10_000)
+      }
+      return
+    }
+    scheduleRealtimeConsistencyRefresh()
+    return
+  }
+
+  if (props.config.key === 'runtimes') {
+    if (payload.topic === 'runtime') {
+      const patched = patchRuntimeSummaryRows(rows.value, payload)
+      if (patched.result === 'patched') rows.value = patched.rows
+      else if (patched.result === 'missing') scheduleRealtimeConsistencyRefresh()
+      return
+    }
+    if (taskTouchesVisibleRows(payload, ['id'], ['runtime_instance_id'])) {
+      scheduleRealtimeRefresh()
+    }
+    return
+  }
+
+  if (props.config.key === 'slots') {
+    if (payload.topic === 'task') {
+      if (taskTouchesVisibleRows(payload, ['id'], ['slot_id'])) scheduleRealtimeRefresh()
+      return
+    }
+    const runtime = realtimeRuntimeSummary(payload)
+    if (runtime && rowContainsValue(['runtime_instance_id'], runtime.id)) {
+      scheduleRealtimeRefresh()
+    } else if (payload.type.includes('slots') || payload.type.includes('global_inventory')) {
+      scheduleRealtimeConsistencyRefresh(30_000)
+    }
+    return
+  }
+
+  if (props.config.key === 'accounts') {
+    if (rowContainsValue(['id'], payload.resource_id)) scheduleRealtimeRefresh()
+    return
+  }
+
+  if (props.config.key === 'interactionSessions') {
+    if (taskTouchesVisibleRows(payload, ['task_run_id'], ['id', 'parent_task_run_id'])) {
+      scheduleRealtimeRefresh()
+    }
+    return
+  }
+
+  if (props.config.key === 'publishedContents') {
+    const data = realtimeData(payload)
+    if (
+      rowContainsValue(['id'], payload.resource_id)
+      || rowContainsValue(['author_account_id'], data.account_id)
+    ) {
+      scheduleRealtimeRefresh()
+    } else {
+      scheduleRealtimeConsistencyRefresh(30_000)
+    }
+    return
+  }
+
+  scheduleRealtimeRefresh()
 }
 
 function handleDocumentVisibilityChange() {
@@ -1195,7 +1303,10 @@ watch(
   () => props.config.key,
   () => {
     if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+    if (realtimeConsistencyTimer) window.clearTimeout(realtimeConsistencyTimer)
     realtimeRefreshTimer = undefined
+    realtimeConsistencyTimer = undefined
+    realtimeConsistencyDueAt = 0
     realtimeRefreshPending = false
     lastRealtimeRefreshAt = 0
     initFilters()
@@ -1226,6 +1337,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleDocumentVisibilityChange)
   pageVisibilityObserver?.disconnect()
   if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
+  if (realtimeConsistencyTimer) window.clearTimeout(realtimeConsistencyTimer)
 })
 </script>
 

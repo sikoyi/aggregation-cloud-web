@@ -32,6 +32,18 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : '上传失败'
 }
 
+export async function loadMediaAssetsByIds(assetIds: string[]) {
+  const ids = [...new Set(assetIds.map(String).filter(Boolean))]
+  if (!ids.length) return [] as AnyRecord[]
+  const batches: Promise<AnyRecord[]>[] = []
+  for (let index = 0; index < ids.length; index += 100) {
+    batches.push(http.get<AnyRecord[]>('/api/resource-center/media-assets/batch', {
+      asset_ids: ids.slice(index, index + 100).join(','),
+    }))
+  }
+  return (await Promise.all(batches)).flat()
+}
+
 export async function uploadMediaAssets(
   files: File[],
   options: MediaAssetUploadOptions,

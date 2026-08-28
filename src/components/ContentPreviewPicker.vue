@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import { loadMediaAssetsByIds } from '@/api/mediaAssets'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
@@ -84,12 +85,7 @@ function contentGroupNames(value: unknown) {
 async function loadAssets(assetIds: unknown) {
   const ids = Array.isArray(assetIds) ? assetIds.map(String).filter(Boolean) : []
   if (!ids.length) return []
-  const settled = await Promise.allSettled(
-    ids.map((id) => http.get<AnyRecord>(`/api/resource-center/media-assets/${encodeURIComponent(id)}`)),
-  )
-  return settled
-    .filter((item): item is PromiseFulfilledResult<AnyRecord> => item.status === 'fulfilled')
-    .map((item) => item.value)
+  return loadMediaAssetsByIds(ids)
 }
 
 async function loadContentDetail(contentId: string) {

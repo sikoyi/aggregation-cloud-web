@@ -212,9 +212,76 @@ function mergeSelected(items: AnyRecord[]) {
   return existing.length ? [...existing, ...items] : items
 }
 
-async function mergeSelectedDetails(items: AnyRecord[]) {
+async function loadSelectedDetails(values: string[]) {
+  if (props.config.batchDetailLoader) {
+    return props.config.batchDetailLoader(values, props.context).catch(() => [])
+  }
+  const details = await Promise.all(
+    values.map((value) => http.get<AnyRecord>(props.config.detailPath?.(value) || '').catch(() => null)),
+  )
+  return details.filter(Boolean) as AnyRecord[]
+}
+
+async function loadSelectedFromRemainingPages(
+  values: string[],
+  total: number,
+  baseParams: AnyRecord,
+  requestId: number,
+) {
+  const wanted = new Set(values)
+  const found: AnyRecord[] = []
+  const pageSize = props.config.pageSize || 50
+  const pageCount = Math.ceil(total / pageSize)
+  for (let page = 2; page <= pageCount && wanted.size; page += 1) {
+    const data = await http.get<PageResult<AnyRecord>>(resolvedEndpoint(), {
+      ...baseParams,
+      page,
+      page_size: pageSize,
+    })
+    if (requestId !== loadRequestId) return found
+    data.items.forEach((item) => {
+      const value = optionValue(item)
+      if (!wanted.has(value)) return
+      found.push(item)
+      wanted.delete(value)
+    })
+  }
+  return found
+}
+
+async function resolveMissingSelected(
+  values: string[],
+  total: number,
+  baseParams: AnyRecord,
+  requestId: number,
+) {
+  if (!values.length) return []
+  if (props.config.batchDetailLoader) return loadSelectedDetails(values)
+  const pageSize = props.config.pageSize || 50
+  const remainingPageCount = Math.max(0, Math.ceil(total / pageSize) - 1)
+  if (remainingPageCount > 0 && remainingPageCount < values.length) {
+    try {
+      const pagedItems = await loadSelectedFromRemainingPages(values, total, baseParams, requestId)
+      const foundValues = new Set(pagedItems.map(optionValue))
+      const stillMissing = values.filter((value) => !foundValues.has(value))
+      return [...pagedItems, ...await loadSelectedDetails(stillMissing)]
+    } catch {
+      return loadSelectedDetails(values)
+    }
+  }
+  return loadSelectedDetails(values)
+}
+
+async function mergeSelectedDetails(
+  items: AnyRecord[],
+  total: number,
+  baseParams: AnyRecord,
+  requestId: number,
+) {
   const selected = selectedValues()
-  if (!selected.length || !props.config.detailPath) return mergeSelected(items)
+  if (!selected.length || (!props.config.detailPath && !props.config.batchDetailLoader)) {
+    return mergeSelected(items)
+  }
 
   const missing = selected.filter(
     (value) =>
@@ -223,23 +290,24 @@ async function mergeSelectedDetails(items: AnyRecord[]) {
   )
   if (!missing.length) return mergeSelected(items)
 
-  const details = await Promise.all(
-    missing.map((value) => http.get<AnyRecord>(props.config.detailPath?.(value) || '').catch(() => null)),
-  )
-  return mergeSelected([...details.filter(Boolean) as AnyRecord[], ...items])
+  const details = await resolveMissingSelected(missing, total, baseParams, requestId)
+  return mergeSelected([...details, ...items])
 }
 
-async function mergeDetailsForCurrentSelection(items: AnyRecord[]) {
+async function mergeDetailsForCurrentSelection(
+  items: AnyRecord[],
+  total: number,
+  baseParams: AnyRecord,
+  requestId: number,
+) {
   const selected = selectedValues()
-  if (!selected.length || !props.config.detailPath) return items
+  if (!selected.length || (!props.config.detailPath && !props.config.batchDetailLoader)) return items
 
   const missing = selected.filter((value) => !items.some((item) => optionValue(item) === value))
   if (!missing.length) return items
 
-  const details = await Promise.all(
-    missing.map((value) => http.get<AnyRecord>(props.config.detailPath?.(value) || '').catch(() => null)),
-  )
-  return [...details.filter(Boolean) as AnyRecord[], ...items]
+  const details = await resolveMissingSelected(missing, total, baseParams, requestId)
+  return [...details, ...items]
 }
 
 async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
@@ -267,7 +335,12 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
       : data.items
     const selectableItems = withFixedOptions(matchedItems)
     if (behavior.clearMissing && props.config.clearWhenMissing) {
-      const items = await mergeDetailsForCurrentSelection(selectableItems)
+      const items = await mergeDetailsForCurrentSelection(
+        selectableItems,
+        data.total,
+        baseParams,
+        requestId,
+      )
       if (requestId !== loadRequestId) return
       const availableItems = props.config.matchesContext
         ? items.filter((item) => props.config.matchesContext?.(item, props.context))
@@ -285,7 +358,12 @@ async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = 
       }
       return
     }
-    const mergedItems = await mergeSelectedDetails(selectableItems)
+    const mergedItems = await mergeSelectedDetails(
+      selectableItems,
+      data.total,
+      baseParams,
+      requestId,
+    )
     if (requestId === loadRequestId) options.value = mergedItems
   } finally {
     if (requestId === loadRequestId) loading.value = false

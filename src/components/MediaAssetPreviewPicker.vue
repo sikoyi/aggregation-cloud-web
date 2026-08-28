@@ -4,6 +4,7 @@ import { Images, Search, X } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import { loadMediaAssetsByIds } from '@/api/mediaAssets'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
@@ -109,17 +110,8 @@ async function loadSelectedAssets() {
   }
   selectedLoading.value = true
   try {
-    const settled = await Promise.allSettled(
-      selectedIds.value.map((id) => (
-        props.config.detailPath
-          ? http.get<AnyRecord>(props.config.detailPath(id))
-          : http.get<AnyRecord>(`${resolvedValue(props.config.endpoint)}/${encodeURIComponent(id)}`)
-      )),
-    )
+    const loaded = await loadMediaAssetsByIds(selectedIds.value)
     if (requestId !== selectedRequestId) return
-    const loaded = settled
-      .filter((item): item is PromiseFulfilledResult<AnyRecord> => item.status === 'fulfilled')
-      .map((item) => item.value)
     const matched = props.config.matchesContext
       ? loaded.filter((item) => props.config.matchesContext?.(item, props.context))
       : loaded

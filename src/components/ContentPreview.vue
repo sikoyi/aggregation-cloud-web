@@ -2,7 +2,8 @@
 import { Image as ImageIcon, Play } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
-import { http, resolveBackendUrl } from '@/api/http'
+import { resolveBackendUrl } from '@/api/http'
+import { loadMediaAssetsByIds } from '@/api/mediaAssets'
 import type { AnyRecord } from '@/types/api'
 
 const props = withDefaults(defineProps<{
@@ -63,13 +64,9 @@ async function loadMissingAssets() {
     loadedAssets.value = []
     return
   }
-  const settled = await Promise.allSettled(
-    assetIds.value.map((id) => http.get<AnyRecord>(`/api/resource-center/media-assets/${encodeURIComponent(id)}`)),
-  )
+  const loaded = await loadMediaAssetsByIds(assetIds.value)
   if (currentRequest !== requestId) return
-  loadedAssets.value = settled
-    .filter((item): item is PromiseFulfilledResult<AnyRecord> => item.status === 'fulfilled')
-    .map((item) => item.value)
+  loadedAssets.value = loaded
 }
 
 watch(

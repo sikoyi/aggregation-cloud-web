@@ -7,6 +7,8 @@ import type { AnyRecord } from '@/types/api'
 type PublishedContentCellKind =
   | 'publishedContentIdentity'
   | 'publishedContentPublisher'
+  | 'publishedContentAccount'
+  | 'publishedContentDevice'
   | 'publishedContentLink'
   | 'publishedContentMetrics'
   | 'publishedContentTimeline'
@@ -99,12 +101,15 @@ const metrics = computed(() => [
     </el-tooltip>
   </div>
 
-  <div v-else-if="kind === 'publishedContentPublisher'" class="published-cell published-publisher">
-    <div class="published-publisher__row">
+  <div
+    v-else-if="['publishedContentPublisher', 'publishedContentAccount', 'publishedContentDevice'].includes(kind)"
+    class="published-cell published-publisher"
+  >
+    <div v-if="kind !== 'publishedContentDevice'" class="published-publisher__row">
       <UserRound />
       <span><strong>{{ accountName }}</strong><small v-if="accountSecondary">{{ accountSecondary }}</small></span>
     </div>
-    <div class="published-publisher__row published-publisher__row--secondary">
+    <div v-if="kind !== 'publishedContentAccount'" class="published-publisher__row published-publisher__row--secondary">
       <Monitor />
       <span><strong>{{ slotName }}</strong><small v-if="providerSlotId">{{ providerSlotId }}</small></span>
     </div>
@@ -163,14 +168,14 @@ const metrics = computed(() => [
 </template>
 
 <style scoped>
-.published-cell { min-width: 0; }
+.published-cell { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; }
 .published-task-identity > strong { display: block; overflow: hidden; color: #243b53; font-size: 13px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .published-content { display: flex; flex-direction: column; gap: 6px; }
 .published-content__title { display: flex; min-width: 0; align-items: center; gap: 8px; }
 .published-content__title > strong { overflow: hidden; color: #243b53; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .published-content__media { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 3px; color: #527a98; font-size: 11px; }
 .published-content__media svg { width: 13px; height: 13px; }
-.published-content p { display: -webkit-box; overflow: hidden; margin: 0; color: #6b7f93; font-size: 12px; line-height: 18px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.published-content p { display: -webkit-box; overflow: hidden; margin: 0; color: #6b7f93; font-size: 12px; line-height: 18px; overflow-wrap: anywhere; word-break: break-word; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .published-publisher { display: flex; flex-direction: column; gap: 7px; }
 .published-publisher__row { display: flex; min-width: 0; align-items: center; gap: 7px; }
 .published-publisher__row > svg { width: 14px; height: 14px; flex: 0 0 14px; color: #39749a; }
@@ -180,7 +185,7 @@ const metrics = computed(() => [
 .published-publisher__row small { color: #8a9aab; font-size: 10px; }
 .published-publisher__row--secondary > svg { color: #7b8c9d; }
 .published-link { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.published-link :deep(.el-link__inner) { display: inline-flex; align-items: center; gap: 6px; }
+.published-link :deep(.el-link__inner) { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .published-link :deep(svg) { width: 14px; height: 14px; }
 .published-link small { overflow: hidden; max-width: 100%; color: #8293a5; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .published-metrics { display: grid; grid-template-columns: repeat(2, minmax(88px, 1fr)); gap: 5px 8px; }

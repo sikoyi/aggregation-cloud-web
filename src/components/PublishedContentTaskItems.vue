@@ -87,28 +87,41 @@ onMounted(loadRows)
       <small>任务 ID {{ taskId }}</small>
     </div>
 
-    <el-table v-loading="loading" :data="rows" border stripe table-layout="auto" empty-text="暂无设备执行结果">
-      <el-table-column label="发布内容" min-width="250">
+    <el-table
+      v-loading="loading"
+      :data="rows"
+      border
+      stripe
+      table-layout="fixed"
+      class="published-task-items__table"
+      empty-text="暂无设备执行结果"
+    >
+      <el-table-column label="发布内容" width="300">
         <template #default="{ row }">
           <PublishedContentTableCell kind="publishedContentIdentity" :row="row" />
         </template>
       </el-table-column>
-      <el-table-column label="账号 / 设备" min-width="190">
+      <el-table-column label="账号" min-width="140">
         <template #default="{ row }">
-          <PublishedContentTableCell kind="publishedContentPublisher" :row="row" />
+          <PublishedContentTableCell kind="publishedContentAccount" :row="row" />
         </template>
       </el-table-column>
-      <el-table-column label="帖子链接" min-width="150">
+      <el-table-column label="设备" min-width="170">
+        <template #default="{ row }">
+          <PublishedContentTableCell kind="publishedContentDevice" :row="row" />
+        </template>
+      </el-table-column>
+      <el-table-column label="帖子链接" width="114">
         <template #default="{ row }">
           <PublishedContentTableCell kind="publishedContentLink" :row="row" />
         </template>
       </el-table-column>
-      <el-table-column label="互动数据" min-width="220">
+      <el-table-column label="互动数据" width="220">
         <template #default="{ row }">
           <PublishedContentTableCell kind="publishedContentMetrics" :row="row" />
         </template>
       </el-table-column>
-      <el-table-column label="执行状态" width="120" align="center">
+      <el-table-column label="执行状态" width="100" align="center">
         <template #default="{ row }">
           <StatusBadge :value="row.task_status" />
           <el-popover
@@ -127,33 +140,35 @@ onMounted(loadRows)
           </el-popover>
         </template>
       </el-table-column>
-      <el-table-column label="发布时间" width="190" align="center">
+      <el-table-column label="发布时间" width="160" align="center">
         <template #default="{ row }">
           <PublishedContentTableCell kind="publishedContentTimeline" :row="row" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="104" align="center">
+      <el-table-column label="操作" width="96" align="center">
         <template #default="{ row }">
-          <el-tooltip content="查看详情" placement="top">
-            <el-button
-              text
-              circle
-              :icon="Eye"
-              :disabled="!row.published_content_id"
-              @click="emit('openDetail', String(row.published_content_id))"
-            />
-          </el-tooltip>
-          <el-tooltip v-if="canDelete" content="删除" placement="top">
-            <el-button
-              text
-              circle
-              type="danger"
-              :icon="Trash2"
-              :disabled="!row.published_content_id"
-              :loading="deletingId === String(row.published_content_id || '')"
-              @click="deleteContent(row)"
-            />
-          </el-tooltip>
+          <div class="published-task-items__actions">
+            <el-tooltip content="查看详情" placement="top">
+              <el-button
+                text
+                circle
+                :icon="Eye"
+                :disabled="!row.published_content_id"
+                @click="emit('openDetail', String(row.published_content_id))"
+              />
+            </el-tooltip>
+            <el-tooltip v-if="canDelete" content="删除" placement="top">
+              <el-button
+                text
+                circle
+                type="danger"
+                :icon="Trash2"
+                :disabled="!row.published_content_id"
+                :loading="deletingId === String(row.published_content_id || '')"
+                @click="deleteContent(row)"
+              />
+            </el-tooltip>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -180,6 +195,9 @@ onMounted(loadRows)
 .published-task-items__header strong { color: #243b53; font-size: 13px; }
 .published-task-items__header span,
 .published-task-items__header small { color: #8293a5; font-size: 11px; }
+.published-task-items__table :deep(.cell) { min-width: 0; }
+.published-task-items__actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.published-task-items__actions :deep(.el-button + .el-button) { margin-left: 0; }
 .published-task-items__error { height: auto; margin-top: 5px; padding: 0; font-size: 10px; line-height: 16px; }
 .published-task-items__error-detail { color: #40566c; }
 .published-task-items__error-detail strong { display: block; margin-bottom: 7px; color: #b33e3e; font-size: 12px; }

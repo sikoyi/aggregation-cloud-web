@@ -104,6 +104,9 @@ export interface RemoteSelectConfig {
   labelKeys?: string[]
   valueKey: string
   detailPath?: (value: string, row?: AnyRecord) => string
+  batchDetailLoader?: (values: string[], context?: AnyRecord) => Promise<AnyRecord[]>
+  rowLabelKeys?: string[]
+  rowSecondaryKeys?: string[]
   searchParam?: string
   secondaryKey?: string
   secondaryKeys?: string[]

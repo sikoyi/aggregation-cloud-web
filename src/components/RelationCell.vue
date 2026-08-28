@@ -25,6 +25,8 @@ const record = ref<AnyRecord | null>(null)
 const failed = ref(false)
 
 const valueText = computed(() => String(props.value || ''))
+const prefetchedLabel = computed(() => fieldValue(props.row || null, props.config.rowLabelKeys || []))
+const prefetchedSecondary = computed(() => fieldValue(props.row || null, props.config.rowSecondaryKeys || []))
 
 function relationPath() {
   if (!valueText.value) return ''
@@ -49,8 +51,8 @@ function relationSecondary(item: AnyRecord | null) {
   return fieldValue(item, keys)
 }
 
-const label = computed(() => relationLabel(record.value) || truncateId(valueText.value))
-const secondary = computed(() => relationSecondary(record.value))
+const label = computed(() => prefetchedLabel.value || relationLabel(record.value) || truncateId(valueText.value))
+const secondary = computed(() => prefetchedSecondary.value || relationSecondary(record.value))
 const tooltip = computed(() => {
   const parts = [label.value, secondary.value, valueText.value].filter(Boolean)
   return Array.from(new Set(parts)).join(' / ')
@@ -61,6 +63,7 @@ async function loadRelation() {
   record.value = null
   failed.value = false
   if (!path) return
+  if (prefetchedLabel.value) return
 
   if (relationCache.has(path)) {
     record.value = relationCache.get(path) || null
