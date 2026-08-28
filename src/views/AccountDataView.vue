@@ -584,7 +584,7 @@ onBeforeUnmount(() => {
             <span>筛选条件</span>
             <el-tag v-if="hasFilters" size="small" type="info" effect="plain">{{ activeFilterCount }} 项已生效</el-tag>
           </div>
-          <el-form inline label-position="left" class="compact-filter-form">
+          <el-form inline label-position="right" label-suffix=":" class="compact-filter-form">
             <div class="filter-grid">
               <el-form-item label="业务 App">
                 <el-select v-model="filters.business_platform" clearable placeholder="全部">
@@ -1192,6 +1192,8 @@ onBeforeUnmount(() => {
 .filter-grid :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; }
 .filter-grid :deep(.el-form-item__label) {
   min-width: 72px;
+  justify-content: flex-end;
+  text-align: right;
   color: #52606d;
   font-size: 12px;
   font-weight: 600;
