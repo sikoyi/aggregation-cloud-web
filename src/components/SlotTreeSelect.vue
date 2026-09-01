@@ -566,7 +566,7 @@ watch(
           v-model="searchKeyword"
           :prefix-icon="Search"
           clearable
-          placeholder="搜索设备名称 / Provider ID"
+          placeholder="设备名称 / ID，多个用逗号分隔"
         />
         <el-popover placement="bottom-end" :width="260" trigger="click">
           <template #reference>

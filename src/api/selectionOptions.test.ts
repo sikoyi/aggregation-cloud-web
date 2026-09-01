@@ -107,7 +107,7 @@ describe('selection options cache', () => {
       })
 
     const filters = { runtime_platform: 'fingerprint_browser', provider: 'morelogin' }
-    const query = { accountPresence: 'bound' as const, keyword: '测试' }
+    const query = { accountPresence: 'bound' as const, keyword: '设备-1,设备-2' }
     const groups = await loadSlotSelectionGroups(filters, query)
     const page = await loadSlotSelectionPage(filters, query, 'group-1', 1)
 
@@ -119,7 +119,7 @@ describe('selection options cache', () => {
       account_presence: 'bound',
       publish_usage: undefined,
       content_id: undefined,
-      keyword: '测试',
+      keyword: '设备-1,设备-2',
     })
     expect(http.get).toHaveBeenNthCalledWith(2, '/api/execution-slots/selection-page', {
       runtime_platform: 'fingerprint_browser',
@@ -127,7 +127,7 @@ describe('selection options cache', () => {
       account_presence: 'bound',
       publish_usage: undefined,
       content_id: undefined,
-      keyword: '测试',
+      keyword: '设备-1,设备-2',
       group_id: 'group-1',
       ungrouped: undefined,
       page: 1,
@@ -190,6 +190,7 @@ describe('selection options cache', () => {
         publish: true,
         publishUsage: 'content_not_sent',
         contentId: 'content-8',
+        keyword: '设备-1，设备-2',
       },
       'ungrouped',
     )
@@ -203,7 +204,7 @@ describe('selection options cache', () => {
         account_presence: undefined,
         publish_usage: 'content_not_sent',
         content_id: 'content-8',
-        keyword: undefined,
+        keyword: '设备-1，设备-2',
         group_id: undefined,
         ungrouped: true,
       },
