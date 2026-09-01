@@ -621,6 +621,41 @@ describe('设备批量删除', () => {
   })
 })
 
+describe('代理导入结果提示', () => {
+  it('正常导入时展示新增数量', () => {
+    expect(resources.proxies.createSuccessMessage?.({
+      created_count: 2,
+      skipped_count: 0,
+    }, {})).toBe('成功导入 2 条代理')
+    expect(resources.proxies.createNotificationType?.({
+      created_count: 2,
+      skipped_count: 0,
+    }, {})).toBe('success')
+  })
+
+  it('部分重复时明确展示新增和跳过数量', () => {
+    expect(resources.proxies.createSuccessMessage?.({
+      created_count: 2,
+      skipped_count: 1,
+    }, {})).toBe('成功导入 2 条代理，另有 1 条重复代理已跳过')
+    expect(resources.proxies.createNotificationType?.({
+      created_count: 2,
+      skipped_count: 1,
+    }, {})).toBe('warning')
+  })
+
+  it('全部重复时明确提示没有新增记录', () => {
+    expect(resources.proxies.createSuccessMessage?.({
+      created_count: 0,
+      skipped_count: 1,
+    }, {})).toBe('未新增代理：1 条代理与现有记录重复，已全部跳过')
+    expect(resources.proxies.createNotificationType?.({
+      created_count: 0,
+      skipped_count: 1,
+    }, {})).toBe('warning')
+  })
+})
+
 describe('设备管理筛选', () => {
   it('设备本身不维护业务 App，但支持按绑定账号的业务 App 和国家筛选', () => {
     expect(resources.slots.filters?.some((field) => field.key === 'business_platform')).toBe(true)
@@ -639,6 +674,15 @@ describe('设备管理筛选', () => {
       'logged_in_dm_unavailable',
       'twofa_required',
       'banned',
+    ])
+  })
+  it('支持筛选有号和无号设备', () => {
+    const field = resources.slots.filters?.find((filter) => filter.key === 'account_presence')
+
+    expect(field?.label).toBe('账号情况')
+    expect(field?.options).toEqual([
+      { label: '有号设备', value: 'bound' },
+      { label: '无号设备', value: 'unbound' },
     ])
   })
 })

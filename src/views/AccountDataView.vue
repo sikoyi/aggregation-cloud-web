@@ -6,6 +6,7 @@ import {
   ArrowUp,
   CircleOff,
   Clock,
+  Eye,
   ExternalLink,
   GitCompareArrows,
   Play,
@@ -71,6 +72,17 @@ const commentReplyModeOptions = [
   { label: '自动回复', value: 'automatic' },
   { label: '审核后回复', value: 'review' },
 ]
+const viewModeOptions = [
+  { label: '账号总览', value: 'overview' },
+  { label: '账号详情', value: 'detail' },
+]
+const overviewMetricColumns = [
+  { label: '粉丝', valueKey: 'followers_count', deltaKey: 'followers_day_delta' },
+  { label: '关注', valueKey: 'following_count', deltaKey: 'following_day_delta' },
+  { label: '帖子', valueKey: 'posts_count', deltaKey: 'posts_day_delta' },
+  { label: '总点赞', valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
+  { label: '总回复', valueKey: 'total_replies_count', deltaKey: 'total_replies_day_delta' },
+]
 
 const auth = useAuthStore()
 const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
@@ -82,6 +94,7 @@ const rows = ref<AnyRecord[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
+const viewMode = ref<'overview' | 'detail'>('overview')
 const slotGroups = ref<AnyRecord[]>([])
 const accountTags = ref<AnyRecord[]>([])
 const aiProviderOptions = ref<EnabledAiProviderOption[]>([])
@@ -145,6 +158,18 @@ let accountProfileRequest = 0
 
 const activeFilterCount = computed(() => Object.values(filters).filter(Boolean).length)
 const hasFilters = computed(() => activeFilterCount.value > 0)
+const activeSlotGroupName = computed(() => {
+  const groupId = String(filters.slot_group_id || '')
+  if (!groupId) return ''
+  const group = slotGroups.value.find((item) => String(item.id) === groupId)
+  return String(group?.name || groupId)
+})
+const activeAccountTagName = computed(() => {
+  const tagId = String(filters.tag_id || '')
+  if (!tagId) return ''
+  const tag = accountTags.value.find((item) => String(item.id) === tagId)
+  return String(tag?.name || tagId)
+})
 const monitorAccountFilters = computed(() => ({
   business_platform: monitorForm.business_platform,
 }))
@@ -478,6 +503,11 @@ function selectAccount(account: AnyRecord) {
   selectedAccount.value = account
 }
 
+function openAccountDetail(account: AnyRecord) {
+  selectAccount(account)
+  viewMode.value = 'detail'
+}
+
 function openProfile(account: AnyRecord) {
   const url = String(account.profile_url || '').trim()
   if (url) window.open(url, '_blank', 'noopener,noreferrer')
@@ -547,6 +577,11 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="account-data__actions">
+          <el-segmented
+            v-model="viewMode"
+            :options="viewModeOptions"
+            class="account-data__mode"
+          />
           <el-tooltip content="刷新" placement="bottom">
             <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
           </el-tooltip>
@@ -650,7 +685,131 @@ onBeforeUnmount(() => {
           </el-form>
         </div>
 
-        <div class="account-data__split">
+        <section v-if="viewMode === 'overview'" class="account-overview">
+          <div class="account-overview__header">
+            <div>
+              <strong>账号指标总览</strong>
+              <small>按账号横向比较最新采集数据，点击账号可查看完整资料和内容。</small>
+            </div>
+            <div class="account-overview__scope">
+              <el-tag v-if="activeSlotGroupName" type="primary" effect="plain">
+                设备分组：{{ activeSlotGroupName }}
+              </el-tag>
+              <el-tag v-if="activeAccountTagName" type="success" effect="plain">
+                账号标签：{{ activeAccountTagName }}
+              </el-tag>
+              <el-tag type="info" effect="plain">{{ formatNumber(total) }} 个账号</el-tag>
+            </div>
+          </div>
+
+          <el-table
+            v-loading="loading"
+            :data="rows"
+            border
+            class="account-overview__table"
+            empty-text="暂无符合条件的账号数据"
+          >
+            <el-table-column label="账号" min-width="230" fixed="left">
+              <template #default="scope">
+                <button
+                  type="button"
+                  class="account-overview__account"
+                  @click="openAccountDetail(scope.row)"
+                >
+                  <el-avatar
+                    :size="38"
+                    :src="resolveBackendUrl(scope.row.avatar_url) || undefined"
+                    fit="cover"
+                    class="account-data__avatar"
+                  >
+                    {{ String(scope.row.account_name || '-').slice(0, 1) }}
+                  </el-avatar>
+                  <span class="account-overview__identity">
+                    <strong>{{ scope.row.account_name || scope.row.login_username || '-' }}</strong>
+                    <small v-if="scope.row.username">@{{ scope.row.username }}</small>
+                    <small v-else>{{ scope.row.login_username || '暂无公开用户名' }}</small>
+                  </span>
+                </button>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="设备分组" min-width="145" show-overflow-tooltip>
+              <template #default="scope">
+                <span class="account-overview__group">{{ scope.row.slot_group_name || '未分组' }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="平台 / 国家" width="125" align="center" header-align="center">
+              <template #default="scope">
+                <div class="account-overview__attributes">
+                  <el-tag size="small" effect="plain">
+                    {{ optionLabel(businessPlatformOptions, scope.row.business_platform) }}
+                  </el-tag>
+                  <span>{{ scope.row.country || '-' }}</span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column
+              v-for="metric in overviewMetricColumns"
+              :key="metric.valueKey"
+              :label="metric.label"
+              width="132"
+              align="center"
+              header-align="center"
+            >
+              <template #default="scope">
+                <div class="account-overview__metric">
+                  <strong>{{ formatNumber(scope.row[metric.valueKey]) }}</strong>
+                  <span :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey]).type">
+                    <component :is="metricDeltaMeta(scope.row[metric.deltaKey]).icon" :size="11" />
+                    {{ metricDeltaMeta(scope.row[metric.deltaKey]).label }}
+                  </span>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="监听 / 采集" width="170" align="center" header-align="center">
+              <template #default="scope">
+                <div class="account-overview__monitor">
+                  <el-tag size="small" :type="monitorStateType(scope.row.monitor_state)" effect="light">
+                    {{ monitorStateLabel(scope.row.monitor_state) }}
+                  </el-tag>
+                  <small>{{ formatDate(scope.row.metrics_captured_at) }}</small>
+                </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="操作" width="82" fixed="right" align="center" header-align="center">
+              <template #default="scope">
+                <el-tooltip content="查看账号详情" placement="top">
+                  <el-button
+                    circle
+                    text
+                    type="primary"
+                    :icon="Eye"
+                    @click="openAccountDetail(scope.row)"
+                  />
+                </el-tooltip>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div class="account-overview__pagination">
+            <el-pagination
+              v-model:current-page="page"
+              v-model:page-size="pageSize"
+              background
+              layout="total, sizes, prev, pager, next"
+              :page-sizes="[20, 50, 100]"
+              :total="total"
+              @current-change="loadRows"
+              @size-change="handleSizeChange"
+            />
+          </div>
+        </section>
+
+        <div v-else class="account-data__split">
           <div class="account-directory__column">
             <aside class="account-directory">
             <div class="account-directory__header">
@@ -1133,6 +1292,7 @@ onBeforeUnmount(() => {
 .account-data__title h1 { color: #1f2933; font-size: 18px; font-weight: 700; line-height: 1.25; }
 .account-data__title p { margin-top: 3px; color: #66788a; font-size: 12px; }
 .account-data__actions { gap: 10px; }
+.account-data__mode { min-width: 184px; }
 .account-data__body { padding: 14px var(--content-inset) 16px; background: #f8fafc; }
 
 .account-data__summary {
@@ -1201,6 +1361,99 @@ onBeforeUnmount(() => {
 .filter-grid :deep(.el-select),
 .filter-grid :deep(.el-input) { width: 100%; }
 .filter-actions { gap: 10px; margin-top: 12px; }
+
+.account-overview {
+  overflow: hidden;
+  border: 1px solid #dbe4ed;
+  border-radius: 6px;
+  background: #fff;
+}
+.account-overview__header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5ebf1;
+}
+.account-overview__header > div:first-child { min-width: 0; }
+.account-overview__header strong,
+.account-overview__header small { display: block; }
+.account-overview__header strong { color: #26384a; font-size: 14px; }
+.account-overview__header small { margin-top: 3px; color: #8190a0; font-size: 11px; }
+.account-overview__scope {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.account-overview__table { width: 100%; }
+.account-overview__table :deep(.el-table__cell) { padding: 9px 0; }
+.account-overview__account {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.account-overview__account .account-data__avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+}
+.account-overview__identity { display: block; min-width: 0; flex: 1; }
+.account-overview__account strong,
+.account-overview__account small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-overview__account strong { color: #20364b; font-size: 13px; }
+.account-overview__account small { margin-top: 4px; color: #7b8b9b; font-size: 11px; }
+.account-overview__account:hover strong { color: #1f6f9f; }
+.account-overview__group { color: #334e63; font-size: 12px; }
+.account-overview__attributes,
+.account-overview__metric,
+.account-overview__monitor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.account-overview__attributes { gap: 5px; color: #718096; font-size: 11px; }
+.account-overview__metric { gap: 5px; }
+.account-overview__metric strong { color: #20384d; font-size: 14px; }
+.account-overview__metric span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #8291a1;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.account-overview__metric span.is-up { color: #238457; }
+.account-overview__metric span.is-down { color: #cf4f4f; }
+.account-overview__monitor { gap: 6px; }
+.account-overview__monitor small { color: #718096; font-size: 10px; white-space: nowrap; }
+.account-overview__pagination {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-top: 1px solid #e5ebf1;
+}
 
 .account-data__split {
   display: grid;
@@ -1496,6 +1749,10 @@ onBeforeUnmount(() => {
   .account-profile__header { align-items: flex-start; flex-direction: column; }
   .account-data__actions,
   .account-profile__actions { width: 100%; justify-content: flex-end; }
+  .account-data__actions { flex-wrap: wrap; }
+  .account-data__mode { min-width: 0; flex: 1; }
+  .account-overview__header { align-items: flex-start; flex-direction: column; }
+  .account-overview__scope { width: 100%; justify-content: flex-start; }
   .account-data__summary,
   .filter-grid,
   .monitor-dialog-grid,

@@ -145,7 +145,13 @@ const navGroups = computed(() => rawNavGroups
   .map((group) => ({ ...group, children: group.children.filter((item) => auth.can(item.permission)) }))
   .filter((group) => group.children.length > 0))
 const mobileNavItems = computed(() => navGroups.value.flatMap((group) => group.children))
-const defaultOpeneds = computed(() => navGroups.value.map((group) => group.index))
+const defaultCollapsedGroups = new Set(['runtime', 'system'])
+const defaultOpeneds = computed(() => navGroups.value
+  .filter((group) => (
+    !defaultCollapsedGroups.has(group.index)
+    || group.children.some((item) => route.path === item.to || route.path.startsWith(`${item.to}/`))
+  ))
+  .map((group) => group.index))
 const userInitial = computed(() => auth.displayName.slice(0, 1).toUpperCase())
 
 function formatNotificationTime(value: string) {

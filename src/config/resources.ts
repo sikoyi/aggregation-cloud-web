@@ -788,6 +788,22 @@ function accountImportNotificationType(data: AnyRecord): "success" | "warning" |
   return "success";
 }
 
+function formatProxyImportSuccess(data: AnyRecord) {
+  const created = Number(data.created_count || 0);
+  const skipped = Number(data.skipped_count || 0);
+  if (created === 0 && skipped > 0) {
+    return `未新增代理：${skipped} 条代理与现有记录重复，已全部跳过`;
+  }
+  if (skipped > 0) {
+    return `成功导入 ${created} 条代理，另有 ${skipped} 条重复代理已跳过`;
+  }
+  return `成功导入 ${created} 条代理`;
+}
+
+function proxyImportNotificationType(data: AnyRecord): "success" | "warning" {
+  return Number(data.skipped_count || 0) > 0 ? "warning" : "success";
+}
+
 function buildAccountImportPayload(payload: AnyRecord) {
   const body = pickPayload(payload, [
     "business_platform",
@@ -1567,6 +1583,15 @@ export const resources: Record<string, ResourceConfig> = {
         options: loginStatusOptions,
       },
       {
+        key: "account_presence",
+        label: "账号情况",
+        type: "select",
+        options: [
+          { label: "有号设备", value: "bound" },
+          { label: "无号设备", value: "unbound" },
+        ],
+      },
+      {
         key: "business_platform",
         label: "业务 App",
         type: "select",
@@ -1864,6 +1889,9 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/resource-center/proxies",
     createEndpoint: "/api/resource-center/proxies/import",
     createLabel: "导入代理",
+    createSuccessTitle: "代理导入结果",
+    createSuccessMessage: (data) => formatProxyImportSuccess(data),
+    createNotificationType: (data) => proxyImportNotificationType(data),
     loadEditRecord: loadProxyForEdit,
     updateBody: buildProxyUpdateBody,
     columns: [
