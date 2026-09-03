@@ -135,6 +135,25 @@ describe('selection options cache', () => {
     })
   })
 
+  it('passes the warmup business platform only for warmup device selection', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({ groups: [], total: 0 })
+
+    await loadSlotSelectionGroups(
+      { runtime_platform: 'fingerprint_browser', provider: 'morelogin' },
+      { accountPresence: 'bound', warmupBusinessPlatform: 'instagram' },
+    )
+
+    expect(http.get).toHaveBeenCalledWith('/api/execution-slots/selection-groups', {
+      runtime_platform: 'fingerprint_browser',
+      provider: 'morelogin',
+      warmup_business_platform: 'instagram',
+      account_presence: 'bound',
+      publish_usage: undefined,
+      content_id: undefined,
+      keyword: undefined,
+    })
+  })
+
   it('loads every page for one expanded device group', async () => {
     vi.mocked(http.get)
       .mockResolvedValueOnce({ items: Array.from({ length: 100 }, (_, index) => ({ id: `slot-${index + 1}` })), total: 205, page: 1, page_size: 100 })

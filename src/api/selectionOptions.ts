@@ -15,6 +15,7 @@ interface ValueCacheEntry<T> {
 
 export interface SlotSelectionTreeQuery {
   accountPresence?: 'all' | 'bound' | 'unbound'
+  warmupBusinessPlatform?: string
   keyword?: string
   publish?: boolean
   publishUsage?: 'all' | 'today_not_sent' | 'today_sent' | 'content_not_sent' | 'content_sent'
@@ -104,6 +105,9 @@ async function loadValueCached<T>(
 function slotTreeParams(filters: AnyRecord, query: SlotSelectionTreeQuery = {}) {
   return {
     ...normalizedSlotFilters(filters),
+    ...(query.warmupBusinessPlatform && !query.publish
+      ? { warmup_business_platform: query.warmupBusinessPlatform }
+      : {}),
     account_presence: query.publish ? undefined : query.accountPresence || 'all',
     publish_usage: query.publish ? query.publishUsage || 'all' : undefined,
     content_id: query.publish ? String(query.contentId || '') || undefined : undefined,

@@ -62,7 +62,7 @@ const dailyStatus = ref('')
 const accountTags = ref<AnyRecord[]>([])
 const slotGroups = ref<AnyRecord[]>([])
 const contentGroups = ref<AnyRecord[]>([])
-const fixedSource = ref<'account' | 'slot'>('account')
+const fixedSource = ref<'account' | 'slot'>('slot')
 const suspendFormWatch = ref(false)
 const auth = useAuthStore()
 
@@ -222,7 +222,7 @@ async function loadOptions() {
 function openCreate() {
   editingPlan.value = null
   Object.assign(form, initialForm())
-  fixedSource.value = 'account'
+  fixedSource.value = 'slot'
   editorTab.value = 'basic'
   editorVisible.value = true
 }
@@ -236,7 +236,9 @@ function openEdit(tableRow: unknown) {
     ...initialForm().behavior_rules,
     ...form.behavior_rules,
   }
-  fixedSource.value = form.target_rules.slot_ids.length && !form.target_rules.account_ids.length ? 'slot' : 'account'
+  fixedSource.value = form.runtime_platform === 'fingerprint_browser' && !form.target_rules.account_ids.length
+    ? 'slot'
+    : 'account'
   editorTab.value = 'basic'
   editorVisible.value = true
   void nextTick(() => { suspendFormWatch.value = false })
@@ -434,10 +436,15 @@ watch(() => form.runtime_platform, (value) => {
   form.target_rules.account_ids = []
   form.target_rules.slot_ids = []
   form.target_rules.slot_group_ids = []
-  fixedSource.value = value === 'cloud_phone' ? 'account' : fixedSource.value
+  fixedSource.value = value === 'cloud_phone' ? 'account' : 'slot'
 })
 watch(() => [form.business_platform, form.provider], () => {
-  if (!suspendFormWatch.value) form.script_id = null
+  if (suspendFormWatch.value) return
+  form.script_id = null
+  if (form.target_mode === 'fixed') {
+    form.target_rules.account_ids = []
+    form.target_rules.slot_ids = []
+  }
 })
 watch(
   () => [
@@ -554,7 +561,7 @@ onMounted(() => {
           <div v-if="form.target_mode === 'fixed'" class="target-picker">
             <el-segmented v-if="form.runtime_platform === 'fingerprint_browser'" v-model="fixedSource" :options="[{ label: '按账号选择', value: 'account' }, { label: '按设备选择', value: 'slot' }]" />
             <div v-if="fixedSource === 'account' || form.runtime_platform === 'cloud_phone'" class="selector-panel"><h3>目标账号</h3><AccountTreeSelect v-model="form.target_rules.account_ids" :filters="selectorFilters" multiple association-only /></div>
-            <div v-if="fixedSource === 'slot' || form.runtime_platform === 'cloud_phone'" class="selector-panel"><h3>{{ form.runtime_platform === 'cloud_phone' ? '允许使用的设备池（可选）' : '目标设备' }}</h3><SlotTreeSelect v-model="form.target_rules.slot_ids" :filters="selectorFilters" /></div>
+            <div v-if="fixedSource === 'slot' || form.runtime_platform === 'cloud_phone'" class="selector-panel"><h3>{{ form.runtime_platform === 'cloud_phone' ? '允许使用的设备池（可选）' : '目标设备' }}</h3><SlotTreeSelect v-model="form.target_rules.slot_ids" :filters="selectorFilters" :account-presence="form.runtime_platform === 'fingerprint_browser' ? 'bound' : 'all'" :warmup-business-platform="form.runtime_platform === 'fingerprint_browser' ? form.business_platform : undefined" /></div>
           </div>
           <div v-else class="form-grid target-selects">
             <el-form-item v-if="['account_tags', 'dynamic_intersection'].includes(form.target_mode)" label="账号标签" required><el-select v-model="form.target_rules.account_tag_ids" multiple filterable collapse-tags><el-option v-for="item in accountTags" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></el-form-item>
