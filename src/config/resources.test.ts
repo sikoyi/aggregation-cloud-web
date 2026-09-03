@@ -695,6 +695,27 @@ describe('设备管理筛选', () => {
     ])
   })
 })
+
+describe('账号导入', () => {
+  it('支持整批选择账号类型且不预设默认值', () => {
+    const fields = resources.accounts.createFields || []
+    const countryIndex = fields.findIndex((field) => field.key === 'country')
+    const accountTypeIndex = fields.findIndex((field) => field.key === 'account_age_type')
+    const accountTypeField = fields[accountTypeIndex]
+
+    expect(accountTypeIndex).toBe(countryIndex + 1)
+    expect(accountTypeField?.label).toBe('账号类型')
+    expect(accountTypeField?.defaultValue).toBeUndefined()
+    expect(accountTypeField?.required).toBe(true)
+    expect(accountTypeField?.placeholder).toBe('请选择账号类型')
+    expect(accountTypeField?.options).toEqual([
+      { label: '新号', value: 'new' },
+      { label: '老号', value: 'old' },
+      { label: '未知', value: 'unknown' },
+    ])
+  })
+})
+
 describe('任务模板脚本范围联动', () => {
   const fields = resources.taskTemplates.createFields || []
   const scriptField = fields.find((field) => field.key === 'script_key')

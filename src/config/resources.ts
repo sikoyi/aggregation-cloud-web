@@ -1148,6 +1148,14 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
       {
+        key: "account_age_type",
+        label: "账号类型",
+        type: "select",
+        options: accountAgeTypeOptions,
+        required: true,
+        placeholder: "请选择账号类型",
+      },
+      {
         key: "delimiter",
         label: "分隔符",
         type: "select",
