@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network, UserRound } from 'lucide-vue-next'
+import { Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network, UserRound } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -36,10 +36,8 @@ const deviceId = computed(() => text(props.row.provider_slot_id))
 const providerNumber = computed(() => String(props.row.provider_slot_no || '').trim())
 const groupName = computed(() => String(props.row.group_name || props.row.name || '').trim())
 const groupSyncStatus = computed(() => String(props.row.group_sync_status || '').trim())
-const groupSyncError = computed(() => String(props.row.group_sync_error || '').trim())
 const pendingGroupName = computed(() => String(props.row.pending_group_name || props.row.pending_name || '').trim())
 const groupSyncPending = computed(() => ['queued', 'sent', 'acknowledged', 'propagating'].includes(groupSyncStatus.value))
-const groupSyncFailed = computed(() => ['failed', 'expired'].includes(groupSyncStatus.value))
 const pendingGroupLabel = computed(() => {
   if (pendingGroupName.value) return pendingGroupName.value
   if (props.row.group_control_command_id) return '未分组'
@@ -78,16 +76,6 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
       <LoaderCircle class="device-group__spinner" />
       <span>{{ pendingGroupLabel ? `同步至 ${pendingGroupLabel}` : '同步中' }}</span>
     </div>
-    <el-tooltip
-      v-else-if="groupSyncFailed"
-      :content="groupSyncError || (groupSyncStatus === 'expired' ? '同步已过期' : '供应商同步失败')"
-      placement="top"
-    >
-      <div class="device-group__sync device-group__sync--failed">
-        <AlertTriangle />
-        <span>{{ groupSyncStatus === 'expired' ? '同步过期' : '同步失败' }}</span>
-      </div>
-    </el-tooltip>
   </div>
 
   <div v-else-if="kind === 'devicePlatform'" class="device-cell device-platform">
@@ -170,7 +158,6 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
 .device-group__sync svg { width: 11px; height: 11px; flex: 0 0 11px; }
 .device-group__sync span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .device-group__sync--pending { color: #28719f; }
-.device-group__sync--failed { color: #c2413b; cursor: help; }
 .device-group__spinner { animation: device-group-spin 1s linear infinite; }
 @keyframes device-group-spin { to { transform: rotate(360deg); } }
 .device-platform { display: flex; flex-direction: column; gap: 7px; }

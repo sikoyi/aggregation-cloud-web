@@ -7,6 +7,7 @@ const AccountCenterView = () => import('@/views/AccountCenterView.vue')
 const AccountDataView = () => import('@/views/AccountDataView.vue')
 const AccountWarmupView = () => import('@/views/AccountWarmupView.vue')
 const BenchmarkSyncRecordsView = () => import('@/views/BenchmarkSyncRecordsView.vue')
+const BusinessEventStatisticsView = () => import('@/views/BusinessEventStatisticsView.vue')
 const ContentCenterView = () => import('@/views/ContentCenterView.vue')
 const CommentReplyReviewView = () => import('@/views/CommentReplyReviewView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
@@ -15,6 +16,7 @@ const ForbiddenView = () => import('@/views/ForbiddenView.vue')
 const LoginView = () => import('@/views/LoginView.vue')
 const MediaAssetCenterView = () => import('@/views/MediaAssetCenterView.vue')
 const ProxyCenterView = () => import('@/views/ProxyCenterView.vue')
+const RegistrationResourcesView = () => import('@/views/RegistrationResourcesView.vue')
 const ReportView = () => import('@/views/ReportView.vue')
 const ResourceView = () => import('@/views/ResourceView.vue')
 const SystemSettingsView = () => import('@/views/SystemSettingsView.vue')
@@ -41,9 +43,11 @@ export const router = createRouter({
         { path: 'account-data', component: AccountDataView, meta: { permission: 'accounts.view' } },
         { path: 'account-warmup', component: AccountWarmupView, meta: { permission: 'account_warmup.view' } },
         { path: 'benchmark-sync-records', component: BenchmarkSyncRecordsView, meta: { permission: 'monitoring.view' } },
+        { path: 'event-statistics', component: BusinessEventStatisticsView, meta: { permission: 'event_statistics.view' } },
         { path: 'slots', component: DeviceCenterView, meta: { permission: 'devices.view' } },
         { path: 'slot-groups', redirect: { path: '/slots', query: { tab: 'groups' } } },
         { path: 'proxies', component: ProxyCenterView, meta: { permission: 'proxies.view' } },
+        { path: 'registration-resources', component: RegistrationResourcesView, meta: { permission: 'registration_resources.view' } },
         { path: 'proxy-groups', redirect: { path: '/proxies', query: { tab: 'groups' } } },
         { path: 'contents', component: ContentCenterView, meta: { permission: 'content.view' } },
         { path: 'content-groups', redirect: { path: '/contents', query: { tab: 'groups' } } },

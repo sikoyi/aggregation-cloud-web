@@ -4,7 +4,12 @@ export const businessPlatformOptions: SelectOption[] = [
   { label: 'Threads', value: 'threads' },
   { label: 'X(Twitter)', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
+  { label: 'Shopify', value: 'shopify' },
 ]
+
+export const socialBusinessPlatformOptions = businessPlatformOptions.filter(
+  (item) => item.value !== 'shopify',
+)
 
 export const scriptAccountUsageModeOptions: SelectOption[] = [
   { label: '使用设备当前账号', value: 'slot_current' },
@@ -525,6 +530,20 @@ export const taskStatusOptions: SelectOption[] = [
   { label: '丢失', value: 'lost' },
 ]
 
+const terminalTaskStatusValues = new Set([
+  'succeeded',
+  'completed',
+  'all_failed',
+  'failed',
+  'canceled',
+  'expired',
+  'lost',
+])
+
+export function isTerminalTaskStatus(value: unknown): boolean {
+  return terminalTaskStatusValues.has(String(value || ''))
+}
+
 export const scriptParamTypeOptions: SelectOption[] = [
   { label: '字符串', value: 'string' },
   { label: '布尔', value: 'bool' },
@@ -540,6 +559,7 @@ export const scriptParamTypeOptions: SelectOption[] = [
   { label: '素材', value: 'media_asset' },
   { label: '素材组', value: 'media_asset_group' },
   { label: '设备', value: 'execution_slot' },
+  { label: '注册资源', value: 'registration_resource' },
 ]
 
 export const registrationProviderOptions: SelectOption[] = [

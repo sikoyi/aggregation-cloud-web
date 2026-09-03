@@ -1,11 +1,15 @@
 import { computed } from 'vue'
 
-import { businessPlatformOptionsForScope } from '@/config/options'
+import {
+  businessPlatformOptions,
+  filterOptionsByScope,
+} from '@/config/options'
+import type { SelectOption } from '@/types/crud'
 import { useAuthStore } from '@/stores/auth'
 
-export function useScopedBusinessPlatformOptions() {
+export function useScopedBusinessPlatformOptions(options: SelectOption[] = businessPlatformOptions) {
   const auth = useAuthStore()
   return computed(() => (
-    businessPlatformOptionsForScope(auth.user?.business_platform_scope)
+    filterOptionsByScope(options, auth.user?.business_platform_scope)
   ))
 }

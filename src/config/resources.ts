@@ -19,6 +19,7 @@ import {
   accountDelimiterOptions,
   accountWarmupStatusOptions,
   businessPlatformOptions,
+  socialBusinessPlatformOptions,
   contentStatusFilterOptions,
   contentStatusOptions,
   contentTypeOptions,
@@ -43,6 +44,7 @@ import {
   slotTypeOptions,
   templateStatusOptions,
   taskStatusOptions,
+  isTerminalTaskStatus,
   twoFaOptions,
 } from "./options";
 
@@ -910,26 +912,6 @@ function canOnboardAccount(record: AnyRecord) {
     && !String(record.bound_slot_provider_id || "").trim();
 }
 
-function canRetryRuntimeSync(record: AnyRecord) {
-  return ["failed", "expired"].includes(
-    String(record.group_sync_status || record.sync_status || record.tag_sync_status || ""),
-  ) && Boolean(
-    record.group_control_command_id
-    || record.control_command_id
-    || record.tag_control_command_id
-    || record.control_batch_id,
-  );
-}
-
-function runtimeSyncCommandId(record: AnyRecord) {
-  return String(
-    record.group_control_command_id
-    || record.control_command_id
-    || record.tag_control_command_id
-    || "",
-  );
-}
-
 function formatContentImportSuccess(data: AnyRecord) {
   const total = Number(data.total_count || 0);
   const created = Number(data.created_count || 0);
@@ -1491,6 +1473,7 @@ export const resources: Record<string, ResourceConfig> = {
     key: "slots",
     title: "设备管理",
     endpoint: "/api/execution-slots",
+    runtimeSyncFailureAlerts: true,
     deleteLabel: "删除",
     directDelete: true,
     deleteConfirm:
@@ -1718,18 +1701,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "created_at", label: "创建时间", type: "datetime", readonly: true },
       { key: "updated_at", label: "更新时间", type: "datetime", readonly: true },
     ],
-    rowActions: [
-      {
-        key: "retry-sync",
-        label: "重试同步",
-        visible: canRetryRuntimeSync,
-        method: "POST",
-        icon: "rotate",
-        path: (record) =>
-          `/api/runtime-controls/${encodeURIComponent(runtimeSyncCommandId(record))}/retry`,
-        successTitle: "设备同步已重新排队",
-      },
-    ],
     batchActions: [
       {
         key: "batch-set-group",
@@ -1787,13 +1758,14 @@ export const resources: Record<string, ResourceConfig> = {
         },
       },
     ],
-    inlineActionKeys: ["sync-detail", "retry-sync"],
+    inlineActionKeys: ["sync-detail"],
   },
 
   slotGroups: {
     key: "slotGroups",
     title: "设备分组",
     endpoint: "/api/slot-groups",
+    runtimeSyncFailureAlerts: true,
     slotGroupMembers: true,
     deleteLabel: "删除",
     deletePath: (record) => `/api/slot-groups/${record.id}?force=true`,
@@ -1860,27 +1832,6 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "name", label: "名称" },
       { key: "description", label: "描述", type: "textarea", span: 2 },
     ],
-    rowActions: [
-      {
-        key: "retry-group-sync",
-        label: "重试同步",
-        visible: (record) => canRetryRuntimeSync(record) && Boolean(record.control_batch_id),
-        method: "POST",
-        icon: "rotate",
-        path: (record) =>
-          `/api/runtime-controls/batches/${encodeURIComponent(String(record.control_batch_id))}/retry`,
-        successTitle: "设备组同步重试",
-        successMessage: (data) => {
-          const retried = Number(data.retried_count || 0);
-          const failed = Number(data.failed_count || 0);
-          return failed
-            ? `已重新提交 ${retried} 台设备，仍有 ${failed} 台因离线等原因未提交`
-            : `已重新提交 ${retried} 台设备`;
-        },
-        successNotificationType: (data) => Number(data.failed_count || 0) ? "warning" : "info",
-      },
-    ],
-    inlineActionKeys: ["retry-group-sync"],
   },
 
   proxies: {
@@ -2104,7 +2055,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       { key: "keyword", label: "关键词", placeholder: "名称 / 备注" },
     ],
@@ -2113,7 +2064,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
         defaultValue: "threads",
         required: true,
       },
@@ -2125,7 +2076,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       { key: "name", label: "名称" },
       { key: "description", label: "备注", type: "textarea", span: 2 },
@@ -2168,7 +2119,7 @@ export const resources: Record<string, ResourceConfig> = {
             key: "business_platform",
             label: "业务 App",
             type: "select",
-            options: businessPlatformOptions,
+            options: socialBusinessPlatformOptions,
             defaultValue: "threads",
           },
           {
@@ -2235,7 +2186,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       {
         key: "content_type",
@@ -2257,7 +2208,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
         defaultValue: "threads",
       },
       { key: "title", label: "内容标题", required: true },
@@ -2308,7 +2259,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       { key: "title", label: "内容标题" },
       {
@@ -2404,7 +2355,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       {
         key: "asset_type",
@@ -2426,7 +2377,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       { key: "name", label: "素材名称" },
       {
@@ -2500,7 +2451,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       { key: "keyword", label: "关键词", placeholder: "名称 / 描述" },
     ],
@@ -2509,7 +2460,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
         defaultValue: "threads",
         required: true,
       },
@@ -2521,7 +2472,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       { key: "name", label: "名称" },
       { key: "description", label: "描述", type: "textarea", span: 2 },
@@ -2564,7 +2515,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       {
         key: "interaction_mode",
@@ -2616,7 +2567,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
         defaultValue: "threads",
         required: true,
       },
@@ -2928,7 +2879,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
       },
       {
         key: "status",
@@ -2969,7 +2920,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "business_platform",
         label: "业务 App",
         type: "select",
-        options: businessPlatformOptions,
+        options: socialBusinessPlatformOptions,
         defaultValue: "threads",
         required: true,
       },
@@ -3773,6 +3724,8 @@ export const resources: Record<string, ResourceConfig> = {
     deleteLabel: "删除记录",
     deleteConfirm:
       "确认删除这条任务记录？删除后会同步删除它的设备执行子记录、分配记录和事件日志，此操作不可恢复，请谨慎操作。",
+    deleteAllowed: (record) => isTerminalTaskStatus(record.status),
+    deleteBlockedMessage: () => "任务尚未结束，不能删除；请先取消任务或等待全部执行结束。",
     inlineActionKeys: ["detail", "retry"],
     rowActions: [
       {

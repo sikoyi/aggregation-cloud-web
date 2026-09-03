@@ -11,7 +11,9 @@ describe('router code splitting', () => {
       'AccountCenterView',
       'AccountDataView',
       'DeviceCenterView',
+      'BusinessEventStatisticsView',
       'ProxyCenterView',
+      'RegistrationResourcesView',
       'ContentCenterView',
       'ResourceView',
     ]

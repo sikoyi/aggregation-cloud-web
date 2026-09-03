@@ -5,7 +5,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import { uploadMediaAssets, type MediaAssetUploadResult } from '@/api/mediaAssets'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
-import { mediaAssetStatusOptions } from '@/config/options'
+import { mediaAssetStatusOptions, socialBusinessPlatformOptions } from '@/config/options'
 
 interface UploadItem {
   id: string
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   'uploading-change': [value: boolean]
 }>()
 
-const businessPlatformOptions = useScopedBusinessPlatformOptions()
+const businessPlatformOptions = useScopedBusinessPlatformOptions(socialBusinessPlatformOptions)
 const form = reactive({
   businessPlatform: 'threads',
   status: 'enabled',

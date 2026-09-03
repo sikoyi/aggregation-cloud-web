@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { Plus, Trash2 } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
-import { registrationCountryOptions, registrationProviderOptions } from '@/config/options'
+import { listRegistrationResourceTemplates, type RegistrationResourceTemplate } from '@/api/registrationResources'
+import {
+  businessPlatformLabel,
+  registrationCountryOptions,
+  registrationProviderOptions,
+} from '@/config/options'
 import type { SelectOption } from '@/types/crud'
 import { normalizeScriptParams } from '@/utils/form'
 
@@ -19,6 +24,7 @@ const emit = defineEmits<{
 
 const paramTypes = computed(() => props.options || [])
 const validParams = computed(() => normalizeScriptParams(props.modelValue))
+const registrationTemplates = ref<RegistrationResourceTemplate[]>([])
 
 function defaultParam(index: number): ScriptParamDraft {
   return {
@@ -59,11 +65,38 @@ function removeParam(index: number) {
 function updateParam(index: number, key: string, value: unknown) {
   const items = currentItems()
   items[index] = { ...items[index], [key]: value }
-  if (key === 'param_type' && ['country', 'registration_provider'].includes(String(value))) {
+  if (key === 'param_type' && ['country', 'registration_provider', 'registration_resource'].includes(String(value))) {
     items[index].default_value = null
+  }
+  if (key === 'param_type' && String(value) === 'registration_resource') {
+    items[index].resource_selector = {}
   }
   emitItems(items)
 }
+
+function registrationTemplateId(item: ScriptParamDraft) {
+  const selector = item.resource_selector
+  if (!selector || typeof selector !== 'object' || Array.isArray(selector)) return ''
+  return String((selector as Record<string, unknown>).template_id || '')
+}
+
+function updateRegistrationTemplate(index: number, templateId: unknown) {
+  const items = currentItems()
+  items[index] = {
+    ...items[index],
+    resource_selector: { template_id: String(templateId || '') },
+    default_value: null,
+  }
+  emitItems(items)
+}
+
+onMounted(async () => {
+  try {
+    registrationTemplates.value = await listRegistrationResourceTemplates({ status: 'enabled' })
+  } catch {
+    registrationTemplates.value = []
+  }
+})
 </script>
 
 <template>
@@ -142,9 +175,24 @@ function updateParam(index: number, key: string, value: unknown) {
           </el-form-item>
         </el-col>
         <el-col :xs="24" :md="12">
-          <el-form-item label="默认值">
+          <el-form-item :label="currentItems()[index].param_type === 'registration_resource' ? '注册资源模板' : '默认值'">
             <el-select
-              v-if="currentItems()[index].param_type === 'country'"
+              v-if="currentItems()[index].param_type === 'registration_resource'"
+              :model-value="registrationTemplateId(currentItems()[index])"
+              class="w-full"
+              filterable
+              placeholder="请选择注册资源模板"
+              @update:model-value="updateRegistrationTemplate(index, $event)"
+            >
+              <el-option
+                v-for="template in registrationTemplates"
+                :key="template.id"
+                :label="`${template.name} v${template.version} · ${businessPlatformLabel(template.business_platform)}`"
+                :value="template.id"
+              />
+            </el-select>
+            <el-select
+              v-else-if="currentItems()[index].param_type === 'country'"
               :model-value="String(currentItems()[index].default_value ?? '')"
               class="w-full"
               filterable

@@ -34,6 +34,7 @@ interface ScriptParam {
   required: boolean
   default_value: unknown
   options: Record<string, unknown>[]
+  resource_selector?: Record<string, unknown>
   sort_order: number
 }
 
@@ -105,7 +106,7 @@ function updateAccountLoginStatuses(param: ScriptParam, statuses: unknown) {
   })
 }
 function isResourceParam(param: ScriptParam) {
-  return ['proxy', 'res', 'proxy_group', 'account', 'content', 'content_group', 'media_asset', 'media_asset_group', 'execution_slot'].includes(normalizeParamType(param))
+  return ['proxy', 'res', 'proxy_group', 'account', 'content', 'content_group', 'media_asset', 'media_asset_group', 'execution_slot', 'registration_resource'].includes(normalizeParamType(param))
 }
 
 function isProxyGroupParam(param: ScriptParam) {
@@ -210,6 +211,7 @@ function resourceTypeLabel(param: ScriptParam | null) {
   if (type === 'content_group') return '内容池'
   if (type === 'media_asset') return '素材'
   if (type === 'media_asset_group') return '素材组'
+  if (type === 'registration_resource') return '注册资源批次'
   return '代理'
 }
 
@@ -342,6 +344,23 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
       secondaryKeys: ['business_platform', 'member_count'],
       searchParam: 'keyword',
       pageSize: 50,
+    }
+  }
+  if (type === 'registration_resource') {
+    const templateId = String(param.resource_selector?.template_id || '')
+    return {
+      endpoint: '/api/resource-center/registration-resources/batches',
+      labelKeys: ['name', 'source_filename'],
+      valueKey: 'id',
+      detailPath: (value: string) => `/api/resource-center/registration-resources/batches/${encodeURIComponent(value)}`,
+      secondaryKeys: ['available_count', 'total_count'],
+      searchParam: 'keyword',
+      params: {
+        template_id: templateId || undefined,
+        availability: 'available',
+      },
+      pageSize: 50,
+      emptyText: '暂无可用注册资源，请先到资源中心导入',
     }
   }
   return {

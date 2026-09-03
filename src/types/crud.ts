@@ -258,6 +258,8 @@ export interface ResourceConfig {
   deleteSuccessMessage?: (deletedRecord: AnyRecord, record: AnyRecord) => string
   deleteSuccessTitle?: string
   deleteNotificationType?: (deletedRecord: AnyRecord, record: AnyRecord) => 'success' | 'warning' | 'error' | 'info'
+  deleteAllowed?: (record: AnyRecord) => boolean
+  deleteBlockedMessage?: (record: AnyRecord) => string
   keepCreateOpenWhen?: (createdRecord: AnyRecord, payload: AnyRecord) => boolean
   createBody?: (payload: AnyRecord) => unknown
   listParams?: (params: AnyRecord) => AnyRecord
@@ -285,6 +287,7 @@ export interface ResourceConfig {
   mediaAssetGroupMembers?: boolean
   mediaAssetBatchUpload?: boolean
   editPreview?: 'content'
+  runtimeSyncFailureAlerts?: boolean
 }
 
 export type IconMap = Record<string, Component>

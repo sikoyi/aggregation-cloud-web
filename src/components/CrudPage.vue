@@ -58,6 +58,7 @@ import {
   realtimeTaskTouchesRows,
   rowsContainRealtimeValue,
 } from '@/utils/realtimeRows'
+import { collectRuntimeSyncFailures, type RuntimeSyncFailure } from '@/utils/runtimeSyncFailures'
 
 const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
@@ -150,6 +151,8 @@ let lastRealtimeRefreshAt = 0
 let listRequestId = 0
 let visibleLoadingRequestId = 0
 let pageVisibilityObserver: IntersectionObserver | undefined
+let runtimeSyncFailureDialogOpen = false
+const seenRuntimeSyncFailures = new Set<string>()
 
 const modal = reactive<{
   type: 'create' | 'edit' | 'action' | 'batch' | null
@@ -300,7 +303,6 @@ function actionPermission(action: RowActionConfig) {
   const key = action.key.toLowerCase()
   const explicitAction: Record<string, string> = {
     'request-runtime-slot-sync': 'devices.sync',
-    'retry-sync': 'devices.sync',
     check: 'proxies.check',
     'batch-check': 'proxies.check',
     cancel: `${permissionModule.value}.cancel`,
@@ -363,6 +365,15 @@ const canEditRow = computed(() => !props.config.readOnly && Boolean(props.config
 const canDeleteRow = computed(() => !props.config.readOnly && Boolean(props.config.deleteLabel) && canResource('delete'))
 const showDirectDelete = computed(() => canDeleteRow.value && (props.config.directDelete || !dropdownRowActions.value.length))
 const showDropdownDelete = computed(() => canDeleteRow.value && !showDirectDelete.value)
+
+function deleteAllowed(record: AnyRecord) {
+  return canDeleteRow.value && (!props.config.deleteAllowed || props.config.deleteAllowed(record))
+}
+
+function deleteBlockedMessage(record: AnyRecord) {
+  return props.config.deleteBlockedMessage?.(record) || '当前记录暂时不能删除'
+}
+
 const showOperationColumn = computed(
   () =>
     canEditRow.value
@@ -427,6 +438,106 @@ const emptyTip = computed(() =>
 
 function rowId(row: AnyRecord) {
   return String(row[idKey.value])
+}
+
+function runtimeSyncFailureStorageKey(failure: RuntimeSyncFailure) {
+  const userId = String(auth.user?.id || 'anonymous')
+  return `aggregation-cloud:runtime-sync-failure:${userId}:${failure.key}`
+}
+
+function hasSeenRuntimeSyncFailure(failure: RuntimeSyncFailure) {
+  const storageKey = runtimeSyncFailureStorageKey(failure)
+  if (seenRuntimeSyncFailures.has(storageKey)) return true
+  try {
+    if (window.sessionStorage.getItem(storageKey)) {
+      seenRuntimeSyncFailures.add(storageKey)
+      return true
+    }
+  } catch {
+    // 浏览器禁用会话存储时，仍使用当前页面内存去重。
+  }
+  return false
+}
+
+function markRuntimeSyncFailureSeen(failure: RuntimeSyncFailure) {
+  const storageKey = runtimeSyncFailureStorageKey(failure)
+  seenRuntimeSyncFailures.add(storageKey)
+  try {
+    window.sessionStorage.setItem(storageKey, '1')
+  } catch {
+    // 会话存储不可用不会影响弹窗和重试操作。
+  }
+}
+
+function clearRuntimeSyncFailureSeen(failure: RuntimeSyncFailure) {
+  const storageKey = runtimeSyncFailureStorageKey(failure)
+  seenRuntimeSyncFailures.delete(storageKey)
+  try {
+    window.sessionStorage.removeItem(storageKey)
+  } catch {
+    // 会话存储不可用时仅清理内存标记。
+  }
+}
+
+function runtimeSyncRetryMessage(data: AnyRecord) {
+  if (data.retried_count === undefined) return '同步命令已重新排队'
+  const retried = Number(data.retried_count || 0)
+  const failed = Number(data.failed_count || 0)
+  return failed
+    ? `已重新提交 ${retried} 台设备，仍有 ${failed} 台未能提交`
+    : `已重新提交 ${retried} 台设备`
+}
+
+async function presentRuntimeSyncFailure(records: AnyRecord[]) {
+  if (!props.config.runtimeSyncFailureAlerts || runtimeSyncFailureDialogOpen) return
+  const failure = collectRuntimeSyncFailures(props.config.key, records)
+    .find((item) => !hasSeenRuntimeSyncFailure(item))
+  if (!failure) return
+
+  markRuntimeSyncFailureSeen(failure)
+  runtimeSyncFailureDialogOpen = true
+  try {
+    if (!auth.can('devices.sync')) {
+      try {
+        await ElMessageBox.alert(failure.message, failure.title, {
+          type: 'error',
+          confirmButtonText: '关闭',
+        })
+      } catch {
+        // 用户关闭提示即视为已读。
+      }
+      return
+    }
+    try {
+      await ElMessageBox.confirm(failure.message, failure.title, {
+        type: 'error',
+        confirmButtonText: '重新同步',
+        cancelButtonText: '关闭',
+        closeOnClickModal: false,
+        distinguishCancelAndClose: true,
+      })
+    } catch {
+      return
+    }
+
+    try {
+      const data = await http.post<AnyRecord>(failure.retryPath)
+      ElNotification({
+        type: Number(data.failed_count || 0) ? 'warning' : 'info',
+        title: '重新同步已提交',
+        message: runtimeSyncRetryMessage(data),
+        duration: 7000,
+      })
+      // 重试接口已同步写入 queued；刷新时保留已读标记，避免旧失败瞬间再次弹出。
+      await loadRows({ silent: true })
+      clearRuntimeSyncFailureSeen(failure)
+    } catch (err) {
+      clearRuntimeSyncFailureSeen(failure)
+      error.value = notifyError(err, '重新同步失败', '重新同步失败')
+    }
+  } finally {
+    runtimeSyncFailureDialogOpen = false
+  }
 }
 
 function rowDeletePath(row: AnyRecord) {
@@ -645,6 +756,7 @@ async function loadRows(options?: { silent?: boolean } | number) {
     rows.value = data.items
     total.value = data.total
     await restorePageSelection()
+    void presentRuntimeSyncFailure(data.items)
   } catch (err) {
     if (!silent) error.value = notifyError(err, '加载失败', '加载失败')
   } finally {
@@ -1012,6 +1124,10 @@ async function handleMediaAssetBatchCompleted(summary: { total: number; succeede
 }
 
 async function deleteRow(record: AnyRecord) {
+  if (!deleteAllowed(record)) {
+    ElMessage.warning(deleteBlockedMessage(record))
+    return
+  }
   const message = props.config.deleteConfirm || `确认删除 ${rowId(record)}？`
   if (!(await confirmAction(message, 'error', '确认删除'))) return
   await executeRequest(
@@ -1094,6 +1210,13 @@ async function runHeaderAction(action: RowActionConfig) {
 
 async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = {}) {
   if (!selectedRows.value.length) return
+  if (action.key === '__delete') {
+    const blockedRecord = selectedRows.value.find((record) => !deleteAllowed(record))
+    if (blockedRecord) {
+      ElMessage.warning(deleteBlockedMessage(blockedRecord))
+      return
+    }
+  }
   const actionName = action.label.replace(/^批量/, '')
   const isDanger = action.variant === 'danger' || action.method === 'DELETE'
   const message =
@@ -1639,14 +1762,14 @@ onBeforeUnmount(() => {
                 />
               </el-tooltip>
               <el-tooltip
-                v-if="showDirectDelete"
+                v-if="showDirectDelete && deleteAllowed(row)"
                 :content="config.deleteLabel"
                 placement="top"
               >
                 <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="deleteRow(row)" />
               </el-tooltip>
               <el-dropdown
-                v-if="visibleDropdownRowActions(row).length || showDropdownDelete"
+                v-if="visibleDropdownRowActions(row).length || (showDropdownDelete && deleteAllowed(row))"
                 trigger="click"
                 :disabled="submitting"
                 @command="(command) => handleDropdown(String(command), row)"
@@ -1664,7 +1787,7 @@ onBeforeUnmount(() => {
                       {{ action.label }}
                     </el-dropdown-item>
                     <el-dropdown-item
-                      v-if="showDropdownDelete"
+                      v-if="showDropdownDelete && deleteAllowed(row)"
                       command="__delete"
                       class="text-red-600"
                     >

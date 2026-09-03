@@ -609,6 +609,15 @@ describe('设备批量分组', () => {
   })
 })
 
+describe('设备组同步失败提示', () => {
+  it('设备与分组列表使用弹窗提醒，不再保留行内重新同步入口', () => {
+    expect(resources.slots.runtimeSyncFailureAlerts).toBe(true)
+    expect(resources.slotGroups.runtimeSyncFailureAlerts).toBe(true)
+    expect(resources.slots.rowActions?.some((action) => action.key === 'retry-sync')).not.toBe(true)
+    expect(resources.slotGroups.rowActions?.some((action) => action.key === 'retry-group-sync')).not.toBe(true)
+  })
+})
+
 describe('设备批量删除', () => {
   const action = resources.slots.batchActions?.find((item) => item.key === '__delete')
 
@@ -768,5 +777,36 @@ describe('素材资源表格', () => {
       ['status', 'status'],
       ['created_at', 'mediaAssetTimeline'],
     ])
+  })
+})
+
+describe('任务记录删除约束', () => {
+  it('只允许删除终态任务', () => {
+    const deleteAllowed = resources.tasks.deleteAllowed
+    expect(deleteAllowed).toBeTypeOf('function')
+
+    for (const status of [
+      'draft',
+      'queued',
+      'waiting_slot',
+      'waiting_runtime',
+      'dispatching',
+      'running',
+      'retry_wait',
+      'rate_limited',
+    ]) {
+      expect(deleteAllowed?.({ status })).toBe(false)
+    }
+    for (const status of [
+      'succeeded',
+      'completed',
+      'all_failed',
+      'failed',
+      'canceled',
+      'expired',
+      'lost',
+    ]) {
+      expect(deleteAllowed?.({ status })).toBe(true)
+    }
   })
 })

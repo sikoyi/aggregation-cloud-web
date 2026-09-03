@@ -6,6 +6,7 @@ import {
   CheckCheck,
   Activity,
   ClipboardList,
+  Database,
   FileText,
   Gauge,
   History,
@@ -85,7 +86,10 @@ const rawNavGroups = [
     label: '资源中心',
     index: 'resource',
     icon: ShieldCheck,
-    children: [{ label: '代理资源', to: '/proxies', icon: ShieldCheck, permission: 'proxies.view' }],
+    children: [
+      { label: '代理资源', to: '/proxies', icon: ShieldCheck, permission: 'proxies.view' },
+      { label: '注册资源', to: '/registration-resources', icon: Database, permission: 'registration_resources.view' },
+    ],
   },
   {
     label: '内容中心',
@@ -135,6 +139,7 @@ const rawNavGroups = [
       { label: 'Runtime 状态', to: '/runtimes', icon: Server, permission: 'runtimes.view' },
       { label: '采集同步日志', to: '/benchmark-sync-records', icon: History, permission: 'monitoring.view' },
       { label: '评论数据日志', to: '/content-comments', icon: ScrollText, permission: 'monitoring.view' },
+      { label: '事件统计', to: '/event-statistics', icon: BarChart3, permission: 'event_statistics.view' },
       { label: '操作日志', to: '/operation-logs', icon: History, permission: 'audit.view' },
     ],
   },
