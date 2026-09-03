@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { http } from '@/api/http'
 import { loadMediaAssetsByIds, uploadMediaAssets } from '@/api/mediaAssets'
+import { compressImageForUpload } from '@/utils/imageCompression'
 
 vi.mock('@/api/http', () => ({
   http: {
@@ -73,5 +74,39 @@ describe('media asset batch upload', () => {
     expect(http.get).toHaveBeenNthCalledWith(3, '/api/resource-center/media-assets/batch', {
       asset_ids: ids.slice(200).join(','),
     })
+  })
+
+  it('uploads the prepared compressed image while preserving the original progress identity', async () => {
+    const original = mockFile('large.png')
+    const compressed = Object.assign(new Blob(['small'], { type: 'image/jpeg' }), {
+      name: 'large.jpg',
+      lastModified: 1,
+    }) as File
+    const prepareFile = vi.fn().mockResolvedValue(compressed)
+    const upload = vi.fn().mockResolvedValue({ id: 'compressed' })
+
+    const [result] = await uploadMediaAssets(
+      [original],
+      { businessPlatform: 'threads', status: 'enabled', tags: [], remark: '' },
+      undefined,
+      upload,
+      prepareFile,
+    )
+
+    expect(prepareFile).toHaveBeenCalledWith(original)
+    expect(result.file).toBe(original)
+    expect(result.uploadedFile).toBe(compressed)
+    expect(result.compressed).toBe(true)
+    expect((upload.mock.calls[0][0] as FormData).get('file')).toMatchObject({
+      name: 'large.jpg',
+      size: compressed.size,
+      type: 'image/jpeg',
+    })
+  })
+
+  it('does not decode small images that are already below the compression threshold', async () => {
+    const image = mockFile('small.png')
+
+    await expect(compressImageForUpload(image)).resolves.toBe(image)
   })
 })

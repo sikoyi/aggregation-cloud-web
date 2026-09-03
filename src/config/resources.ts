@@ -667,6 +667,11 @@ const publishedContentSourceOptions = [
   { label: "未分组内容随机", value: "ungrouped" },
 ];
 
+const publishedContentDispatchModeOptions = [
+  { label: "设备当前帐号", value: "bound_account" },
+  { label: "帐号池轮转", value: "account_pool" },
+];
+
 function buildTaskTemplateBody(payload: AnyRecord) {
   return pickPayload(payload, taskTemplatePayloadKeys);
 }
@@ -690,7 +695,9 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "business_platform",
     "runtime_platform",
     "provider",
+    "dispatch_mode",
     "slot_ids",
+    "account_ids",
     "content_source_type",
     "content_status",
     "content_id",
@@ -702,6 +709,22 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     "dispatch_delay_max_minutes",
     "scheduled_at",
   ]);
+  body.dispatch_mode = payload.dispatch_mode === "account_pool" ? "account_pool" : "bound_account";
+  body.slot_ids = Array.isArray(payload.slot_ids)
+    ? Array.from(new Set(payload.slot_ids.map(String).map((value) => value.trim()).filter(Boolean)))
+    : [];
+  if (body.dispatch_mode === "account_pool") {
+    const accountIds = Array.isArray(payload.account_ids)
+      ? Array.from(new Set(payload.account_ids.map(String).map((value) => value.trim()).filter(Boolean)))
+      : [];
+    body.account_ids = accountIds;
+    if (!accountIds.length) throw new Error("帐号池轮转模式至少选择一个帐号");
+    if (body.runtime_platform !== "cloud_phone" || body.provider !== "vmos") {
+      throw new Error("帐号池轮转当前仅支持云手机 / VMOS");
+    }
+  } else {
+    delete body.account_ids;
+  }
   const rawComments = Array.isArray(payload.comments) ? payload.comments : [];
   if (rawComments.length > 20) {
     throw new Error("每个发布任务最多添加 20 条评论");
@@ -752,6 +775,9 @@ function formatPublishedContentDispatchSuccess(data: AnyRecord) {
   const total = Number(data.total || 0);
   const task = data.task && typeof data.task === "object" ? data.task as AnyRecord : {};
   const taskId = task.id ? `，父任务 ID：${task.id}` : "";
+  if (data.dispatch_mode === "account_pool") {
+    return `已创建 ${total} 个帐号发布任务，将由 ${Number(data.device_total || 0)} 台设备轮转执行${taskId}`;
+  }
   return `已下发 ${total} 台设备的发布任务${taskId}`;
 }
 
@@ -2966,6 +2992,14 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     createFields: [
       {
+        key: "dispatch_mode",
+        label: "下发方式",
+        type: "select",
+        options: publishedContentDispatchModeOptions,
+        defaultValue: "bound_account",
+        required: true,
+      },
+      {
         key: "business_platform",
         label: "业务 App",
         type: "select",
@@ -2991,13 +3025,25 @@ export const resources: Record<string, ResourceConfig> = {
       },
       {
         key: "slot_ids",
-        label: "发布设备",
+        label: "执行设备",
         type: "slotTree",
         required: true,
         slotTreeAccountPresence: "bound",
         slotTreeProviderFilter: true,
         slotTreeFillHeight: true,
         slotTreePublishStats: true,
+        span: 2,
+      },
+      {
+        key: "account_ids",
+        label: "发布帐号",
+        type: "accountTree",
+        multiple: true,
+        accountTreePublishPool: true,
+        accountTreePreferenceScope: "selector:published-content-account-pool",
+        visibleWhen: { key: "dispatch_mode", value: "account_pool" },
+        requiredWhen: { key: "dispatch_mode", value: "account_pool" },
+        clearWhenHidden: true,
         span: 2,
       },
       {

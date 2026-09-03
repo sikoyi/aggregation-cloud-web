@@ -211,17 +211,31 @@ describe('selection options cache', () => {
     )
   })
 
-  it('keeps logged-in and association account candidates in separate caches', async () => {
+  it('keeps logged-in candidates separate and reuses all-status account candidates', async () => {
     vi.mocked(http.get)
       .mockResolvedValueOnce([{ id: 'logged-in' }])
       .mockResolvedValueOnce([{ id: 'all' }])
 
     await loadAccountSelectionOptions({ business_platform: 'threads' })
     await loadAccountSelectionOptions(
+      {
+        business_platform: 'threads',
+        runtime_platform: 'cloud_phone',
+        provider: 'vmos',
+      },
+      { publishPool: true },
+    )
+    await loadAccountSelectionOptions(
       { business_platform: 'threads' },
       { associationOnly: true },
     )
 
     expect(http.get).toHaveBeenCalledTimes(2)
+    expect(http.get).toHaveBeenNthCalledWith(2, '/api/accounts/selection-options', {
+      business_platform: 'threads',
+      runtime_platform: undefined,
+      provider: undefined,
+      login_status: undefined,
+    })
   })
 })

@@ -218,18 +218,23 @@ export function loadPublishSlotSelectionOptions(
 
 export function loadAccountSelectionOptions(
   filters: AnyRecord = {},
-  options: { associationOnly?: boolean } = {},
+  options: { associationOnly?: boolean; publishPool?: boolean } = {},
 ) {
-  const loginStatus = options.associationOnly
+  const includeAllLoginStatuses = options.associationOnly || options.publishPool
+  const loginStatus = includeAllLoginStatuses
     ? undefined
     : 'logged_in,logged_in_dm_unavailable'
+  const normalized = normalizedFilters(filters)
   const params = {
-    ...normalizedFilters(filters),
+    ...normalized,
+    // 帐号池依靠数据包轮换帐号，不要求帐号当前绑定在所选执行平台/供应商下。
+    runtime_platform: options.publishPool ? undefined : normalized.runtime_platform,
+    provider: options.publishPool ? undefined : normalized.provider,
     login_status: loginStatus,
   }
   return loadCached(
     accountCache,
-    cacheKey(filters, { login_status: loginStatus || '' }),
+    JSON.stringify(params),
     () => http.get<AnyRecord[]>('/api/accounts/selection-options', params),
   )
 }

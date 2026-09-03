@@ -191,6 +191,7 @@ const isMediaAssetBatchCreateModal = computed(() => Boolean(props.config.mediaAs
 const modalWidth = computed(() => {
   if (isMediaAssetBatchCreateModal.value) return '900px'
   if (isInteractionSessionCreateModal.value) return '1240px'
+  if (isPublishedContentDispatchModal.value && formState.value.dispatch_mode === 'account_pool') return '1420px'
   if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value) return '1120px'
   if (modal.type === 'edit' && props.config.editPreview === 'content') return '1100px'
   if (

@@ -248,7 +248,10 @@ describe('发布内容来源', () => {
     expect(slotField?.slotTreeProviderFilter).toBe(true)
     expect(slotField?.slotTreeFillHeight).toBe(true)
     expect(slotField?.slotTreePublishStats).toBe(true)
-    expect(fields.some((field) => field.key === 'account_ids')).toBe(false)
+    const accountField = fields.find((field) => field.key === 'account_ids')
+    expect(accountField?.type).toBe('accountTree')
+    expect(accountField?.accountTreePublishPool).toBe(true)
+    expect(accountField?.visibleWhen).toEqual({ key: 'dispatch_mode', value: 'account_pool' })
 
     const body = resources.publishedContents.createBody?.({
       business_platform: 'threads',
@@ -259,7 +262,32 @@ describe('发布内容来源', () => {
     }) as Record<string, unknown>
 
     expect(body.slot_ids).toEqual(['slot-1'])
+    expect(body.dispatch_mode).toBe('bound_account')
     expect(body).not.toHaveProperty('account_ids')
+  })
+
+  it('帐号池轮转按帐号创建任务并限定云手机 VMOS', () => {
+    const modeField = fields.find((field) => field.key === 'dispatch_mode')
+    const body = resources.publishedContents.createBody?.({
+      dispatch_mode: 'account_pool',
+      business_platform: 'threads',
+      runtime_platform: 'cloud_phone',
+      provider: 'vmos',
+      slot_ids: ['slot-1', 'slot-2', 'slot-1'],
+      account_ids: ['account-1', 'account-2', 'account-1'],
+      content_source_type: 'ungrouped',
+    }) as Record<string, unknown>
+
+    expect(modeField?.options?.map((option) => option.value)).toEqual(['bound_account', 'account_pool'])
+    expect(body.slot_ids).toEqual(['slot-1', 'slot-2'])
+    expect(body.account_ids).toEqual(['account-1', 'account-2'])
+    expect(() => resources.publishedContents.createBody?.({
+      dispatch_mode: 'account_pool',
+      runtime_platform: 'fingerprint_browser',
+      provider: 'adspower',
+      account_ids: ['account-1'],
+      content_source_type: 'ungrouped',
+    })).toThrow('帐号池轮转当前仅支持云手机 / VMOS')
   })
 
   it('列表按发布父任务展示总览并按需展开帖子明细', () => {

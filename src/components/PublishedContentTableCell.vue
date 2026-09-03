@@ -52,7 +52,10 @@ const accountSecondary = computed(() => {
   if (login && login !== accountName.value) return login
   return ''
 })
-const slotName = computed(() => text(props.row.publish_slot_name || props.row.slot_name_snapshot, '设备名称未记录'))
+const slotName = computed(() => text(
+  props.row.publish_slot_name || props.row.slot_name_snapshot,
+  props.row.task_status === 'draft' ? '等待分配设备' : '设备名称未记录',
+))
 const providerSlotId = computed(() => text(props.row.publish_provider_slot_id || props.row.provider_slot_id_snapshot, ''))
 const contentUrl = computed(() => text(props.row.content_url, ''))
 const platformContentId = computed(() => text(props.row.platform_content_id, ''))
@@ -62,6 +65,9 @@ const taskFinished = computed(() => Number(props.row.child_finished || 0))
 const taskSucceeded = computed(() => Number(props.row.child_succeeded || 0))
 const taskFailed = computed(() => Number(props.row.child_failed || 0))
 const taskCanceled = computed(() => Number(props.row.child_canceled || 0))
+const taskPending = computed(() => Number(props.row.pending_count || 0))
+const taskActive = computed(() => Number(props.row.active_count || 0))
+const isAccountPool = computed(() => props.row.dispatch_mode === 'account_pool')
 const taskProgress = computed(() => taskTotal.value > 0
   ? Math.min(100, Math.round(taskFinished.value * 100 / taskTotal.value))
   : 0)
@@ -89,6 +95,7 @@ const metrics = computed(() => [
     <el-tooltip :content="title" placement="top" :show-after="500">
       <strong>{{ title }}</strong>
     </el-tooltip>
+    <el-tag v-if="isAccountPool" size="small" type="primary" effect="plain" round>帐号池轮转</el-tag>
   </div>
 
   <div v-else-if="kind === 'publishedContentIdentity'" class="published-cell published-content">
@@ -152,6 +159,8 @@ const metrics = computed(() => [
     <div class="published-task-result__counts">
       <span class="is-success"><CheckCircle2 />成功 <strong>{{ taskSucceeded }}</strong></span>
       <span class="is-failed"><CircleX />失败 <strong>{{ taskFailed }}</strong></span>
+      <span v-if="isAccountPool && taskActive">执行中 <strong>{{ taskActive }}</strong></span>
+      <span v-if="isAccountPool && taskPending">待分配 <strong>{{ taskPending }}</strong></span>
       <span v-if="taskCanceled" class="is-canceled">取消 <strong>{{ taskCanceled }}</strong></span>
     </div>
   </div>
@@ -169,6 +178,7 @@ const metrics = computed(() => [
 
 <style scoped>
 .published-cell { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; }
+.published-task-identity { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .published-task-identity > strong { display: block; overflow: hidden; color: #243b53; font-size: 13px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .published-content { display: flex; flex-direction: column; gap: 6px; }
 .published-content__title { display: flex; min-width: 0; align-items: center; gap: 8px; }
@@ -232,7 +242,7 @@ const metrics = computed(() => [
 .published-task-result__progress > span { color: #526a7f; font-size: 11px; }
 .published-task-result svg,
 .published-task-output svg { width: 13px; height: 13px; flex: 0 0 13px; }
-.published-task-result__counts { display: flex; align-items: center; gap: 12px; font-size: 11px; }
+.published-task-result__counts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 11px; }
 .published-task-result__counts strong,
 .published-task-output strong { font-size: 12px; }
 .published-task-result__counts .is-success { color: #3e7c55; }
