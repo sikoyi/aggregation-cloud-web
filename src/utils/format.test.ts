@@ -16,4 +16,9 @@ describe('互动场景格式化', () => {
     expect(statusTagType('ai')).toBe('warning')
     expect(statusTagType('custom')).toBe('warning')
   })
+
+  it('区分受限和封禁状态', () => {
+    expect(statusLabel('restricted')).toBe('受限')
+    expect(statusLabel('banned')).toBe('封禁')
+  })
 })

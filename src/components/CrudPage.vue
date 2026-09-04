@@ -25,6 +25,7 @@ import { http, resolveBackendUrl } from '@/api/http'
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider } from '@/api/interactionAi'
 import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import AccountTableCell from '@/components/AccountTableCell.vue'
+import AccountIdentityTableCell from '@/components/AccountIdentityTableCell.vue'
 import DeviceTableCell from '@/components/DeviceTableCell.vue'
 import ContentTableCell from '@/components/ContentTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
@@ -61,6 +62,7 @@ import {
 import { collectRuntimeSyncFailures, type RuntimeSyncFailure } from '@/utils/runtimeSyncFailures'
 
 const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
+const AccountIdentityPlatformDetails = defineAsyncComponent(() => import('@/components/AccountIdentityPlatformDetails.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
 const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
 const ContentPreview = defineAsyncComponent(() => import('@/components/ContentPreview.vue'))
@@ -1630,6 +1632,15 @@ onBeforeUnmount(() => {
           </template>
         </el-table-column>
 
+        <el-table-column v-if="config.expandRow === 'accountIdentity'" type="expand" width="48">
+          <template #default="{ row }">
+            <AccountIdentityPlatformDetails
+              :identity-id="String(row.id)"
+              @changed="loadRows({ silent: true })"
+            />
+          </template>
+        </el-table-column>
+
         <el-table-column
           v-for="column in visibleColumns"
           :key="column.key"
@@ -1692,6 +1703,11 @@ onBeforeUnmount(() => {
               :kind="column.type as 'taskIdentity' | 'taskScript' | 'taskOperator' | 'taskPlatform' | 'taskResult' | 'taskTimeline'"
               :row="row"
               :column="column"
+            />
+            <AccountIdentityTableCell
+              v-else-if="column.type && ['loginIdentity', 'identityPlatforms', 'identitySessions', 'identityCandidate'].includes(column.type)"
+              :kind="column.type as 'loginIdentity' | 'identityPlatforms' | 'identitySessions' | 'identityCandidate'"
+              :row="row"
             />
             <ScriptTableCell
               v-else-if="column.type && ['scriptIdentity', 'scriptScope', 'scriptTimeout', 'scriptTimeline'].includes(column.type)"

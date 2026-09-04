@@ -2,6 +2,7 @@ import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
 
 const STATUS_LABELS: Record<string, string> = {
+  abnormal: '异常',
   active: '生效',
   ai: 'AI 生成',
   abnormal_paused: '异常暂停',
@@ -11,13 +12,16 @@ const STATUS_LABELS: Record<string, string> = {
   blocked: '已阻断',
   canceled: '已取消',
   challenge: '封禁',
+  challenge_required: '需要安全验证',
   connecting: '连接中',
+  confirmed: '已确认',
   conversation: '链接内容互动',
   custom: '自定义内容',
   generating: '文案生成中',
   all_failed: '全部失败',
   completed: '已完成',
   disabled: '已禁用',
+  deleted: '已删除',
   dispatching: '下发中',
   draft: '草稿',
   enabled: '已启用',
@@ -37,15 +41,18 @@ const STATUS_LABELS: Record<string, string> = {
   old: '老号',
   offline: '离线',
   online: '在线',
+  paused: '已暂停',
   pending: '待处理',
   pending_review: '待验收',
   propagating: '同步收敛中',
   notified: '已通知',
   queued: '排队中',
   rate_limited: '限流中',
-  restricted: '封禁',
+  rejected: '已拒绝',
+  restricted: '受限',
   retry_wait: '等待重试',
   running: '运行中',
+  session_expired: '会话已过期',
   maintenance: '日常维护',
   starting: '启动中',
   sent: '已下发',
@@ -67,8 +74,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 const SUCCESS_STATUSES = ['enabled', 'normal', 'idle', 'online', 'queued', 'succeeded', 'completed', 'logged_in', 'active', 'used', 'old', 'square_numeric']
 const PRIMARY_STATUSES = ['running', 'dispatching', 'starting', 'waiting_slot', 'waiting_runtime', 'connecting', 'generating', 'propagating', 'notified', 'conversation']
-const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'unknown', 'not_logged_in', 'unused', 'locked', 'not_started']
-const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked', 'abnormal_paused']
+const INFO_STATUSES = ['disabled', 'offline', 'canceled', 'unbound', 'pending', 'paused', 'unknown', 'not_logged_in', 'unused', 'locked', 'not_started']
+const DANGER_STATUSES = ['failed', 'all_failed', 'error', 'expired', 'lost', 'restricted', 'banned', 'blocked', 'abnormal', 'abnormal_paused']
 
 export function getCellValue(row: AnyRecord, key: string) {
   if (!key.includes('.')) return row[key]

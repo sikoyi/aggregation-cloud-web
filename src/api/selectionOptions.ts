@@ -105,6 +105,9 @@ async function loadValueCached<T>(
 function slotTreeParams(filters: AnyRecord, query: SlotSelectionTreeQuery = {}) {
   return {
     ...normalizedSlotFilters(filters),
+    business_platform: query.publish
+      ? String(filters.business_platform || '') || undefined
+      : undefined,
     ...(query.warmupBusinessPlatform && !query.publish
       ? { warmup_business_platform: query.warmupBusinessPlatform }
       : {}),
@@ -211,6 +214,7 @@ export function loadPublishSlotSelectionOptions(
 ) {
   const params = {
     ...normalizedSlotFilters(filters),
+    business_platform: String(filters.business_platform || '') || undefined,
     content_id: String(contentId || '') || undefined,
   }
   return loadCached(

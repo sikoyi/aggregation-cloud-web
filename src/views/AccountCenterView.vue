@@ -1,45 +1,74 @@
 <script setup lang="ts">
-import { Plus, RefreshCw, Tags, Users } from 'lucide-vue-next'
-import { computed, nextTick, ref, watch } from 'vue'
+import { Link2, Plus, RefreshCw, Tags, Users } from 'lucide-vue-next'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { getMetaAccountFeatureStatus, type MetaAccountFeatureStatus } from '@/api/accountIdentities'
+import AccountIdentityCandidates from '@/components/AccountIdentityCandidates.vue'
 import CrudPage from '@/components/CrudPage.vue'
+import { buildAccountIdentityResource } from '@/config/accountIdentityResource'
 import { resources } from '@/config/resources'
 import { useAuthStore } from '@/stores/auth'
 
-type AccountCenterTab = 'accounts' | 'tags'
+type AccountCenterTab = 'accounts' | 'candidates' | 'tags'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-const accountConfig = computed(() => resources.accounts)
+const featureStatus = ref<MetaAccountFeatureStatus | null>(null)
+const accountConfig = computed(() => (
+  featureStatus.value?.enabled
+    ? buildAccountIdentityResource(resources.accounts)
+    : resources.accounts
+))
 const accountTagConfig = computed(() => resources.accountTags)
 const activeTab = ref<AccountCenterTab>(normalizeTab(route.query.tab))
 const accountPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
+const accountCandidatePageRef = ref<InstanceType<typeof AccountIdentityCandidates> | null>(null)
 const accountTagPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
-const activeConfig = computed(() => (activeTab.value === 'tags' ? accountTagConfig.value : accountConfig.value))
-const activePage = computed(() => (activeTab.value === 'tags' ? accountTagPageRef.value : accountPageRef.value))
+const activeConfig = computed(() => (
+  activeTab.value === 'tags' ? accountTagConfig.value : accountConfig.value
+))
 const activeCreateLabel = computed(() => activeConfig.value.createLabel || '新增')
 
 function normalizeTab(value: unknown): AccountCenterTab {
+  if (value === 'candidates') return 'candidates'
   return value === 'tags' ? 'tags' : 'accounts'
 }
 
 function handleTabChange(value: string | number) {
   const tab = normalizeTab(value)
   const query = { ...route.query }
-  if (tab === 'tags') query.tab = 'tags'
+  if (tab !== 'accounts') query.tab = tab
   else delete query.tab
   router.replace({ path: '/accounts', query })
 }
 
 function refreshActivePage() {
-  activePage.value?.loadRows()
+  if (activeTab.value === 'tags') accountTagPageRef.value?.loadRows()
+  else if (activeTab.value === 'candidates') accountCandidatePageRef.value?.loadRows()
+  else accountPageRef.value?.loadRows()
 }
 
 function openActiveCreate() {
-  activePage.value?.openCreate()
+  if (activeTab.value === 'tags') accountTagPageRef.value?.openCreate()
+  else accountPageRef.value?.openCreate()
+}
+
+async function loadFeatureStatus() {
+  try {
+    featureStatus.value = await getMetaAccountFeatureStatus()
+    if (!featureStatus.value.enabled && activeTab.value === 'candidates') {
+      activeTab.value = 'accounts'
+      const query = { ...route.query }
+      delete query.tab
+      await router.replace({ path: route.path, query })
+    }
+  } catch {
+    // 灰度接口不可用时保留原账号管理，不能让兼容版本页面失效。
+    featureStatus.value = null
+  }
 }
 
 watch(
@@ -63,6 +92,8 @@ watch(
   },
   { immediate: true, flush: 'post' },
 )
+
+onMounted(loadFeatureStatus)
 </script>
 
 <template>
@@ -82,7 +113,7 @@ watch(
           <el-tooltip content="刷新" placement="bottom">
             <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
           </el-tooltip>
-          <el-button v-if="auth.can('accounts.create')" type="primary" :icon="Plus" @click="openActiveCreate">
+          <el-button v-if="activeTab !== 'candidates' && auth.can('accounts.create')" type="primary" :icon="Plus" @click="openActiveCreate">
             {{ activeCreateLabel }}
           </el-button>
         </div>
@@ -96,7 +127,23 @@ watch(
               账号列表
             </span>
           </template>
+          <el-alert
+            v-if="featureStatus?.enabled && !featureStatus.dual_write_enabled"
+            class="account-center__feature-warning"
+            type="warning"
+            :closable="false"
+            title="当前租户已开启多平台聚合读取，但新账号双写尚未开启"
+          />
           <CrudPage ref="accountPageRef" :config="accountConfig" embedded hide-header-actions />
+        </el-tab-pane>
+        <el-tab-pane v-if="featureStatus?.enabled" name="candidates" lazy>
+          <template #label>
+            <span class="account-center__tab-label">
+              <Link2 class="h-4 w-4" />
+              关联候选
+            </span>
+          </template>
+          <AccountIdentityCandidates ref="accountCandidatePageRef" />
         </el-tab-pane>
         <el-tab-pane name="tags" lazy>
           <template #label>
@@ -204,6 +251,10 @@ watch(
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.account-center__feature-warning {
+  margin-bottom: 12px;
 }
 
 @media (max-width: 768px) {

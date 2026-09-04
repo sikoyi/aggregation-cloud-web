@@ -115,6 +115,7 @@ export const http = {
     request<T>('POST', path, { body, signal }),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, { body }),
   delete: <T>(path: string) => request<T>('DELETE', path),
+  deleteWithBody: <T>(path: string, body?: unknown) => request<T>('DELETE', path, { body }),
   apiBaseUrl: API_BASE_URL,
   resolveBackendUrl,
 }

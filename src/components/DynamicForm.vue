@@ -394,6 +394,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
               ? modelValue.content_id
               : undefined"
             :filters="{
+              business_platform: modelValue.business_platform,
               runtime_platform: modelValue.runtime_platform,
               provider: field.slotTreeProviderFilter || modelValue.template_id ? modelValue.provider : undefined,
             }"

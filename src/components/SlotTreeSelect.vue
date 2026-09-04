@@ -149,6 +149,7 @@ const treeProps = {
   value: 'id',
 }
 const requestSignature = computed(() => JSON.stringify({
+  business_platform: String(props.filters?.business_platform || ''),
   runtime_platform: String(props.filters?.runtime_platform || ''),
   provider: String(props.filters?.provider || ''),
   account_presence: effectiveAccountPresence.value,

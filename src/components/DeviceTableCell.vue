@@ -3,7 +3,7 @@ import { Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network, UserRou
 import { computed } from 'vue'
 
 import StatusBadge from '@/components/StatusBadge.vue'
-import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
+import { businessPlatformLabel, businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
@@ -50,6 +50,9 @@ const accountCountry = computed(() => String(props.row.bound_account_country || 
 const accountName = computed(() => String(props.row.bound_account_name || '').trim())
 const proxyName = computed(() => String(props.row.proxy_name || '').trim())
 const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
+const accountSessions = computed<AnyRecord[]>(() => (
+  Array.isArray(props.row.account_sessions) ? props.row.account_sessions : []
+))
 </script>
 
 <template>
@@ -95,14 +98,35 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
         <StatusBadge :value="row.status" />
       </div>
     </div>
-    <div v-if="row.bound_account_id" class="device-state__row">
+    <template v-if="accountSessions.length">
+      <div v-for="session in accountSessions" :key="String(session.id)" class="device-state__row">
+        <span>{{ businessPlatformLabel(session.business_platform) }}</span>
+        <StatusBadge :value="session.login_status" />
+      </div>
+    </template>
+    <div v-else-if="row.bound_account_id" class="device-state__row">
       <span>账号</span>
       <StatusBadge :value="row.bound_account_login_status || row.login_status" />
     </div>
   </div>
 
   <div v-else-if="kind === 'deviceAccount'" class="device-cell device-relation">
-    <template v-if="row.bound_account_id">
+    <template v-if="accountSessions.length">
+      <div v-for="session in accountSessions" :key="String(session.id)" class="device-account-session">
+        <div class="device-relation__title">
+          <UserRound />
+          <strong>{{ session.account_display_name || session.account_username || `账号 #${session.account_id}` }}</strong>
+        </div>
+        <div class="device-relation__meta">
+          <el-tag size="small" type="primary" effect="light">
+            {{ businessPlatformLabel(session.business_platform) }}
+          </el-tag>
+          <StatusBadge :value="session.login_status" />
+        </div>
+        <small>账号 ID {{ session.account_id || '-' }}</small>
+      </div>
+    </template>
+    <template v-else-if="row.bound_account_id">
       <div class="device-relation__title">
         <UserRound />
         <strong>{{ accountName || `账号 #${row.bound_account_id}` }}</strong>
@@ -170,6 +194,8 @@ const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
 .device-state__row > span { color: #8191a2; font-size: 10px; }
 .device-state__value { display: flex; min-width: 0; align-items: center; gap: 5px; }
 .device-relation { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.device-account-session { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding-bottom: 6px; border-bottom: 1px solid #e8eef4; }
+.device-account-session:last-child { padding-bottom: 0; border-bottom: 0; }
 .device-relation__title { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .device-relation__title svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
 .device-relation__title strong,

@@ -36,6 +36,10 @@ export type ColumnType =
   | 'accountPlatform'
   | 'accountEnvironment'
   | 'accountBackup'
+  | 'loginIdentity'
+  | 'identityPlatforms'
+  | 'identitySessions'
+  | 'identityCandidate'
   | 'proxyIdentity'
   | 'proxyGroup'
   | 'proxyEndpoint'
@@ -247,7 +251,7 @@ export interface ResourceConfig {
   permissionModule?: string
   endpoint: string
   listEndpoint?: string
-  expandRow?: 'publishedContentTask'
+  expandRow?: 'publishedContentTask' | 'accountIdentity'
   idKey?: string
   createEndpoint?: string
   createLabel?: string
