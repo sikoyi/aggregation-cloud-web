@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { proxyProtocolOptions, scriptAccountUsageModeOptions, scriptPurposeOptions } from './options'
+import {
+  proxyProtocolOptions,
+  scriptAccountUsageModeOptions,
+  scriptPurposeOptions,
+  scriptRegistrationAccountModeOptions,
+} from './options'
 import { resources } from './resources'
 
 
@@ -600,6 +605,46 @@ describe('任务记录筛选', () => {
       type: 'taskPlatform',
       width: 190,
     })
+  })
+})
+
+describe('注册脚本账号结果方式', () => {
+  it('仅在账号注册脚本中展示，并默认保留账号设备绑定', () => {
+    const createField = (resources.scripts.createFields || [])
+      .find((field) => field.key === 'registration_account_mode')
+    const updateField = (resources.scripts.updateFields || [])
+      .find((field) => field.key === 'registration_account_mode')
+
+    expect(scriptRegistrationAccountModeOptions.map((option) => option.value)).toEqual([
+      'bind_slot',
+      'account_only',
+    ])
+    expect(createField?.type).toBe('segmented')
+    expect(createField?.defaultValue).toBe('bind_slot')
+    expect(createField?.visibleWhen).toEqual({ key: 'purpose', value: 'account_registration' })
+    expect(updateField?.visibleWhen).toEqual({ key: 'purpose', value: 'account_registration' })
+  })
+
+  it('注册脚本提交配置，其他脚本固定使用兼容模式', () => {
+    const registrationBody = resources.scripts.createBody?.({
+      script_key: 'shopify-register',
+      name: 'Shopify 注册',
+      purpose: 'account_registration',
+      account_usage_mode: 'runtime_created',
+      registration_account_mode: 'account_only',
+      supported_runtime_platforms: 'fingerprint_browser',
+    }) as Record<string, unknown>
+    const generalBody = resources.scripts.createBody?.({
+      script_key: 'general',
+      name: '普通脚本',
+      purpose: 'general_task',
+      account_usage_mode: 'slot_current',
+      registration_account_mode: 'account_only',
+      supported_runtime_platforms: 'fingerprint_browser',
+    }) as Record<string, unknown>
+
+    expect(registrationBody.registration_account_mode).toBe('account_only')
+    expect(generalBody.registration_account_mode).toBe('bind_slot')
   })
 })
 

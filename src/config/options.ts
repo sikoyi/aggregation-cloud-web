@@ -18,6 +18,11 @@ export const scriptAccountUsageModeOptions: SelectOption[] = [
   { label: '不需要账号', value: 'none' },
 ]
 
+export const scriptRegistrationAccountModeOptions: SelectOption[] = [
+  { label: '账号绑定执行设备', value: 'bind_slot' },
+  { label: '仅保存账号', value: 'account_only' },
+]
+
 export function filterOptionsByScope(
   options: SelectOption[],
   scope: string[] | null | undefined,

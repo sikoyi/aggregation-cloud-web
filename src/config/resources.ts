@@ -37,6 +37,7 @@ import {
   runtimePlatformOptions,
   runtimeStatusOptions,
   scriptAccountUsageModeOptions,
+  scriptRegistrationAccountModeOptions,
   scriptParamTypeOptions,
   scriptPurposeOptions,
   scriptStatusOptions,
@@ -594,6 +595,7 @@ const scriptCreateKeys = [
   "description",
   "purpose",
   "account_usage_mode",
+  "registration_account_mode",
   "supported_runtime_platforms",
   "supported_providers",
   "supported_business_platforms",
@@ -614,6 +616,9 @@ function buildScriptBody(payload: AnyRecord, keys: string[]) {
   const body = pickPayload(payload, keys);
   const runtimePlatform = String(payload.supported_runtime_platforms || "").trim();
   body.supported_runtime_platforms = runtimePlatform ? [runtimePlatform] : [];
+  body.registration_account_mode = payload.purpose === "account_registration"
+    ? String(payload.registration_account_mode || "bind_slot")
+    : "bind_slot";
   return body;
 }
 
@@ -3186,6 +3191,15 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
       {
+        key: "registration_account_mode",
+        label: "注册结果方式",
+        type: "segmented",
+        options: scriptRegistrationAccountModeOptions,
+        defaultValue: "bind_slot",
+        required: true,
+        visibleWhen: { key: "purpose", value: "account_registration" },
+      },
+      {
         key: "status",
         label: "状态",
         type: "select",
@@ -3251,6 +3265,14 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: scriptAccountUsageModeOptions,
         required: true,
+      },
+      {
+        key: "registration_account_mode",
+        label: "注册结果方式",
+        type: "segmented",
+        options: scriptRegistrationAccountModeOptions,
+        required: true,
+        visibleWhen: { key: "purpose", value: "account_registration" },
       },
       {
         key: "status",
