@@ -120,6 +120,14 @@ export function updateWarmupPlan(planId: string, payload: WarmupPlanPayload) {
   return http.put<WarmupPlan>(`/api/account-warmup/plans/${planId}`, payload)
 }
 
+export function deleteWarmupPlan(planId: string) {
+  return http.delete<void>(`/api/account-warmup/plans/${planId}`)
+}
+
+export function isWarmupPlanDeletable(status: string) {
+  return status === 'completed' || status === 'canceled'
+}
+
 export function operateWarmupPlan(planId: string, action: 'activate' | 'pause' | 'resume' | 'cancel') {
   return http.post<WarmupPlan | { plan: WarmupPlan }>(`/api/account-warmup/plans/${planId}/${action}`)
 }

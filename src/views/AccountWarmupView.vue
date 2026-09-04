@@ -9,6 +9,7 @@ import {
   Search,
   Settings2,
   SquarePen,
+  Trash2,
   X,
 } from 'lucide-vue-next'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
@@ -16,6 +17,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
   createWarmupPlan,
+  deleteWarmupPlan,
+  isWarmupPlanDeletable,
   listWarmupDailyRuns,
   listWarmupMembers,
   listWarmupPlans,
@@ -40,6 +43,7 @@ import { notifyError } from '@/utils/notify'
 
 const loading = ref(false)
 const saving = ref(false)
+const deletingPlanId = ref<string | null>(null)
 const rows = ref<WarmupPlan[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -364,6 +368,28 @@ async function operatePlan(tableRow: unknown, action: 'activate' | 'pause' | 're
   }
 }
 
+async function handleDeletePlan(tableRow: unknown) {
+  const row = tableRow as WarmupPlan
+  if (deletingPlanId.value) return
+  deletingPlanId.value = row.id
+  try {
+    await ElMessageBox.confirm(
+      '删除后计划、成员和每日明细将不再展示；历史任务记录与账号养号结果会保留。此操作不可撤销。',
+      '删除养号计划',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+    await deleteWarmupPlan(row.id)
+    ElMessage.success('养号计划已删除')
+    if (rows.value.length === 1 && page.value > 1) page.value -= 1
+    await loadRows()
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    notifyError(error, '删除失败', '无法删除养号计划')
+  } finally {
+    deletingPlanId.value = null
+  }
+}
+
 async function handleSync(tableRow: unknown) {
   const row = tableRow as WarmupPlan
   try {
@@ -522,6 +548,7 @@ onMounted(() => {
             <el-tooltip v-if="auth.can('account_warmup.edit') && row.status === 'active'" content="暂停"><el-button circle type="warning" :icon="CirclePause" @click="operatePlan(row, 'pause')" /></el-tooltip>
             <el-tooltip v-if="auth.can('account_warmup.edit') && row.status === 'paused'" content="恢复"><el-button circle type="success" :icon="CirclePlay" @click="operatePlan(row, 'resume')" /></el-tooltip>
             <el-tooltip v-if="auth.can('account_warmup.delete') && !['completed', 'canceled'].includes(row.status)" content="取消"><el-button circle type="danger" plain :icon="X" @click="operatePlan(row, 'cancel')" /></el-tooltip>
+            <el-tooltip v-if="auth.can('account_warmup.delete') && isWarmupPlanDeletable(row.status)" content="删除"><el-button circle type="danger" plain :icon="Trash2" :loading="deletingPlanId === row.id" @click="handleDeletePlan(row)" /></el-tooltip>
           </template>
         </el-table-column>
       </el-table>
