@@ -120,10 +120,11 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
 .task-operator__content strong { color: #334e68; font-size: 12px; }
 .task-operator__content span { color: #8293a5; font-size: 11px; }
 .task-platform { display: flex; flex-direction: column; gap: 7px; }
-.task-platform__primary { display: flex; align-items: center; gap: 6px; color: #334e68; }
+.task-platform__primary { display: flex; align-items: center; gap: 6px; color: #334e68; white-space: nowrap; }
 .task-platform__primary svg { width: 14px; height: 14px; color: #527a98; }
 .task-platform__primary strong { font-size: 12px; }
-.task-platform__tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.task-platform__tags { display: flex; flex-wrap: nowrap; gap: 5px; white-space: nowrap; }
+.task-platform__tags :deep(.el-tag) { flex: 0 0 auto; }
 .task-result { display: flex; align-items: center; justify-content: center; padding: 0 8px; }
 .task-result__counts { display: flex; align-items: center; justify-content: center; gap: 12px; white-space: nowrap; }
 .task-result__count { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 20px; }

@@ -573,6 +573,19 @@ describe('任务记录筛选', () => {
       columns.findIndex((column) => column.key === 'title') + 1,
     )
   })
+
+  it('收窄操作员列并为运行环境保留两行展示空间', () => {
+    const columns = resources.tasks.columns || []
+
+    expect(columns.find((column) => column.key === 'creator_display_name')).toMatchObject({
+      type: 'taskOperator',
+      width: 120,
+    })
+    expect(columns.find((column) => column.key === 'business_platform')).toMatchObject({
+      type: 'taskPlatform',
+      minWidth: 160,
+    })
+  })
 })
 
 describe('账号批量设置标签', () => {
