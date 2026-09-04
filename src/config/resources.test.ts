@@ -560,6 +560,19 @@ describe('任务记录筛选', () => {
       endKey: 'created_to',
     })
   })
+
+  it('列表直接展示来源任务模板名称', () => {
+    const columns = resources.tasks.columns || []
+    const templateColumn = columns.find((column) => column.key === 'template_name')
+
+    expect(templateColumn).toMatchObject({
+      label: '任务模板',
+      align: 'center',
+    })
+    expect(columns.indexOf(templateColumn!)).toBe(
+      columns.findIndex((column) => column.key === 'title') + 1,
+    )
+  })
 })
 
 describe('账号批量设置标签', () => {

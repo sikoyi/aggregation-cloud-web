@@ -3594,6 +3594,7 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "任务 ID", type: "id", width: 68, align: "center" },
       { key: "title", label: "任务信息", type: "taskIdentity", minWidth: 135 },
+      { key: "template_name", label: "任务模板", minWidth: 140, align: "center" },
       { key: "creator_display_name", label: "操作员", type: "taskOperator", minWidth: 135 },
       { key: "business_platform", label: "运行环境", type: "taskPlatform", minWidth: 105 },
       { key: "status", label: "状态", type: "status", width: 105, align: "center" },
