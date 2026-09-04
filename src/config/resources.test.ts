@@ -579,11 +579,11 @@ describe('任务记录筛选', () => {
 
     expect(columns.find((column) => column.key === 'creator_display_name')).toMatchObject({
       type: 'taskOperator',
-      width: 120,
+      width: 150,
     })
     expect(columns.find((column) => column.key === 'business_platform')).toMatchObject({
       type: 'taskPlatform',
-      minWidth: 160,
+      width: 190,
     })
   })
 })
