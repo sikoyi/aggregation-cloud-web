@@ -567,7 +567,8 @@ describe('任务记录筛选', () => {
 
     expect(templateColumn).toMatchObject({
       label: '任务模板',
-      align: 'center',
+      type: 'taskTemplate',
+      minWidth: 160,
     })
     expect(columns.indexOf(templateColumn!)).toBe(
       columns.findIndex((column) => column.key === 'title') + 1,
