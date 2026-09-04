@@ -193,6 +193,7 @@ export interface FieldConfig {
 export interface ColumnConfig {
   key: string
   label: string
+  hidden?: boolean
   type?: ColumnType
   options?: SelectOption[]
   relation?: RemoteSelectConfig

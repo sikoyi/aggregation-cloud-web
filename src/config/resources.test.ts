@@ -561,7 +561,7 @@ describe('任务记录筛选', () => {
     })
   })
 
-  it('列表直接展示实际执行的任务脚本名称', () => {
+  it('保留任务脚本列能力但默认隐藏', () => {
     const columns = resources.tasks.columns || []
     const scriptColumn = columns.find((column) => column.key === 'script_name')
 
@@ -569,6 +569,7 @@ describe('任务记录筛选', () => {
       label: '任务脚本',
       type: 'taskScript',
       minWidth: 160,
+      hidden: true,
     })
     expect(columns.some((column) => column.key === 'template_name')).toBe(false)
     expect(columns.indexOf(scriptColumn!)).toBe(

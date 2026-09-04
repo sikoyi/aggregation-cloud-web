@@ -236,6 +236,7 @@ const modalSubmitLabel = computed(() => (
         ? '确认下发'
         : '保存'
 ))
+const visibleColumns = computed(() => props.config.columns.filter((column) => !column.hidden))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 const statusSwitchActionKeys = computed(() => {
   const keys = new Set(['enable', 'disable'])
@@ -1630,7 +1631,7 @@ onBeforeUnmount(() => {
         </el-table-column>
 
         <el-table-column
-          v-for="column in config.columns"
+          v-for="column in visibleColumns"
           :key="column.key"
           :prop="column.key"
           :label="column.label"
