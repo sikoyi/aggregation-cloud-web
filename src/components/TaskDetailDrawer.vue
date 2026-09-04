@@ -387,7 +387,9 @@ watch(
                 {{ text(task.error_message) }}
               </el-descriptions-item>
               <el-descriptions-item label="来源模板">
-                <span class="font-mono text-xs" :title="String(task.template_id || '')">{{ truncateId(task.template_id) }}</span>
+                <span :title="task.template_name ? '' : String(task.template_id || '')">
+                  {{ task.template_name || (task.template_id ? '模板已删除或不可用' : '-') }}
+                </span>
               </el-descriptions-item>
               <el-descriptions-item label="超时秒">{{ text(task.timeout_seconds) }}</el-descriptions-item>
               <el-descriptions-item label="计划时间">{{ taskTime('scheduled_at') }}</el-descriptions-item>
