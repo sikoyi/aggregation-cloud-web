@@ -48,7 +48,7 @@ export type ColumnType =
   | 'deviceProxy'
   | 'deviceActivity'
   | 'taskIdentity'
-  | 'taskTemplate'
+  | 'taskScript'
   | 'taskOperator'
   | 'taskPlatform'
   | 'taskResult'

@@ -561,16 +561,17 @@ describe('任务记录筛选', () => {
     })
   })
 
-  it('列表直接展示来源任务模板名称', () => {
+  it('列表直接展示实际执行的任务脚本名称', () => {
     const columns = resources.tasks.columns || []
-    const templateColumn = columns.find((column) => column.key === 'template_name')
+    const scriptColumn = columns.find((column) => column.key === 'script_name')
 
-    expect(templateColumn).toMatchObject({
-      label: '任务模板',
-      type: 'taskTemplate',
+    expect(scriptColumn).toMatchObject({
+      label: '任务脚本',
+      type: 'taskScript',
       minWidth: 160,
     })
-    expect(columns.indexOf(templateColumn!)).toBe(
+    expect(columns.some((column) => column.key === 'template_name')).toBe(false)
+    expect(columns.indexOf(scriptColumn!)).toBe(
       columns.findIndex((column) => column.key === 'title') + 1,
     )
   })

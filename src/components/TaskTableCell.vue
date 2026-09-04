@@ -5,9 +5,9 @@ import {
   CheckCircle2,
   CheckSquare2,
   CircleX,
-  ClipboardList,
   Clock3,
   Cpu,
+  FileCode2,
   UserRound,
 } from 'lucide-vue-next'
 import { computed } from 'vue'
@@ -16,7 +16,7 @@ import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
 
-type TaskCellKind = 'taskIdentity' | 'taskTemplate' | 'taskOperator' | 'taskPlatform' | 'taskResult' | 'taskTimeline'
+type TaskCellKind = 'taskIdentity' | 'taskScript' | 'taskOperator' | 'taskPlatform' | 'taskResult' | 'taskTimeline'
 
 const props = defineProps<{
   kind: TaskCellKind
@@ -42,7 +42,7 @@ function compactDate(value: unknown) {
 
 const taskTitle = computed(() => text(props.row.title))
 const taskId = computed(() => text(props.row.id))
-const templateName = computed(() => text(props.row.template_name))
+const scriptName = computed(() => text(props.row.script_name || '脚本已删除或不可用'))
 const creatorName = computed(() => text(
   props.row.creator_display_name || props.row.creator_username || props.row.created_by,
 ))
@@ -69,10 +69,10 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
     </span>
   </div>
 
-  <div v-else-if="kind === 'taskTemplate'" class="task-cell task-template">
-    <span class="task-template__icon"><ClipboardList /></span>
-    <el-tooltip :content="templateName" placement="top" :show-after="500">
-      <strong>{{ templateName }}</strong>
+  <div v-else-if="kind === 'taskScript'" class="task-cell task-script">
+    <span class="task-script__icon"><FileCode2 /></span>
+    <el-tooltip :content="scriptName" placement="top" :show-after="500">
+      <strong>{{ scriptName }}</strong>
     </el-tooltip>
   </div>
 
@@ -131,10 +131,10 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
 .task-identity__content span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-identity__content strong { color: #243b53; font-size: 13px; }
 .task-identity__content span { color: #8293a5; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; }
-.task-template { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.task-template__icon { display: inline-flex; width: 30px; height: 30px; flex: 0 0 30px; align-items: center; justify-content: center; border-radius: 8px; color: #536f87; background: #f0f4f7; }
-.task-template__icon svg { width: 15px; height: 15px; }
-.task-template strong { min-width: 0; overflow: hidden; color: #334e68; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.task-script { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.task-script__icon { display: inline-flex; width: 30px; height: 30px; flex: 0 0 30px; align-items: center; justify-content: center; border-radius: 8px; color: #536f87; background: #f0f4f7; }
+.task-script__icon svg { width: 15px; height: 15px; }
+.task-script strong { min-width: 0; overflow: hidden; color: #334e68; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .task-operator { display: flex; align-items: center; gap: 8px; }
 .task-operator__icon { display: inline-flex; width: 30px; height: 30px; flex: 0 0 30px; align-items: center; justify-content: center; border-radius: 8px; color: #3f6f8f; background: #edf5fa; }
 .task-operator__icon svg { width: 15px; height: 15px; }
