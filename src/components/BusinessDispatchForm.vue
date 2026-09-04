@@ -33,7 +33,11 @@ const registrationAttemptTotal = computed(() => (
   * Number(props.modelValue.execution_count || 0)
 ))
 const publishedDeviceFields = computed(() => props.fields.filter((field) => field.type === 'slotTree'))
-const publishedParamFields = computed(() => props.fields.filter((field) => field.type !== 'slotTree'))
+const publishedAccountFields = computed(() => props.fields.filter((field) => field.type === 'accountTree'))
+const publishedParamFields = computed(() => props.fields.filter((field) => !['slotTree', 'accountTree'].includes(field.type || '')))
+const isPublishedAccountPool = computed(() => props.modelValue.dispatch_mode === 'account_pool')
+const publishedDeviceCount = computed(() => Array.isArray(props.modelValue.slot_ids) ? props.modelValue.slot_ids.length : 0)
+const publishedAccountCount = computed(() => Array.isArray(props.modelValue.account_ids) ? props.modelValue.account_ids.length : 0)
 const interactionFieldGroups = computed(() => groupInteractionDispatchFields(props.fields))
 const interactionMainFields = computed(() => interactionFieldGroups.value.main)
 const interactionCommentFields = computed(() => interactionFieldGroups.value.comment)
@@ -78,9 +82,15 @@ function updateValue(value: AnyRecord) {
     </div>
   </div>
 
-  <div v-else-if="mode === 'published'" class="dispatch-layout dispatch-layout--published">
+  <div
+    v-else-if="mode === 'published'"
+    class="dispatch-layout dispatch-layout--published"
+    :class="{ 'dispatch-layout--published-pool': isPublishedAccountPool }"
+  >
     <div class="dispatch-panel dispatch-panel--selector">
-      <div class="dispatch-panel__title">设备分组 / 有号设备</div>
+      <div class="dispatch-panel__title">
+        {{ isPublishedAccountPool ? '设备分组 / 执行设备' : '设备分组 / 有号设备' }}
+      </div>
       <div class="dispatch-panel__selector-body">
         <DynamicForm
           :model-value="modelValue"
@@ -90,8 +100,27 @@ function updateValue(value: AnyRecord) {
         />
       </div>
     </div>
+    <div v-if="isPublishedAccountPool" class="dispatch-panel dispatch-panel--selector dispatch-panel--account-pool">
+      <div class="dispatch-panel__title">帐号分组 / 发布帐号</div>
+      <div class="dispatch-panel__selector-body">
+        <DynamicForm
+          :model-value="modelValue"
+          :fields="publishedAccountFields"
+          :context="context"
+          @update:model-value="updateValue"
+        />
+      </div>
+    </div>
     <div class="dispatch-panel">
       <div class="dispatch-panel__title">发布配置</div>
+      <el-alert
+        v-if="isPublishedAccountPool"
+        class="dispatch-panel__pool-summary"
+        type="info"
+        :closable="false"
+        show-icon
+        :title="`已选 ${publishedDeviceCount} 台设备、${publishedAccountCount} 个帐号；设备每完成一次发帖，系统会自动分配下一个帐号。`"
+      />
       <DynamicForm
         :model-value="modelValue"
         :fields="publishedParamFields"
@@ -144,6 +173,10 @@ function updateValue(value: AnyRecord) {
   grid-template-columns: minmax(240px, 300px) minmax(660px, 1fr);
   gap: 14px;
   align-items: start;
+}
+
+.dispatch-layout--published-pool {
+  grid-template-columns: minmax(240px, 300px) minmax(260px, 320px) minmax(520px, 1fr);
 }
 
 .interaction-layout {
@@ -218,6 +251,17 @@ function updateValue(value: AnyRecord) {
   min-height: 0;
   max-height: none;
   overflow: hidden;
+}
+
+.dispatch-layout--published .dispatch-panel--account-pool :deep(.account-tree-select) {
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+}
+
+.dispatch-panel__pool-summary {
+  margin-bottom: 12px;
 }
 
 .interaction-layout .dispatch-panel--account :deep(.account-tree-select) {

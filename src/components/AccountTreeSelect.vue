@@ -21,6 +21,7 @@ const props = defineProps<{
   groupByDevice?: boolean
   monitoringOnly?: boolean
   preferenceScope?: string
+  publishPool?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -60,7 +61,7 @@ const selectedGroupNodeIds = computed<string[]>({
   set: (value) => { persistentFilters.groupNodeIds = [...new Set(value.map(String))] },
 })
 const expandedGroupKeys = ref<string[]>([])
-const loggedInCount = ref(0)
+const candidateAccountCount = ref(0)
 const selectableCount = ref(0)
 const collapsedGroupIds = new Set<string>()
 const treeProps = {
@@ -95,6 +96,7 @@ const filterSignature = computed(() => JSON.stringify({
   association_only: Boolean(props.associationOnly),
   group_by_device: Boolean(props.groupByDevice),
   monitoring_only: Boolean(props.monitoringOnly),
+  publish_pool: Boolean(props.publishPool),
   business_platform: String(props.filters?.business_platform || ''),
   runtime_platform: String(props.filters?.runtime_platform || ''),
   provider: String(props.filters?.provider || ''),
@@ -102,15 +104,20 @@ const filterSignature = computed(() => JSON.stringify({
 }))
 let loadRequestId = 0
 const emptyMessage = computed(() => {
+  if (props.publishPool) {
+    if (candidateAccountCount.value === 0) return '当前业务 App 暂无帐号'
+    if (selectableCount.value === 0) return '当前帐号均缺少云手机帐号数据包'
+    return ''
+  }
   if (props.monitoringOnly) {
-    return loggedInCount.value === 0 ? '暂无已开启监听的账号' : ''
+    return candidateAccountCount.value === 0 ? '暂无已开启监听的账号' : ''
   }
   if (props.associationOnly) {
-    return loggedInCount.value === 0 ? '当前业务 App 暂无可关联账号' : ''
+    return candidateAccountCount.value === 0 ? '当前业务 App 暂无可关联账号' : ''
   }
   const filters = props.filters || {}
   const hasRuntimeFilter = Boolean(filters.runtime_platform || filters.provider)
-  if (loggedInCount.value === 0) {
+  if (candidateAccountCount.value === 0) {
     return hasRuntimeFilter
       ? '当前业务 App 在该执行平台/供应商下暂无已登录账号'
       : '当前业务 App 暂无已登录账号'
@@ -143,9 +150,16 @@ function accountMatchesRuntime(account: AnyRecord) {
   if (filters.exclude_account_id && String(account.id) === String(filters.exclude_account_id)) return false
   if (props.monitoringOnly) return true
   if (props.associationOnly) return true
+  if (props.publishPool) return true
   if (filters.runtime_platform && account.bound_slot_runtime_platform !== filters.runtime_platform) return false
   if (filters.provider && account.bound_slot_provider !== filters.provider) return false
   return true
+}
+
+function accountSelectable(account: AnyRecord) {
+  if (props.associationOnly || props.monitoringOnly) return true
+  if (props.publishPool) return Boolean(account.has_data_package)
+  return Boolean(account.bound_slot_id)
 }
 
 function accountLabel(account: AnyRecord) {
@@ -169,12 +183,12 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
   const label = accountLabel(account)
   const providerSlotId = String(account.bound_slot_provider_id || '')
   const slotName = String(account.bound_slot_name || '')
-  const hasSlot = Boolean(account.bound_slot_id)
-  const selectable = props.associationOnly || props.monitoringOnly || hasSlot
+  const selectable = accountSelectable(account)
+  const unavailableSuffix = props.publishPool ? '（缺少帐号数据包）' : '（未绑定设备）'
   return {
     id: accountNodeId(String(account.id)),
     accountId: String(account.id),
-    label: selectable ? label : `${label}（未绑定设备）`,
+    label: selectable ? label : `${label}${unavailableSuffix}`,
     searchText: [
       label,
       account.username,
@@ -272,7 +286,7 @@ async function loadTree() {
 
     const groupNodes = Array.from(accountsByGroup.entries()).map(([groupId, items]) => {
       items
-        .filter((account) => props.associationOnly || account.bound_slot_id)
+        .filter(accountSelectable)
         .forEach((account) => availableAccountIds.add(String(account.id)))
       const label = groupNames.get(groupId) || groupId
       return {
@@ -290,9 +304,9 @@ async function loadTree() {
       return true
     })
     ungroupedAccounts
-      .filter((account) => props.associationOnly || account.bound_slot_id)
+      .filter(accountSelectable)
       .forEach((account) => availableAccountIds.add(String(account.id)))
-    loggedInCount.value = eligibleAccounts.length
+    candidateAccountCount.value = eligibleAccounts.length
     selectableCount.value = availableAccountIds.size
     treeData.value = [
       ...groupNodes.filter((node) => node.children?.length),
@@ -300,8 +314,8 @@ async function loadTree() {
         ? [
             {
               id: 'group:ungrouped',
-              label: '未分组设备账号',
-              searchText: '未分组设备账号',
+              label: props.publishPool ? '未分组帐号' : '未分组设备账号',
+              searchText: props.publishPool ? '未分组帐号' : '未分组设备账号',
               accountCount: ungroupedAccounts.length,
               children: ungroupedAccounts.map(toAccountNode),
             },
@@ -373,7 +387,7 @@ async function loadDeviceGroupedTree(requestId: number) {
       provider_slot_id: account.bound_slot_provider_id,
     }, account)
   })
-  loggedInCount.value = eligibleAccounts.length
+  candidateAccountCount.value = eligibleAccounts.length
   selectableCount.value = availableAccountIds.size
   treeData.value = [
     ...groupNodes.filter((node) => node.children.length),
@@ -403,8 +417,10 @@ function loadAccounts() {
     return loadMonitoredAccountSelectionOptions(props.filters || {})
   }
   return loadAccountSelectionOptions(
-    props.filters || {},
-    { associationOnly: props.associationOnly },
+    props.publishPool
+      ? { business_platform: props.filters?.business_platform }
+      : props.filters || {},
+    { associationOnly: props.associationOnly, publishPool: props.publishPool },
   )
 }
 
@@ -470,7 +486,7 @@ watch(
           v-model="searchKeyword"
           :prefix-icon="Search"
           clearable
-          placeholder="搜索账号 / 设备名称 / Provider ID"
+          :placeholder="publishPool ? '搜索帐号名称 / 用户名' : '搜索账号 / 设备名称 / Provider ID'"
         />
         <el-popover
           placement="bottom-end"

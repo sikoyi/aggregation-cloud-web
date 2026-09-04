@@ -81,8 +81,8 @@ onMounted(loadRows)
   <section class="published-task-items">
     <div class="published-task-items__header">
       <div>
-        <strong>帖子明细</strong>
-        <span>共 {{ total }} 个设备执行结果</span>
+        <strong>发布任务明细</strong>
+        <span>共 {{ total }} 个帐号发布任务</span>
       </div>
       <small>任务 ID {{ taskId }}</small>
     </div>
@@ -94,7 +94,7 @@ onMounted(loadRows)
       stripe
       table-layout="fixed"
       class="published-task-items__table"
-      empty-text="暂无设备执行结果"
+      empty-text="暂无发布任务明细"
     >
       <el-table-column label="发布内容" width="300">
         <template #default="{ row }">

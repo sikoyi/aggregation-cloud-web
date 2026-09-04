@@ -1,5 +1,6 @@
 import { http } from '@/api/http'
 import type { AnyRecord } from '@/types/api'
+import { compressImageForUpload } from '@/utils/imageCompression'
 
 export interface MediaAssetUploadOptions {
   businessPlatform: string
@@ -10,6 +11,8 @@ export interface MediaAssetUploadOptions {
 
 export interface MediaAssetUploadResult {
   file: File
+  uploadedFile?: File
+  compressed?: boolean
   status: 'succeeded' | 'failed'
   data?: AnyRecord
   error?: string
@@ -17,10 +20,11 @@ export interface MediaAssetUploadResult {
 
 type UploadRequest = (body: FormData) => Promise<AnyRecord>
 type ProgressCallback = (result: MediaAssetUploadResult, completed: number, total: number) => void
+type PrepareFile = (file: File) => Promise<File>
 
 function buildUploadBody(file: File, options: MediaAssetUploadOptions) {
   const body = new FormData()
-  body.append('file', file)
+  body.append('file', file, file.name)
   body.append('business_platform', options.businessPlatform)
   body.append('status', options.status)
   if (options.tags.length) body.append('tags', options.tags.join(','))
@@ -49,15 +53,19 @@ export async function uploadMediaAssets(
   options: MediaAssetUploadOptions,
   onProgress?: ProgressCallback,
   upload: UploadRequest = (body) => http.post<AnyRecord>('/api/resource-center/media-assets/upload', body),
+  prepareFile: PrepareFile = compressImageForUpload,
 ) {
   const results: MediaAssetUploadResult[] = []
   for (const file of files) {
     let result: MediaAssetUploadResult
     try {
+      const uploadedFile = await prepareFile(file)
       result = {
         file,
+        uploadedFile,
+        compressed: uploadedFile !== file,
         status: 'succeeded',
-        data: await upload(buildUploadBody(file, options)),
+        data: await upload(buildUploadBody(uploadedFile, options)),
       }
     } catch (error) {
       result = {

@@ -13,6 +13,7 @@ interface UploadItem {
   previewUrl: string
   status: 'pending' | 'uploading' | 'succeeded' | 'failed'
   error: string
+  uploadedSize: number | null
 }
 
 const emit = defineEmits<{
@@ -72,6 +73,7 @@ function addFile(uploadFile: UploadFile) {
     previewUrl: previewUrl(file),
     status: 'pending',
     error: '',
+    uploadedSize: null,
   })
 }
 
@@ -119,6 +121,7 @@ function applyResult(result: MediaAssetUploadResult) {
   if (!item) return
   item.status = result.status
   item.error = result.error || ''
+  item.uploadedSize = result.compressed ? result.uploadedFile?.size || null : null
 }
 
 async function startUpload() {
@@ -227,7 +230,7 @@ onBeforeUnmount(releasePreviews)
     >
       <UploadCloud :size="30" />
       <div class="el-upload__text">拖放多个图片或视频到这里，或 <em>选择素材</em></div>
-      <template #tip>支持 JPG、PNG、GIF、WebP、MP4、MOV、WebM，素材类型由系统识别。</template>
+      <template #tip>支持 JPG、PNG、GIF、WebP、MP4、MOV、WebM；超过 512 KB 的静态图片会自动压缩后上传。</template>
     </el-upload>
 
     <section v-if="items.length" class="batch-uploader__queue">
@@ -255,7 +258,10 @@ onBeforeUnmount(releasePreviews)
           <span v-else class="batch-file__icon"><component :is="fileIcon(item)" :size="20" /></span>
           <div class="batch-file__content">
             <strong :title="item.file.name">{{ item.file.name }}</strong>
-            <small>{{ (item.file.size / 1024 / 1024).toFixed(2) }} MB</small>
+            <small v-if="item.uploadedSize">
+              {{ (item.file.size / 1024 / 1024).toFixed(2) }} MB → {{ (item.uploadedSize / 1024 / 1024).toFixed(2) }} MB
+            </small>
+            <small v-else>{{ (item.file.size / 1024 / 1024).toFixed(2) }} MB</small>
             <p v-if="item.error">{{ item.error }}</p>
           </div>
           <el-tag :type="statusType(item.status)" effect="plain" size="small">{{ statusLabel(item.status) }}</el-tag>

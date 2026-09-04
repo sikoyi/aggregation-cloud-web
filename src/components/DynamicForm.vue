@@ -40,6 +40,13 @@ const scriptScopeDependency = computed(() => String(props.modelValue.script_key 
 
 function updateValue(key: string, value: unknown) {
   const nextValue = { ...props.modelValue, [key]: value }
+  if (key === 'dispatch_mode' && String(value || '') !== String(props.modelValue.dispatch_mode || '')) {
+    nextValue.account_ids = []
+    if (value === 'account_pool') {
+      nextValue.runtime_platform = 'cloud_phone'
+      nextValue.provider = 'vmos'
+    }
+  }
   if (
     key === 'runtime_platform'
     && String(value || '') !== String(props.modelValue.runtime_platform || '')
@@ -380,10 +387,10 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :model-value="modelValue[field.key]"
             :disabled="isFieldDisabled(field)"
             :show-account-presence-filter="field.slotTreeAccountPresenceFilter"
-            :account-presence="field.slotTreeAccountPresence"
+            :account-presence="modelValue.dispatch_mode === 'account_pool' ? 'all' : field.slotTreeAccountPresence"
             :fill-height="field.slotTreeFillHeight"
-            :show-publish-stats="field.slotTreePublishStats"
-            :publish-content-id="field.slotTreePublishStats && modelValue.content_source_type === 'content'
+            :show-publish-stats="field.slotTreePublishStats && modelValue.dispatch_mode !== 'account_pool'"
+            :publish-content-id="field.slotTreePublishStats && modelValue.dispatch_mode !== 'account_pool' && modelValue.content_source_type === 'content'
               ? modelValue.content_id
               : undefined"
             :filters="{
@@ -402,11 +409,11 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :group-by-device="field.accountTreeGroupByDevice"
             :monitoring-only="field.accountTreeMonitoringOnly"
             :preference-scope="field.accountTreePreferenceScope"
-
+            :publish-pool="field.accountTreePublishPool"
             :filters="{
               business_platform: modelValue.business_platform,
-              runtime_platform: modelValue.runtime_platform,
-              provider: modelValue.provider,
+              runtime_platform: field.accountTreePublishPool ? undefined : modelValue.runtime_platform,
+              provider: field.accountTreePublishPool ? undefined : modelValue.provider,
               exclude_account_id: field.key === 'comment_account_ids' ? modelValue.main_account_id : undefined,
             }"
             @update:model-value="updateValue(field.key, $event)"
