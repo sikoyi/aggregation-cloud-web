@@ -778,7 +778,7 @@ function formatPublishedContentDispatchSuccess(data: AnyRecord) {
   const task = data.task && typeof data.task === "object" ? data.task as AnyRecord : {};
   const taskId = task.id ? `，父任务 ID：${task.id}` : "";
   if (data.dispatch_mode === "account_pool") {
-    return `已创建 ${total} 个帐号发布任务，将由 ${Number(data.device_total || 0)} 台设备轮转执行${taskId}`;
+    return `已创建包含 ${total} 个帐号的轮转发布计划，将由 ${Number(data.device_total || 0)} 台设备按空闲情况执行${taskId}`;
   }
   return `已下发 ${total} 台设备的发布任务${taskId}`;
 }
