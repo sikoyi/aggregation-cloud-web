@@ -31,6 +31,7 @@ function compactDate(value: unknown) {
 }
 
 const taskTitle = computed(() => text(props.row.title))
+const taskId = computed(() => text(props.row.id))
 const creatorName = computed(() => text(
   props.row.creator_display_name || props.row.creator_username || props.row.created_by,
 ))
@@ -53,6 +54,7 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
       <el-tooltip :content="taskTitle" placement="top" :show-after="500">
         <strong>{{ taskTitle }}</strong>
       </el-tooltip>
+      <span :title="`任务 ID ${taskId}`">ID {{ taskId }}</span>
     </span>
   </div>
 

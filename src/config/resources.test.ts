@@ -574,6 +574,18 @@ describe('任务记录筛选', () => {
     )
   })
 
+  it('任务 ID 合并到任务信息列', () => {
+    const columns = resources.tasks.columns || []
+
+    expect(columns.some((column) => column.key === 'id')).toBe(false)
+    expect(columns[0]).toMatchObject({
+      key: 'title',
+      label: '任务信息',
+      type: 'taskIdentity',
+      minWidth: 190,
+    })
+  })
+
   it('收窄操作员列并为运行环境保留两行展示空间', () => {
     const columns = resources.tasks.columns || []
 
