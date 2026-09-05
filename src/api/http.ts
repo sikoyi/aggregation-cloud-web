@@ -56,7 +56,7 @@ export function resolveBackendUrl(value: unknown) {
 async function request<T>(
   method: string,
   path: string,
-  options: { params?: AnyRecord; body?: unknown; auth?: boolean; signal?: AbortSignal; responseType?: 'file' } = {},
+  options: { params?: AnyRecord; body?: unknown; auth?: boolean; signal?: AbortSignal; responseType?: 'file'; cache?: RequestCache } = {},
 ) {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: HeadersInit = {
@@ -72,6 +72,7 @@ async function request<T>(
     headers,
     body,
     signal: options.signal,
+    cache: options.cache,
   })
   const disposition = response.headers.get('Content-Disposition') || ''
   const isFile = disposition.toLowerCase().includes('attachment')
@@ -127,6 +128,7 @@ export async function getAllPages<T>(
 }
 
 export const http = {
+  getWithSignal: <T>(path: string, signal: AbortSignal) => request<T>('GET', path, { signal, cache: 'no-store' }),
   get: <T>(path: string, params?: AnyRecord) => request<T>('GET', path, { params }),
   post: <T>(path: string, body?: unknown, params?: AnyRecord) =>
     request<T>('POST', path, { body, params }),

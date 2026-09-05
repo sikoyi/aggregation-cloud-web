@@ -2,6 +2,7 @@
 import { Copy, KeyRound, Link2, MapPin, MonitorSmartphone, ShieldCheck, Tags, Users } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
 import { computed } from 'vue'
+import AccountTotpPopover from '@/components/AccountTotpPopover.vue'
 
 import { resolveBackendUrl } from '@/api/http'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
@@ -131,26 +132,33 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
         </el-tooltip>
       </div>
     </el-tooltip>
-    <el-tooltip :content="credentialText(row.totp_secret_ref)" placement="top" :show-after="500">
-      <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials }">
-        <span class="account-credential-row__label account-credential-row__label--twofa">
-          <ShieldCheck />
-          2FA
-        </span>
+    <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials, 'account-credential-row--totp': row.id }">
+      <span class="account-credential-row__label account-credential-row__label--twofa">
+        <ShieldCheck />
+        2FA
+      </span>
+      <el-tooltip :content="credentialText(row.totp_secret_ref)" placement="top" :show-after="500">
         <code>{{ credentialText(row.totp_secret_ref) }}</code>
-        <el-tooltip v-if="sharedCredentials" content="复制 2FA" placement="top">
-          <el-button
-            class="account-credential-copy"
-            text
-            circle
-            :icon="Copy"
-            aria-label="复制 2FA"
-            :disabled="!row.totp_secret_ref"
-            @click.stop="copyCredential(row.totp_secret_ref)"
-          />
-        </el-tooltip>
-      </div>
-    </el-tooltip>
+      </el-tooltip>
+      <el-tooltip v-if="sharedCredentials" content="复制 2FA" placement="top">
+        <el-button
+          class="account-credential-copy"
+          text
+          circle
+          :icon="Copy"
+          aria-label="复制 2FA"
+          :disabled="!row.totp_secret_ref"
+          @click.stop="copyCredential(row.totp_secret_ref)"
+        />
+      </el-tooltip>
+      <AccountTotpPopover
+        v-if="row.id"
+        :source="sharedCredentials ? 'account-identities' : 'accounts'"
+        :account-id="String(row.id)"
+        :revision="row.credentials_version ?? row.updated_at"
+        :disabled="!row.totp_secret_ref"
+      />
+    </div>
   </div>
 
   <div v-else-if="kind === 'accountPlatform'" class="account-cell account-platform">
@@ -307,6 +315,9 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
 .account-credential-row--copyable {
   grid-template-columns: 48px minmax(0, 1fr) 24px;
 }
+
+.account-credential-row--totp { grid-template-columns: 48px minmax(0, 1fr) 24px; }
+.account-credential-row--copyable.account-credential-row--totp { grid-template-columns: 48px minmax(0, 1fr) 24px 24px; }
 
 .account-credential-copy {
   width: 24px;

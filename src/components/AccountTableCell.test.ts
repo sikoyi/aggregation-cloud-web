@@ -11,6 +11,7 @@ vi.mock('element-plus/es/components/avatar/style/css', () => ({}))
 vi.mock('element-plus/es/components/tag/style/css', () => ({}))
 vi.mock('element-plus/es/components/tooltip/style/css', () => ({}))
 vi.mock('element-plus/es/components/button/style/css', () => ({}))
+vi.mock('element-plus/es/components/popover/style/css', () => ({}))
 
 async function renderCredentials(row: Record<string, unknown>, sharedCredentials = false) {
   const app = createSSRApp(AccountTableCell, {
@@ -26,6 +27,13 @@ async function renderCredentials(row: Record<string, unknown>, sharedCredentials
 
 describe('共享登录凭据单元格', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  it.each([true, false])('有账号 ID 时显示验证码入口，但渲染不触发请求 %s', async (shared) => {
+    const get = vi.spyOn(http, 'getWithSignal')
+    const html = await renderCredentials({ id: '1', totp_secret_ref: 'JBSWY3DPEHPK3PXP' }, shared)
+    expect(html).toContain('aria-label="查看 2FA 验证码"')
+    expect(get).not.toHaveBeenCalled()
+  })
 
   it('父行显示密码和 2FA 原值以及两个复制按钮，不逐行请求详情', async () => {
     const get = vi.spyOn(http, 'get')
