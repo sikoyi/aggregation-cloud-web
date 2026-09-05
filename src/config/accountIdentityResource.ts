@@ -1,7 +1,7 @@
 import { businessPlatformOptions, loginStatusOptions } from '@/config/options'
 import { accountExportAction } from '@/config/accountExport'
 import type { AnyRecord } from '@/types/api'
-import type { ResourceConfig, SelectOption } from '@/types/crud'
+import type { ResourceConfig, RowActionConfig, SelectOption } from '@/types/crud'
 
 const platformHealthOptions: SelectOption[] = [
   { label: '未知', value: 'unknown' },
@@ -19,7 +19,7 @@ const platformSessionOptions: SelectOption[] = [
   { label: '异常', value: 'error' },
 ]
 
-function visiblePlatformAccountRows(records: AnyRecord[]): AnyRecord[] {
+function visiblePlatformAccountIds(records: AnyRecord[]): string[] {
   const accountIds = new Set<string>()
   for (const record of records) {
     if (!Array.isArray(record.platform_summaries)) continue
@@ -28,7 +28,11 @@ function visiblePlatformAccountRows(records: AnyRecord[]): AnyRecord[] {
       if (accountId) accountIds.add(accountId)
     }
   }
-  return [...accountIds].map((id) => ({ id }))
+  return [...accountIds]
+}
+
+function visiblePlatformAccountRows(records: AnyRecord[]): AnyRecord[] {
+  return visiblePlatformAccountIds(records).map((id) => ({ id }))
 }
 
 function identityPlatformBatchAction(accounts: ResourceConfig, key: string) {
@@ -41,8 +45,33 @@ function identityPlatformBatchAction(accounts: ResourceConfig, key: string) {
   }
 }
 
+function identityPlatformDeleteAction(): RowActionConfig {
+  return {
+    key: 'batch-delete-accounts',
+    permission: 'accounts.delete',
+    label: '删除账号数据',
+    method: 'POST',
+    icon: 'trash',
+    variant: 'danger',
+    selectionLimit: 100,
+    batchPath: () => '/api/accounts/delete/batch',
+    batchBody: (_payload, records) => ({
+      account_ids: visiblePlatformAccountIds(records),
+    }),
+    confirm: (record) => {
+      const records = Array.isArray(record.selectedRows) ? record.selectedRows : []
+      const accountCount = visiblePlatformAccountIds(records).length
+      return `确认删除所选登录身份下的 ${accountCount} 个平台账号？设备会话、发布内容、评论、指标、监听记录和备份数据会一并清理，此操作不可恢复。`
+    },
+    successTitle: '账号批量删除完成',
+    successMessage: (data) =>
+      `已删除 ${Number(data.deleted_count || 0)} 个账号，同时删除 ${Number(data.deleted_published_content_count || 0)} 条关联发布内容`,
+  }
+}
+
 export function buildAccountIdentityResource(accounts: ResourceConfig): ResourceConfig {
   const accountAgeTypeAction = identityPlatformBatchAction(accounts, 'batch-update-account-age-type')
+  const accountLoginStatusAction = identityPlatformBatchAction(accounts, 'batch-update-login-status')
   const accountTagAction = identityPlatformBatchAction(accounts, 'batch-set-tags')
   return {
     key: 'accountIdentities',
@@ -58,9 +87,13 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
     createBody: accounts.createBody,
     createFields: accounts.createFields,
     expandRow: 'accountIdentity',
-    batchActions: [accountExportAction('identities'), accountAgeTypeAction, accountTagAction].filter(
-      (action): action is NonNullable<typeof action> => action !== null,
-    ),
+    batchActions: [
+      accountExportAction('identities'),
+      accountAgeTypeAction,
+      accountLoginStatusAction,
+      accountTagAction,
+      identityPlatformDeleteAction(),
+    ].filter((action): action is RowActionConfig => action !== null),
     inlineActionKeys: ['edit-credentials'],
     rowActions: [
       {

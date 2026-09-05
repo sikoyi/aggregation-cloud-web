@@ -1239,18 +1239,26 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
       return
     }
   }
+  const rowsToHandle = [...selectedRows.value]
   const actionName = action.label.replace(/^批量/, '')
   const isDanger = action.variant === 'danger' || action.method === 'DELETE'
+  const actionContext = {
+    selectedRows: rowsToHandle,
+    selected_count: rowsToHandle.length,
+  }
+  const configuredMessage = typeof action.confirm === 'function'
+    ? action.confirm(actionContext)
+    : action.confirm
   const message =
-    action.key === '__delete'
-    ? `确认删除已选 ${selectedRows.value.length} 条数据？此操作不可恢复。`
-    : `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`
+    configuredMessage
+    || (action.key === '__delete'
+      ? `确认删除已选 ${selectedRows.value.length} 条数据？此操作不可恢复。`
+      : `确认对已选 ${selectedRows.value.length} 条数据执行${actionName}？`)
   if (!(await confirmAction(message, isDanger ? 'error' : 'warning', isDanger ? '确认批量删除' : '确认批量操作'))) return
 
   submitting.value = true
   error.value = ''
   const failures: string[] = []
-  const rowsToHandle = [...selectedRows.value]
   let batchData: unknown = null
   if (action.showResult) openResultDialog(action, null, true)
   try {

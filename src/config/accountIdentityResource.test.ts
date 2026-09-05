@@ -18,7 +18,9 @@ describe('account identity resource', () => {
     expect(config.batchActions?.map((action) => action.key)).toEqual([
       'export-accounts',
       'batch-update-account-age-type',
+      'batch-update-login-status',
       'batch-set-tags',
+      'batch-delete-accounts',
     ])
     expect(config.batchActions?.[0]?.batchBody?.({}, [{ id: 'identity-1' }])).toEqual({
       source: 'identities', ids: ['identity-1'],
@@ -39,20 +41,41 @@ describe('account identity resource', () => {
         ],
       },
     ]
-    expect(config.batchActions?.[1]?.batchBody?.(
+    expect(config.batchActions?.find((action) => action.key === 'batch-update-account-age-type')?.batchBody?.(
       { account_age_type: 'old' },
       selectedIdentities,
     )).toEqual({
       account_ids: ['account-1', 'account-2', 'account-3'],
       account_age_type: 'old',
     })
-    expect(config.batchActions?.[2]?.batchBody?.(
+    expect(config.batchActions?.find((action) => action.key === 'batch-update-login-status')?.batchBody?.(
+      { login_status: 'not_logged_in' },
+      selectedIdentities,
+    )).toEqual({
+      account_ids: ['account-1', 'account-2', 'account-3'],
+      login_status: 'not_logged_in',
+    })
+    expect(config.batchActions?.find((action) => action.key === 'batch-set-tags')?.batchBody?.(
       { tag_ids: ['tag-1'] },
       selectedIdentities,
     )).toEqual({
       account_ids: ['account-1', 'account-2', 'account-3'],
       tag_ids: ['tag-1'],
     })
+    const deleteAction = config.batchActions?.find((action) => action.key === 'batch-delete-accounts')
+    expect(deleteAction?.permission).toBe('accounts.delete')
+    expect(deleteAction?.variant).toBe('danger')
+    expect(deleteAction?.selectionLimit).toBe(100)
+    expect(deleteAction?.batchPath?.([], {})).toBe('/api/accounts/delete/batch')
+    expect(deleteAction?.batchBody?.({}, selectedIdentities)).toEqual({
+      account_ids: ['account-1', 'account-2', 'account-3'],
+    })
+    const deleteConfirm = deleteAction?.confirm
+    expect(typeof deleteConfirm).toBe('function')
+    if (typeof deleteConfirm === 'function') {
+      expect(deleteConfirm({ selectedRows: selectedIdentities })).toContain('3 个平台账号')
+    }
+    expect(crudSource).toContain("typeof action.confirm === 'function'")
     expect(config.deleteLabel).toBeUndefined()
   })
 
