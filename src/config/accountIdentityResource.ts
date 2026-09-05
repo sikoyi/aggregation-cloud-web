@@ -34,9 +34,20 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
     createFields: accounts.createFields,
     expandRow: 'accountIdentity',
     batchActions: [accountExportAction('identities')],
+    inlineActionKeys: ['edit-credentials'],
+    rowActions: [
+      {
+        key: 'edit-credentials',
+        label: '编辑登录凭据',
+        icon: 'edit',
+        permission: 'accounts.edit',
+        visible: (row) => row.can_edit_credentials === true,
+      },
+    ],
     columns: [
       { key: 'id', label: '身份 ID', type: 'id', width: 82, align: 'center' },
       { key: 'login_username', label: '登录身份', type: 'loginIdentity', minWidth: 210 },
+      { key: 'password_secret_ref', label: '登录凭证', type: 'accountCredentials', minWidth: 260 },
       { key: 'platform_summaries', label: '平台账号状态', type: 'identityPlatforms', minWidth: 330 },
       { key: 'active_session_count', label: '设备会话', type: 'identitySessions', minWidth: 190 },
       { key: 'has_pending_candidate', label: '关联状态', type: 'identityCandidate', width: 112, align: 'center' },

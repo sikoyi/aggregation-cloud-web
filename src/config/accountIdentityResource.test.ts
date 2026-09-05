@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { buildAccountIdentityResource } from '@/config/accountIdentityResource'
 import { resources } from '@/config/resources'
+import crudSource from '@/components/CrudPage.vue?raw'
+import platformDetailsSource from '@/components/AccountIdentityPlatformDetails.vue?raw'
+import dialogSource from '@/components/AccountIdentityCredentialsDialog.vue?raw'
 
 describe('account identity resource', () => {
   it('keeps account import but removes platform-account batch mutations', () => {
@@ -31,5 +34,52 @@ describe('account identity resource', () => {
       'slot_group_id',
       'candidate_status',
     ])
+  })
+
+  it('reuses credentials on the identity parent without changing the ordinary account list', () => {
+    const ordinaryColumns = [...resources.accounts.columns]
+    const config = buildAccountIdentityResource(resources.accounts)
+
+    expect(config.columns.find((column) => column.key === 'password_secret_ref')).toMatchObject({
+      label: '登录凭证', type: 'accountCredentials',
+    })
+    expect(resources.accounts.columns).toEqual(ordinaryColumns)
+    expect(resources.accounts.rowActions?.some((action) => action.key === 'edit-credentials')).not.toBe(true)
+    expect(crudSource).toContain(':shared-credentials="config.key === \'accountIdentities\'"')
+    expect(platformDetailsSource).not.toMatch(/password_secret_ref|totp_secret_ref|accountCredentials/)
+  })
+
+  it('requires accounts.edit and an explicit per-identity capability for the edit action', () => {
+    const config = buildAccountIdentityResource(resources.accounts)
+    const action = config.rowActions?.find((item) => item.key === 'edit-credentials')
+
+    expect(action?.label).toBe('编辑登录凭据')
+    expect(action?.permission).toBe('accounts.edit')
+    expect(config.inlineActionKeys).toContain(action?.key)
+    expect(action?.visible?.({ can_edit_credentials: true })).toBe(true)
+    for (const value of [false, undefined, null, 'true', 1]) {
+      expect(action?.visible?.({ can_edit_credentials: value })).toBe(false)
+    }
+    expect(crudSource).toContain("!auth.can('accounts.edit') || record.can_edit_credentials !== true")
+  })
+
+  it('mounts the editor only on demand and refreshes the list after saving', () => {
+    expect(crudSource).toContain('v-if="config.key === \'accountIdentities\' && identityCredentialsId"')
+    expect(crudSource).toContain(':identity-id="identityCredentialsId"\n      @close="identityCredentialsId = null"\n      @changed="loadRows()"')
+    expect(dialogSource).toContain('共享凭据变更将作用于同一身份关联的所有平台账号')
+    expect(dialogSource).toContain('v-model="form.clear_password"')
+    expect(dialogSource).toContain('v-model="form.clear_totp"')
+    expect(dialogSource).toContain(':disabled="!canSave"')
+    expect(dialogSource).toContain('重新加载')
+    expect(dialogSource).not.toContain('twofa_type')
+  })
+
+  it('输入框不能绕过表单禁用状态，提交中不能关闭弹窗', () => {
+    expect(dialogSource).toContain('!canEdit.value || loading.value || submitting.value || conflict.value')
+    expect(dialogSource).toContain(':disabled="formDisabled || form.clear_password"')
+    expect(dialogSource).toContain(':disabled="formDisabled || form.clear_totp"')
+    expect(dialogSource).toContain("if (!submitting.value) emit('close')")
+    expect(dialogSource).toContain(':close-on-press-escape="!submitting"')
+    expect(dialogSource).toContain(':show-close="!submitting"')
   })
 })

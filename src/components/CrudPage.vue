@@ -64,6 +64,7 @@ import { collectRuntimeSyncFailures, type RuntimeSyncFailure } from '@/utils/run
 
 const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
 const AccountIdentityPlatformDetails = defineAsyncComponent(() => import('@/components/AccountIdentityPlatformDetails.vue'))
+const AccountIdentityCredentialsDialog = defineAsyncComponent(() => import('@/components/AccountIdentityCredentialsDialog.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
 const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
 const ContentPreview = defineAsyncComponent(() => import('@/components/ContentPreview.vue'))
@@ -137,6 +138,7 @@ const interactionSessionDetailVisible = ref(false)
 const interactionSessionDetailId = ref<string | null>(null)
 const publishedContentDetailVisible = ref(false)
 const publishedContentDetailId = ref<string | null>(null)
+const identityCredentialsId = ref<string | null>(null)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -175,6 +177,7 @@ const hasActiveUserOperation = computed(() => Boolean(
   || taskDetailVisible.value
   || interactionSessionDetailVisible.value
   || publishedContentDetailVisible.value
+  || identityCredentialsId.value
   || assetViewerVisible.value,
 ))
 
@@ -1333,6 +1336,11 @@ function openAction(action: RowActionConfig, record: AnyRecord) {
 }
 
 async function runAction(action: RowActionConfig, record: AnyRecord) {
+  if (props.config.key === 'accountIdentities' && action.key === 'edit-credentials') {
+    if (submitting.value || identityCredentialsId.value || !auth.can('accounts.edit') || record.can_edit_credentials !== true) return
+    identityCredentialsId.value = rowId(record)
+    return
+  }
   if (props.config.key === 'tasks' && action.key === 'detail') {
     openTaskDetail(record)
     return
@@ -1428,6 +1436,7 @@ function handleDropdown(command: string, row: AnyRecord) {
 }
 
 function initFilters() {
+  identityCredentialsId.value = null
   clearTableSelection()
   page.value = 1
   resultDialogVisible.value = false
@@ -1673,6 +1682,7 @@ onBeforeUnmount(() => {
               :kind="column.type as 'accountIdentity' | 'accountTags' | 'accountDeviceGroup' | 'accountCredentials' | 'accountPlatform' | 'accountEnvironment' | 'accountBackup'"
               :row="row"
               :column="column"
+              :shared-credentials="config.key === 'accountIdentities'"
             />
             <DeviceTableCell
               v-else-if="column.type && ['deviceIdentity', 'deviceGroup', 'devicePlatform', 'deviceState', 'deviceAccount', 'deviceProxy', 'deviceActivity'].includes(column.type)"
@@ -1790,6 +1800,7 @@ onBeforeUnmount(() => {
                   circle
                   :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
                   :icon="actionIcon(action)"
+                  :aria-label="action.label"
                   :disabled="submitting"
                   @click="runAction(action, row)"
                 />
@@ -1983,6 +1994,12 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
+    <AccountIdentityCredentialsDialog
+      v-if="config.key === 'accountIdentities' && identityCredentialsId"
+      :identity-id="identityCredentialsId"
+      @close="identityCredentialsId = null"
+      @changed="loadRows()"
+    />
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
     <InteractionSessionDetailDialog
       v-if="config.key === 'interactionSessions'"

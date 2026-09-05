@@ -22,10 +22,18 @@ export interface IdentityPlatformSummary {
   observed_at?: string | null
 }
 
-export interface AccountIdentityRow extends AnyRecord {
+export interface AccountIdentityDetail extends AnyRecord {
   id: string
   display_name?: string | null
   login_username?: string | null
+  password_secret_ref?: string | null
+  totp_secret_ref?: string | null
+  twofa_type?: string | null
+  credentials_version: number
+  can_edit_credentials: boolean
+}
+
+export interface AccountIdentityRow extends AccountIdentityDetail {
   country?: string | null
   status: string
   platform_count: number
@@ -33,6 +41,23 @@ export interface AccountIdentityRow extends AnyRecord {
   active_session_count: number
   has_pending_candidate: boolean
   platform_summaries: IdentityPlatformSummary[]
+}
+
+export interface AccountIdentityCredentialsPatch {
+  expected_credentials_version: number
+  login_username?: string
+  password_secret_ref?: string
+  totp_secret_ref?: string
+  clear_password?: true
+  clear_totp?: true
+}
+
+export function getAccountIdentity(id: string) {
+  return http.get<AccountIdentityDetail>(`/api/account-identities/${encodeURIComponent(id)}`)
+}
+
+export function updateAccountIdentityCredentials(id: string, body: AccountIdentityCredentialsPatch) {
+  return http.patch<AccountIdentityDetail>(`/api/account-identities/${encodeURIComponent(id)}/credentials`, body)
 }
 
 export function getMetaAccountFeatureStatus() {

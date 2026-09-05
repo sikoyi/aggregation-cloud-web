@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { KeyRound, Link2, MapPin, MonitorSmartphone, ShieldCheck, Tags, Users } from 'lucide-vue-next'
+import { Copy, KeyRound, Link2, MapPin, MonitorSmartphone, ShieldCheck, Tags, Users } from 'lucide-vue-next'
+import { ElMessage } from 'element-plus'
 import { computed } from 'vue'
 
 import { resolveBackendUrl } from '@/api/http'
@@ -20,10 +21,28 @@ const props = defineProps<{
   kind: AccountCellKind
   row: AnyRecord
   column: ColumnConfig
+  sharedCredentials?: boolean
 }>()
 
 function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
+}
+
+function credentialText(value: unknown) {
+  return props.sharedCredentials && (value === undefined || value === null || value === '')
+    ? '未设置'
+    : text(value)
+}
+
+async function copyCredential(value: unknown) {
+  if (value === undefined || value === null || value === '') return
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
+    await navigator.clipboard.writeText(String(value))
+    ElMessage.success('已复制')
+  } catch {
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 function optionLabel(options: typeof businessPlatformOptions, value: unknown) {
@@ -92,22 +111,44 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   </div>
 
   <div v-else-if="kind === 'accountCredentials'" class="account-cell account-credentials">
-    <el-tooltip :content="text(row.password_secret_ref)" placement="top" :show-after="500">
-      <div class="account-credential-row">
+    <el-tooltip :content="credentialText(row.password_secret_ref)" placement="top" :show-after="500">
+      <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials }">
         <span class="account-credential-row__label account-credential-row__label--password">
           <KeyRound />
           密码
         </span>
-        <code>{{ text(row.password_secret_ref) }}</code>
+        <code>{{ credentialText(row.password_secret_ref) }}</code>
+        <el-tooltip v-if="sharedCredentials" content="复制密码" placement="top">
+          <el-button
+            class="account-credential-copy"
+            text
+            circle
+            :icon="Copy"
+            aria-label="复制密码"
+            :disabled="!row.password_secret_ref"
+            @click.stop="copyCredential(row.password_secret_ref)"
+          />
+        </el-tooltip>
       </div>
     </el-tooltip>
-    <el-tooltip :content="text(row.totp_secret_ref)" placement="top" :show-after="500">
-      <div class="account-credential-row">
+    <el-tooltip :content="credentialText(row.totp_secret_ref)" placement="top" :show-after="500">
+      <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials }">
         <span class="account-credential-row__label account-credential-row__label--twofa">
           <ShieldCheck />
           2FA
         </span>
-        <code>{{ text(row.totp_secret_ref) }}</code>
+        <code>{{ credentialText(row.totp_secret_ref) }}</code>
+        <el-tooltip v-if="sharedCredentials" content="复制 2FA" placement="top">
+          <el-button
+            class="account-credential-copy"
+            text
+            circle
+            :icon="Copy"
+            aria-label="复制 2FA"
+            :disabled="!row.totp_secret_ref"
+            @click.stop="copyCredential(row.totp_secret_ref)"
+          />
+        </el-tooltip>
       </div>
     </el-tooltip>
   </div>
@@ -261,6 +302,16 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   border-radius: 4px;
   font-size: 10px;
   font-weight: 700;
+}
+
+.account-credential-row--copyable {
+  grid-template-columns: 48px minmax(0, 1fr) 24px;
+}
+
+.account-credential-copy {
+  width: 24px;
+  height: 24px;
+  padding: 4px;
 }
 
 .account-credential-row__label svg {

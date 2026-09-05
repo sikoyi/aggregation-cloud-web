@@ -107,4 +107,32 @@ describe('HTTP 身份过期处理', () => {
     })))
     await expect(http.postFile('/api/accounts/export', { ids: ['1'] })).rejects.toThrow('导出未返回文件')
   })
+
+  it('凭据 PATCH 保留认证及 JSON 请求体', async () => {
+    localStorage.setItem('access_token', 'valid-token')
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ code: 0, msg: 'ok', data: { credentials_version: 3 } }),
+      { headers: { 'Content-Type': 'application/json' } },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+    const body = { expected_credentials_version: 2, clear_password: true }
+
+    await expect(http.patch('/api/account-identities/identity-1/credentials', body)).resolves.toEqual({ credentials_version: 3 })
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer valid-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  })
+
+  it('凭据 PATCH 冲突保留 409 状态供弹窗处理', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ code: 40900, msg: '版本冲突', data: null }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )))
+
+    await expect(http.patch('/api/account-identities/identity-1/credentials', {
+      expected_credentials_version: 2, clear_totp: true,
+    })).rejects.toMatchObject({ status: 409, code: 40900 })
+  })
 })
