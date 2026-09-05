@@ -273,7 +273,7 @@ onMounted(loadRows)
       <el-table-column label="设备登录" width="155" align="center">
         <template #default="{ row }">
           <div class="status-stack">
-            <StatusBadge :value="row.account_session_login_status || 'not_logged_in'" />
+            <StatusBadge :value="row.account_session_login_status || 'unknown'" />
             <small v-if="row.account_session_observed_at">{{ formatDate(row.account_session_observed_at) }}</small>
           </div>
         </template>
