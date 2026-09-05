@@ -26,6 +26,17 @@ async function renderCredentials(row: Record<string, unknown>, sharedCredentials
   return renderToString(app)
 }
 
+async function renderIdentity(row: Record<string, unknown>) {
+  const app = createSSRApp(AccountTableCell, {
+    kind: 'accountIdentity',
+    row,
+    column: { key: 'login_username', label: '账号信息', type: 'accountIdentity' },
+  })
+  app.provide(ID_INJECTION_KEY, { prefix: 0, current: 0 })
+  app.provide(ZINDEX_INJECTION_KEY, { current: 0 })
+  return renderToString(app)
+}
+
 describe('共享登录凭据单元格', () => {
   afterEach(() => vi.restoreAllMocks())
 
@@ -75,5 +86,16 @@ describe('共享登录凭据单元格', () => {
     expect(html.match(/>-<\/code>/g)).toHaveLength(2)
     expect(html).not.toContain('未设置')
     expect(html).not.toContain('aria-label="复制')
+  })
+
+  it('账号信息仅在凭据已经导出时展示已导出标识', async () => {
+    const exported = await renderIdentity({
+      login_username: 'account@example.com',
+      credentials_exported_at: '2026-09-05T08:00:00Z',
+    })
+    const unexported = await renderIdentity({ login_username: 'account@example.com' })
+
+    expect(exported).toContain('已导出')
+    expect(unexported).not.toContain('已导出')
   })
 })

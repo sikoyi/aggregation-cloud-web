@@ -33,6 +33,7 @@ describe('account identity resource', () => {
       'bound_state',
       'slot_group_id',
       'candidate_status',
+      'export_status',
     ])
   })
 

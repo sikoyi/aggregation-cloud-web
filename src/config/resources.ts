@@ -926,6 +926,10 @@ const accountOnboardingFields: FieldConfig[] = [
 ];
 
 function buildAccountOnboardingBody(payload: AnyRecord, records: AnyRecord[]) {
+  const exported = records.filter((record) => Boolean(record.credentials_exported_at));
+  if (exported.length) {
+    throw new Error(`所选账号中有 ${exported.length} 个已导出，不能再次上号`);
+  }
   return {
     account_ids: records.map((record) => String(record.id)),
     business_platform: String(records[0]?.business_platform || ""),
@@ -940,6 +944,7 @@ function buildAccountOnboardingBody(payload: AnyRecord, records: AnyRecord[]) {
 
 function canOnboardAccount(record: AnyRecord) {
   return record.login_status === "not_logged_in"
+    && !record.credentials_exported_at
     && !String(record.bound_slot_id || "").trim()
     && !String(record.bound_slot_provider_id || "").trim();
 }
@@ -1125,6 +1130,15 @@ export const resources: Record<string, ResourceConfig> = {
         label: "登录状态",
         type: "select",
         options: loginStatusOptions,
+      },
+      {
+        key: "export_status",
+        label: "导出状态",
+        type: "select",
+        options: [
+          { label: "已导出", value: "exported" },
+          { label: "未导出", value: "unexported" },
+        ],
       },
       {
         key: "account_age_type",

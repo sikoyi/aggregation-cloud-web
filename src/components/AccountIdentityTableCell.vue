@@ -39,10 +39,13 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
   <div v-if="kind === 'loginIdentity'" class="identity-cell identity-main">
     <span class="identity-main__icon"><UserRound /></span>
     <span class="identity-main__content">
-      <el-tooltip v-if="loginUsername" :content="loginUsername" placement="top">
-        <strong>{{ identityLabel }}</strong>
-      </el-tooltip>
-      <strong v-else>{{ identityLabel }}</strong>
+      <span class="identity-main__heading">
+        <el-tooltip v-if="loginUsername" :content="loginUsername" placement="top">
+          <strong>{{ identityLabel }}</strong>
+        </el-tooltip>
+        <strong v-else>{{ identityLabel }}</strong>
+        <el-tag v-if="row.credentials_exported_at" size="small" type="warning" effect="plain">已导出</el-tag>
+      </span>
       <small>ID {{ row.id }} · {{ Number(row.account_count || 0) }} 个平台账号<span v-if="row.country"> · {{ row.country }}</span></small>
     </span>
   </div>
@@ -103,6 +106,9 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
 .identity-main__icon { display: inline-flex; width: 34px; height: 34px; flex: 0 0 34px; align-items: center; justify-content: center; border: 1px solid #cfe1f2; border-radius: 8px; color: #245f87; background: #edf6fc; }
 .identity-main__icon svg { width: 17px; height: 17px; }
 .identity-main__content { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.identity-main__heading { display: flex; min-width: 0; align-items: center; gap: 6px; }
+.identity-main__heading strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.identity-main__heading :deep(.el-tag) { flex: 0 0 auto; }
 .identity-main__content strong,
 .identity-main__content small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .identity-main__content strong { color: #243b53; font-size: 13px; }

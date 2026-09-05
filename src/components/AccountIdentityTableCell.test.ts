@@ -68,6 +68,17 @@ describe('账号身份列表单元格', () => {
     expect(accountIdentityTableCellSource).toContain(':content="loginUsername"')
   })
 
+  it('只给已导出的登录身份展示状态标识', async () => {
+    const exported = await renderCell('loginIdentity', {
+      ...row,
+      credentials_exported_at: '2026-09-05T08:00:00Z',
+    })
+    const unexported = await renderCell('loginIdentity', row)
+
+    expect(exported).toContain('已导出')
+    expect(unexported).not.toContain('已导出')
+  })
+
   it('主表平台状态不重复展示各平台昵称', async () => {
     const html = await renderCell('identityPlatforms', row)
 

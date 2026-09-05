@@ -31,6 +31,8 @@ export interface AccountIdentityDetail extends AnyRecord {
   totp_secret_ref?: string | null
   twofa_type?: string | null
   credentials_version: number
+  credentials_exported_at?: string | null
+  credentials_exported_by?: string | null
   can_edit_credentials: boolean
 }
 

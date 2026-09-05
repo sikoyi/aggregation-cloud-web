@@ -78,9 +78,12 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
       {{ identityInitial }}
     </el-avatar>
     <span class="account-identity__content">
-      <el-tooltip :content="loginName" placement="top" :show-after="500">
-        <strong class="account-identity__name">{{ loginName }}</strong>
-      </el-tooltip>
+      <span class="account-identity__heading">
+        <el-tooltip :content="loginName" placement="top" :show-after="500">
+          <strong class="account-identity__name">{{ loginName }}</strong>
+        </el-tooltip>
+        <el-tag v-if="row.credentials_exported_at" size="small" type="warning" effect="plain">已导出</el-tag>
+      </span>
       <span v-if="publicName" class="account-identity__secondary">{{ publicName }}</span>
     </span>
   </div>
@@ -322,6 +325,17 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   border-radius: 4px;
   font-size: 10px;
   font-weight: 700;
+}
+
+.account-identity__heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.account-identity__heading :deep(.el-tag) {
+  flex: 0 0 auto;
 }
 
 .account-credential-row--copyable {

@@ -90,6 +90,15 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
           { label: '已拒绝', value: 'rejected' },
         ],
       },
+      {
+        key: 'export_status',
+        label: '导出状态',
+        type: 'select',
+        options: [
+          { label: '已导出', value: 'exported' },
+          { label: '未导出', value: 'unexported' },
+        ],
+      },
     ],
   }
 }

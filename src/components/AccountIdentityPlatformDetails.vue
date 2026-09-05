@@ -233,7 +233,10 @@ onMounted(loadRows)
       <el-table-column label="平台账号" min-width="210">
         <template #default="{ row }">
           <div class="platform-account">
-            <strong>{{ accountLabel(row) }}</strong>
+            <span class="platform-account__heading">
+              <strong>{{ accountLabel(row) }}</strong>
+              <el-tag v-if="row.credentials_exported_at" size="small" type="warning" effect="plain">已导出</el-tag>
+            </span>
             <small v-if="row.username">@{{ row.username }}</small>
             <small>账号 ID {{ row.id }}<span v-if="row.platform_account_id"> · 平台 ID {{ row.platform_account_id }}</span></small>
           </div>
@@ -418,6 +421,9 @@ onMounted(loadRows)
 .status-stack { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .platform-account strong,
 .bound-device strong { overflow: hidden; color: #334e68; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.platform-account__heading { display: flex; min-width: 0; align-items: center; gap: 5px; }
+.platform-account__heading strong { min-width: 0; }
+.platform-account__heading :deep(.el-tag) { flex: 0 0 auto; }
 .platform-account small,
 .bound-device small,
 .status-stack small { overflow: hidden; color: #8494a5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
