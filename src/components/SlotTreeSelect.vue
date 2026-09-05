@@ -20,6 +20,7 @@ const props = defineProps<{
   showAccountPresenceFilter?: boolean
   accountPresence?: 'all' | 'bound' | 'unbound'
   warmupBusinessPlatform?: string
+  taskBusinessPlatform?: string
   fillHeight?: boolean
   showPublishStats?: boolean
   publishContentId?: unknown
@@ -116,6 +117,7 @@ const effectiveAccountPresence = computed<'all' | 'bound' | 'unbound'>(() => {
 const selectionQuery = computed<SlotSelectionTreeQuery>(() => ({
   accountPresence: effectiveAccountPresence.value,
   warmupBusinessPlatform: props.warmupBusinessPlatform,
+  taskBusinessPlatform: props.taskBusinessPlatform,
   keyword: searchKeyword.value,
   publish: Boolean(props.showPublishStats),
   publishUsage: publishUsageFilter.value,
@@ -154,6 +156,7 @@ const requestSignature = computed(() => JSON.stringify({
   provider: String(props.filters?.provider || ''),
   account_presence: effectiveAccountPresence.value,
   warmup_business_platform: String(props.warmupBusinessPlatform || ''),
+  task_business_platform: String(props.taskBusinessPlatform || ''),
   publish_stats: Boolean(props.showPublishStats),
   publish_usage: publishUsageFilter.value,
   content_id: String(props.publishContentId || ''),

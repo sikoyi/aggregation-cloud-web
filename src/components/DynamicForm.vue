@@ -297,6 +297,13 @@ function fieldColumnSpan(field: FieldConfig) {
   return 12
 }
 
+function taskBusinessPlatform(field: FieldConfig): string | undefined {
+  if (field.slotTreePublishStats || String(scriptScope.value?.account_usage_mode || '') !== 'slot_current') {
+    return undefined
+  }
+  return String(props.modelValue.business_platform || '').trim() || undefined
+}
+
 watch(
   () => [
     auth.user?.business_platform_scope,
@@ -390,6 +397,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
             :account-presence="modelValue.dispatch_mode === 'account_pool' ? 'all' : field.slotTreeAccountPresence"
             :fill-height="field.slotTreeFillHeight"
             :show-publish-stats="field.slotTreePublishStats && modelValue.dispatch_mode !== 'account_pool'"
+            :task-business-platform="taskBusinessPlatform(field)"
             :publish-content-id="field.slotTreePublishStats && modelValue.dispatch_mode !== 'account_pool' && modelValue.content_source_type === 'content'
               ? modelValue.content_id
               : undefined"
