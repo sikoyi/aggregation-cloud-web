@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExternalLink, RefreshCw, Scissors, Unlink } from 'lucide-vue-next'
+import { ExternalLink, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref, watch } from 'vue'
 
@@ -58,6 +58,12 @@ async function loadRows() {
 
 function accountLabel(row: AnyRecord) {
   return String(row.display_name || row.username || row.login_username || `账号 #${row.id}`)
+}
+
+function accountTags(row: AnyRecord) {
+  return Array.isArray(row.tag_names)
+    ? row.tag_names.map((item) => String(item).trim()).filter(Boolean)
+    : []
 }
 
 function openHealthDialog(row: AnyRecord) {
@@ -148,6 +154,37 @@ async function splitAccount(row: AnyRecord) {
   }
 }
 
+async function deleteAccount(row: AnyRecord) {
+  const platform = businessPlatformLabel(row.business_platform)
+  const label = accountLabel(row)
+  try {
+    await ElMessageBox.confirm(
+      `确认删除 ${platform} 平台账号“${label}”？设备会话、发布内容、评论、指标、监听记录、备份及其他关联数据会一并清理，此操作不可恢复。`,
+      `删除 ${platform} 平台账号`,
+      {
+        type: 'error',
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+      },
+    )
+  } catch {
+    return
+  }
+
+  actionLoading.value = `delete:${row.id}`
+  try {
+    await http.delete(`/api/accounts/${encodeURIComponent(String(row.id))}`)
+    ElMessage.success(`${platform} 平台账号已删除`)
+    await loadRows()
+    emit('changed')
+  } catch (error) {
+    notifyError(error, '删除失败', `${platform} 平台账号删除失败`)
+  } finally {
+    actionLoading.value = ''
+  }
+}
+
 watch(() => props.identityId, loadRows)
 onMounted(loadRows)
 </script>
@@ -186,6 +223,26 @@ onMounted(loadRows)
           </div>
         </template>
       </el-table-column>
+      <el-table-column label="账号标签" min-width="165">
+        <template #default="{ row }">
+          <div class="platform-tags">
+            <el-tag
+              v-for="tag in accountTags(row).slice(0, 2)"
+              :key="tag"
+              size="small"
+              type="primary"
+              effect="plain"
+              round
+            >
+              {{ tag }}
+            </el-tag>
+            <el-tooltip v-if="accountTags(row).length > 2" :content="accountTags(row).slice(2).join('、')" placement="top">
+              <el-tag size="small" type="info" effect="plain" round>+{{ accountTags(row).length - 2 }}</el-tag>
+            </el-tooltip>
+            <span v-if="!accountTags(row).length" class="identity-details__empty">暂无标签</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="账号健康" width="120" align="center">
         <template #default="{ row }">
           <div class="status-stack">
@@ -221,37 +278,49 @@ onMounted(loadRows)
           <StatusBadge v-else :value="row.content_monitor_enabled ? row.content_monitor_status : 'disabled'" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150" align="center">
+      <el-table-column label="操作" width="190" align="center">
         <template #default="{ row }">
-          <div v-if="auth.can('accounts.edit')" class="identity-details__actions">
-            <el-tooltip content="修改该平台账号健康状态" placement="top">
-              <el-button text type="primary" @click="openHealthDialog(row)">状态</el-button>
-            </el-tooltip>
-            <el-tooltip v-if="row.account_session_id" :content="`仅解除 ${businessPlatformLabel(row.business_platform)} 会话`" placement="top">
+          <div v-if="auth.can('accounts.edit') || auth.can('accounts.delete')" class="identity-details__actions">
+            <template v-if="auth.can('accounts.edit')">
+              <el-tooltip content="修改该平台账号健康状态" placement="top">
+                <el-button text type="primary" @click="openHealthDialog(row)">状态</el-button>
+              </el-tooltip>
+              <el-tooltip v-if="row.account_session_id" :content="`仅解除 ${businessPlatformLabel(row.business_platform)} 会话`" placement="top">
+                <el-button
+                  text
+                  type="warning"
+                  :icon="Unlink"
+                  :loading="actionLoading === `unbind:${row.account_session_id}`"
+                  @click="unbindSession(row)"
+                />
+              </el-tooltip>
+              <el-tooltip v-if="rows.length > 1" content="从当前登录身份拆分" placement="top">
+                <el-button
+                  text
+                  :icon="Scissors"
+                  :loading="actionLoading === `split:${row.id}`"
+                  @click="splitAccount(row)"
+                />
+              </el-tooltip>
+              <el-tooltip v-if="row.profile_url" content="打开账号主页" placement="top">
+                <el-button
+                  tag="a"
+                  text
+                  :icon="ExternalLink"
+                  :href="resolveBackendUrl(row.profile_url)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              </el-tooltip>
+            </template>
+            <el-tooltip v-if="auth.can('accounts.delete')" content="删除该平台账号" placement="top">
               <el-button
                 text
-                type="warning"
-                :icon="Unlink"
-                :loading="actionLoading === `unbind:${row.account_session_id}`"
-                @click="unbindSession(row)"
-              />
-            </el-tooltip>
-            <el-tooltip v-if="rows.length > 1" content="从当前登录身份拆分" placement="top">
-              <el-button
-                text
-                :icon="Scissors"
-                :loading="actionLoading === `split:${row.id}`"
-                @click="splitAccount(row)"
-              />
-            </el-tooltip>
-            <el-tooltip v-if="row.profile_url" content="打开账号主页" placement="top">
-              <el-button
-                tag="a"
-                text
-                :icon="ExternalLink"
-                :href="resolveBackendUrl(row.profile_url)"
-                target="_blank"
-                rel="noopener noreferrer"
+                type="danger"
+                :icon="Trash2"
+                :loading="actionLoading === `delete:${row.id}`"
+                aria-label="删除平台账号"
+                @click="deleteAccount(row)"
               />
             </el-tooltip>
           </div>
@@ -303,6 +372,7 @@ onMounted(loadRows)
 .bound-device small,
 .status-stack small { overflow: hidden; color: #8494a5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .status-stack { align-items: center; }
+.platform-tags { display: flex; min-width: 0; flex-wrap: wrap; gap: 4px; }
 .identity-details__actions { display: flex; align-items: center; justify-content: center; gap: 2px; }
 .identity-details__actions :deep(.el-button + .el-button) { margin-left: 0; }
 .identity-details__empty { color: #9aa9b8; font-size: 11px; }

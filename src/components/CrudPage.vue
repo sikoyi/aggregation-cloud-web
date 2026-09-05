@@ -1730,8 +1730,8 @@ onBeforeUnmount(() => {
               :column="column"
             />
             <AccountIdentityTableCell
-              v-else-if="column.type && ['loginIdentity', 'identityPlatforms', 'identitySessions', 'identityCandidate'].includes(column.type)"
-              :kind="column.type as 'loginIdentity' | 'identityPlatforms' | 'identitySessions' | 'identityCandidate'"
+              v-else-if="column.type && ['loginIdentity', 'identityTags', 'identityPlatforms', 'identitySessions', 'identityCandidate'].includes(column.type)"
+              :kind="column.type as 'loginIdentity' | 'identityTags' | 'identityPlatforms' | 'identitySessions' | 'identityCandidate'"
               :row="row"
             />
             <ScriptTableCell

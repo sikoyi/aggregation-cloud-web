@@ -49,6 +49,27 @@ describe('account identity resource', () => {
     expect(platformDetailsSource).not.toMatch(/password_secret_ref|totp_secret_ref|accountCredentials/)
   })
 
+  it('shows the visible platform tag union and keeps platform-specific tags in expanded rows', () => {
+    const config = buildAccountIdentityResource(resources.accounts)
+
+    expect(config.columns.find((column) => column.type === 'identityTags')).toMatchObject({
+      key: 'identity_tag_names',
+      label: '账号标签',
+    })
+    expect(crudSource).toContain("'loginIdentity', 'identityTags', 'identityPlatforms'")
+    expect(platformDetailsSource).toContain('label="账号标签"')
+    expect(platformDetailsSource).toContain('accountTags(row)')
+  })
+
+  it('restores platform-account deletion with an independent delete permission', () => {
+    expect(platformDetailsSource).toContain("auth.can('accounts.edit') || auth.can('accounts.delete')")
+    expect(platformDetailsSource).toContain("v-if=\"auth.can('accounts.delete')\"")
+    expect(platformDetailsSource).toContain("await http.delete(`/api/accounts/${encodeURIComponent(String(row.id))}`)")
+    expect(platformDetailsSource).toContain('设备会话、发布内容、评论、指标、监听记录、备份及其他关联数据会一并清理')
+    expect(platformDetailsSource).toContain('aria-label="删除平台账号"')
+    expect(platformDetailsSource).toContain("actionLoading === `delete:${row.id}`")
+  })
+
   it('requires accounts.edit and an explicit per-identity capability for the edit action', () => {
     const config = buildAccountIdentityResource(resources.accounts)
     const action = config.rowActions?.find((item) => item.key === 'edit-credentials')

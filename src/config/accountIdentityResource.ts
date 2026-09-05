@@ -47,6 +47,7 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
     columns: [
       { key: 'id', label: '身份 ID', type: 'id', width: 82, align: 'center' },
       { key: 'login_username', label: '登录身份', type: 'loginIdentity', minWidth: 210 },
+      { key: 'identity_tag_names', label: '账号标签', type: 'identityTags', minWidth: 170 },
       { key: 'password_secret_ref', label: '登录凭证', type: 'accountCredentials', minWidth: 260 },
       { key: 'platform_summaries', label: '平台账号状态', type: 'identityPlatforms', minWidth: 330 },
       { key: 'active_session_count', label: '设备会话', type: 'identitySessions', minWidth: 190 },

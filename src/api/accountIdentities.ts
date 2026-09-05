@@ -15,6 +15,7 @@ export interface IdentityPlatformSummary {
   display_name?: string | null
   platform_account_id?: string | null
   health_status: string
+  tag_names?: string[]
   session_id?: string | null
   login_status?: string | null
   slot_id?: string | null

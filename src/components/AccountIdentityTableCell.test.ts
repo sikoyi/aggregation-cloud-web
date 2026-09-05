@@ -1,3 +1,4 @@
+import { ID_INJECTION_KEY, ZINDEX_INJECTION_KEY } from 'element-plus'
 import { createSSRApp } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { describe, expect, it, vi } from 'vitest'
@@ -6,9 +7,13 @@ import AccountIdentityTableCell from './AccountIdentityTableCell.vue'
 
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
 vi.mock('element-plus/es/components/tag/style/css', () => ({}))
+vi.mock('element-plus/es/components/tooltip/style/css', () => ({}))
 
-async function renderCell(kind: 'loginIdentity' | 'identityPlatforms', row: Record<string, unknown>) {
-  return renderToString(createSSRApp(AccountIdentityTableCell, { kind, row }))
+async function renderCell(kind: 'loginIdentity' | 'identityTags' | 'identityPlatforms', row: Record<string, unknown>) {
+  const app = createSSRApp(AccountIdentityTableCell, { kind, row })
+  app.provide(ID_INJECTION_KEY, { prefix: 0, current: 0 })
+  app.provide(ZINDEX_INJECTION_KEY, { current: 0 })
+  return renderToString(app)
 }
 
 describe('账号身份列表单元格', () => {
@@ -25,6 +30,7 @@ describe('账号身份列表单元格', () => {
         username: 'shopify-login',
         health_status: 'unknown',
         login_status: 'not_logged_in',
+        tag_names: ['客户', '新号'],
       },
       {
         account_id: 'account-2',
@@ -33,6 +39,7 @@ describe('账号身份列表单元格', () => {
         username: 'threads-login',
         health_status: 'normal',
         login_status: 'logged_in',
+        tag_names: ['新号', '重点账号'],
       },
     ],
   }
@@ -68,5 +75,22 @@ describe('账号身份列表单元格', () => {
     expect(html).toContain('Threads')
     expect(html).not.toContain('Chelsea Perez')
     expect(html).not.toContain('Threads Nickname')
+  })
+
+  it('主表按当前可见平台账号去重展示标签并集', async () => {
+    const html = await renderCell('identityTags', row)
+
+    expect(html.match(/>新号<\/span>/g)).toHaveLength(1)
+    expect(html).toContain('>客户</span>')
+    expect(html).toContain('+1')
+  })
+
+  it('没有平台账号标签时明确显示暂无标签', async () => {
+    const html = await renderCell('identityTags', {
+      ...row,
+      platform_summaries: row.platform_summaries.map((item) => ({ ...item, tag_names: [] })),
+    })
+
+    expect(html).toContain('暂无标签')
   })
 })

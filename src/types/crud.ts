@@ -37,6 +37,7 @@ export type ColumnType =
   | 'accountEnvironment'
   | 'accountBackup'
   | 'loginIdentity'
+  | 'identityTags'
   | 'identityPlatforms'
   | 'identitySessions'
   | 'identityCandidate'

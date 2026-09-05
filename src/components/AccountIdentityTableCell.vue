@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle2, MonitorSmartphone, UserRound } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, MonitorSmartphone, Tags, UserRound } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import type { IdentityPlatformSummary } from '@/api/accountIdentities'
@@ -7,7 +7,7 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import { businessPlatformLabel } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 
-type CellKind = 'loginIdentity' | 'identityPlatforms' | 'identitySessions' | 'identityCandidate'
+type CellKind = 'loginIdentity' | 'identityTags' | 'identityPlatforms' | 'identitySessions' | 'identityCandidate'
 
 const props = defineProps<{
   kind: CellKind
@@ -30,6 +30,19 @@ const identityName = computed(() => {
 const secondaryLoginUsername = computed(() => (
   loginUsername.value && loginUsername.value !== identityName.value ? loginUsername.value : ''
 ))
+const identityTags = computed(() => {
+  const seen = new Set<string>()
+  const values: string[] = []
+  for (const summary of summaries.value) {
+    for (const rawTag of summary.tag_names || []) {
+      const tag = String(rawTag).trim()
+      if (!tag || seen.has(tag)) continue
+      seen.add(tag)
+      values.push(tag)
+    }
+  }
+  return values
+})
 const boundSummaries = computed(() => summaries.value.filter((item) => item.session_id && item.slot_id))
 </script>
 
@@ -41,6 +54,24 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
       <small v-if="secondaryLoginUsername">{{ secondaryLoginUsername }}</small>
       <small>{{ Number(row.account_count || 0) }} 个平台账号<span v-if="row.country"> · {{ row.country }}</span></small>
     </span>
+  </div>
+
+  <div v-else-if="kind === 'identityTags'" class="identity-cell identity-tags">
+    <el-tag
+      v-for="tag in identityTags.slice(0, 2)"
+      :key="tag"
+      type="primary"
+      effect="plain"
+      round
+      class="identity-tag"
+    >
+      <Tags />
+      <span>{{ tag }}</span>
+    </el-tag>
+    <el-tooltip v-if="identityTags.length > 2" :content="identityTags.slice(2).join('、')" placement="top">
+      <el-tag type="info" effect="plain" round>+{{ identityTags.length - 2 }}</el-tag>
+    </el-tooltip>
+    <el-tag v-if="!identityTags.length" type="info" effect="plain" round>暂无标签</el-tag>
   </div>
 
   <div v-else-if="kind === 'identityPlatforms'" class="identity-cell platform-list">
@@ -86,6 +117,11 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
 .identity-main__content small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .identity-main__content strong { color: #243b53; font-size: 13px; }
 .identity-main__content small { color: #7b8da0; font-size: 10px; }
+.identity-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.identity-tag { display: inline-flex; max-width: 100%; align-items: center; overflow: hidden; white-space: nowrap; }
+.identity-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; }
+.identity-tag svg { width: 12px; height: 12px; flex: 0 0 12px; }
+.identity-tag span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .platform-list { display: flex; flex-direction: column; gap: 6px; }
 .platform-list__row { display: grid; grid-template-columns: minmax(82px, 1fr) auto auto; align-items: center; gap: 6px; }
 .platform-list__row :deep(.el-tag) { justify-self: start; }
