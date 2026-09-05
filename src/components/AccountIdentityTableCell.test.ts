@@ -4,6 +4,7 @@ import { renderToString } from 'vue/server-renderer'
 import { describe, expect, it, vi } from 'vitest'
 
 import AccountIdentityTableCell from './AccountIdentityTableCell.vue'
+import accountIdentityTableCellSource from './AccountIdentityTableCell.vue?raw'
 
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
 vi.mock('element-plus/es/components/tag/style/css', () => ({}))
@@ -54,6 +55,17 @@ describe('账号身份列表单元格', () => {
     expect(html).toContain('2 个平台账号')
     expect(html).not.toContain('Chelsea Perez')
     expect(html).not.toContain('Threads Nickname')
+  })
+
+  it('完整提示只绑定登录邮箱，不包含 ID 和平台账号数量', async () => {
+    const html = await renderCell('loginIdentity', row)
+    const email = html.match(/<strong\b[^>]*>operator@example\.com<\/strong>/)?.[0] || ''
+    const metadata = html.match(/<small\b[^>]*>ID identity-1[^<]*/)?.[0] || ''
+
+    expect(email).toContain('el-tooltip__trigger')
+    expect(metadata).not.toContain('el-tooltip__trigger')
+    expect(html.match(/el-tooltip__trigger/g)).toHaveLength(1)
+    expect(accountIdentityTableCellSource).toContain(':content="loginUsername"')
   })
 
   it('主表平台状态不重复展示各平台昵称', async () => {

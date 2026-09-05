@@ -29,8 +29,10 @@ async function renderCredentials(row: Record<string, unknown>, sharedCredentials
 describe('共享登录凭据单元格', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('凭据列关闭整格溢出提示，避免将两项凭据拼在同一个提示里', () => {
-    expect(crudPageSource).toContain(`:show-overflow-tooltip="column.type !== 'accountCredentials'"`)
+  it('凭据列和登录身份列关闭整格溢出提示，避免拼接多项内容', () => {
+    expect(crudPageSource).toContain(
+      `:show-overflow-tooltip="!['accountCredentials', 'loginIdentity'].includes(column.type || '')"`,
+    )
   })
 
   it.each([true, false])('完整凭据提示仅绑定值文字，不绑定整行 %s', async (shared) => {

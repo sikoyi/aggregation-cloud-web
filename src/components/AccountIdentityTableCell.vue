@@ -39,7 +39,10 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
   <div v-if="kind === 'loginIdentity'" class="identity-cell identity-main">
     <span class="identity-main__icon"><UserRound /></span>
     <span class="identity-main__content">
-      <strong>{{ identityLabel }}</strong>
+      <el-tooltip v-if="loginUsername" :content="loginUsername" placement="top">
+        <strong>{{ identityLabel }}</strong>
+      </el-tooltip>
+      <strong v-else>{{ identityLabel }}</strong>
       <small>ID {{ row.id }} · {{ Number(row.account_count || 0) }} 个平台账号<span v-if="row.country"> · {{ row.country }}</span></small>
     </span>
   </div>
