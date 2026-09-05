@@ -44,28 +44,15 @@ describe('账号身份列表单元格', () => {
     ],
   }
 
-  it('身份名称与邮箱重复时使用平台昵称，并且邮箱只展示一次', async () => {
+  it('登录身份只展示邮箱，并在同一列展示身份 ID 和平台账号数', async () => {
     const html = await renderCell('loginIdentity', row)
 
-    expect(html).toContain('>Chelsea Perez</strong>')
+    expect(html).toContain('>operator@example.com</strong>')
     expect(html.match(/operator@example\.com/g)).toHaveLength(1)
+    expect(html).toContain('身份 ID identity-1 · 2 个平台账号')
     expect(html).toContain('2 个平台账号')
-  })
-
-  it('优先保留身份自身的非重复昵称', async () => {
-    const html = await renderCell('loginIdentity', { ...row, display_name: 'Identity Nickname' })
-
-    expect(html).toContain('>Identity Nickname</strong>')
-    expect(html).toContain('>operator@example.com</small>')
-  })
-
-  it('没有昵称时只展示一次登录邮箱', async () => {
-    const html = await renderCell('loginIdentity', {
-      ...row,
-      platform_summaries: [{ ...row.platform_summaries[0], display_name: null, username: 'operator@example.com' }],
-    })
-
-    expect(html.match(/operator@example\.com/g)).toHaveLength(1)
+    expect(html).not.toContain('Chelsea Perez')
+    expect(html).not.toContain('Threads Nickname')
   })
 
   it('主表平台状态不重复展示各平台昵称', async () => {
@@ -73,6 +60,10 @@ describe('账号身份列表单元格', () => {
 
     expect(html).toContain('Shopify')
     expect(html).toContain('Threads')
+    expect(html).toContain('未知')
+    expect(html).toContain('正常')
+    expect(html).not.toContain('未登录')
+    expect(html).not.toContain('已登录')
     expect(html).not.toContain('Chelsea Perez')
     expect(html).not.toContain('Threads Nickname')
   })

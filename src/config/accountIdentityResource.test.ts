@@ -61,6 +61,24 @@ describe('account identity resource', () => {
     expect(platformDetailsSource).toContain('accountTags(row)')
   })
 
+  it('merges the identity ID into the login column and shows creation time', () => {
+    const config = buildAccountIdentityResource(resources.accounts)
+
+    expect(config.columns.some((column) => column.type === 'id')).toBe(false)
+    expect(config.columns.find((column) => column.type === 'loginIdentity')).toMatchObject({
+      key: 'login_username',
+      label: '登录身份',
+    })
+    expect(config.columns.find((column) => column.type === 'identityPlatforms')).toMatchObject({
+      label: '平台 / 账号状态',
+    })
+    expect(config.columns.find((column) => column.key === 'created_at')).toMatchObject({
+      label: '创建时间',
+      type: 'datetime',
+    })
+    expect(config.columns.some((column) => column.key === 'updated_at')).toBe(false)
+  })
+
   it('restores platform-account deletion with an independent delete permission', () => {
     expect(platformDetailsSource).toContain("auth.can('accounts.edit') || auth.can('accounts.delete')")
     expect(platformDetailsSource).toContain("v-if=\"auth.can('accounts.delete')\"")

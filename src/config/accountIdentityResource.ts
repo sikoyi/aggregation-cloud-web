@@ -45,14 +45,13 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
       },
     ],
     columns: [
-      { key: 'id', label: '身份 ID', type: 'id', width: 82, align: 'center' },
-      { key: 'login_username', label: '登录身份', type: 'loginIdentity', minWidth: 210 },
+      { key: 'login_username', label: '登录身份', type: 'loginIdentity', minWidth: 250 },
       { key: 'identity_tag_names', label: '账号标签', type: 'identityTags', minWidth: 170 },
       { key: 'password_secret_ref', label: '登录凭证', type: 'accountCredentials', minWidth: 260 },
-      { key: 'platform_summaries', label: '平台账号状态', type: 'identityPlatforms', minWidth: 330 },
+      { key: 'platform_summaries', label: '平台 / 账号状态', type: 'identityPlatforms', minWidth: 230 },
       { key: 'active_session_count', label: '设备会话', type: 'identitySessions', minWidth: 190 },
       { key: 'has_pending_candidate', label: '关联状态', type: 'identityCandidate', width: 112, align: 'center' },
-      { key: 'updated_at', label: '更新时间', type: 'datetime', width: 165, align: 'center' },
+      { key: 'created_at', label: '创建时间', type: 'datetime', width: 165, align: 'center' },
     ],
     filters: [
       { key: 'keyword', label: '关键词', placeholder: '登录账号 / 用户名 / 昵称' },
