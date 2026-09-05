@@ -21,6 +21,11 @@ export class ApiError extends Error {
 
 type UnauthorizedHandler = (error: ApiError) => void
 
+export interface DownloadFile {
+  blob: Blob
+  filename: string
+}
+
 let unauthorizedHandler: UnauthorizedHandler | null = null
 
 export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
@@ -51,11 +56,11 @@ export function resolveBackendUrl(value: unknown) {
 async function request<T>(
   method: string,
   path: string,
-  options: { params?: AnyRecord; body?: unknown; auth?: boolean; signal?: AbortSignal } = {},
+  options: { params?: AnyRecord; body?: unknown; auth?: boolean; signal?: AbortSignal; responseType?: 'file' } = {},
 ) {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: HeadersInit = {
-    Accept: 'application/json',
+    Accept: options.responseType === 'file' ? 'text/plain, application/json' : 'application/json',
   }
   if (options.body !== undefined && !isFormData) headers['Content-Type'] = 'application/json'
   if (options.auth !== false && token()) headers.Authorization = `Bearer ${token()}`
@@ -68,10 +73,24 @@ async function request<T>(
     body,
     signal: options.signal,
   })
+  const disposition = response.headers.get('Content-Disposition') || ''
+  const isFile = disposition.toLowerCase().includes('attachment')
+    || response.headers.get('Content-Type')?.startsWith('text/plain')
+  if (options.responseType === 'file' && response.ok && isFile && !response.headers.get('Content-Type')?.includes('json')) {
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+    const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+    let filename = plainName || '账号导出.txt'
+    if (encodedName) {
+      try { filename = decodeURIComponent(encodedName) } catch { /* 使用备用文件名。 */ }
+    }
+    return { blob: await response.blob(), filename } as T
+  }
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
-  if (!response.ok || !payload || payload.code !== 0) {
+  if (!response.ok || !payload || payload.code !== 0 || options.responseType === 'file') {
     const error = new ApiError(
-      payload?.msg || response.statusText || '请求失败',
+      options.responseType === 'file' && response.ok && (!payload || payload.code === 0)
+        ? '导出未返回文件，请刷新后重试'
+        : payload?.msg || response.statusText || '请求失败',
       response.status,
       payload?.code,
       payload?.data,
@@ -111,6 +130,7 @@ export const http = {
   get: <T>(path: string, params?: AnyRecord) => request<T>('GET', path, { params }),
   post: <T>(path: string, body?: unknown, params?: AnyRecord) =>
     request<T>('POST', path, { body, params }),
+  postFile: (path: string, body?: unknown) => request<DownloadFile>('POST', path, { body, responseType: 'file' }),
   postWithSignal: <T>(path: string, body: unknown, signal: AbortSignal) =>
     request<T>('POST', path, { body, signal }),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, { body }),

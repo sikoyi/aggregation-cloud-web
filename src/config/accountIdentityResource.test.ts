@@ -12,7 +12,10 @@ describe('account identity resource', () => {
     expect(config.createFields).toBe(resources.accounts.createFields)
     expect(config.expandRow).toBe('accountIdentity')
     expect(config.updateFields).toBeUndefined()
-    expect(config.batchActions).toBeUndefined()
+    expect(config.batchActions?.map((action) => action.key)).toEqual(['export-accounts'])
+    expect(config.batchActions?.[0]?.batchBody?.({}, [{ id: 'identity-1' }])).toEqual({
+      source: 'identities', ids: ['identity-1'],
+    })
     expect(config.deleteLabel).toBeUndefined()
   })
 

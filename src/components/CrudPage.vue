@@ -50,6 +50,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
+import { saveDownload } from '@/utils/download'
 import { formatCell, getCellValue, truncateId } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
 import {
@@ -647,14 +648,7 @@ async function downloadUrl(url: string, filename: string, auth = false) {
     const response = await fetch(url, { headers })
     if (!response.ok) throw new Error(response.statusText || '下载失败')
     const blob = await response.blob()
-    const objectUrl = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = objectUrl
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(objectUrl)
+    saveDownload(blob, filename)
     ElMessage.success('已开始下载')
   } catch (error) {
     if (auth) {
@@ -1213,7 +1207,28 @@ async function runHeaderAction(action: RowActionConfig) {
 }
 
 async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = {}) {
-  if (!selectedRows.value.length) return
+  if (!selectedRows.value.length || submitting.value) return
+  if (action.selectionLimit && selectedRows.value.length > action.selectionLimit) {
+    ElMessage.warning(`每次最多选择 ${action.selectionLimit} 条，请减少选择后重试`)
+    return
+  }
+  if (action.clientAction === 'download' && action.batchPath) {
+    submitting.value = true
+    try {
+      const selected = [...selectedRows.value]
+      const file = await http.postFile(
+        action.batchPath(selected, payload),
+        action.batchBody?.(payload, selected),
+      )
+      saveDownload(file.blob, file.filename)
+      ElMessage.success(`已导出 ${selected.length} 条账号`)
+    } catch (err) {
+      notifyError(err, '导出失败', '账号导出失败')
+    } finally {
+      submitting.value = false
+    }
+    return
+  }
   if (action.key === '__delete') {
     const blockedRecord = selectedRows.value.find((record) => !deleteAllowed(record))
     if (blockedRecord) {

@@ -1,4 +1,5 @@
 import { http } from "@/api/http";
+import { accountExportAction } from "@/config/accountExport";
 import { loadMediaAssetsByIds } from "@/api/mediaAssets";
 import { clearSelectionOptionsCache } from "@/api/selectionOptions";
 import type { AnyRecord } from "@/types/api";
@@ -1387,6 +1388,7 @@ export const resources: Record<string, ResourceConfig> = {
     ],
     inlineActionKeys: ["account-onboarding"],
     batchActions: [
+      accountExportAction("accounts"),
       {
         key: "batch-update-account-age-type",
         label: "修改账号类型",

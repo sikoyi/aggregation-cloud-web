@@ -1,4 +1,5 @@
 import { businessPlatformOptions, loginStatusOptions } from '@/config/options'
+import { accountExportAction } from '@/config/accountExport'
 import type { ResourceConfig, SelectOption } from '@/types/crud'
 
 const platformHealthOptions: SelectOption[] = [
@@ -32,6 +33,7 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
     createBody: accounts.createBody,
     createFields: accounts.createFields,
     expandRow: 'accountIdentity',
+    batchActions: [accountExportAction('identities')],
     columns: [
       { key: 'id', label: '身份 ID', type: 'id', width: 82, align: 'center' },
       { key: 'login_username', label: '登录身份', type: 'loginIdentity', minWidth: 210 },

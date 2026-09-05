@@ -241,6 +241,7 @@ export interface RowActionConfig {
   successNotificationType?: (data: AnyRecord, payload: AnyRecord) => 'success' | 'warning' | 'error' | 'info'
   showResult?: boolean
   clientAction?: 'download'
+  selectionLimit?: number
   urlKey?: string
   filenameKey?: string
 }
