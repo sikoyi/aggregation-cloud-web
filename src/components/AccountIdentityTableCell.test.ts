@@ -44,12 +44,13 @@ describe('账号身份列表单元格', () => {
     ],
   }
 
-  it('登录身份只展示邮箱，并在同一列展示身份 ID 和平台账号数', async () => {
+  it('登录身份只展示邮箱，并在同一列展示 ID 和平台账号数', async () => {
     const html = await renderCell('loginIdentity', row)
 
     expect(html).toContain('>operator@example.com</strong>')
     expect(html.match(/operator@example\.com/g)).toHaveLength(1)
-    expect(html).toContain('身份 ID identity-1 · 2 个平台账号')
+    expect(html).toContain('ID identity-1 · 2 个平台账号')
+    expect(html).not.toContain('身份 ID')
     expect(html).toContain('2 个平台账号')
     expect(html).not.toContain('Chelsea Perez')
     expect(html).not.toContain('Threads Nickname')

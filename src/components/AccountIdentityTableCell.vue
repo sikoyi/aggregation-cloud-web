@@ -40,7 +40,7 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
     <span class="identity-main__icon"><UserRound /></span>
     <span class="identity-main__content">
       <strong>{{ identityLabel }}</strong>
-      <small>身份 ID {{ row.id }} · {{ Number(row.account_count || 0) }} 个平台账号<span v-if="row.country"> · {{ row.country }}</span></small>
+      <small>ID {{ row.id }} · {{ Number(row.account_count || 0) }} 个平台账号<span v-if="row.country"> · {{ row.country }}</span></small>
     </span>
   </div>
 
