@@ -1674,7 +1674,7 @@ onBeforeUnmount(() => {
           :width="column.width"
           :align="column.align || 'left'"
           :header-align="column.align || 'left'"
-          show-overflow-tooltip
+          :show-overflow-tooltip="column.type !== 'accountCredentials'"
         >
           <template #default="{ row }">
             <AccountTableCell

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { http } from '@/api/http'
 import AccountTableCell from './AccountTableCell.vue'
+import crudPageSource from './CrudPage.vue?raw'
 
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
 vi.mock('element-plus/es/components/avatar/style/css', () => ({}))
@@ -27,6 +28,20 @@ async function renderCredentials(row: Record<string, unknown>, sharedCredentials
 
 describe('共享登录凭据单元格', () => {
   afterEach(() => vi.restoreAllMocks())
+
+  it('凭据列关闭整格溢出提示，避免将两项凭据拼在同一个提示里', () => {
+    expect(crudPageSource).toContain(`:show-overflow-tooltip="column.type !== 'accountCredentials'"`)
+  })
+
+  it.each([true, false])('完整凭据提示仅绑定值文字，不绑定整行 %s', async (shared) => {
+    const html = await renderCredentials({ password_secret_ref: 'password-only', totp_secret_ref: 'totp-only' }, shared)
+    const rows = [...html.matchAll(/<div\b[^>]*class="account-credential-row\b[^>]*>/g)].map(match => match[0])
+    const values = [...html.matchAll(/<code\b[^>]*>/g)].map(match => match[0])
+    expect(rows).toHaveLength(2)
+    expect(values).toHaveLength(2)
+    for (const row of rows) expect(row).not.toContain('el-tooltip__trigger')
+    for (const value of values) expect(value).toContain('el-tooltip__trigger')
+  })
 
   it.each([true, false])('有账号 ID 时显示验证码入口，但渲染不触发请求 %s', async (shared) => {
     const get = vi.spyOn(http, 'getWithSignal')

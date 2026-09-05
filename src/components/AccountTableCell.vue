@@ -112,32 +112,32 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   </div>
 
   <div v-else-if="kind === 'accountCredentials'" class="account-cell account-credentials">
-    <el-tooltip :content="credentialText(row.password_secret_ref)" placement="top" :show-after="500">
-      <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials }">
-        <span class="account-credential-row__label account-credential-row__label--password">
-          <KeyRound />
-          密码
-        </span>
+    <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials }">
+      <span class="account-credential-row__label account-credential-row__label--password">
+        <KeyRound />
+        密码
+      </span>
+      <el-tooltip :content="credentialText(row.password_secret_ref)" :disabled="!row.password_secret_ref" placement="top" :show-after="500">
         <code>{{ credentialText(row.password_secret_ref) }}</code>
-        <el-tooltip v-if="sharedCredentials" content="复制密码" placement="top">
-          <el-button
-            class="account-credential-copy"
-            text
-            circle
-            :icon="Copy"
-            aria-label="复制密码"
-            :disabled="!row.password_secret_ref"
-            @click.stop="copyCredential(row.password_secret_ref)"
-          />
-        </el-tooltip>
-      </div>
-    </el-tooltip>
+      </el-tooltip>
+      <el-tooltip v-if="sharedCredentials" content="复制密码" placement="top">
+        <el-button
+          class="account-credential-copy"
+          text
+          circle
+          :icon="Copy"
+          aria-label="复制密码"
+          :disabled="!row.password_secret_ref"
+          @click.stop="copyCredential(row.password_secret_ref)"
+        />
+      </el-tooltip>
+    </div>
     <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials, 'account-credential-row--totp': row.id }">
       <span class="account-credential-row__label account-credential-row__label--twofa">
         <ShieldCheck />
         2FA
       </span>
-      <el-tooltip :content="credentialText(row.totp_secret_ref)" placement="top" :show-after="500">
+      <el-tooltip :content="credentialText(row.totp_secret_ref)" :disabled="!row.totp_secret_ref" placement="top" :show-after="500">
         <code>{{ credentialText(row.totp_secret_ref) }}</code>
       </el-tooltip>
       <el-tooltip v-if="sharedCredentials" content="复制 2FA" placement="top">
@@ -342,6 +342,9 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
 
 .account-credential-row code {
   min-width: 0;
+  max-width: 100%;
+  width: fit-content;
+  justify-self: start;
   overflow: hidden;
   color: #52606d;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
