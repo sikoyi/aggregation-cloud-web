@@ -117,7 +117,13 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
         <KeyRound />
         密码
       </span>
-      <el-tooltip :content="credentialText(row.password_secret_ref)" :disabled="!row.password_secret_ref" placement="top" :show-after="500">
+      <el-tooltip
+        :content="credentialText(row.password_secret_ref)"
+        :disabled="!row.password_secret_ref"
+        :popper-style="{ maxWidth: 'min(420px, calc(100vw - 24px))', overflowWrap: 'anywhere' }"
+        placement="top"
+        :show-after="500"
+      >
         <code>{{ credentialText(row.password_secret_ref) }}</code>
       </el-tooltip>
       <el-tooltip v-if="sharedCredentials" content="复制密码" placement="top">
@@ -137,7 +143,13 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
         <ShieldCheck />
         2FA
       </span>
-      <el-tooltip :content="credentialText(row.totp_secret_ref)" :disabled="!row.totp_secret_ref" placement="top" :show-after="500">
+      <el-tooltip
+        :content="credentialText(row.totp_secret_ref)"
+        :disabled="!row.totp_secret_ref"
+        :popper-style="{ maxWidth: 'min(420px, calc(100vw - 24px))', overflowWrap: 'anywhere' }"
+        placement="top"
+        :show-after="500"
+      >
         <code>{{ credentialText(row.totp_secret_ref) }}</code>
       </el-tooltip>
       <el-tooltip v-if="sharedCredentials" content="复制 2FA" placement="top">
