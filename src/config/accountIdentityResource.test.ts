@@ -5,6 +5,7 @@ import { resources } from '@/config/resources'
 import crudSource from '@/components/CrudPage.vue?raw'
 import platformDetailsSource from '@/components/AccountIdentityPlatformDetails.vue?raw'
 import dialogSource from '@/components/AccountIdentityCredentialsDialog.vue?raw'
+import accountCenterSource from '@/views/AccountCenterView.vue?raw'
 
 describe('account identity resource', () => {
   it('keeps account import and restores safe platform-account batch mutations', () => {
@@ -17,6 +18,7 @@ describe('account identity resource', () => {
     expect(config.updateFields).toBeUndefined()
     expect(config.batchActions?.map((action) => action.key)).toEqual([
       'export-accounts',
+      'batch-account-onboarding',
       'batch-update-account-age-type',
       'batch-update-login-status',
       'batch-set-tags',
@@ -29,15 +31,15 @@ describe('account identity resource', () => {
       {
         id: 'identity-1',
         platform_summaries: [
-          { account_id: 'account-1' },
-          { account_id: 'account-2' },
+          { account_id: 'account-1', business_platform: 'threads' },
+          { account_id: 'account-2', business_platform: 'instagram' },
         ],
       },
       {
         id: 'identity-2',
         platform_summaries: [
-          { account_id: 'account-2' },
-          { account_id: 'account-3' },
+          { account_id: 'account-2', business_platform: 'instagram' },
+          { account_id: 'account-3', business_platform: 'threads' },
         ],
       },
     ]
@@ -79,19 +81,89 @@ describe('account identity resource', () => {
     expect(config.deleteLabel).toBeUndefined()
   })
 
-  it('provides platform-specific health, login, binding, group, and candidate filters', () => {
+  it('maps batch onboarding to one explicitly selected business app', () => {
+    const config = buildAccountIdentityResource(resources.accounts)
+    const action = config.batchActions?.find((item) => item.key === 'batch-account-onboarding')
+    const selectedIdentities = [
+      {
+        id: 'identity-1',
+        platform_summaries: [
+          { account_id: 'threads-1', business_platform: 'threads' },
+          { account_id: 'instagram-1', business_platform: 'instagram' },
+        ],
+      },
+      {
+        id: 'identity-2',
+        platform_summaries: [{ account_id: 'threads-2', business_platform: 'threads' }],
+      },
+    ]
+
+    expect(action?.fields?.[0]).toMatchObject({
+      key: 'business_platform',
+      label: '目标业务 App',
+      required: true,
+    })
+    expect(action?.batchBody?.({
+      business_platform: 'threads',
+      provider: 'morelogin',
+      target_runtime_instance_id: 'runtime-1',
+      environment_name_prefix: '重新上号',
+      proxy_allocation_mode: 'none',
+    }, selectedIdentities)).toEqual({
+      account_ids: ['threads-1', 'threads-2'],
+      business_platform: 'threads',
+      provider: 'morelogin',
+      target_runtime_instance_id: 'runtime-1',
+      environment_name_prefix: '重新上号',
+      proxy_allocation_mode: 'none',
+      proxy_group_id: undefined,
+      dynamic_proxy_id: undefined,
+    })
+    expect(() => action?.batchBody?.({ business_platform: 'instagram' }, selectedIdentities)).toThrow(
+      '有 1 个没有 Instagram 平台账号',
+    )
+    expect(() => action?.batchBody?.({ business_platform: 'threads' }, [
+      { ...selectedIdentities[0], credentials_exported_at: '2026-09-05T08:00:00Z' },
+    ])).toThrow('有 1 个已导出')
+  })
+
+  it('restores the operational account filters without losing aggregate-only filters', () => {
     const config = buildAccountIdentityResource(resources.accounts)
 
     expect(config.filters?.map((item) => item.key)).toEqual([
-      'keyword',
-      'business_platform',
-      'platform_health_status',
-      'session_login_status',
-      'bound_state',
+      'account_id',
+      'login_username',
       'slot_group_id',
-      'candidate_status',
+      'tag_id',
+      'bound_slot_name',
+      'provider_slot_id',
+      'business_platform',
+      'country',
+      'login_status',
       'export_status',
+      'account_age_type',
+      'warmup_status',
+      'warmup_plan_id',
+      'runtime_platform',
+      'provider',
+      'keyword',
+      'platform_health_status',
+      'bound_state',
+      'candidate_status',
     ])
+    expect(config.listParams?.({
+      slot_group_id: '__ungrouped__',
+      tag_id: '__unassigned__',
+    })).toEqual({
+      slot_group_ungrouped: true,
+      tag_unassigned: true,
+    })
+  })
+
+  it('opens the verified aggregate account list before feature status returns', () => {
+    expect(accountCenterSource).toContain('const featureStatus = ref<MetaAccountFeatureStatus>({')
+    expect(accountCenterSource).toContain('enabled: true')
+    expect(accountCenterSource).toContain('状态探测失败不能让页面退回旧列表')
   })
 
   it('reuses credentials on the identity parent without changing the ordinary account list', () => {

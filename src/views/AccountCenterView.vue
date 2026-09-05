@@ -16,7 +16,12 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-const featureStatus = ref<MetaAccountFeatureStatus | null>(null)
+const featureStatus = ref<MetaAccountFeatureStatus>({
+  enabled: true,
+  dual_write_enabled: true,
+  shadow_read_enabled: false,
+  runtime_capability: 'runtime.account_snapshot.v1',
+})
 const accountConfig = computed(() => (
   featureStatus.value?.enabled
     ? buildAccountIdentityResource(resources.accounts)
@@ -66,8 +71,7 @@ async function loadFeatureStatus() {
       await router.replace({ path: route.path, query })
     }
   } catch {
-    // 灰度接口不可用时保留原账号管理，不能让兼容版本页面失效。
-    featureStatus.value = null
+    // 正式版默认使用聚合账号；状态探测失败不能让页面退回旧列表。
   }
 }
 

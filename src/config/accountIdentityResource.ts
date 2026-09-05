@@ -1,7 +1,7 @@
-import { businessPlatformOptions, loginStatusOptions } from '@/config/options'
+import { businessPlatformOptions } from '@/config/options'
 import { accountExportAction } from '@/config/accountExport'
 import type { AnyRecord } from '@/types/api'
-import type { ResourceConfig, RowActionConfig, SelectOption } from '@/types/crud'
+import type { FieldConfig, ResourceConfig, RowActionConfig, SelectOption } from '@/types/crud'
 
 const platformHealthOptions: SelectOption[] = [
   { label: '未知', value: 'unknown' },
@@ -10,13 +10,6 @@ const platformHealthOptions: SelectOption[] = [
   { label: '封禁', value: 'banned' },
   { label: '已停用', value: 'disabled' },
   { label: '已删除', value: 'deleted' },
-]
-
-const platformSessionOptions: SelectOption[] = [
-  ...loginStatusOptions,
-  { label: '需要安全验证', value: 'challenge_required' },
-  { label: '会话已过期', value: 'session_expired' },
-  { label: '异常', value: 'error' },
 ]
 
 function visiblePlatformAccountIds(records: AnyRecord[]): string[] {
@@ -43,6 +36,71 @@ function identityPlatformBatchAction(accounts: ResourceConfig, key: string) {
     batchBody: (payload: AnyRecord, records: AnyRecord[]) =>
       action.batchBody!(payload, visiblePlatformAccountRows(records)),
   }
+}
+
+function identityPlatformOnboardingAction(accounts: ResourceConfig): RowActionConfig | null {
+  const action = accounts.batchActions?.find((item) => item.key === 'batch-account-onboarding')
+  if (!action?.batchBody) return null
+  return {
+    ...action,
+    fields: [
+      {
+        key: 'business_platform',
+        label: '目标业务 App',
+        type: 'select',
+        options: businessPlatformOptions,
+        required: true,
+        placeholder: '请选择本次上号的业务 App',
+      },
+      ...(action.fields || []),
+    ],
+    batchBody: (payload, records) => {
+      const targetPlatform = String(payload.business_platform || '').trim()
+      if (!targetPlatform) throw new Error('请选择本次上号的业务 App')
+
+      const exportedCount = records.filter((record) => Boolean(record.credentials_exported_at)).length
+      if (exportedCount) {
+        throw new Error(`所选登录身份中有 ${exportedCount} 个已导出，不能再次上号`)
+      }
+
+      const missingCount = records.filter((record) => (
+        !Array.isArray(record.platform_summaries)
+        || !record.platform_summaries.some(
+          (summary: AnyRecord) => String(summary?.business_platform || '') === targetPlatform,
+        )
+      )).length
+      if (missingCount) {
+        const platformLabel = businessPlatformOptions.find((option) => option.value === targetPlatform)?.label
+          || targetPlatform
+        throw new Error(`所选登录身份中有 ${missingCount} 个没有 ${platformLabel} 平台账号，请调整选择后重试`)
+      }
+
+      const seen = new Set<string>()
+      const accountRows: AnyRecord[] = []
+      for (const record of records) {
+        for (const summary of record.platform_summaries as AnyRecord[]) {
+          if (String(summary?.business_platform || '') !== targetPlatform) continue
+          const id = String(summary?.account_id || '').trim()
+          if (!id || seen.has(id)) continue
+          seen.add(id)
+          accountRows.push({
+            id,
+            business_platform: targetPlatform,
+            credentials_exported_at: record.credentials_exported_at,
+          })
+        }
+      }
+      return action.batchBody!(payload, accountRows)
+    },
+  }
+}
+
+function inheritAccountFilters(accounts: ResourceConfig, keys: string[]): FieldConfig[] {
+  const filtersByKey = new Map((accounts.filters || []).map((filter) => [filter.key, filter]))
+  return keys.flatMap((key) => {
+    const filter = filtersByKey.get(key)
+    return filter ? [{ ...filter }] : []
+  })
 }
 
 function identityPlatformDeleteAction(): RowActionConfig {
@@ -72,6 +130,7 @@ function identityPlatformDeleteAction(): RowActionConfig {
 export function buildAccountIdentityResource(accounts: ResourceConfig): ResourceConfig {
   const accountAgeTypeAction = identityPlatformBatchAction(accounts, 'batch-update-account-age-type')
   const accountLoginStatusAction = identityPlatformBatchAction(accounts, 'batch-update-login-status')
+  const accountOnboardingAction = identityPlatformOnboardingAction(accounts)
   const accountTagAction = identityPlatformBatchAction(accounts, 'batch-set-tags')
   return {
     key: 'accountIdentities',
@@ -86,9 +145,11 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
     keepCreateOpenWhen: accounts.keepCreateOpenWhen,
     createBody: accounts.createBody,
     createFields: accounts.createFields,
+    listParams: accounts.listParams,
     expandRow: 'accountIdentity',
     batchActions: [
       accountExportAction('identities'),
+      accountOnboardingAction,
       accountAgeTypeAction,
       accountLoginStatusAction,
       accountTagAction,
@@ -114,10 +175,25 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
       { key: 'created_at', label: '创建时间', type: 'datetime', width: 165, align: 'center' },
     ],
     filters: [
-      { key: 'keyword', label: '关键词', placeholder: '登录账号 / 用户名 / 昵称' },
-      { key: 'business_platform', label: '业务 App', type: 'select', options: businessPlatformOptions },
+      ...inheritAccountFilters(accounts, [
+        'account_id',
+        'login_username',
+        'slot_group_id',
+        'tag_id',
+        'bound_slot_name',
+        'provider_slot_id',
+        'business_platform',
+        'country',
+        'login_status',
+        'export_status',
+        'account_age_type',
+        'warmup_status',
+        'warmup_plan_id',
+        'runtime_platform',
+        'provider',
+        'keyword',
+      ]),
       { key: 'platform_health_status', label: '账号健康状态', type: 'select', options: platformHealthOptions },
-      { key: 'session_login_status', label: '设备登录状态', type: 'select', options: platformSessionOptions },
       {
         key: 'bound_state',
         label: '设备绑定',
@@ -128,19 +204,6 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
         ],
       },
       {
-        key: 'slot_group_id',
-        label: '设备分组',
-        type: 'remoteSelect',
-        remote: {
-          endpoint: '/api/slot-groups',
-          labelKey: 'name',
-          valueKey: 'id',
-          searchParam: 'keyword',
-          pageSize: 100,
-        },
-        placeholder: '全部设备分组',
-      },
-      {
         key: 'candidate_status',
         label: '关联候选',
         type: 'select',
@@ -148,15 +211,6 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
           { label: '待确认', value: 'pending' },
           { label: '已确认', value: 'confirmed' },
           { label: '已拒绝', value: 'rejected' },
-        ],
-      },
-      {
-        key: 'export_status',
-        label: '导出状态',
-        type: 'select',
-        options: [
-          { label: '已导出', value: 'exported' },
-          { label: '未导出', value: 'unexported' },
         ],
       },
     ],
