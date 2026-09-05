@@ -17,10 +17,19 @@ const props = defineProps<{
 const summaries = computed<IdentityPlatformSummary[]>(() => (
   Array.isArray(props.row.platform_summaries) ? props.row.platform_summaries : []
 ))
-const identityName = computed(() => String(
-  props.row.display_name || props.row.login_username || `登录身份 #${props.row.id}`,
-))
 const loginUsername = computed(() => String(props.row.login_username || '').trim())
+const identityName = computed(() => {
+  const storedName = String(props.row.display_name || '').trim()
+  if (storedName && storedName !== loginUsername.value) return storedName
+
+  const platformName = summaries.value
+    .map((item) => String(item.display_name || item.username || '').trim())
+    .find((value) => value && value !== loginUsername.value)
+  return platformName || loginUsername.value || `登录身份 #${props.row.id}`
+})
+const secondaryLoginUsername = computed(() => (
+  loginUsername.value && loginUsername.value !== identityName.value ? loginUsername.value : ''
+))
 const boundSummaries = computed(() => summaries.value.filter((item) => item.session_id && item.slot_id))
 </script>
 
@@ -29,7 +38,7 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
     <span class="identity-main__icon"><UserRound /></span>
     <span class="identity-main__content">
       <strong>{{ identityName }}</strong>
-      <small v-if="loginUsername">{{ loginUsername }}</small>
+      <small v-if="secondaryLoginUsername">{{ secondaryLoginUsername }}</small>
       <small>{{ Number(row.account_count || 0) }} 个平台账号<span v-if="row.country"> · {{ row.country }}</span></small>
     </span>
   </div>
@@ -37,7 +46,6 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
   <div v-else-if="kind === 'identityPlatforms'" class="identity-cell platform-list">
     <div v-for="item in summaries" :key="item.account_id" class="platform-list__row">
       <el-tag size="small" effect="plain">{{ businessPlatformLabel(item.business_platform) }}</el-tag>
-      <span class="platform-list__name">{{ item.display_name || item.username || `账号 #${item.account_id}` }}</span>
       <StatusBadge :value="item.health_status" />
       <StatusBadge :value="item.login_status || 'not_logged_in'" />
     </div>
@@ -79,8 +87,7 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
 .identity-main__content strong { color: #243b53; font-size: 13px; }
 .identity-main__content small { color: #7b8da0; font-size: 10px; }
 .platform-list { display: flex; flex-direction: column; gap: 6px; }
-.platform-list__row { display: grid; grid-template-columns: 82px minmax(86px, 1fr) auto auto; align-items: center; gap: 6px; }
-.platform-list__name { overflow: hidden; color: #40566c; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.platform-list__row { display: grid; grid-template-columns: minmax(82px, 1fr) auto auto; align-items: center; gap: 6px; }
 .platform-list__row :deep(.el-tag) { justify-self: start; }
 .session-summary { display: flex; flex-direction: column; gap: 5px; }
 .session-summary__count { display: flex; align-items: center; gap: 5px; color: #52697e; font-size: 11px; }
