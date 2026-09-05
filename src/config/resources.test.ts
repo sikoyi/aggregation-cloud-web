@@ -657,6 +657,15 @@ describe('账号批量设置标签', () => {
     expect(tagField?.remote?.create?.body('重点账号')).toEqual({ name: '重点账号' })
     expect(tagField?.placeholder).toContain('按回车新建')
   })
+
+  it('使用单个批量请求覆盖所选账号标签', () => {
+    expect(action?.batchPath?.([], {})).toBe('/api/accounts/tags/batch')
+    expect(action?.batchBody?.({ tag_ids: ['1', '2'] }, [{ id: '10' }, { id: '11' }])).toEqual({
+      account_ids: ['10', '11'],
+      tag_ids: ['1', '2'],
+    })
+    expect(action?.path).toBeUndefined()
+  })
 })
 
 describe('账号列表未分配筛选', () => {

@@ -1468,10 +1468,14 @@ export const resources: Record<string, ResourceConfig> = {
         label: "设置标签",
         method: "PUT",
         icon: "users",
-        path: (record) => `/api/accounts/${record.id}/tags`,
-        body: (payload) => ({
+        batchPath: () => "/api/accounts/tags/batch",
+        batchBody: (payload, records) => ({
+          account_ids: records.map((record) => String(record.id)),
           tag_ids: Array.isArray(payload.tag_ids) ? payload.tag_ids : [],
         }),
+        successTitle: "账号标签设置完成",
+        successMessage: (data) =>
+          `已更新 ${Number(data.updated_count || 0)} 个账号，新增 ${Number(data.added_count || 0)} 个标签关联，移除 ${Number(data.removed_count || 0)} 个标签关联`,
         fields: [
           {
             key: "tag_ids",

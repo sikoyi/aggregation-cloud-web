@@ -7,7 +7,7 @@ import platformDetailsSource from '@/components/AccountIdentityPlatformDetails.v
 import dialogSource from '@/components/AccountIdentityCredentialsDialog.vue?raw'
 
 describe('account identity resource', () => {
-  it('keeps account import but removes platform-account batch mutations', () => {
+  it('keeps account import and restores safe platform-account batch mutations', () => {
     const config = buildAccountIdentityResource(resources.accounts)
 
     expect(config.endpoint).toBe('/api/account-identities')
@@ -15,9 +15,43 @@ describe('account identity resource', () => {
     expect(config.createFields).toBe(resources.accounts.createFields)
     expect(config.expandRow).toBe('accountIdentity')
     expect(config.updateFields).toBeUndefined()
-    expect(config.batchActions?.map((action) => action.key)).toEqual(['export-accounts'])
+    expect(config.batchActions?.map((action) => action.key)).toEqual([
+      'export-accounts',
+      'batch-update-account-age-type',
+      'batch-set-tags',
+    ])
     expect(config.batchActions?.[0]?.batchBody?.({}, [{ id: 'identity-1' }])).toEqual({
       source: 'identities', ids: ['identity-1'],
+    })
+    const selectedIdentities = [
+      {
+        id: 'identity-1',
+        platform_summaries: [
+          { account_id: 'account-1' },
+          { account_id: 'account-2' },
+        ],
+      },
+      {
+        id: 'identity-2',
+        platform_summaries: [
+          { account_id: 'account-2' },
+          { account_id: 'account-3' },
+        ],
+      },
+    ]
+    expect(config.batchActions?.[1]?.batchBody?.(
+      { account_age_type: 'old' },
+      selectedIdentities,
+    )).toEqual({
+      account_ids: ['account-1', 'account-2', 'account-3'],
+      account_age_type: 'old',
+    })
+    expect(config.batchActions?.[2]?.batchBody?.(
+      { tag_ids: ['tag-1'] },
+      selectedIdentities,
+    )).toEqual({
+      account_ids: ['account-1', 'account-2', 'account-3'],
+      tag_ids: ['tag-1'],
     })
     expect(config.deleteLabel).toBeUndefined()
   })

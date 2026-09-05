@@ -1,5 +1,6 @@
 import { businessPlatformOptions, loginStatusOptions } from '@/config/options'
 import { accountExportAction } from '@/config/accountExport'
+import type { AnyRecord } from '@/types/api'
 import type { ResourceConfig, SelectOption } from '@/types/crud'
 
 const platformHealthOptions: SelectOption[] = [
@@ -18,7 +19,31 @@ const platformSessionOptions: SelectOption[] = [
   { label: '异常', value: 'error' },
 ]
 
+function visiblePlatformAccountRows(records: AnyRecord[]): AnyRecord[] {
+  const accountIds = new Set<string>()
+  for (const record of records) {
+    if (!Array.isArray(record.platform_summaries)) continue
+    for (const summary of record.platform_summaries) {
+      const accountId = String(summary?.account_id || '').trim()
+      if (accountId) accountIds.add(accountId)
+    }
+  }
+  return [...accountIds].map((id) => ({ id }))
+}
+
+function identityPlatformBatchAction(accounts: ResourceConfig, key: string) {
+  const action = accounts.batchActions?.find((item) => item.key === key)
+  if (!action?.batchBody) return null
+  return {
+    ...action,
+    batchBody: (payload: AnyRecord, records: AnyRecord[]) =>
+      action.batchBody!(payload, visiblePlatformAccountRows(records)),
+  }
+}
+
 export function buildAccountIdentityResource(accounts: ResourceConfig): ResourceConfig {
+  const accountAgeTypeAction = identityPlatformBatchAction(accounts, 'batch-update-account-age-type')
+  const accountTagAction = identityPlatformBatchAction(accounts, 'batch-set-tags')
   return {
     key: 'accountIdentities',
     title: accounts.title,
@@ -33,7 +58,9 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
     createBody: accounts.createBody,
     createFields: accounts.createFields,
     expandRow: 'accountIdentity',
-    batchActions: [accountExportAction('identities')],
+    batchActions: [accountExportAction('identities'), accountAgeTypeAction, accountTagAction].filter(
+      (action): action is NonNullable<typeof action> => action !== null,
+    ),
     inlineActionKeys: ['edit-credentials'],
     rowActions: [
       {
