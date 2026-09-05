@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExternalLink, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
+import { Copy, ExternalLink, MapPin, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref, watch } from 'vue'
 
@@ -64,6 +64,18 @@ function accountTags(row: AnyRecord) {
   return Array.isArray(row.tag_names)
     ? row.tag_names.map((item) => String(item).trim()).filter(Boolean)
     : []
+}
+
+async function copyBackupUrl(value: unknown) {
+  const backupUrl = String(value || '').trim()
+  if (!backupUrl) return
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
+    await navigator.clipboard.writeText(backupUrl)
+    ElMessage.success('备份地址已复制')
+  } catch {
+    ElMessage.error('复制失败，请手动打开备份地址')
+  }
 }
 
 function openHealthDialog(row: AnyRecord) {
@@ -209,9 +221,13 @@ onMounted(loadRows)
       table-layout="fixed"
       empty-text="暂无可见平台账号"
     >
-      <el-table-column label="业务 App" width="110" align="center">
+      <el-table-column label="平台 / 属性" width="145" align="center">
         <template #default="{ row }">
-          <el-tag effect="plain">{{ businessPlatformLabel(row.business_platform) }}</el-tag>
+          <div class="account-attributes">
+            <el-tag effect="plain">{{ businessPlatformLabel(row.business_platform) }}</el-tag>
+            <span class="account-attributes__country"><MapPin />{{ row.country || '国家未填写' }}</span>
+            <StatusBadge :value="row.account_age_type || 'unknown'" />
+          </div>
         </template>
       </el-table-column>
       <el-table-column label="平台账号" min-width="210">
@@ -261,12 +277,15 @@ onMounted(loadRows)
       </el-table-column>
       <el-table-column label="绑定设备" min-width="190">
         <template #default="{ row }">
-          <div v-if="row.account_session_id" class="bound-device">
-            <strong>{{ row.bound_slot_name || row.bound_slot_provider_id || `设备 #${row.account_session_slot_id}` }}</strong>
-            <small v-if="row.bound_slot_provider_id">{{ row.bound_slot_provider_id }}</small>
-            <small>绑定版本 {{ row.account_session_binding_version }}</small>
+          <div class="bound-device">
+            <template v-if="row.account_session_id">
+              <strong>{{ row.bound_slot_name || row.bound_slot_provider_id || `设备 #${row.account_session_slot_id}` }}</strong>
+              <small v-if="row.bound_slot_provider_id">{{ row.bound_slot_provider_id }}</small>
+              <small>绑定版本 {{ row.account_session_binding_version }}</small>
+            </template>
+            <span v-else class="identity-details__empty">未绑定设备</span>
+            <small class="bound-device__group">设备分组：{{ row.bound_slot_group_name || '未分组' }}</small>
           </div>
-          <span v-else class="identity-details__empty">未绑定设备</span>
         </template>
       </el-table-column>
       <el-table-column label="养号状态" width="110" align="center">
@@ -276,6 +295,37 @@ onMounted(loadRows)
         <template #default="{ row }">
           <span v-if="row.content_monitor_enabled === null || row.content_monitor_enabled === undefined" class="identity-details__empty">未配置</span>
           <StatusBadge v-else :value="row.content_monitor_enabled ? row.content_monitor_status : 'disabled'" />
+        </template>
+      </el-table-column>
+      <el-table-column label="备份数据" width="135" align="center">
+        <template #default="{ row }">
+          <div v-if="row.account_package_download_url" class="backup-data">
+            <el-tag type="success" effect="plain" round>已备份</el-tag>
+            <span class="backup-data__actions">
+              <el-tooltip content="打开备份地址" placement="top">
+                <el-button
+                  tag="a"
+                  text
+                  circle
+                  :icon="ExternalLink"
+                  :href="row.account_package_download_url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="打开备份地址"
+                />
+              </el-tooltip>
+              <el-tooltip content="复制备份地址" placement="top">
+                <el-button
+                  text
+                  circle
+                  :icon="Copy"
+                  aria-label="复制备份地址"
+                  @click.stop="copyBackupUrl(row.account_package_download_url)"
+                />
+              </el-tooltip>
+            </span>
+          </div>
+          <el-tag v-else type="info" effect="plain" round>未备份</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="190" align="center">
@@ -372,7 +422,15 @@ onMounted(loadRows)
 .bound-device small,
 .status-stack small { overflow: hidden; color: #8494a5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .status-stack { align-items: center; }
+.account-attributes { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 5px; }
+.account-attributes__country { display: inline-flex; max-width: 100%; align-items: center; gap: 3px; overflow: hidden; color: #657b8f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.account-attributes__country svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .platform-tags { display: flex; min-width: 0; flex-wrap: wrap; gap: 4px; }
+.bound-device__group { color: #526f86 !important; }
+.backup-data { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.backup-data__actions { display: inline-flex; align-items: center; gap: 0; }
+.backup-data__actions :deep(.el-button + .el-button) { margin-left: 0; }
+.backup-data__actions :deep(.el-button) { width: 26px; height: 26px; }
 .identity-details__actions { display: flex; align-items: center; justify-content: center; gap: 2px; }
 .identity-details__actions :deep(.el-button + .el-button) { margin-left: 0; }
 .identity-details__empty { color: #9aa9b8; font-size: 11px; }

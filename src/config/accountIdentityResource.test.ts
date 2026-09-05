@@ -61,6 +61,17 @@ describe('account identity resource', () => {
     expect(platformDetailsSource).toContain('accountTags(row)')
   })
 
+  it('shows platform account attributes, device group, and backup actions in expanded details', () => {
+    expect(platformDetailsSource).toContain('label="平台 / 属性"')
+    expect(platformDetailsSource).toContain("row.country || '国家未填写'")
+    expect(platformDetailsSource).toContain("row.account_age_type || 'unknown'")
+    expect(platformDetailsSource).toContain("row.bound_slot_group_name || '未分组'")
+    expect(platformDetailsSource).toContain('label="备份数据"')
+    expect(platformDetailsSource).toContain('row.account_package_download_url')
+    expect(platformDetailsSource).toContain('aria-label="打开备份地址"')
+    expect(platformDetailsSource).toContain('aria-label="复制备份地址"')
+  })
+
   it('merges the identity ID into the login column and shows creation time', () => {
     const config = buildAccountIdentityResource(resources.accounts)
 
