@@ -9,6 +9,17 @@ export interface AccountAwareTreeNode extends SearchableTreeNode {
   hasAccount?: boolean
 }
 
+export function filterTreeByAccountTag<
+  T extends SearchableTreeNode & { tagIds?: string[] },
+  G extends SearchableTreeGroup<T>,
+>(groups: G[], tagId: string): G[] {
+  if (!tagId) return groups
+  return groups.map((group) => {
+    const children = (group.children || []).filter((child) => child.tagIds?.includes(tagId))
+    return { ...group, children, accountCount: children.length }
+  }).filter((group) => group.children.length > 0) as G[]
+}
+
 export interface SearchableTreeGroup<T extends SearchableTreeNode = SearchableTreeNode>
   extends SearchableTreeNode {
   children?: T[]

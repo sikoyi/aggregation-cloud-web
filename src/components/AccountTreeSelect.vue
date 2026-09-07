@@ -9,7 +9,7 @@ import {
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import type { AnyRecord } from '@/types/api'
 import { statusLabel, statusTagType } from '@/utils/format'
-import { countFilteredTreeLeaves } from '@/utils/treeSelectionStats'
+import { countFilteredTreeLeaves, filterTreeByAccountTag } from '@/utils/treeSelectionStats'
 import { reconcileExpandedGroupKeys } from '@/utils/treeExpansion'
 
 const props = defineProps<{
@@ -35,6 +35,8 @@ interface AccountTreeNode {
   searchText?: string
   deviceLabel?: string
   loginStatus?: string
+  tagIds?: string[]
+  tagNames?: string[]
   accountCount?: number
   disabled?: boolean
   children?: AccountTreeNode[]
@@ -47,12 +49,29 @@ const accountTreeFilterScope = String(props.preferenceScope || '').trim()
   || (props.groupByDevice ? 'selector:devices' : 'selector:accounts')
 const { filters: persistentFilters } = usePersistentFilters(accountTreeFilterScope, {
   keyword: '',
+  tagId: '',
   groupNodeIds: [] as string[],
   accountPresence: 'all' as 'all' | 'bound' | 'unbound',
 })
 const searchKeyword = computed({
   get: () => String(persistentFilters.keyword || ''),
   set: (value: string) => { persistentFilters.keyword = value },
+})
+const selectedTagId = computed({
+  get: () => String(persistentFilters.tagId || ''),
+  set: (value: string) => { persistentFilters.tagId = value || '' },
+})
+const tagOptions = computed(() => {
+  const tags = new Map<string, string>()
+  for (const group of treeData.value) {
+    for (const account of group.children || []) {
+      account.tagIds?.forEach((id, index) => {
+        tags.set(id, account.tagNames?.[index] || id)
+      })
+    }
+  }
+  return Array.from(tags, ([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'zh-CN'))
 })
 const selectedGroupNodeIds = computed<string[]>({
   get: () => Array.isArray(persistentFilters.groupNodeIds)
@@ -78,9 +97,11 @@ const groupOptions = computed(() => treeData.value.map((node) => ({
   label: node.label,
 })))
 const visibleTreeData = computed(() => {
-  if (!selectedGroupNodeIds.value.length) return treeData.value
   const selectedIds = new Set(selectedGroupNodeIds.value)
-  return treeData.value.filter((node) => selectedIds.has(node.id))
+  const groups = selectedIds.size
+    ? treeData.value.filter((node) => selectedIds.has(node.id))
+    : treeData.value
+  return props.publishPool ? filterTreeByAccountTag(groups, selectedTagId.value) : groups
 })
 
 const selectedAccountIds = computed(() => {
@@ -130,6 +151,9 @@ const emptyMessage = computed(() => {
   return ''
 })
 const treeEmptyMessage = computed(() => {
+  if (props.publishPool && selectedTagId.value && !visibleTreeData.value.length) {
+    return '当前标签及分组下暂无符合条件的账号'
+  }
   if (selectedGroupNodeIds.value.length && !visibleTreeData.value.length) {
     return props.groupByDevice ? '所选设备分组暂无符合条件的账号' : '所选账号分组暂无符合条件的账号'
   }
@@ -202,6 +226,8 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
       ? [slotName, providerSlotId].filter(Boolean).join(' / ')
       : undefined,
     loginStatus: String(account.login_status || 'unknown'),
+    tagIds: Array.isArray(account.tag_ids) ? account.tag_ids.map(String) : [],
+    tagNames: Array.isArray(account.tag_names) ? account.tag_names.map(String) : [],
     disabled: Boolean(props.disabled) || !selectable,
   }
 }
@@ -537,6 +563,23 @@ watch(
           </div>
         </el-popover>
       </div>
+      <el-select
+        v-if="publishPool"
+        v-model="selectedTagId"
+        class="account-tree-select__tag-filter"
+        placeholder="账号标签（全部）"
+        aria-label="账号标签"
+        filterable
+        clearable
+        :disabled="disabled"
+      >
+        <el-option
+          v-for="option in tagOptions"
+          :key="option.value"
+          :label="option.label"
+          :value="option.value"
+        />
+      </el-select>
     </div>
     <el-alert
       v-if="!loading && emptyMessage"
@@ -655,6 +698,12 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.account-tree-select__tag-filter {
+  width: 100%;
+  min-width: 0;
+  margin-top: 8px;
 }
 
 .account-tree-select__filters :deep(.el-input) {
