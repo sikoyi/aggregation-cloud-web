@@ -2,15 +2,18 @@
 import { Link2, Plus, RefreshCw, Tags, Users } from 'lucide-vue-next'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
+import AccountTagManager from '@/components/AccountTagManager.vue'
 
 import { getMetaAccountFeatureStatus, type MetaAccountFeatureStatus } from '@/api/accountIdentities'
 import AccountIdentityCandidates from '@/components/AccountIdentityCandidates.vue'
+import AccountExportRecords from '@/components/AccountExportRecords.vue'
 import CrudPage from '@/components/CrudPage.vue'
 import { buildAccountIdentityResource } from '@/config/accountIdentityResource'
 import { resources } from '@/config/resources'
 import { useAuthStore } from '@/stores/auth'
 
-type AccountCenterTab = 'accounts' | 'candidates' | 'tags'
+type AccountCenterTab = 'accounts' | 'candidates' | 'exports'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,19 +30,18 @@ const accountConfig = computed(() => (
     ? buildAccountIdentityResource(resources.accounts)
     : resources.accounts
 ))
-const accountTagConfig = computed(() => resources.accountTags)
+const tagsVisible = ref(route.query.tab === 'tags')
+const tagManagerRef = ref<InstanceType<typeof AccountTagManager> | null>(null)
 const activeTab = ref<AccountCenterTab>(normalizeTab(route.query.tab))
 const accountPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
 const accountCandidatePageRef = ref<InstanceType<typeof AccountIdentityCandidates> | null>(null)
-const accountTagPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
-const activeConfig = computed(() => (
-  activeTab.value === 'tags' ? accountTagConfig.value : accountConfig.value
-))
-const activeCreateLabel = computed(() => activeConfig.value.createLabel || '新增')
+const exportPageRef = ref<InstanceType<typeof AccountExportRecords> | null>(null)
+const activeCreateLabel = computed(() => accountConfig.value.createLabel || '新增')
 
 function normalizeTab(value: unknown): AccountCenterTab {
+  if (value === 'exports') return 'exports'
   if (value === 'candidates') return 'candidates'
-  return value === 'tags' ? 'tags' : 'accounts'
+  return 'accounts'
 }
 
 function handleTabChange(value: string | number) {
@@ -51,15 +53,31 @@ function handleTabChange(value: string | number) {
 }
 
 function refreshActivePage() {
-  if (activeTab.value === 'tags') accountTagPageRef.value?.loadRows()
+  if (activeTab.value === 'exports') exportPageRef.value?.loadRows()
   else if (activeTab.value === 'candidates') accountCandidatePageRef.value?.loadRows()
   else accountPageRef.value?.loadRows()
 }
 
 function openActiveCreate() {
-  if (activeTab.value === 'tags') accountTagPageRef.value?.openCreate()
-  else accountPageRef.value?.openCreate()
+  accountPageRef.value?.openCreate()
 }
+
+async function closeTags(done: () => void) {
+  if (tagManagerRef.value?.isBusy()) return
+  if (tagManagerRef.value?.hasUnsavedChanges()) {
+    try { await ElMessageBox.confirm('未保存的标签修改将丢失，确认关闭？', '关闭标签管理', { confirmButtonText: '关闭', cancelButtonText: '继续编辑' }) }
+    catch { return }
+  }
+  done()
+}
+async function viewTagMembers(tag: { id: string }) {
+  tagsVisible.value = false
+  activeTab.value = 'accounts'
+  handleTabChange('accounts')
+  await nextTick()
+  accountPageRef.value?.filterByAccountTag(tag.id)
+}
+function tagsChanged() { accountPageRef.value?.refreshAccountTags() }
 
 async function loadFeatureStatus() {
   try {
@@ -79,6 +97,7 @@ watch(
   () => route.query.tab,
   (tab) => {
     activeTab.value = normalizeTab(tab)
+    if (tab === 'tags') tagsVisible.value = true
   },
 )
 
@@ -114,10 +133,11 @@ onMounted(loadFeatureStatus)
           </div>
         </div>
         <div class="account-center__actions">
+          <el-button v-if="auth.can('accounts.view')" :icon="Tags" @click="tagsVisible = true">管理标签</el-button>
           <el-tooltip content="刷新" placement="bottom">
             <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
           </el-tooltip>
-          <el-button v-if="activeTab !== 'candidates' && auth.can('accounts.create')" type="primary" :icon="Plus" @click="openActiveCreate">
+          <el-button v-if="activeTab !== 'candidates' && activeTab !== 'exports' && auth.can('accounts.create')" type="primary" :icon="Plus" @click="openActiveCreate">
             {{ activeCreateLabel }}
           </el-button>
         </div>
@@ -138,7 +158,7 @@ onMounted(loadFeatureStatus)
             :closable="false"
             title="当前租户已开启多平台聚合读取，但新账号双写尚未开启"
           />
-          <CrudPage ref="accountPageRef" :config="accountConfig" embedded hide-header-actions />
+          <CrudPage ref="accountPageRef" :config="accountConfig" embedded hide-header-actions @export-records="handleTabChange('exports')" />
         </el-tab-pane>
         <el-tab-pane v-if="featureStatus?.enabled" name="candidates" lazy>
           <template #label>
@@ -149,21 +169,22 @@ onMounted(loadFeatureStatus)
           </template>
           <AccountIdentityCandidates ref="accountCandidatePageRef" />
         </el-tab-pane>
-        <el-tab-pane name="tags" lazy>
-          <template #label>
-            <span class="account-center__tab-label">
-              <Tags class="h-4 w-4" />
-              账号标签
-            </span>
-          </template>
-          <CrudPage ref="accountTagPageRef" :config="accountTagConfig" embedded hide-header-actions />
+        <el-tab-pane v-if="auth.can('accounts.export')" name="exports" label="导出记录" lazy>
+          <AccountExportRecords ref="exportPageRef" />
         </el-tab-pane>
       </el-tabs>
     </el-card>
+    <el-dialog v-model="tagsVisible" title="管理账号标签" width="min(1000px, 94vw)" align-center class="account-tag-dialog" destroy-on-close :before-close="closeTags" :close-on-click-modal="false">
+      <AccountTagManager v-if="tagsVisible && auth.can('accounts.view')" ref="tagManagerRef" @changed="tagsChanged" @members="viewTagMembers" />
+    </el-dialog>
   </section>
 </template>
 
 <style scoped>
+:deep(.account-tag-dialog .el-dialog__body) {
+  max-height: 75vh;
+  overflow-y: auto;
+}
 .account-center__workspace {
   --account-center-content-inset: 16px;
   border-radius: 8px;

@@ -44,6 +44,8 @@ export interface AccountIdentityRow extends AccountIdentityDetail {
   active_session_count: number
   has_pending_candidate: boolean
   platform_summaries: IdentityPlatformSummary[]
+  matched_account_ids: string[]
+  filtered_business_platform?: string | null
 }
 
 export interface AccountIdentityCredentialsPatch {

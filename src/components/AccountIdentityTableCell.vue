@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle2, MonitorSmartphone, Tags, UserRound } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, MonitorSmartphone, Tags } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import type { IdentityPlatformSummary } from '@/api/accountIdentities'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { businessPlatformLabel } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
+import { matchedPlatformSummaries } from '@/utils/accountIdentitySelection'
 
 type CellKind = 'loginIdentity' | 'identityTags' | 'identityPlatforms' | 'identitySessions' | 'identityCandidate'
 
@@ -19,11 +20,13 @@ const summaries = computed<IdentityPlatformSummary[]>(() => (
 ))
 const loginUsername = computed(() => String(props.row.login_username || '').trim())
 const identityLabel = computed(() => loginUsername.value || `登录身份 #${props.row.id}`)
+const matched = computed(() => Array.isArray(props.row.matched_account_ids) ? matchedPlatformSummaries(props.row) : summaries.value)
+const matchedIds = computed(() => new Set(matched.value.map((item) => String(item.account_id))))
 const identityTags = computed(() => {
   const seen = new Set<string>()
   const values: string[] = []
-  for (const summary of summaries.value) {
-    for (const rawTag of summary.tag_names || []) {
+  for (const summary of matched.value) {
+    for (const rawTag of Array.isArray(summary.tag_names) ? summary.tag_names : []) {
       const tag = String(rawTag).trim()
       if (!tag || seen.has(tag)) continue
       seen.add(tag)
@@ -37,7 +40,6 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
 
 <template>
   <div v-if="kind === 'loginIdentity'" class="identity-cell identity-main">
-    <span class="identity-main__icon"><UserRound /></span>
     <span class="identity-main__content">
       <span class="identity-main__heading">
         <el-tooltip v-if="loginUsername" :content="loginUsername" placement="top">
@@ -46,7 +48,7 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
         <strong v-else>{{ identityLabel }}</strong>
         <el-tag v-if="row.credentials_exported_at" size="small" type="warning" effect="plain">已导出</el-tag>
       </span>
-      <small>ID {{ row.id }} · {{ Number(row.account_count || 0) }} 个平台账号<span v-if="row.country"> · {{ row.country }}</span></small>
+      <small>ID {{ row.id }} · {{ Number(row.account_count || 0) }} 个平台账号<span v-if="matched.length < summaries.length"> · 匹配 {{ matched.length }} 个</span><span v-if="row.country"> · {{ row.country }}</span></small>
     </span>
   </div>
 
@@ -69,9 +71,9 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
   </div>
 
   <div v-else-if="kind === 'identityPlatforms'" class="identity-cell platform-list">
-    <div v-for="item in summaries" :key="item.account_id" class="platform-list__row">
+    <div v-for="item in summaries" :key="item.account_id" class="platform-list__row" :class="{ 'platform-list__row--outside': !matchedIds.has(item.account_id) }">
       <el-tag size="small" effect="plain">{{ businessPlatformLabel(item.business_platform) }}</el-tag>
-      <StatusBadge :value="item.health_status" />
+      <StatusBadge :value="item.login_status || 'unknown'" />
     </div>
     <span v-if="!summaries.length" class="identity-empty">暂无可见平台账号</span>
   </div>
@@ -103,9 +105,7 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
 <style scoped>
 .identity-cell { min-width: 0; }
 .identity-main { display: flex; align-items: center; gap: 10px; }
-.identity-main__icon { display: inline-flex; width: 34px; height: 34px; flex: 0 0 34px; align-items: center; justify-content: center; border: 1px solid #cfe1f2; border-radius: 8px; color: #245f87; background: #edf6fc; }
-.identity-main__icon svg { width: 17px; height: 17px; }
-.identity-main__content { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.identity-main__content { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
 .identity-main__heading { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .identity-main__heading strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .identity-main__heading :deep(.el-tag) { flex: 0 0 auto; }
@@ -121,6 +121,7 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
 .platform-list { display: flex; flex-direction: column; gap: 6px; }
 .platform-list__row { display: grid; grid-template-columns: minmax(82px, 1fr) auto; align-items: center; gap: 6px; }
 .platform-list__row :deep(.el-tag) { justify-self: start; }
+.platform-list__row--outside { opacity: 0.55; }
 .session-summary { display: flex; flex-direction: column; gap: 5px; }
 .session-summary__count { display: flex; align-items: center; gap: 5px; color: #52697e; font-size: 11px; }
 .session-summary__count svg { width: 14px; height: 14px; color: #39749a; }

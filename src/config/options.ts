@@ -39,6 +39,7 @@ export function businessPlatformOptionsForScope(scope: string[] | null | undefin
 export function isBusinessPlatformFieldKey(key: string) {
   return [
     'business_platform',
+    'business_platforms',
     'supported_business_platforms',
     'default_business_platform',
   ].includes(key)

@@ -133,6 +133,7 @@ export const http = {
   post: <T>(path: string, body?: unknown, params?: AnyRecord) =>
     request<T>('POST', path, { body, params }),
   postFile: (path: string, body?: unknown) => request<DownloadFile>('POST', path, { body, responseType: 'file' }),
+  getFile: (path: string) => request<DownloadFile>('GET', path, { responseType: 'file', cache: 'no-store' }),
   postWithSignal: <T>(path: string, body: unknown, signal: AbortSignal) =>
     request<T>('POST', path, { body, signal }),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, { body }),

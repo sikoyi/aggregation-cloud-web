@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network, UserRound } from 'lucide-vue-next'
+import { Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import StatusBadge from '@/components/StatusBadge.vue'
-import { businessPlatformLabel, businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
+import { businessPlatformLabel, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
@@ -45,14 +45,21 @@ const pendingGroupLabel = computed(() => {
 })
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.provider))
-const accountBusinessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.bound_account_business_platform))
-const accountCountry = computed(() => String(props.row.bound_account_country || '').trim())
-const accountName = computed(() => String(props.row.bound_account_name || '').trim())
 const proxyName = computed(() => String(props.row.proxy_name || '').trim())
 const proxyUrl = computed(() => String(props.row.proxy_source_url || '').trim())
-const accountSessions = computed<AnyRecord[]>(() => (
-  Array.isArray(props.row.account_sessions) ? props.row.account_sessions : []
-))
+const accountSessions = computed<AnyRecord[]>(() => {
+  if (Array.isArray(props.row.account_sessions) && props.row.account_sessions.length) return props.row.account_sessions
+  if (!props.row.bound_account_id) return []
+  return [{ id: props.row.bound_account_id, account_id: props.row.bound_account_id,
+    account_username: props.row.bound_account_name, business_platform: props.row.bound_account_business_platform,
+    country: props.row.bound_account_country, login_status: props.row.bound_account_login_status || props.row.login_status }]
+})
+function accountLabel(session: AnyRecord) {
+  return String(session.account_username || session.account_display_name || `账号 #${session.account_id || '-'}`)
+}
+function accountTooltip(session: AnyRecord) {
+  return `${accountLabel(session)} · 账号 ID ${session.account_id || '-'}${session.country ? ` · ${session.country}` : ''}`
+}
 </script>
 
 <template>
@@ -92,52 +99,18 @@ const accountSessions = computed<AnyRecord[]>(() => (
   </div>
 
   <div v-else-if="kind === 'deviceState'" class="device-cell device-state">
-    <div class="device-state__row">
-      <span>设备</span>
-      <div class="device-state__value">
-        <StatusBadge :value="row.status" />
-      </div>
-    </div>
-    <template v-if="accountSessions.length">
-      <div v-for="session in accountSessions" :key="String(session.id)" class="device-state__row">
-        <span>{{ businessPlatformLabel(session.business_platform) }}</span>
-        <StatusBadge :value="session.login_status" />
-      </div>
-    </template>
-    <div v-else-if="row.bound_account_id" class="device-state__row">
-      <span>账号</span>
-      <StatusBadge :value="row.bound_account_login_status || row.login_status" />
-    </div>
+    <StatusBadge :value="row.status" />
   </div>
 
   <div v-else-if="kind === 'deviceAccount'" class="device-cell device-relation">
     <template v-if="accountSessions.length">
       <div v-for="session in accountSessions" :key="String(session.id)" class="device-account-session">
-        <div class="device-relation__title">
-          <UserRound />
-          <strong>{{ session.account_display_name || session.account_username || `账号 #${session.account_id}` }}</strong>
-        </div>
-        <div class="device-relation__meta">
-          <el-tag size="small" type="primary" effect="light">
-            {{ businessPlatformLabel(session.business_platform) }}
-          </el-tag>
-          <StatusBadge :value="session.login_status" />
-        </div>
-        <small>账号 ID {{ session.account_id || '-' }}</small>
+        <el-tag size="small" type="primary" effect="light">{{ businessPlatformLabel(session.business_platform) }}</el-tag>
+        <el-tooltip :content="accountTooltip(session)" placement="top" :show-after="500">
+          <strong class="device-account-session__name">{{ accountLabel(session) }}</strong>
+        </el-tooltip>
+        <StatusBadge :value="session.login_status || 'unknown'" />
       </div>
-    </template>
-    <template v-else-if="row.bound_account_id">
-      <div class="device-relation__title">
-        <UserRound />
-        <strong>{{ accountName || `账号 #${row.bound_account_id}` }}</strong>
-      </div>
-      <div class="device-relation__meta">
-        <el-tag v-if="row.bound_account_business_platform" size="small" type="primary" effect="light">
-          {{ accountBusinessPlatform }}
-        </el-tag>
-        <el-tag v-if="accountCountry" size="small" type="info" effect="plain">{{ accountCountry }}</el-tag>
-      </div>
-      <small>账号 ID {{ row.bound_account_id }}</small>
     </template>
     <span v-else class="device-relation__empty">未绑定账号</span>
   </div>
@@ -189,13 +162,11 @@ const accountSessions = computed<AnyRecord[]>(() => (
 .device-platform__primary svg { width: 14px; height: 14px; color: #527a98; }
 .device-platform__primary strong { font-size: 12px; }
 .device-platform__tags { display: flex; gap: 5px; }
-.device-state { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.device-state__row { display: grid; min-width: 118px; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 6px; }
-.device-state__row > span { color: #8191a2; font-size: 10px; }
-.device-state__value { display: flex; min-width: 0; align-items: center; gap: 5px; }
+.device-state { display: flex; align-items: center; justify-content: center; }
 .device-relation { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
-.device-account-session { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding-bottom: 6px; border-bottom: 1px solid #e8eef4; }
-.device-account-session:last-child { padding-bottom: 0; border-bottom: 0; }
+.device-account-session { display: grid; min-width: 0; grid-template-columns: 82px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 28px; }
+.device-account-session > :deep(.el-tag) { justify-self: start; white-space: nowrap; }
+.device-account-session__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #334e68; font-size: 12px; }
 .device-relation__title { display: flex; min-width: 0; align-items: center; gap: 6px; }
 .device-relation__title svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
 .device-relation__title strong,

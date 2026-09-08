@@ -55,6 +55,9 @@ describe('账号身份列表单元格', () => {
     expect(html).toContain('2 个平台账号')
     expect(html).not.toContain('Chelsea Perez')
     expect(html).not.toContain('Threads Nickname')
+    expect(html).not.toContain('identity-main__icon')
+    expect(html).not.toContain('<svg')
+    expect(html).not.toContain('el-avatar')
   })
 
   it('完整提示只绑定登录邮箱，不包含 ID 和平台账号数量', async () => {
@@ -84,12 +87,40 @@ describe('账号身份列表单元格', () => {
 
     expect(html).toContain('Shopify')
     expect(html).toContain('Threads')
-    expect(html).toContain('未知')
-    expect(html).toContain('正常')
-    expect(html).not.toContain('未登录')
-    expect(html).not.toContain('已登录')
+    expect(html).not.toContain('正常')
+    expect(html).toContain('未登录')
+    expect(html).toContain('已登录')
     expect(html).not.toContain('Chelsea Perez')
     expect(html).not.toContain('Threads Nickname')
+  })
+
+  it('筛选仅显示匹配平台标签，同时保留全部平台概览与匹配数量', async () => {
+    const filtered = { ...row, matched_account_ids: ['account-2'] }
+    const tags = await renderCell('identityTags', filtered)
+    expect(tags).toContain('重点账号')
+    expect(tags).not.toContain('客户')
+    const name = await renderCell('loginIdentity', filtered)
+    expect(name).toContain('匹配 1 个')
+    const platforms = await renderCell('identityPlatforms', filtered)
+    expect(platforms).toContain('Shopify')
+    expect(platforms).toContain('Threads')
+    expect(platforms).toContain('platform-list__row--outside')
+  })
+
+  it.each([
+    ['challenge_required', '需要安全验证'],
+    ['session_expired', '会话已过期'],
+    ['error', '异常'],
+    [null, '未知'],
+  ])('只展示会话状态 %s，不把历史健康异常合并进来', async (loginStatus, label) => {
+    const html = await renderCell('identityPlatforms', {
+      platform_summaries: [{
+        account_id: 'account-1', business_platform: 'instagram',
+        health_status: 'banned', login_status: loginStatus,
+      }],
+    })
+    expect(html).toContain(label)
+    expect(html).not.toContain('封禁')
   })
 
   it('主表按当前可见平台账号去重展示标签并集', async () => {

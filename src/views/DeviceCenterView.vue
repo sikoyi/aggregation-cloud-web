@@ -2,6 +2,7 @@
 import { Boxes, Layers3, Plus, RefreshCw, RotateCcw } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 
 import CrudPage from '@/components/CrudPage.vue'
 import { resources } from '@/config/resources'
@@ -15,15 +16,16 @@ const auth = useAuthStore()
 
 const slotConfig = computed(() => resources.slots)
 const slotGroupConfig = computed(() => resources.slotGroups)
+const groupsVisible = ref(route.query.tab === 'groups')
 const activeTab = ref<DeviceCenterTab>(normalizeTab(route.query.tab))
 const slotPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
 const slotGroupPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
-const activeConfig = computed(() => (activeTab.value === 'groups' ? slotGroupConfig.value : slotConfig.value))
-const activePage = computed(() => (activeTab.value === 'groups' ? slotGroupPageRef.value : slotPageRef.value))
+const activeConfig = computed(() => slotConfig.value)
+const activePage = computed(() => slotPageRef.value)
 const activeCreateLabel = computed(() => activeConfig.value.createLabel || '新增')
 
 function normalizeTab(value: unknown): DeviceCenterTab {
-  return value === 'groups' ? 'groups' : 'slots'
+  return 'slots'
 }
 
 function handleTabChange(value: string | number) {
@@ -51,8 +53,18 @@ watch(
   () => route.query.tab,
   (tab) => {
     activeTab.value = normalizeTab(tab)
+    if (tab === 'groups') groupsVisible.value = true
   },
 )
+async function closeGroups(done: () => void) {
+  if (slotGroupPageRef.value?.isBusy()) return
+  if (slotGroupPageRef.value?.hasUnsavedChanges()) {
+    try { await ElMessageBox.confirm('未保存的分组修改或设备选择将丢失，确认关闭？', '关闭分组管理', { confirmButtonText: '关闭', cancelButtonText: '继续编辑' }) }
+    catch { return }
+  }
+  done()
+}
+function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
 </script>
 
 <template>
@@ -69,6 +81,7 @@ watch(
           </div>
         </div>
         <div class="device-center__actions">
+          <el-button v-if="auth.can('devices.view')" :icon="Layers3" @click="groupsVisible = true">管理分组</el-button>
           <el-tooltip content="刷新" placement="bottom">
             <el-button :icon="RefreshCw" circle @click="refreshActivePage" />
           </el-tooltip>
@@ -95,21 +108,21 @@ watch(
           </template>
           <CrudPage ref="slotPageRef" :config="slotConfig" embedded hide-header-actions />
         </el-tab-pane>
-        <el-tab-pane name="groups" lazy>
-          <template #label>
-            <span class="device-center__tab-label">
-              <Layers3 class="h-4 w-4" />
-              设备分组
-            </span>
-          </template>
-          <CrudPage ref="slotGroupPageRef" :config="slotGroupConfig" embedded hide-header-actions />
-        </el-tab-pane>
       </el-tabs>
     </el-card>
+    <el-dialog v-model="groupsVisible" title="管理设备分组" width="min(1150px, 94vw)" align-center class="device-group-dialog" destroy-on-close :before-close="closeGroups" :close-on-click-modal="false" @closed="refreshDevices">
+      <CrudPage v-if="groupsVisible && auth.can('devices.view')" ref="slotGroupPageRef" :config="slotGroupConfig" embedded inline-forms />
+    </el-dialog>
   </section>
 </template>
 
 <style scoped>
+:deep(.device-group-dialog .el-dialog__body) { max-height: 75vh; overflow-y: auto; }
+:deep(.device-group-dialog .resource-page--embedded .resource-page__header) {
+  margin-top: 0;
+  padding-top: 4px;
+  min-height: 36px;
+}
 .device-center__workspace {
   --device-center-content-inset: 16px;
   border-radius: 8px;

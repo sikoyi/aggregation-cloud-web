@@ -842,6 +842,7 @@ function buildAccountImportPayload(payload: AnyRecord) {
   const body = pickPayload(payload, [
     "business_platform",
     "country",
+    "account_age_type",
     "tag_ids",
     "raw_text",
     "delimiter",
@@ -1472,11 +1473,24 @@ export const resources: Record<string, ResourceConfig> = {
         batchBody: (payload, records) => ({
           account_ids: records.map((record) => String(record.id)),
           tag_ids: Array.isArray(payload.tag_ids) ? payload.tag_ids : [],
+          mode: payload.mode || "append",
         }),
         successTitle: "账号标签设置完成",
         successMessage: (data) =>
           `已更新 ${Number(data.updated_count || 0)} 个账号，新增 ${Number(data.added_count || 0)} 个标签关联，移除 ${Number(data.removed_count || 0)} 个标签关联`,
         fields: [
+          {
+            key: "mode",
+            label: "设置方式",
+            type: "segmented",
+            options: [
+              { label: "追加", value: "append" },
+              { label: "移除", value: "remove" },
+              { label: "替换全部", value: "replace" },
+            ],
+            defaultValue: "append",
+            required: true,
+          },
           {
             key: "tag_ids",
             label: "账号标签",
@@ -1577,8 +1591,8 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "provider_slot_id", label: "设备信息", type: "deviceIdentity", minWidth: 220 },
       { key: "group_name", label: "所属分组", type: "deviceGroup", minWidth: 125 },
       { key: "runtime_platform", label: "运行环境", type: "devicePlatform", minWidth: 155 },
-      { key: "status", label: "状态", type: "deviceState", width: 150, align: "center" },
-      { key: "bound_account_id", label: "账号信息", type: "deviceAccount", minWidth: 210 },
+      { key: "status", label: "状态", type: "deviceState", width: 100, align: "center" },
+      { key: "bound_account_id", label: "账号信息", type: "deviceAccount", minWidth: 320 },
       { key: "proxy_id", label: "代理资源", type: "deviceProxy", minWidth: 180 },
       { key: "last_seen_at", label: "最近活动", type: "deviceActivity", width: 190, align: "center" },
     ],

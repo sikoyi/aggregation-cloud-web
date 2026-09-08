@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Eye, Plus, Search, Trash2 } from 'lucide-vue-next'
-import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import { ElDialog, ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
@@ -14,9 +14,11 @@ import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, RemoteSelectConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   group: AnyRecord
+  embedded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -25,6 +27,8 @@ const emit = defineEmits<{
 
 const loading = ref(false)
 const submitting = ref(false)
+const auth = useAuthStore()
+const canManage = computed(() => auth.can('devices.batch'))
 const keyword = ref('')
 const page = ref(1)
 const pageSize = ref(10)
@@ -86,6 +90,7 @@ async function loadMembers() {
 }
 
 async function addMembers() {
+  if (submitting.value || !canManage.value) return
   if (!selectedSlotIds.value.length) {
     ElMessage.warning('请选择要添加的设备')
     return
@@ -132,6 +137,8 @@ async function openSlotDetail(slot: AnyRecord) {
 }
 
 async function removeMember(slot: AnyRecord) {
+  if (submitting.value || !canManage.value) return
+  submitting.value = true
   try {
     await ElMessageBox.confirm(
       `确认从该分组移除设备「${slot.display_name || slot.provider_slot_id || '未命名设备'}」？`,
@@ -143,6 +150,7 @@ async function removeMember(slot: AnyRecord) {
       },
     )
   } catch {
+    submitting.value = false
     return
   }
 
@@ -168,11 +176,13 @@ async function removeMember(slot: AnyRecord) {
 }
 
 async function removeSelectedMembers() {
+  if (submitting.value || !canManage.value) return
   if (!selectedMemberIds.value.length) {
     ElMessage.warning('请选择要移除的设备')
     return
   }
 
+  submitting.value = true
   try {
     await ElMessageBox.confirm(
       `确认从该分组移除已选 ${selectedMemberIds.value.length} 台设备？`,
@@ -184,6 +194,7 @@ async function removeSelectedMembers() {
       },
     )
   } catch {
+    submitting.value = false
     return
   }
 
@@ -273,19 +284,19 @@ onBeforeUnmount(() => {
   window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
 })
+defineExpose({ isBusy: () => submitting.value })
 </script>
-
 <template>
   <section class="member-editor">
+    <div v-show="!embedded || !slotDetailVisible" class="member-editor__content">
     <div class="member-editor__header">
       <div>
         <h3>组内设备</h3>
-        <p>当前分组内设备可在这里添加、搜索、查看详情和移除。</p>
       </div>
       <el-tag size="small" effect="plain">共 {{ total }} 台</el-tag>
     </div>
 
-    <div class="member-editor__add">
+    <div v-if="canManage" class="member-editor__add">
       <RemoteSelect
         v-model="selectedSlotIds"
         :config="availableSlotSelect"
@@ -309,7 +320,7 @@ onBeforeUnmount(() => {
       <el-button :disabled="!keyword" @click="resetSearch">清空</el-button>
     </div>
 
-    <div v-if="selectedMembers.length" class="member-editor__batch">
+    <div v-if="canManage && selectedMembers.length" class="member-editor__batch">
       <span>已选 {{ selectedMembers.length }} 台设备</span>
       <el-button
         size="small"
@@ -335,7 +346,7 @@ onBeforeUnmount(() => {
       empty-text="暂无组内设备"
       @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="44" reserve-selection />
+      <el-table-column v-if="canManage" type="selection" width="44" reserve-selection :selectable="() => !submitting" />
       <el-table-column prop="provider_slot_id" label="设备 ID" min-width="170" />
       <el-table-column prop="display_name" label="名称" min-width="170" />
       <el-table-column prop="provider_slot_no" label="编号" min-width="130" />
@@ -361,7 +372,7 @@ onBeforeUnmount(() => {
               <el-button text circle :icon="Eye" :disabled="submitting" @click="openSlotDetail(row)" />
             </el-tooltip>
             <el-tooltip content="移除设备" placement="top">
-              <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="removeMember(row)" />
+              <el-button v-if="canManage" text circle type="danger" :icon="Trash2" :disabled="submitting" @click="removeMember(row)" />
             </el-tooltip>
           </el-space>
         </template>
@@ -381,7 +392,9 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <el-dialog
+    </div>
+    <el-button v-if="embedded && slotDetailVisible" @click="slotDetailVisible = false">返回设备成员列表</el-button>
+    <component :is="embedded ? 'section' : ElDialog" v-if="!embedded || slotDetailVisible"
       v-model="slotDetailVisible"
       title="设备详情"
       width="720px"
@@ -417,11 +430,12 @@ onBeforeUnmount(() => {
           <el-descriptions-item label="更新时间">{{ formatDate(slotDetail.updated_at) }}</el-descriptions-item>
         </el-descriptions>
       </div>
-    </el-dialog>
+    </component>
   </section>
 </template>
 
 <style scoped>
+.member-editor__content { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .member-editor {
   display: flex;
   flex-direction: column;

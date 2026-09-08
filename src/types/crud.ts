@@ -226,6 +226,7 @@ export interface RowActionConfig {
   path?: (record: AnyRecord, payload?: AnyRecord) => string
   batchPath?: (records: AnyRecord[], payload?: AnyRecord) => string
   fields?: FieldConfig[]
+  batchFields?: (records: AnyRecord[]) => FieldConfig[]
   resultColumns?: ColumnConfig[]
   body?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => unknown)
   batchBody?: (payload: AnyRecord, records: AnyRecord[]) => unknown

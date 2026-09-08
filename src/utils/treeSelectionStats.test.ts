@@ -3,11 +3,51 @@ import { describe, expect, it } from 'vitest'
 import {
   countFilteredTreeLeaves,
   filterTreeByAccountPresence,
+  filterTreeByAccountTag,
   filterTreeByLeafKeyword,
   filteredTreeLeaves,
   mergeFilteredTreeSelection,
   toggleFilteredTreeSelection,
 } from './treeSelectionStats'
+
+describe('轮转账号标签筛选', () => {
+  const groups = [
+    { label: 'A', accountCount: 3, children: [
+      { label: 'one', tagIds: ['1', '2'] },
+      { label: 'two', tagIds: ['2'], disabled: true },
+      { label: 'three' },
+    ] },
+    { label: 'B', accountCount: 1, children: [{ label: 'four', tagIds: ['1'] }] },
+  ]
+
+  it('清空标签恢复原始分组，不修改源数据', () => {
+    expect(filterTreeByAccountTag(groups, '')).toBe(groups)
+    expect(filterTreeByAccountTag(groups, '1').map((group) => group.accountCount)).toEqual([1, 1])
+    expect(groups[0].accountCount).toBe(3)
+    expect(groups[0].children).toHaveLength(3)
+  })
+
+  it('按 ID 匹配多标签账号，移除空组并保留不可选状态', () => {
+    const result = filterTreeByAccountTag(groups, '2')
+    expect(result).toHaveLength(1)
+    expect(result[0].children.map((child) => child.label)).toEqual(['one', 'two'])
+    expect(result[0].children[1].disabled).toBe(true)
+    expect(filterTreeByAccountTag(groups, 'missing')).toEqual([])
+    expect(filterTreeByAccountTag([], '1')).toEqual([])
+  })
+
+  it('标签与分组、关键词取交集', () => {
+    const result = filterTreeByAccountTag(groups.slice(0, 1), '1')
+    expect(countFilteredTreeLeaves(result, 'one')).toBe(1)
+    expect(countFilteredTreeLeaves(result, 'four')).toBe(0)
+  })
+
+  it('筛选下勾选或取消账号保留其他标签中已选账号', () => {
+    const visible = filterTreeByAccountTag(groups, '2').flatMap((g) => g.children.map((c) => c.label))
+    expect(mergeFilteredTreeSelection(['four'], ['one'], visible)).toEqual(['four', 'one'])
+    expect(mergeFilteredTreeSelection(['four', 'one'], [], visible)).toEqual(['four'])
+  })
+})
 
 describe('树形选择器数量统计', () => {
   const groups = [

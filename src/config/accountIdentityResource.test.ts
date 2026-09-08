@@ -8,6 +8,28 @@ import dialogSource from '@/components/AccountIdentityCredentialsDialog.vue?raw'
 import accountCenterSource from '@/views/AccountCenterView.vue?raw'
 
 describe('account identity resource', () => {
+  it('平台筛选只收集对应账号，主行的多平台概览保持完整', () => {
+    const config = buildAccountIdentityResource(resources.accounts)
+    const records = [{ id: 'identity-1', filtered_business_platform: 'threads', matched_account_ids: ['threads-1'], platform_summaries: [
+      { account_id: 'threads-1', business_platform: 'threads' },
+      { account_id: 'instagram-1', business_platform: 'instagram' },
+    ] }]
+    for (const key of ['batch-update-account-age-type', 'batch-update-login-status', 'batch-set-tags', 'batch-delete-accounts']) {
+      const body = config.batchActions?.find((action) => action.key === key)?.batchBody?.({ account_age_type: 'old', login_status: 'logged_in', tag_ids: ['tag'] }, records) as { account_ids: string[] }
+      expect(body.account_ids).toEqual(['threads-1'])
+    }
+    expect(records[0].platform_summaries).toHaveLength(2)
+    const onboarding = config.batchActions?.find((action) => action.key === 'batch-account-onboarding')
+    expect(() => onboarding?.batchBody?.({ business_platform: 'instagram' }, records)).toThrow('当前平台筛选不一致')
+    expect(crudSource).toContain(':business-platform="row.filtered_business_platform || undefined"')
+    expect(platformDetailsSource).toContain('business_platform: props.businessPlatform')
+  })
+  it('隐藏内部绑定版本展示，但保留会话操作的版本校验', () => {
+    expect(platformDetailsSource).not.toContain('<small>绑定版本')
+    expect(platformDetailsSource).toContain('expected_binding_version: bindingVersion')
+    expect(platformDetailsSource).toContain('row.bound_slot_provider_id')
+    expect(platformDetailsSource).toContain('设备分组：')
+  })
   it('keeps account import and restores safe platform-account batch mutations', () => {
     const config = buildAccountIdentityResource(resources.accounts)
 
@@ -24,12 +46,15 @@ describe('account identity resource', () => {
       'batch-set-tags',
       'batch-delete-accounts',
     ])
-    expect(config.batchActions?.[0]?.batchBody?.({}, [{ id: 'identity-1' }])).toEqual({
-      source: 'identities', ids: ['identity-1'],
+    expect(config.batchActions?.[0]?.batchBody?.({ business_platforms: ['threads'] }, [{
+      id: 'identity-1', platform_summaries: [{ account_id: 'account-1', business_platform: 'threads' }],
+    }])).toEqual({
+      source: 'identities', ids: ['identity-1'], business_platforms: ['threads'],
     })
     const selectedIdentities = [
       {
         id: 'identity-1',
+        matched_account_ids: ['account-1', 'account-2'],
         platform_summaries: [
           { account_id: 'account-1', business_platform: 'threads' },
           { account_id: 'account-2', business_platform: 'instagram' },
@@ -37,6 +62,7 @@ describe('account identity resource', () => {
       },
       {
         id: 'identity-2',
+        matched_account_ids: ['account-2', 'account-3'],
         platform_summaries: [
           { account_id: 'account-2', business_platform: 'instagram' },
           { account_id: 'account-3', business_platform: 'threads' },
@@ -63,6 +89,7 @@ describe('account identity resource', () => {
     )).toEqual({
       account_ids: ['account-1', 'account-2', 'account-3'],
       tag_ids: ['tag-1'],
+      mode: 'append',
     })
     const deleteAction = config.batchActions?.find((action) => action.key === 'batch-delete-accounts')
     expect(deleteAction?.permission).toBe('accounts.delete')
@@ -87,6 +114,7 @@ describe('account identity resource', () => {
     const selectedIdentities = [
       {
         id: 'identity-1',
+        matched_account_ids: ['threads-1', 'instagram-1'],
         platform_summaries: [
           { account_id: 'threads-1', business_platform: 'threads' },
           { account_id: 'instagram-1', business_platform: 'instagram' },
@@ -94,6 +122,7 @@ describe('account identity resource', () => {
       },
       {
         id: 'identity-2',
+        matched_account_ids: ['threads-2'],
         platform_summaries: [{ account_id: 'threads-2', business_platform: 'threads' }],
       },
     ]
@@ -147,7 +176,6 @@ describe('account identity resource', () => {
       'runtime_platform',
       'provider',
       'keyword',
-      'platform_health_status',
       'bound_state',
       'candidate_status',
     ])
@@ -158,6 +186,29 @@ describe('account identity resource', () => {
       slot_group_ungrouped: true,
       tag_unassigned: true,
     })
+    expect(config.filters?.find((item) => item.key === 'login_status')?.options?.map((item) => item.value)).toEqual([
+      'not_logged_in', 'unknown', 'logged_in', 'logged_in_dm_unavailable',
+      'twofa_required', 'banned', 'challenge_required', 'session_expired', 'error',
+    ])
+  })
+
+  it('expanded details only expose session login state, without health edits', () => {
+    expect(platformDetailsSource).toContain('label="登录状态"')
+    expect(platformDetailsSource).toContain("row.account_session_login_status || row.login_status || 'unknown'")
+    expect(platformDetailsSource).not.toContain('账号健康')
+    expect(platformDetailsSource).not.toContain('platform_health_status')
+    expect(platformDetailsSource).not.toContain('openHealthDialog')
+    expect(platformDetailsSource).not.toContain('/health')
+  })
+
+  it('按运营阅读顺序展示展开详情，保留后续列顺序', () => {
+    const labels = [...platformDetailsSource.matchAll(/<el-table-column\b[^>]*\blabel="([^"]+)"/g)]
+      .map((match) => match[1])
+
+    expect(labels).toEqual([
+      '平台账号', '平台 / 国家', '登录状态', '账号标签', '账号类型', '绑定设备',
+      '养号状态', '内容监听', '备份数据', '操作',
+    ])
   })
 
   it('opens the verified aggregate account list before feature status returns', () => {
@@ -191,8 +242,19 @@ describe('account identity resource', () => {
     expect(platformDetailsSource).toContain('accountTags(row)')
   })
 
+  it('bounds the login column and reserves credential width only on the identity table', () => {
+    const ordinaryColumns = [...resources.accounts.columns]
+    const config = buildAccountIdentityResource(resources.accounts)
+
+    expect(config.columns.find((column) => column.type === 'loginIdentity')).toMatchObject({ width: 280 })
+    expect(config.columns.find((column) => column.type === 'accountCredentials')).toMatchObject({ minWidth: 280 })
+    expect(config.operationWidth).toBe(72)
+    expect(crudSource).toContain(':table-layout="config.key === \'accountIdentities\' ? \'fixed\' : \'auto\'"')
+    expect(resources.accounts.columns).toEqual(ordinaryColumns)
+  })
+
   it('shows platform account attributes, device group, and backup actions in expanded details', () => {
-    expect(platformDetailsSource).toContain('label="平台 / 属性"')
+    expect(platformDetailsSource).toContain('label="平台 / 国家"')
     expect(platformDetailsSource).toContain("row.country || '国家未填写'")
     expect(platformDetailsSource).toContain("row.account_age_type || 'unknown'")
     expect(platformDetailsSource).toContain("row.bound_slot_group_name || '未分组'")
@@ -200,6 +262,23 @@ describe('account identity resource', () => {
     expect(platformDetailsSource).toContain('row.account_package_download_url')
     expect(platformDetailsSource).toContain('aria-label="打开备份地址"')
     expect(platformDetailsSource).toContain('aria-label="复制备份地址"')
+  })
+
+  it('keeps new and old account types in a separate column from platform and login status', () => {
+    const columns = platformDetailsSource.match(/<el-table-column\b[\s\S]*?<\/el-table-column>/g) || []
+    const platformColumn = columns.find((column) => column.includes('label="平台 / 国家"'))
+    const ageColumn = columns.find((column) => column.includes('label="账号类型"'))
+    const loginColumn = columns.find((column) => column.includes('label="登录状态"'))
+    const warmupColumn = columns.find((column) => column.includes('label="养号状态"'))
+
+    expect(platformColumn).toContain('row.business_platform')
+    expect(platformColumn).toContain('row.country')
+    expect(platformColumn).not.toContain('account_age_type')
+    expect(ageColumn).toContain('width="100" align="center"')
+    expect(ageColumn).toContain("row.account_age_type || 'unknown'")
+    expect(ageColumn).not.toContain('account_session_login_status')
+    expect(loginColumn).not.toContain('account_age_type')
+    expect(warmupColumn).not.toContain('account_age_type')
   })
 
   it('merges the identity ID into the login column and shows creation time', () => {
@@ -211,7 +290,7 @@ describe('account identity resource', () => {
       label: '登录身份',
     })
     expect(config.columns.find((column) => column.type === 'identityPlatforms')).toMatchObject({
-      label: '平台 / 账号状态',
+      label: '平台 / 登录状态',
     })
     expect(config.columns.find((column) => column.key === 'created_at')).toMatchObject({
       label: '创建时间',

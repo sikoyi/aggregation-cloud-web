@@ -23,7 +23,6 @@ const loading = ref(false)
 const error = ref('')
 const task = ref<AnyRecord | null>(null)
 const events = ref<AnyRecord[]>([])
-const assignments = ref<AnyRecord[]>([])
 const children = ref<AnyRecord[]>([])
 const childLoading = ref(false)
 const childPage = ref(1)
@@ -314,14 +313,12 @@ async function loadDetail(taskId: string) {
   childTotal.value = 0
   childPage.value = 1
   try {
-    const [detail, eventData, assignmentData] = await Promise.all([
+    const [detail, eventData] = await Promise.all([
       http.get<AnyRecord>(`/api/tasks/${encodeURIComponent(taskId)}`),
       http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/events`),
-      http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/assignments`),
     ])
     task.value = detail
     events.value = eventData.items || []
-    assignments.value = assignmentData.items || []
     await loadChildren(taskId)
     paramRows.value = await buildParamRows(detail)
   } catch (err) {
@@ -529,30 +526,6 @@ watch(
             </el-timeline>
           </el-tab-pane>
 
-          <el-tab-pane label="分配记录" name="assignments">
-            <el-table :data="assignments" border stripe empty-text="暂无分配记录">
-              <el-table-column prop="runtime_id" label="Runtime" min-width="160" show-overflow-tooltip />
-              <el-table-column label="设备" min-width="190">
-                <template #default="{ row }">
-                  <div class="task-device-cell">
-                    <span>{{ text(row.slot_name) }}</span>
-                    <code>{{ text(row.provider_slot_id) }}</code>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column prop="status" label="状态" width="120">
-                <template #default="{ row }">
-                  <StatusBadge :value="row.status" />
-                </template>
-              </el-table-column>
-              <el-table-column label="分配时间" min-width="170">
-                <template #default="{ row }">{{ formatDate(row.assigned_at) }}</template>
-              </el-table-column>
-              <el-table-column label="更新时间" min-width="170">
-                <template #default="{ row }">{{ formatDate(row.updated_at) }}</template>
-              </el-table-column>
-            </el-table>
-          </el-tab-pane>
         </el-tabs>
       </template>
     </div>

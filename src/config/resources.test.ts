@@ -658,13 +658,23 @@ describe('账号批量设置标签', () => {
     expect(tagField?.placeholder).toContain('按回车新建')
   })
 
-  it('使用单个批量请求覆盖所选账号标签', () => {
+  it('使用单个批量请求默认追加所选账号标签', () => {
     expect(action?.batchPath?.([], {})).toBe('/api/accounts/tags/batch')
     expect(action?.batchBody?.({ tag_ids: ['1', '2'] }, [{ id: '10' }, { id: '11' }])).toEqual({
       account_ids: ['10', '11'],
       tag_ids: ['1', '2'],
+      mode: 'append',
     })
     expect(action?.path).toBeUndefined()
+  })
+
+  it('明确选择替换或移除时保留操作模式', () => {
+    expect(action?.fields?.find(field => field.key === 'mode')?.defaultValue).toBe('append')
+    for (const mode of ['replace', 'remove']) {
+      expect(action?.batchBody?.({ mode, tag_ids: ['1'] }, [{ id: '10' }])).toEqual({
+        account_ids: ['10'], tag_ids: ['1'], mode,
+      })
+    }
   })
 })
 

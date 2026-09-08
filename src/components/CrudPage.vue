@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ElDialog } from 'element-plus'
+import InlineFormPanel from '@/components/InlineFormPanel.vue'
 import {
   Copy,
   Download,
@@ -51,6 +53,7 @@ import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
 import { saveDownload } from '@/utils/download'
+import { identitySelectionLabel } from '@/utils/accountIdentitySelection'
 import { formatCell, getCellValue, truncateId } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
 import {
@@ -65,6 +68,7 @@ import { collectRuntimeSyncFailures, type RuntimeSyncFailure } from '@/utils/run
 const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
 const AccountIdentityPlatformDetails = defineAsyncComponent(() => import('@/components/AccountIdentityPlatformDetails.vue'))
 const AccountIdentityCredentialsDialog = defineAsyncComponent(() => import('@/components/AccountIdentityCredentialsDialog.vue'))
+const AccountExportPreflightDialog = defineAsyncComponent(() => import('@/components/AccountExportPreflightDialog.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
 const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
 const ContentPreview = defineAsyncComponent(() => import('@/components/ContentPreview.vue'))
@@ -84,8 +88,10 @@ const props = defineProps<{
   config: ResourceConfig
   embedded?: boolean
   hideHeaderActions?: boolean
+  inlineForms?: boolean
 }>()
 const auth = useAuthStore()
+const emit = defineEmits<{ exportRecords: [recordId?: string] }>()
 
 
 const iconMap: IconMap = {
@@ -106,11 +112,14 @@ const iconMap: IconMap = {
 
 const loading = ref(false)
 const submitting = ref(false)
+const slotGroupMemberRef = ref<InstanceType<typeof SlotGroupMemberEditor> | null>(null)
+const inlineBusy = computed(() => submitting.value || Boolean(slotGroupMemberRef.value?.isBusy()))
 const error = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const rows = ref<AnyRecord[]>([])
+let appliedIdentityPlatform: string | undefined
 const {
   tableRef,
   selectedRows,
@@ -139,6 +148,7 @@ const interactionSessionDetailId = ref<string | null>(null)
 const publishedContentDetailVisible = ref(false)
 const publishedContentDetailId = ref<string | null>(null)
 const identityCredentialsId = ref<string | null>(null)
+const exportSelection = ref<{ source: 'accounts' | 'identities'; records: AnyRecord[] } | null>(null)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -178,6 +188,7 @@ const hasActiveUserOperation = computed(() => Boolean(
   || interactionSessionDetailVisible.value
   || publishedContentDetailVisible.value
   || identityCredentialsId.value
+  || exportSelection.value
   || assetViewerVisible.value,
 ))
 
@@ -198,6 +209,7 @@ const isPublishedContentDispatchModal = computed(() => props.config.key === 'pub
 const isInteractionSessionCreateModal = computed(() => props.config.key === 'interactionSessions' && modal.type === 'create')
 const isMediaAssetBatchCreateModal = computed(() => Boolean(props.config.mediaAssetBatchUpload && modal.type === 'create'))
 const modalWidth = computed(() => {
+  if (modal.type === 'batch' && modal.action?.key === 'export-accounts') return 'min(520px, calc(100vw - 32px))'
   if (isMediaAssetBatchCreateModal.value) return '900px'
   if (isInteractionSessionCreateModal.value) return '1240px'
   if (isPublishedContentDispatchModal.value && formState.value.dispatch_mode === 'account_pool') return '1420px'
@@ -234,7 +246,7 @@ const groupMembersTabLabel = computed(() => {
   return '组内设备'
 })
 const modalSubmitLabel = computed(() => (
-  modal.type === 'action' && modal.action?.submitLabel
+  (modal.type === 'action' || modal.type === 'batch') && modal.action?.submitLabel
     ? modal.action.submitLabel
     : isTaskDispatchModal.value
       ? '确认执行'
@@ -432,6 +444,11 @@ const batchActions = computed<RowActionConfig[]>(() => {
   return actions
 })
 const selectedCount = computed(() => selectedRows.value.length)
+const selectedIdentityScope = computed(() => {
+  if (props.config.key !== 'accountIdentities') return ''
+  try { return identitySelectionLabel(selectedRows.value) }
+  catch { return `${selectedCount.value} 个登录身份，匹配范围需刷新后确认` }
+})
 const hasSelectedRows = computed(() => selectedCount.value > 0)
 const activeFilterCount = computed(
   () => Object.values(filters).filter((value) => hasFilterValue(value)).length,
@@ -744,6 +761,16 @@ function buildListParams() {
 
 async function loadRows(options?: { silent?: boolean } | number) {
   normalizeScopedFilters()
+  const params = buildListParams()
+  if (props.config.key === 'accountIdentities') {
+    const platform = String(params.business_platform || '')
+    if (appliedIdentityPlatform !== undefined && appliedIdentityPlatform !== platform) {
+      clearSelection()
+      rows.value = []
+      total.value = 0
+    }
+    appliedIdentityPlatform = platform
+  }
   const silent = typeof options === 'object' && Boolean(options?.silent)
   const requestId = ++listRequestId
   if (!silent) {
@@ -752,7 +779,7 @@ async function loadRows(options?: { silent?: boolean } | number) {
     error.value = ''
   }
   try {
-    const data = await http.get<PageResult<AnyRecord>>(props.config.listEndpoint || props.config.endpoint, buildListParams())
+    const data = await http.get<PageResult<AnyRecord>>(props.config.listEndpoint || props.config.endpoint, params)
     if (requestId !== listRequestId) return
     rows.value = data.items
     total.value = data.total
@@ -767,7 +794,7 @@ async function loadRows(options?: { silent?: boolean } | number) {
 }
 
 function shouldRefreshForRealtime(event: RealtimeEventPayload) {
-  if (props.config.key === 'accounts') return event.topic === 'account'
+  if (props.config.key === 'accounts' || props.config.key === 'accountIdentities') return event.topic === 'account'
   if (props.config.key === 'tasks') return event.topic === 'task'
   if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
@@ -900,6 +927,14 @@ function handleRealtimeEvent(event: Event) {
     return
   }
 
+  if (props.config.key === 'accountIdentities') {
+    const visible = rows.value.some(row => Array.isArray(row.platform_summaries)
+      && row.platform_summaries.some((account: AnyRecord) => String(account.account_id) === String(payload.resource_id)))
+    if (visible) scheduleRealtimeRefresh()
+    else scheduleRealtimeConsistencyRefresh(30_000)
+    return
+  }
+
   if (props.config.key === 'accounts') {
     if (rowContainsValue(['id'], payload.resource_id)) scheduleRealtimeRefresh()
     return
@@ -1003,7 +1038,28 @@ async function openCreate() {
   )
 }
 
+const accountTagOptionsVersion = ref(0)
+const deviceGroupOptionsVersion = ref(0)
+function refreshDeviceGroups() {
+  deviceGroupOptionsVersion.value += 1
+  void loadRows({ silent: true })
+}
+function refreshAccountTags() {
+  accountTagOptionsVersion.value += 1
+  void loadRows({ silent: true })
+}
+function filterByAccountTag(id: string) {
+  if (!props.config.filters?.some(field => field.key === 'tag_id')) return
+  filters.tag_id = id
+  accountTagOptionsVersion.value += 1
+  applyFilters()
+}
 defineExpose({
+  refreshDeviceGroups,
+  isBusy: () => inlineBusy.value,
+  hasUnsavedChanges: () => Boolean(modal.type),
+  refreshAccountTags,
+  filterByAccountTag,
   loadRows,
   openCreate,
   runHeaderAction,
@@ -1190,8 +1246,9 @@ function openBatchAction(action: RowActionConfig) {
     runtime_platform: runtimePlatforms.length === 1 ? runtimePlatforms[0] : undefined,
     provider: providers.length === 1 ? providers[0] : undefined,
   }
-  modal.action = action
-  formState.value = buildFormState(action.fields || [])
+  const fields = action.batchFields?.(selectedRows.value) || action.fields || []
+  modal.action = { ...action, fields }
+  formState.value = buildFormState(fields)
 }
 
 function openHeaderAction(action: RowActionConfig) {
@@ -1210,23 +1267,30 @@ async function runHeaderAction(action: RowActionConfig) {
 }
 
 async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = {}) {
-  if (!selectedRows.value.length || submitting.value) return
+  if (!selectedRows.value.length || submitting.value) return false
   if (action.selectionLimit && selectedRows.value.length > action.selectionLimit) {
     ElMessage.warning(`每次最多选择 ${action.selectionLimit} 条，请减少选择后重试`)
-    return
+    return false
   }
   if (action.clientAction === 'download' && action.batchPath) {
     submitting.value = true
     try {
       const selected = [...selectedRows.value]
+      const body = action.batchBody?.(payload, selected)
+      const message = typeof action.confirm === 'function'
+        ? action.confirm({ selectedRows: selected, selected_count: selected.length }) : action.confirm
+      if (!(await confirmAction(message, 'warning', '确认导出'))) return false
       const file = await http.postFile(
         action.batchPath(selected, payload),
-        action.batchBody?.(payload, selected),
+        body,
       )
       saveDownload(file.blob, file.filename)
-      ElMessage.success(`已导出 ${selected.length} 条账号`)
+      ElMessage.success('账号已导出')
+      if (action.refresh !== false) await loadRows()
+      return true
     } catch (err) {
       notifyError(err, '导出失败', '账号导出失败')
+      return false
     } finally {
       submitting.value = false
     }
@@ -1243,12 +1307,19 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
   const actionName = action.label.replace(/^批量/, '')
   const isDanger = action.variant === 'danger' || action.method === 'DELETE'
   const actionContext = {
+    ...payload,
     selectedRows: rowsToHandle,
     selected_count: rowsToHandle.length,
   }
-  const configuredMessage = typeof action.confirm === 'function'
-    ? action.confirm(actionContext)
-    : action.confirm
+  let configuredMessage: string | undefined
+  try {
+    configuredMessage = typeof action.confirm === 'function'
+      ? action.confirm(actionContext)
+      : action.confirm
+  } catch (err) {
+    notifyError(err, '批量操作失败', '请刷新后重新选择账号')
+    return false
+  }
   const message =
     configuredMessage
     || (action.key === '__delete'
@@ -1328,11 +1399,41 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
 }
 
 async function runBatchAction(action: RowActionConfig) {
-  if (action.fields?.length) {
+  if (action.key === 'export-accounts' && ['accounts', 'accountIdentities'].includes(props.config.key)) {
+    if (!auth.can('accounts.export') || !selectedRows.value.length) return
+    if (selectedRows.value.length > 1000) {
+      ElMessage.warning('每次最多选择 1000 项，请减少选择后重试')
+      return
+    }
+    exportSelection.value = {
+      source: props.config.key === 'accountIdentities' ? 'identities' : 'accounts',
+      records: [...selectedRows.value],
+    }
+    return
+  }
+  if (action.fields?.length || action.batchFields) {
     openBatchAction(action)
     return
   }
   await executeBatchAction(action)
+}
+
+async function requestCloseForm() {
+  if (!props.inlineForms) { closeModal(); return }
+  if (inlineBusy.value) return
+  try { await ElMessageBox.confirm('确认返回分组列表？未保存的表单或尚未添加的设备选择将丢失。', '返回分组列表', { confirmButtonText: '返回', cancelButtonText: '继续编辑' }) }
+  catch { return }
+  closeModal()
+}
+
+function openExportRecords(recordId?: string) {
+  exportSelection.value = null
+  emit('exportRecords', recordId)
+}
+
+function onAccountsExported() {
+  clearSelection()
+  void loadRows()
 }
 
 function openAction(action: RowActionConfig, record: AnyRecord) {
@@ -1380,9 +1481,13 @@ async function submitAction() {
 
 async function submitBatchAction() {
   if (!modal.action) return
-  const payload = buildPayload(modal.action.fields || [], formState.value, 'action')
-  await executeBatchAction(modal.action, payload)
-  closeModal()
+  try {
+    const payload = buildPayload(modal.action.fields || [], formState.value, 'action')
+    const succeeded = await executeBatchAction(modal.action, payload)
+    if (succeeded !== false) closeModal()
+  } catch (err) {
+    notifyError(err, '提交失败', '提交失败')
+  }
 }
 
 async function executeRequest(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
@@ -1501,7 +1606,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <AccountExportPreflightDialog v-if="exportSelection" :source="exportSelection.source" :records="exportSelection.records"
+    @close="exportSelection = null" @changed="onAccountsExported" @records="openExportRecords" />
   <section ref="pageRootRef" class="resource-page space-y-4" :class="{ 'resource-page--embedded': props.embedded }">
+    <div v-show="!inlineForms || !modal.type" class="space-y-4">
     <div
       v-if="!props.hideHeaderActions"
       class="resource-page__header flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
@@ -1555,6 +1663,7 @@ onBeforeUnmount(() => {
           >
               <RemoteSelect
                 v-if="filter.type === 'remoteSelect' && filter.remote"
+                :key="filter.key === 'tag_id' ? accountTagOptionsVersion : filter.key === 'group_id' ? deviceGroupOptionsVersion : filter.key"
                 :model-value="filters[filter.key]"
                 :config="filter.remote"
                 :context="filters"
@@ -1614,8 +1723,8 @@ onBeforeUnmount(() => {
       <div class="batch-toolbar__summary">
         <ListChecks class="h-4 w-4 text-slate-500" />
         <span>已选择</span>
-        <strong>{{ selectedCount }}</strong>
-        <span>条数据</span>
+        <strong v-if="selectedIdentityScope">{{ selectedIdentityScope }}</strong>
+        <template v-else><strong>{{ selectedCount }}</strong><span>条数据</span></template>
       </div>
       <div class="batch-toolbar__actions">
         <el-button
@@ -1648,7 +1757,7 @@ onBeforeUnmount(() => {
         highlight-current-row
         :scrollbar-always-on="!props.embedded"
         :class="['resource-table', `resource-table--${config.key}`]"
-        table-layout="auto"
+        :table-layout="config.key === 'accountIdentities' ? 'fixed' : 'auto'"
         @selection-change="handleSelectionChange"
       >
         <el-table-column v-if="batchActions.length" type="selection" width="48" reserve-selection />
@@ -1668,6 +1777,9 @@ onBeforeUnmount(() => {
           <template #default="{ row }">
             <AccountIdentityPlatformDetails
               :identity-id="String(row.id)"
+                :business-platform="row.filtered_business_platform || undefined"
+                :matched-account-ids="row.matched_account_ids || []"
+                :can-split="row.account_count > 1 && row.can_edit_credentials === true"
               @changed="loadRows({ silent: true })"
             />
           </template>
@@ -1795,7 +1907,7 @@ onBeforeUnmount(() => {
           <template #default="{ row }">
             <el-space :size="2">
               <el-tooltip v-if="canEditRow" content="编辑" placement="top">
-                <el-button text circle :icon="Edit3" :disabled="submitting" @click="openEdit(row)" />
+                <el-button text circle :icon="Edit3" aria-label="编辑" :disabled="submitting" @click="openEdit(row)" />
               </el-tooltip>
               <el-tooltip
                 v-for="action in visibleInlineRowActions(row)"
@@ -1877,7 +1989,10 @@ onBeforeUnmount(() => {
       </div>
     </el-card>
 
-    <el-dialog
+    </div>
+    <component
+      :is="inlineForms ? InlineFormPanel : ElDialog"
+      v-if="!inlineForms || modal.type"
       :model-value="Boolean(modal.type)"
       :title="modalTitle"
       :width="modalWidth"
@@ -1885,8 +2000,8 @@ onBeforeUnmount(() => {
       append-to-body
       :close-on-click-modal="!submitting"
       :close-on-press-escape="!submitting"
-      :show-close="!submitting"
-      @close="closeModal"
+      :show-close="!inlineBusy"
+      @close="requestCloseForm"
     >
       <BusinessDispatchForm
         v-if="dispatchFormMode"
@@ -1927,6 +2042,8 @@ onBeforeUnmount(() => {
         <el-tab-pane :label="groupMembersTabLabel" name="members">
           <SlotGroupMemberEditor
             v-if="config.slotGroupMembers"
+            ref="slotGroupMemberRef"
+            :embedded="inlineForms"
             :group="modal.record"
             @changed="loadRows"
           />
@@ -1953,17 +2070,18 @@ onBeforeUnmount(() => {
       </div>
       <DynamicForm v-else v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
       <template #footer>
-        <el-button :disabled="submitting" @click="closeModal">{{ isMediaAssetBatchCreateModal ? '关闭' : '取消' }}</el-button>
+        <el-button :disabled="inlineBusy" @click="requestCloseForm">{{ isMediaAssetBatchCreateModal ? '关闭' : '取消' }}</el-button>
         <el-button
           v-if="showModalSaveButton"
           type="primary"
           :loading="submitting"
+          :disabled="inlineBusy && !submitting"
           @click="modal.type === 'batch' ? submitBatchAction() : modal.type === 'action' ? submitAction() : submitEntity()"
         >
           {{ modalSubmitLabel }}
         </el-button>
       </template>
-    </el-dialog>
+    </component>
 
     <ActionResultDialog
       v-model="resultDialogVisible"

@@ -2,26 +2,22 @@ import { businessPlatformOptions } from '@/config/options'
 import { accountExportAction } from '@/config/accountExport'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig, ResourceConfig, RowActionConfig, SelectOption } from '@/types/crud'
+import { identitySelectionLabel, matchedPlatformSummaries, selectedPlatformAccountIds } from '@/utils/accountIdentitySelection'
 
-const platformHealthOptions: SelectOption[] = [
+const platformLoginStatusOptions: SelectOption[] = [
+  { label: '未登录', value: 'not_logged_in' },
   { label: '未知', value: 'unknown' },
-  { label: '正常', value: 'normal' },
-  { label: '受限', value: 'restricted' },
+  { label: '已登录', value: 'logged_in' },
+  { label: '已登录（私信不可用）', value: 'logged_in_dm_unavailable' },
+  { label: '需要 2FA', value: 'twofa_required' },
   { label: '封禁', value: 'banned' },
-  { label: '已停用', value: 'disabled' },
-  { label: '已删除', value: 'deleted' },
+  { label: '需要安全验证', value: 'challenge_required' },
+  { label: '会话已过期', value: 'session_expired' },
+  { label: '异常', value: 'error' },
 ]
 
 function visiblePlatformAccountIds(records: AnyRecord[]): string[] {
-  const accountIds = new Set<string>()
-  for (const record of records) {
-    if (!Array.isArray(record.platform_summaries)) continue
-    for (const summary of record.platform_summaries) {
-      const accountId = String(summary?.account_id || '').trim()
-      if (accountId) accountIds.add(accountId)
-    }
-  }
-  return [...accountIds]
+  return selectedPlatformAccountIds(records)
 }
 
 function visiblePlatformAccountRows(records: AnyRecord[]): AnyRecord[] {
@@ -33,6 +29,12 @@ function identityPlatformBatchAction(accounts: ResourceConfig, key: string) {
   if (!action?.batchBody) return null
   return {
     ...action,
+    confirm: (context: AnyRecord) => {
+      const rows = Array.isArray(context.selectedRows) ? context.selectedRows : []
+      const modes: Record<string, string> = { append: '追加标签', remove: '移除标签', replace: '替换标签（覆盖原标签）' }
+      const mode = key === 'batch-set-tags' ? (modes[String(context.mode || 'append')] || action.label) : action.label
+      return `确认对 ${identitySelectionLabel(rows)} 执行${mode}？`
+    },
     batchBody: (payload: AnyRecord, records: AnyRecord[]) =>
       action.batchBody!(payload, visiblePlatformAccountRows(records)),
   }
@@ -57,6 +59,9 @@ function identityPlatformOnboardingAction(accounts: ResourceConfig): RowActionCo
     batchBody: (payload, records) => {
       const targetPlatform = String(payload.business_platform || '').trim()
       if (!targetPlatform) throw new Error('请选择本次上号的业务 App')
+      if (records.some((record) => record.filtered_business_platform && record.filtered_business_platform !== targetPlatform)) {
+        throw new Error('目标业务 App 与当前平台筛选不一致，请调整筛选后重新选择')
+      }
 
       const exportedCount = records.filter((record) => Boolean(record.credentials_exported_at)).length
       if (exportedCount) {
@@ -64,8 +69,7 @@ function identityPlatformOnboardingAction(accounts: ResourceConfig): RowActionCo
       }
 
       const missingCount = records.filter((record) => (
-        !Array.isArray(record.platform_summaries)
-        || !record.platform_summaries.some(
+        !matchedPlatformSummaries(record).some(
           (summary: AnyRecord) => String(summary?.business_platform || '') === targetPlatform,
         )
       )).length
@@ -78,7 +82,7 @@ function identityPlatformOnboardingAction(accounts: ResourceConfig): RowActionCo
       const seen = new Set<string>()
       const accountRows: AnyRecord[] = []
       for (const record of records) {
-        for (const summary of record.platform_summaries as AnyRecord[]) {
+        for (const summary of matchedPlatformSummaries(record)) {
           if (String(summary?.business_platform || '') !== targetPlatform) continue
           const id = String(summary?.account_id || '').trim()
           if (!id || seen.has(id)) continue
@@ -99,7 +103,10 @@ function inheritAccountFilters(accounts: ResourceConfig, keys: string[]): FieldC
   const filtersByKey = new Map((accounts.filters || []).map((filter) => [filter.key, filter]))
   return keys.flatMap((key) => {
     const filter = filtersByKey.get(key)
-    return filter ? [{ ...filter }] : []
+    return filter ? [{
+      ...filter,
+      ...(key === 'login_status' ? { options: platformLoginStatusOptions } : {}),
+    }] : []
   })
 }
 
@@ -118,8 +125,7 @@ function identityPlatformDeleteAction(): RowActionConfig {
     }),
     confirm: (record) => {
       const records = Array.isArray(record.selectedRows) ? record.selectedRows : []
-      const accountCount = visiblePlatformAccountIds(records).length
-      return `确认删除所选登录身份下的 ${accountCount} 个平台账号？设备会话、发布内容、评论、指标、监听记录和备份数据会一并清理，此操作不可恢复。`
+      return `确认删除 ${identitySelectionLabel(records)}？设备会话、发布内容、评论、指标、监听记录和备份数据会一并清理，此操作不可恢复。`
     },
     successTitle: '账号批量删除完成',
     successMessage: (data) =>
@@ -156,6 +162,7 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
       identityPlatformDeleteAction(),
     ].filter((action): action is RowActionConfig => action !== null),
     inlineActionKeys: ['edit-credentials'],
+    operationWidth: 72,
     rowActions: [
       {
         key: 'edit-credentials',
@@ -166,10 +173,10 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
       },
     ],
     columns: [
-      { key: 'login_username', label: '登录身份', type: 'loginIdentity', minWidth: 250 },
+      { key: 'login_username', label: '登录身份', type: 'loginIdentity', width: 280 },
       { key: 'identity_tag_names', label: '账号标签', type: 'identityTags', minWidth: 170 },
-      { key: 'password_secret_ref', label: '登录凭证', type: 'accountCredentials', minWidth: 260 },
-      { key: 'platform_summaries', label: '平台 / 账号状态', type: 'identityPlatforms', minWidth: 230 },
+      { key: 'password_secret_ref', label: '登录凭证', type: 'accountCredentials', minWidth: 280 },
+      { key: 'platform_summaries', label: '平台 / 登录状态', type: 'identityPlatforms', minWidth: 230 },
       { key: 'active_session_count', label: '设备会话', type: 'identitySessions', minWidth: 190 },
       { key: 'has_pending_candidate', label: '关联状态', type: 'identityCandidate', width: 112, align: 'center' },
       { key: 'created_at', label: '创建时间', type: 'datetime', width: 165, align: 'center' },
@@ -193,7 +200,6 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
         'provider',
         'keyword',
       ]),
-      { key: 'platform_health_status', label: '账号健康状态', type: 'select', options: platformHealthOptions },
       {
         key: 'bound_state',
         label: '设备绑定',

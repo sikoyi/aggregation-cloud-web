@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { Copy, ExternalLink, MapPin, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
+import { Copy, ExternalLink, MapPin, Pencil, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
+import PlatformAccountEditDialog from '@/components/PlatformAccountEditDialog.vue'
 import { businessPlatformLabel } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
@@ -13,6 +14,9 @@ import { notifyError } from '@/utils/notify'
 
 const props = defineProps<{
   identityId: string
+  businessPlatform?: string
+  matchedAccountIds?: string[]
+  canSplit?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,36 +27,33 @@ const auth = useAuthStore()
 const loading = ref(false)
 const actionLoading = ref('')
 const rows = ref<AnyRecord[]>([])
-const healthDialogVisible = ref(false)
-const healthForm = reactive({
-  accountId: '',
-  accountLabel: '',
-  businessPlatform: '',
-  platformHealthStatus: 'unknown',
-  manualHealthOverride: true,
-  reason: '',
-})
+const editingAccount = ref<AnyRecord | null>(null)
+let requestSequence = 0
 
-const healthOptions = [
-  { label: '未知', value: 'unknown' },
-  { label: '正常', value: 'normal' },
-  { label: '受限', value: 'restricted' },
-  { label: '封禁', value: 'banned' },
-  { label: '已停用', value: 'disabled' },
-  { label: '已删除', value: 'deleted' },
-]
+async function platformAccountChanged() {
+  await loadRows()
+  emit('changed')
+}
 
 async function loadRows() {
+  const request = ++requestSequence
+  if (props.matchedAccountIds && !props.matchedAccountIds.length) {
+    rows.value = []
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     const data = await http.get<{ identity_id: string; items: AnyRecord[] }>(
       `/api/account-identities/${encodeURIComponent(props.identityId)}/accounts`,
+      { business_platform: props.businessPlatform, account_ids: props.matchedAccountIds?.join(',') },
     )
+    if (request !== requestSequence) return
     rows.value = Array.isArray(data.items) ? data.items : []
   } catch (error) {
-    notifyError(error, '平台账号加载失败', '平台账号加载失败')
+    if (request === requestSequence) notifyError(error, '平台账号加载失败', '平台账号加载失败')
   } finally {
-    loading.value = false
+    if (request === requestSequence) loading.value = false
   }
 }
 
@@ -78,38 +79,6 @@ async function copyBackupUrl(value: unknown) {
   }
 }
 
-function openHealthDialog(row: AnyRecord) {
-  healthForm.accountId = String(row.id)
-  healthForm.accountLabel = accountLabel(row)
-  healthForm.businessPlatform = String(row.business_platform || '')
-  healthForm.platformHealthStatus = String(row.platform_health_status || 'unknown')
-  healthForm.manualHealthOverride = Boolean(row.manual_health_override)
-  const metadata = row.metadata && typeof row.metadata === 'object'
-    ? row.metadata as AnyRecord
-    : {}
-  healthForm.reason = String(metadata.manual_health_reason || '')
-  healthDialogVisible.value = true
-}
-
-async function updateHealth() {
-  actionLoading.value = `health:${healthForm.accountId}`
-  try {
-    await http.put(`/api/account-identities/platform-accounts/${encodeURIComponent(healthForm.accountId)}/health`, {
-      platform_health_status: healthForm.platformHealthStatus,
-      manual_health_override: healthForm.manualHealthOverride,
-      reason: healthForm.reason.trim() || null,
-    })
-    healthDialogVisible.value = false
-    ElMessage.success('平台账号健康状态已更新')
-    await loadRows()
-    emit('changed')
-  } catch (error) {
-    notifyError(error, '修改失败', '平台账号健康状态修改失败')
-  } finally {
-    actionLoading.value = ''
-  }
-}
-
 async function unbindSession(row: AnyRecord) {
   const sessionId = String(row.account_session_id || '')
   const bindingVersion = Number(row.account_session_binding_version || 0)
@@ -117,7 +86,7 @@ async function unbindSession(row: AnyRecord) {
   const platform = businessPlatformLabel(row.business_platform)
   try {
     await ElMessageBox.confirm(
-      `确认解除 ${platform} 在设备“${row.bound_slot_name || row.bound_slot_provider_id || row.account_session_slot_id}”上的登录会话？不会删除平台账号。`,
+      `确认解除 ${platform} 在设备“${row.bound_slot_name || row.bound_slot_provider_id || row.account_session_slot_id}”上的系统关联？不会删除平台账号，也不会执行浏览器退出登录。`,
       `解除 ${platform} 会话`,
       { type: 'warning', confirmButtonText: '确认解除', cancelButtonText: '取消' },
     )
@@ -142,7 +111,7 @@ async function unbindSession(row: AnyRecord) {
 }
 
 async function splitAccount(row: AnyRecord) {
-  if (rows.value.length <= 1) return
+  if (!props.canSplit) return
   const platform = businessPlatformLabel(row.business_platform)
   try {
     await ElMessageBox.confirm(
@@ -197,7 +166,12 @@ async function deleteAccount(row: AnyRecord) {
   }
 }
 
-watch(() => props.identityId, loadRows)
+watch(() => [props.identityId, props.businessPlatform, props.matchedAccountIds?.join(',')], () => {
+  rows.value = []
+  editingAccount.value = null
+  void loadRows()
+})
+onBeforeUnmount(() => { ++requestSequence })
 onMounted(loadRows)
 </script>
 
@@ -221,24 +195,36 @@ onMounted(loadRows)
       table-layout="fixed"
       empty-text="暂无可见平台账号"
     >
-      <el-table-column label="平台 / 属性" width="145" align="center">
+      <el-table-column label="平台账号" min-width="210">
+        <template #default="{ row }">
+          <div class="platform-account-identity">
+            <el-avatar :size="34" :src="resolveBackendUrl(row.avatar_url) || undefined" fit="cover" class="platform-account-identity__avatar">
+              {{ Array.from(accountLabel(row))[0] }}
+            </el-avatar>
+            <div class="platform-account">
+              <span class="platform-account__heading">
+                <strong>{{ accountLabel(row) }}</strong>
+                <el-tag v-if="row.credentials_exported_at" size="small" type="warning" effect="plain">已导出</el-tag>
+              </span>
+              <small v-if="row.username">@{{ row.username }}</small>
+              <small>账号 ID {{ row.id }}<span v-if="row.platform_account_id"> · 平台 ID {{ row.platform_account_id }}</span></small>
+            </div>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="平台 / 国家" width="145" align="center">
         <template #default="{ row }">
           <div class="account-attributes">
             <el-tag effect="plain">{{ businessPlatformLabel(row.business_platform) }}</el-tag>
             <span class="account-attributes__country"><MapPin />{{ row.country || '国家未填写' }}</span>
-            <StatusBadge :value="row.account_age_type || 'unknown'" />
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="平台账号" min-width="210">
+      <el-table-column label="登录状态" width="155" align="center">
         <template #default="{ row }">
-          <div class="platform-account">
-            <span class="platform-account__heading">
-              <strong>{{ accountLabel(row) }}</strong>
-              <el-tag v-if="row.credentials_exported_at" size="small" type="warning" effect="plain">已导出</el-tag>
-            </span>
-            <small v-if="row.username">@{{ row.username }}</small>
-            <small>账号 ID {{ row.id }}<span v-if="row.platform_account_id"> · 平台 ID {{ row.platform_account_id }}</span></small>
+          <div class="status-stack">
+            <StatusBadge :value="row.login_status === 'banned' ? 'banned' : row.account_session_login_status || row.login_status || 'unknown'" />
+            <small v-if="row.account_session_observed_at">{{ formatDate(row.account_session_observed_at) }}</small>
           </div>
         </template>
       </el-table-column>
@@ -262,20 +248,9 @@ onMounted(loadRows)
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="账号健康" width="120" align="center">
+      <el-table-column label="账号类型" width="100" align="center">
         <template #default="{ row }">
-          <div class="status-stack">
-            <StatusBadge :value="row.platform_health_status" />
-            <small v-if="row.manual_health_override">人工锁定</small>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column label="设备登录" width="155" align="center">
-        <template #default="{ row }">
-          <div class="status-stack">
-            <StatusBadge :value="row.account_session_login_status || 'unknown'" />
-            <small v-if="row.account_session_observed_at">{{ formatDate(row.account_session_observed_at) }}</small>
-          </div>
+          <StatusBadge :value="row.account_age_type || 'unknown'" />
         </template>
       </el-table-column>
       <el-table-column label="绑定设备" min-width="190">
@@ -284,7 +259,6 @@ onMounted(loadRows)
             <template v-if="row.account_session_id">
               <strong>{{ row.bound_slot_name || row.bound_slot_provider_id || `设备 #${row.account_session_slot_id}` }}</strong>
               <small v-if="row.bound_slot_provider_id">{{ row.bound_slot_provider_id }}</small>
-              <small>绑定版本 {{ row.account_session_binding_version }}</small>
             </template>
             <span v-else class="identity-details__empty">未绑定设备</span>
             <small class="bound-device__group">设备分组：{{ row.bound_slot_group_name || '未分组' }}</small>
@@ -296,7 +270,13 @@ onMounted(loadRows)
       </el-table-column>
       <el-table-column label="内容监听" width="115" align="center">
         <template #default="{ row }">
-          <span v-if="row.content_monitor_enabled === null || row.content_monitor_enabled === undefined" class="identity-details__empty">未配置</span>
+          <template v-if="row.business_platform === 'shopify'">
+            <span v-if="row.credentials_exported_at" class="identity-details__empty">已导出，停止</span>
+            <span v-else-if="row.login_status === 'banned'">已封号，停止</span>
+            <router-link v-else-if="row.profile_url" to="/account-data?view=shopify">店铺监听</router-link>
+            <span v-else class="identity-details__empty">缺少店铺链接</span>
+          </template>
+          <span v-else-if="row.content_monitor_enabled === null || row.content_monitor_enabled === undefined" class="identity-details__empty">未配置</span>
           <StatusBadge v-else :value="row.content_monitor_enabled ? row.content_monitor_status : 'disabled'" />
         </template>
       </el-table-column>
@@ -335,8 +315,8 @@ onMounted(loadRows)
         <template #default="{ row }">
           <div v-if="auth.can('accounts.edit') || auth.can('accounts.delete')" class="identity-details__actions">
             <template v-if="auth.can('accounts.edit')">
-              <el-tooltip content="修改该平台账号健康状态" placement="top">
-                <el-button text type="primary" @click="openHealthDialog(row)">状态</el-button>
+              <el-tooltip content="编辑平台账号" placement="top">
+                <el-button text :icon="Pencil" aria-label="编辑平台账号" @click="editingAccount = row" />
               </el-tooltip>
               <el-tooltip v-if="row.account_session_id" :content="`仅解除 ${businessPlatformLabel(row.business_platform)} 会话`" placement="top">
                 <el-button
@@ -347,7 +327,7 @@ onMounted(loadRows)
                   @click="unbindSession(row)"
                 />
               </el-tooltip>
-              <el-tooltip v-if="rows.length > 1" content="从当前登录身份拆分" placement="top">
+              <el-tooltip v-if="canSplit" content="从当前登录身份拆分" placement="top">
                 <el-button
                   text
                   :icon="Scissors"
@@ -381,32 +361,9 @@ onMounted(loadRows)
         </template>
       </el-table-column>
     </el-table>
-
-    <el-dialog v-model="healthDialogVisible" title="修改平台账号状态" width="480px" append-to-body>
-      <el-form label-position="top">
-        <el-form-item label="目标账号">
-          <div class="health-target">
-            <el-tag effect="plain">{{ businessPlatformLabel(healthForm.businessPlatform) }}</el-tag>
-            <strong>{{ healthForm.accountLabel }}</strong>
-          </div>
-        </el-form-item>
-        <el-form-item label="账号健康状态" required>
-          <el-select v-model="healthForm.platformHealthStatus" class="w-full">
-            <el-option v-for="option in healthOptions" :key="option.value" :label="option.label" :value="option.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="人工状态保护">
-          <el-switch v-model="healthForm.manualHealthOverride" active-text="锁定人工状态" inactive-text="允许后续明确状态覆盖" />
-        </el-form-item>
-        <el-form-item label="修改原因">
-          <el-input v-model="healthForm.reason" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="可选，记录本次人工判断依据" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="healthDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="actionLoading.startsWith('health:')" @click="updateHealth">保存</el-button>
-      </template>
-    </el-dialog>
+    <PlatformAccountEditDialog v-if="editingAccount" :key="String(editingAccount.id)"
+      :account-id="String(editingAccount.id)" :platform="String(editingAccount.business_platform)"
+      @close="editingAccount = null" @changed="platformAccountChanged" />
   </section>
 </template>
 
@@ -416,6 +373,9 @@ onMounted(loadRows)
 .identity-details__header > div { display: flex; align-items: baseline; gap: 8px; }
 .identity-details__header strong { color: #243b53; font-size: 13px; }
 .identity-details__header span { color: #8293a5; font-size: 11px; }
+.platform-account-identity { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.platform-account-identity__avatar { width: 34px; height: 34px; flex: 0 0 34px; color: #245f87; background: #edf6fc; }
+.platform-account-identity .platform-account { flex: 1; }
 .platform-account,
 .bound-device,
 .status-stack { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
@@ -440,6 +400,4 @@ onMounted(loadRows)
 .identity-details__actions { display: flex; align-items: center; justify-content: center; gap: 2px; }
 .identity-details__actions :deep(.el-button + .el-button) { margin-left: 0; }
 .identity-details__empty { color: #9aa9b8; font-size: 11px; }
-.health-target { display: flex; align-items: center; gap: 8px; }
-.health-target strong { color: #334e68; font-size: 13px; }
 </style>

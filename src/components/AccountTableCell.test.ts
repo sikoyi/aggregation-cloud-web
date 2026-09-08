@@ -1,11 +1,14 @@
 import { ID_INJECTION_KEY, ZINDEX_INJECTION_KEY } from 'element-plus'
 import { createSSRApp } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { http } from '@/api/http'
 import AccountTableCell from './AccountTableCell.vue'
 import crudPageSource from './CrudPage.vue?raw'
+
+const permissions = vi.hoisted(() => new Set<string>())
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ can: (code: string) => permissions.has(code) }) }))
 
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
 vi.mock('element-plus/es/components/avatar/style/css', () => ({}))
@@ -38,7 +41,47 @@ async function renderIdentity(row: Record<string, unknown>) {
 }
 
 describe('共享登录凭据单元格', () => {
+  beforeEach(() => {
+    permissions.clear()
+    permissions.add('accounts.credentials')
+    permissions.add('accounts.totp')
+  })
   afterEach(() => vi.restoreAllMocks())
+
+  it('基础查看即使收到旧凭据也不显示原值，不触发取码请求', async () => {
+    permissions.clear()
+    permissions.add('accounts.view')
+    const get = vi.spyOn(http, 'getWithSignal')
+    const html = await renderCredentials({ id: '1', password_secret_ref: 'old-password', totp_secret_ref: 'old-secret' }, true)
+    expect(html).not.toContain('old-password')
+    expect(html).not.toContain('old-secret')
+    expect(html).toContain('无凭据读取权限')
+    expect(html.match(/ disabled/g)).toHaveLength(3)
+    expect(get).not.toHaveBeenCalled()
+  })
+
+  it('验证码权限不依赖密钥是否返回，两个凭据复制仍禁用', async () => {
+    permissions.clear()
+    permissions.add('accounts.totp')
+    const html = await renderCredentials({ id: '1', has_totp: true, totp_secret_ref: null, can_read_credentials: false }, true)
+    expect(html).toContain('无凭据读取权限')
+    expect(html.match(/ disabled/g)).toHaveLength(2)
+    expect(html).toContain('aria-label="查看 2FA 验证码"')
+  })
+
+  it('有密钥读取权限不自动允许验证码', async () => {
+    permissions.delete('accounts.totp')
+    const html = await renderCredentials({ id: '1', password_secret_ref: 'visible-password', totp_secret_ref: 'visible-secret', has_totp: true }, true)
+    expect(html).toContain('visible-password')
+    expect(html).toContain('visible-secret')
+    expect(html.match(/ disabled/g)).toHaveLength(1)
+  })
+
+  it('服务端行级禁止读取时即使有全局凭据权限也隐藏原值', async () => {
+    const html = await renderCredentials({ password_secret_ref: 'out-of-scope-password', can_read_credentials: false }, true)
+    expect(html).not.toContain('out-of-scope-password')
+    expect(html).toContain('无凭据读取权限')
+  })
 
   it('凭据列和登录身份列关闭整格溢出提示，避免拼接多项内容', () => {
     expect(crudPageSource).toContain(

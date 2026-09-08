@@ -8,6 +8,7 @@ import { resolveBackendUrl } from '@/api/http'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
+import { useAuthStore } from '@/stores/auth'
 
 type AccountCellKind =
   | 'accountIdentity'
@@ -25,17 +26,25 @@ const props = defineProps<{
   sharedCredentials?: boolean
 }>()
 
+const auth = useAuthStore()
+const canReadCredentials = computed(() => auth.can('accounts.credentials') && props.row.can_read_credentials !== false)
+const password = computed(() => canReadCredentials.value ? props.row.password_secret_ref : null)
+const totpSecret = computed(() => canReadCredentials.value ? props.row.totp_secret_ref : null)
+const hasTotp = computed(() => props.row.has_totp ?? Boolean(props.row.totp_secret_ref))
+
 function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
 }
 
 function credentialText(value: unknown) {
+  if (!canReadCredentials.value) return '无凭据读取权限'
   return props.sharedCredentials && (value === undefined || value === null || value === '')
     ? '未设置'
     : text(value)
 }
 
 async function copyCredential(value: unknown) {
+  if (!canReadCredentials.value) return
   if (value === undefined || value === null || value === '') return
   try {
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
@@ -121,13 +130,13 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
         密码
       </span>
       <el-tooltip
-        :content="credentialText(row.password_secret_ref)"
-        :disabled="!row.password_secret_ref"
+        :content="credentialText(password)"
+        :disabled="!password"
         :popper-style="{ maxWidth: 'min(420px, calc(100vw - 24px))', overflowWrap: 'anywhere' }"
         placement="top"
         :show-after="500"
       >
-        <code>{{ credentialText(row.password_secret_ref) }}</code>
+        <code>{{ credentialText(password) }}</code>
       </el-tooltip>
       <el-tooltip v-if="sharedCredentials" content="复制密码" placement="top">
         <el-button
@@ -136,8 +145,8 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
           circle
           :icon="Copy"
           aria-label="复制密码"
-          :disabled="!row.password_secret_ref"
-          @click.stop="copyCredential(row.password_secret_ref)"
+          :disabled="!password"
+          @click.stop="copyCredential(password)"
         />
       </el-tooltip>
     </div>
@@ -147,13 +156,13 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
         2FA
       </span>
       <el-tooltip
-        :content="credentialText(row.totp_secret_ref)"
-        :disabled="!row.totp_secret_ref"
+        :content="credentialText(totpSecret)"
+        :disabled="!totpSecret"
         :popper-style="{ maxWidth: 'min(420px, calc(100vw - 24px))', overflowWrap: 'anywhere' }"
         placement="top"
         :show-after="500"
       >
-        <code>{{ credentialText(row.totp_secret_ref) }}</code>
+        <code>{{ credentialText(totpSecret) }}</code>
       </el-tooltip>
       <el-tooltip v-if="sharedCredentials" content="复制 2FA" placement="top">
         <el-button
@@ -162,8 +171,8 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
           circle
           :icon="Copy"
           aria-label="复制 2FA"
-          :disabled="!row.totp_secret_ref"
-          @click.stop="copyCredential(row.totp_secret_ref)"
+          :disabled="!totpSecret"
+          @click.stop="copyCredential(totpSecret)"
         />
       </el-tooltip>
       <AccountTotpPopover
@@ -171,7 +180,7 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
         :source="sharedCredentials ? 'account-identities' : 'accounts'"
         :account-id="String(row.id)"
         :revision="row.credentials_version ?? row.updated_at"
-        :disabled="!row.totp_secret_ref"
+        :disabled="!hasTotp"
       />
     </div>
   </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Eye, Search, Trash2, UserPlus } from 'lucide-vue-next'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, ref, watch } from 'vue'
+import { ElDialog, ElMessage, ElMessageBox } from 'element-plus'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -12,9 +12,11 @@ import type { AnyRecord, PageResult } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   tag: AnyRecord
+  embedded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -40,6 +42,11 @@ const selectedAccountIds = ref<string[]>([])
 const accountDetailVisible = ref(false)
 const accountDetailLoading = ref(false)
 const accountDetail = ref<AnyRecord | null>(null)
+const auth = useAuthStore()
+const canManage = computed(() => auth.can('accounts.batch'))
+const selectVersion = ref(0)
+let memberRequest = 0
+const canReadCredentials = computed(() => auth.can('accounts.credentials') && accountDetail.value?.can_read_credentials !== false)
 
 const tagId = computed(() => String(props.tag?.id || ''))
 const selectedMemberIds = computed(() => selectedMembers.value.map((item) => String(item.id)))
@@ -60,6 +67,7 @@ const availableAccountSelect = computed<RemoteSelectConfig>(() => ({
 
 async function loadMembers() {
   if (!tagId.value) return
+  const request = ++memberRequest
   loading.value = true
   try {
     const data = await http.get<PageResult<AnyRecord>>(
@@ -71,17 +79,19 @@ async function loadMembers() {
         page_size: pageSize.value,
       },
     )
+    if (request !== memberRequest) return
     members.value = data.items
     total.value = data.total
     await restorePageSelection()
   } catch (err) {
-    notifyError(err, '加载标签账号失败', '加载标签账号失败')
+    if (request === memberRequest) notifyError(err, '加载标签账号失败', '加载标签账号失败')
   } finally {
-    loading.value = false
+    if (request === memberRequest) loading.value = false
   }
 }
 
 async function addMembers() {
+  if (submitting.value || !canManage.value) return
   if (!selectedAccountIds.value.length) {
     ElMessage.warning('请选择要添加的账号')
     return
@@ -93,6 +103,7 @@ async function addMembers() {
       account_ids: selectedAccountIds.value,
     })
     selectedAccountIds.value = []
+    selectVersion.value += 1
     ElMessage.success(`已添加 ${Number(data.added_count || 0)} 个账号`)
     page.value = 1
     await loadMembers()
@@ -118,6 +129,8 @@ async function openAccountDetail(account: AnyRecord) {
 }
 
 async function removeMember(account: AnyRecord) {
+  if (submitting.value || !canManage.value) return
+  submitting.value = true
   try {
     await ElMessageBox.confirm(
       `确认移除账号「${account.login_username || account.username || account.id}」的当前标签？`,
@@ -129,6 +142,7 @@ async function removeMember(account: AnyRecord) {
       },
     )
   } catch {
+    submitting.value = false
     return
   }
 
@@ -138,6 +152,7 @@ async function removeMember(account: AnyRecord) {
     ElMessage.success('账号标签已移除')
     if (members.value.length === 1 && page.value > 1) page.value -= 1
     clearMemberSelection()
+    selectVersion.value += 1
     await loadMembers()
     emit('changed')
   } catch (err) {
@@ -148,11 +163,14 @@ async function removeMember(account: AnyRecord) {
 }
 
 async function removeSelectedMembers() {
+  if (submitting.value || !canManage.value) return
   if (!selectedMemberIds.value.length) {
     ElMessage.warning('请选择要移除的账号')
     return
   }
 
+  submitting.value = true
+  const accountIds = [...selectedMemberIds.value]
   try {
     await ElMessageBox.confirm(
       `确认移除已选 ${selectedMemberIds.value.length} 个账号的当前标签？`,
@@ -164,11 +182,11 @@ async function removeSelectedMembers() {
       },
     )
   } catch {
+    submitting.value = false
     return
   }
 
   submitting.value = true
-  const accountIds = [...selectedMemberIds.value]
   const failed: string[] = []
   try {
     for (const accountId of accountIds) {
@@ -178,14 +196,13 @@ async function removeSelectedMembers() {
         failed.push(accountId)
       }
     }
-    if (failed.length) {
-      throw new Error(`有 ${failed.length} 个账号移除失败`)
-    }
-    ElMessage.success(`已移除 ${accountIds.length} 个账号`)
     clearMemberSelection()
-    if (members.value.length <= accountIds.length && page.value > 1) page.value -= 1
+    selectVersion.value += 1
+    page.value = Math.min(page.value, Math.max(1, Math.ceil((total.value - accountIds.length + failed.length) / pageSize.value)))
     await loadMembers()
     emit('changed')
+    if (failed.length) throw new Error(`已移除 ${accountIds.length - failed.length} 个账号，${failed.length} 个移除失败，请刷新后重试`)
+    ElMessage.success(`已移除 ${accountIds.length} 个账号`)
   } catch (err) {
     notifyError(err, '批量移除失败', '批量移除失败')
   } finally {
@@ -227,20 +244,23 @@ watch(
 )
 
 onMounted(loadMembers)
+onBeforeUnmount(() => { ++memberRequest })
+defineExpose({ isBusy: () => submitting.value, hasPendingSelection: () => selectedAccountIds.value.length > 0 })
 </script>
 
 <template>
-  <section class="member-editor">
+  <section class="member-editor" :class="{ 'member-editor--embedded': embedded }">
+    <div v-show="!embedded || !accountDetailVisible" class="member-editor__content">
     <div class="member-editor__header">
       <div>
         <h3>标签账号</h3>
-        <p>可在这里给账号添加当前标签，也可以搜索、查看和移除标签关系。</p>
       </div>
       <el-tag size="small" effect="plain">共 {{ total }} 个</el-tag>
     </div>
 
-    <div class="member-editor__add">
+    <div v-if="canManage" class="member-editor__add">
       <RemoteSelect
+        :key="selectVersion"
         v-model="selectedAccountIds"
         :config="availableAccountSelect"
         :context="tag"
@@ -278,7 +298,7 @@ onMounted(loadMembers)
       <el-button :disabled="!keyword && !loginStatus" @click="resetSearch">清空</el-button>
     </div>
 
-    <div v-if="selectedMembers.length" class="member-editor__batch">
+    <div v-if="canManage && selectedMembers.length" class="member-editor__batch">
       <span>已选 {{ selectedMembers.length }} 个账号</span>
       <el-button
         size="small"
@@ -299,26 +319,27 @@ onMounted(loadMembers)
       row-key="id"
       border
       stripe
-      table-layout="auto"
+      table-layout="fixed"
       class="member-editor__table"
       empty-text="暂无关联账号"
       @selection-change="handleSelectionChange"
     >
-      <el-table-column type="selection" width="44" reserve-selection />
-      <el-table-column prop="id" label="ID" min-width="90" align="center" header-align="center">
+      <el-table-column v-if="canManage" type="selection" width="44" reserve-selection :selectable="() => !submitting" />
+      <el-table-column prop="id" label="ID" :min-width="embedded ? 65 : 90" align="center" header-align="center">
         <template #default="{ row }">
           <span class="font-mono text-xs">{{ truncateId(row.id) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="login_username" label="登录账号" min-width="180" />
-      <el-table-column prop="username" label="公开用户名" min-width="160" />
-      <el-table-column prop="country" label="国家" min-width="110" align="center" header-align="center" />
-      <el-table-column prop="login_status" label="登录状态" min-width="170" align="center" header-align="center">
+      <el-table-column prop="login_username" label="登录账号" min-width="180" show-overflow-tooltip />
+      <el-table-column label="业务平台" width="110" align="center"><template #default="{ row }">{{ businessPlatformLabel(row.business_platform) }}</template></el-table-column>
+      <el-table-column v-if="!embedded" prop="username" label="公开用户名" min-width="160" />
+      <el-table-column prop="country" label="国家" :min-width="embedded ? 80 : 110" align="center" header-align="center" />
+      <el-table-column prop="login_status" label="登录状态" :min-width="embedded ? 110 : 170" align="center" header-align="center">
         <template #default="{ row }">
           <StatusBadge :value="row.login_status" />
         </template>
       </el-table-column>
-      <el-table-column prop="updated_at" label="更新时间" min-width="170" align="center" header-align="center">
+      <el-table-column v-if="!embedded" prop="updated_at" label="更新时间" min-width="170" align="center" header-align="center">
         <template #default="{ row }">
           {{ formatDate(row.updated_at) }}
         </template>
@@ -331,16 +352,18 @@ onMounted(loadMembers)
                 text
                 circle
                 :icon="Eye"
+                aria-label="查看账号详情"
                 :disabled="submitting"
                 @click="openAccountDetail(row)"
               />
             </el-tooltip>
-            <el-tooltip content="移除账号" placement="top">
+            <el-tooltip v-if="canManage" content="移出标签" placement="top">
               <el-button
                 text
                 circle
                 type="danger"
                 :icon="Trash2"
+                aria-label="移出标签"
                 :disabled="submitting"
                 @click="removeMember(row)"
               />
@@ -363,7 +386,11 @@ onMounted(loadMembers)
       />
     </div>
 
-    <el-dialog
+    </div>
+    <el-button v-if="embedded && accountDetailVisible" @click="accountDetailVisible = false">返回成员列表</el-button>
+    <component
+      :is="embedded ? 'section' : ElDialog"
+      v-if="!embedded || accountDetailVisible"
       v-model="accountDetailVisible"
       title="账号详情"
       width="720px"
@@ -382,8 +409,8 @@ onMounted(loadMembers)
           <el-descriptions-item label="公开用户名">{{ text(accountDetail.username) }}</el-descriptions-item>
           <el-descriptions-item label="国家">{{ text(accountDetail.country) }}</el-descriptions-item>
           <el-descriptions-item label="业务 App">{{ businessPlatformLabel(accountDetail.business_platform) }}</el-descriptions-item>
-          <el-descriptions-item label="密码">{{ text(accountDetail.password_secret_ref) }}</el-descriptions-item>
-          <el-descriptions-item label="2FA">{{ text(accountDetail.totp_secret_ref) }}</el-descriptions-item>
+          <el-descriptions-item label="密码">{{ canReadCredentials ? text(accountDetail.password_secret_ref) : '无凭据读取权限' }}</el-descriptions-item>
+          <el-descriptions-item label="2FA">{{ canReadCredentials ? text(accountDetail.totp_secret_ref) : '无凭据读取权限' }}</el-descriptions-item>
           <el-descriptions-item label="代理 ID">
             <span class="font-mono text-xs">{{ text(accountDetail.proxy_id) }}</span>
           </el-descriptions-item>
@@ -399,11 +426,15 @@ onMounted(loadMembers)
           <el-descriptions-item label="更新时间">{{ formatDate(accountDetail.updated_at) }}</el-descriptions-item>
         </el-descriptions>
       </div>
-    </el-dialog>
+    </component>
   </section>
 </template>
 
 <style scoped>
+.member-editor__content { display: flex; min-width: 0; flex-direction: column; gap: 12px; }
+.member-editor--embedded { padding: 0 !important; border: 0 !important; background: transparent !important; }
+.member-editor__add, .member-editor__search { flex-wrap: wrap; }
+.member-editor__add :deep(.el-select) { min-width: 200px; }
 .member-editor {
   display: flex;
   flex-direction: column;

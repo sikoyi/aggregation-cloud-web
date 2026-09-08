@@ -18,6 +18,7 @@ import {
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { getAllPages, http, resolveBackendUrl } from '@/api/http'
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider, type EnabledAiProviderOption } from '@/api/interactionAi'
@@ -26,6 +27,7 @@ import AccountPublishedContentPanel from '@/components/AccountPublishedContentPa
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import ShopifyStoreMonitors from '@/components/ShopifyStoreMonitors.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
@@ -85,6 +87,7 @@ const overviewMetricColumns = [
 ]
 
 const auth = useAuthStore()
+const dataKind = ref(useRoute().query.view === 'shopify' ? 'shopify' : 'social')
 const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const loading = ref(false)
 const submitting = ref(false)
@@ -566,7 +569,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="account-data">
+  <el-radio-group v-model="dataKind" style="margin-bottom: 16px">
+    <el-radio-button value="social">社媒账号数据</el-radio-button>
+    <el-radio-button v-if="availableBusinessPlatformOptions.some(option => option.value === 'shopify')" value="shopify">Shopify 店铺监听</el-radio-button>
+  </el-radio-group>
+  <ShopifyStoreMonitors v-if="dataKind === 'shopify'" />
+  <section v-else class="account-data">
     <el-card shadow="never" class="account-data__workspace">
       <div class="account-data__header">
         <div class="account-data__title">

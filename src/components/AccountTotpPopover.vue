@@ -1,24 +1,30 @@
 <script setup lang="ts">
 import { Copy, RefreshCw, Timer, X } from 'lucide-vue-next'
 import { ElMessage } from 'element-plus'
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 
 import type { TotpSource } from '@/api/accountTotp'
 import { useAccountTotp } from '@/composables/useAccountTotp'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{ source: TotpSource; accountId: string; revision?: unknown; disabled?: boolean }>()
+const auth = useAuthStore()
+const canGetTotp = computed(() => auth.can('accounts.totp'))
+const blocked = computed(() => props.disabled || !canGetTotp.value)
 const { visible, loading, error, code, seconds, setVisible, setSuspended, refresh, copy } = useAccountTotp(
   () => ({ source: props.source, id: props.accountId, revision: props.revision }),
 )
 const displayCode = computed(() => code.value ? `${code.value.slice(0, 3)} ${code.value.slice(3)}` : '--- ---')
-function open(value: boolean) { setVisible(value && !props.disabled) }
+function open(value: boolean) { setVisible(value && !blocked.value) }
 function visibilityChanged() { setSuspended(document.hidden) }
 async function copyCode() {
+  if (blocked.value) return
   try {
     if (await copy()) ElMessage.success('验证码已复制')
     else ElMessage.warning('验证码已过期，请等待刷新后复制')
   } catch { ElMessage.error('复制失败，请手动复制验证码') }
 }
+watch(blocked, (value) => { if (value) setVisible(false) }, { flush: 'sync' })
 onMounted(() => document.addEventListener('visibilitychange', visibilityChanged))
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', visibilityChanged))
 </script>
@@ -27,8 +33,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', visibilit
   <el-popover :visible="visible" trigger="click" placement="bottom" :width="260" @update:visible="open">
     <template #reference>
       <span @click.stop>
-        <el-tooltip :content="disabled ? '尚未设置 2FA 密钥' : '查看验证码'" placement="top">
-          <el-button class="totp-trigger" text circle :icon="Timer" aria-label="查看 2FA 验证码" :disabled="disabled" />
+        <el-tooltip :content="!canGetTotp ? '无验证码获取权限' : disabled ? '尚未设置 2FA 密钥' : '查看验证码'" placement="top">
+          <el-button class="totp-trigger" text circle :icon="Timer" aria-label="查看 2FA 验证码" :disabled="blocked" />
         </el-tooltip>
       </span>
     </template>
