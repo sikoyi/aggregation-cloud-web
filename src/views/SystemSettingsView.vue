@@ -46,7 +46,7 @@ function refreshDefaults() {
           </div>
         </el-tab-pane>
         <el-tab-pane name="monitor" lazy>
-          <template #label><span class="tab-label"><Radar :size="16" />内容监听</span></template>
+          <template #label><span class="tab-label"><Radar :size="16" />内容采集</span></template>
           <div :inert="!canEdit">
             <ApifyMonitorConfigPanel />
           </div>

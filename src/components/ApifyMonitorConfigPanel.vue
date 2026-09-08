@@ -72,10 +72,11 @@ interface UsageSummary {
   refreshed_at?: string
 }
 
-const businessPlatform = ref<'threads' | 'x'>('threads')
+const businessPlatform = ref<'threads' | 'x' | 'instagram'>('threads')
 const businessPlatformOptions = [
   { label: 'Threads', value: 'threads' },
   { label: 'X(Twitter)', value: 'x' },
+  { label: 'Instagram', value: 'instagram' },
 ]
 const loading = ref(false)
 const usageLoading = ref(false)
@@ -90,7 +91,7 @@ const revealedTokenIds = ref<string[]>([])
 const enabled = ref(false)
 const provider = ref<MonitorProvider>('apify')
 const persistedProvider = ref<MonitorProvider>('apify')
-const providerOptions = computed(() => businessPlatform.value === 'x' ? [
+const providerOptions = computed(() => businessPlatform.value !== 'threads' ? [
   { label: 'Apify', value: 'apify' },
 ] : [
   { label: 'Apify', value: 'apify' },
@@ -105,6 +106,12 @@ const tokens = ref<ProviderToken[]>([])
 const updatedAt = ref('')
 const usage = ref<UsageSummary>(emptyUsage())
 const tokenForm = reactive({ name: '', api_token: '', enabled: true })
+let platformRevision = 0
+const changingToken = ref(false)
+const platformLocked = computed(() => loading.value || usageLoading.value || savingEnabled.value
+  || savingProvider.value || testingProtocol.value || submitting.value || !!testingTokenId.value
+  || changingToken.value || dialogVisible.value)
+const collectionLabel = computed(() => businessPlatform.value === 'instagram' ? '互动采集' : '账号内容监听')
 
 const usageByTokenId = computed(() => {
   const values = new Map<string, TokenUsage>()
@@ -145,6 +152,14 @@ function endpoint(suffix = '') {
 }
 
 async function changeBusinessPlatform() {
+  platformRevision += 1
+  tokens.value = []
+  enabled.value = false
+  updatedAt.value = ''
+  revealedTokenIds.value = []
+  protocolForm.base_url = ''
+  protocolForm.token = ''
+  protocolForm.token_configured = false
   provider.value = 'apify'
   persistedProvider.value = 'apify'
   usage.value = emptyUsage()
@@ -152,11 +167,13 @@ async function changeBusinessPlatform() {
 }
 
 async function loadConfig() {
+  const revision = platformRevision
   loading.value = true
   try {
     const data = await http.get<AnyRecord>(endpoint())
+    if (revision !== platformRevision) return
     enabled.value = data.enabled === true
-    const loadedProvider = businessPlatform.value === 'x'
+    const loadedProvider = businessPlatform.value !== 'threads'
       ? 'apify'
       : data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
     provider.value = loadedProvider
@@ -167,24 +184,26 @@ async function loadConfig() {
     tokens.value = Array.isArray(data.tokens) ? data.tokens as unknown as ProviderToken[] : []
     updatedAt.value = String(data.updated_at || '')
   } catch (err) {
-    notifyError(err, '加载失败', '加载账号监听配置失败')
+    if (revision === platformRevision) notifyError(err, '加载失败', '加载采集配置失败')
   } finally {
-    loading.value = false
+    if (revision === platformRevision) loading.value = false
   }
 }
 
 async function loadUsage() {
+  const revision = platformRevision
   if (provider.value !== 'apify' || !tokens.value.length) {
     usage.value = emptyUsage()
     return
   }
   usageLoading.value = true
   try {
-    usage.value = await http.get<UsageSummary>(endpoint('/usage'))
+    const data = await http.get<UsageSummary>(endpoint('/usage'))
+    if (revision === platformRevision) usage.value = data
   } catch (err) {
-    notifyError(err, '用量读取失败', '暂时无法读取 Apify 额度与消耗')
+    if (revision === platformRevision) notifyError(err, '用量读取失败', '暂时无法读取 Apify 额度与消耗')
   } finally {
-    usageLoading.value = false
+    if (revision === platformRevision) usageLoading.value = false
   }
 }
 
@@ -209,7 +228,7 @@ async function saveProviderConfig() {
       if (protocolForm.token.trim()) payload.protocol_token = protocolForm.token.trim()
     }
     const data = await http.put<AnyRecord>(endpoint(), payload)
-    const savedProvider = businessPlatform.value === 'x'
+    const savedProvider = businessPlatform.value !== 'threads'
       ? 'apify'
       : data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
     provider.value = savedProvider
@@ -259,7 +278,7 @@ async function saveEnabled(value: boolean) {
     const data = await http.put<AnyRecord>(endpoint(), { enabled: value })
     enabled.value = data.enabled === true
     updatedAt.value = String(data.updated_at || '')
-    ElNotification.success({ title: '设置已更新', message: value ? '内容监听已启用' : '内容监听已停止' })
+    ElNotification.success({ title: '设置已更新', message: collectionLabel.value + (value ? '已启用' : '已停止') })
   } catch (err) {
     enabled.value = !value
     notifyError(err, '设置失败', '内容监听状态更新失败')
@@ -312,6 +331,7 @@ async function submitToken() {
 }
 
 async function toggleToken(token: ProviderToken, value: boolean) {
+  changingToken.value = true
   try {
     await http.put(endpoint(`/tokens/${token.id}`), { enabled: value })
     token.enabled = value
@@ -320,6 +340,8 @@ async function toggleToken(token: ProviderToken, value: boolean) {
   } catch (err) {
     token.enabled = !value
     notifyError(err, '更新失败', 'Token 状态更新失败')
+  } finally {
+    changingToken.value = false
   }
 }
 
@@ -340,6 +362,7 @@ async function testConnection(token: ProviderToken) {
 }
 
 async function deleteToken(token: ProviderToken) {
+  changingToken.value = true
   try {
     await ElMessageBox.confirm(
       `确认删除“${token.name}”吗？正在执行的采集任务使用该 Token 时将禁止删除。`,
@@ -352,6 +375,8 @@ async function deleteToken(token: ProviderToken) {
   } catch (err) {
     if (err === 'cancel' || err === 'close') return
     notifyError(err, '删除失败', 'Apify Token 删除失败')
+  } finally {
+    changingToken.value = false
   }
 }
 
@@ -392,17 +417,18 @@ onMounted(refreshAll)
   <div v-loading="loading" class="monitor-config">
     <div class="monitor-header">
       <div>
-        <div class="monitor-title"><span class="provider-mark">{{ providerLabel }}</span><h2>账号内容监听</h2></div>
-        <p>{{ providerDescription }}</p>
+        <div class="monitor-title"><span class="provider-mark">{{ providerLabel }}</span><h2>{{ collectionLabel }}</h2></div>
+        <p v-if="businessPlatform !== 'instagram'">{{ providerDescription }}</p>
       </div>
       <el-segmented
         v-model="businessPlatform"
         :options="businessPlatformOptions"
+        :disabled="platformLocked"
         class="platform-switcher"
         @change="changeBusinessPlatform"
       />
       <div class="monitor-switch">
-        <div><strong>{{ enabled ? '监听已启用' : '监听已停止' }}</strong><span>控制当前业务 App 的账号监听</span></div>
+        <div><strong>{{ collectionLabel }}{{ enabled ? '已启用' : '已停止' }}</strong></div>
         <el-switch
           :model-value="enabled"
           :loading="savingEnabled"
@@ -556,7 +582,7 @@ onMounted(refreshAll)
         </template>
       </el-table-column>
     </el-table>
-    <el-empty v-else description="还没有 Apify Token，添加后即可启用内容监听" :image-size="74" />
+    <el-empty v-else description="暂无 Apify Token" :image-size="74" />
 
     <div v-if="recentDailyUsages.length" class="daily-section">
       <div class="section-heading section-heading--compact">
@@ -609,7 +635,7 @@ onMounted(refreshAll)
 .row-actions,
 .enabled-field { display: flex; align-items: center; }
 .monitor-header { justify-content: space-between; gap: 24px; padding-bottom: 16px; border-bottom: 1px solid #e4ebf2; }
-.platform-switcher { width: 220px; flex: 0 0 220px; }
+.platform-switcher { width: 300px; max-width: 100%; flex: 0 0 300px; }
 .provider-config,
 .provider-choice,
 .provider-actions,
