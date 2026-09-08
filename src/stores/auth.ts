@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { http } from '@/api/http'
 import type { SystemUser } from '@/api/rbac'
+import { hasPermission } from '@/utils/permissions'
 
 interface LoginData {
   access_token: string
@@ -22,12 +23,9 @@ export const useAuthStore = defineStore('auth', {
     displayName: (state) => state.user?.display_name || state.user?.username || '未登录',
     isSuperAdmin: (state) => Boolean(state.user?.roles.includes('super_admin')),
     can: (state) => (code: string) =>
-      Boolean(state.user?.roles.includes('super_admin') || state.user?.permissions.includes(code)),
+      hasPermission(state.user, code),
     canAny: (state) => (codes: string[]) =>
-      Boolean(
-        state.user?.roles.includes('super_admin')
-        || codes.some((code) => state.user?.permissions.includes(code)),
-      ),
+      codes.some((code) => hasPermission(state.user, code)),
   },
   actions: {
     async login(username: string, password: string) {

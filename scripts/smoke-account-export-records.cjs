@@ -35,7 +35,7 @@ async function main() {
       const { useAuthStore } = await import('/src/stores/auth.ts')
       const { default: Component } = await import('/src/components/AccountExportRecords.vue')
       const pinia = createPinia()
-      useAuthStore(pinia).user = { roles: [], permissions: ['accounts.export'] }
+      useAuthStore(pinia).user = { roles: ['super_admin'], permissions: [] }
       createApp({ setup: () => () => h(Component) }).use(pinia).mount('#app')
     })
     const view = page.getByRole('button', { name: '查看导出数据', exact: true })
