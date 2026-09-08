@@ -57,6 +57,20 @@ export interface RegistrationResourceItem {
   used_task_run_id?: string | null
   used_at?: string | null
   created_at: string
+  can_reveal?: boolean
+}
+
+export interface RegistrationResourcePlaintext {
+  id: string
+  row_number: number
+  payload: Record<string, unknown>
+}
+
+export function revealRegistrationResource(batchId: string, resourceId: string) {
+  return http.post<RegistrationResourcePlaintext>(
+    `/api/resource-center/registration-resources/batches/${encodeURIComponent(batchId)}/resources/${encodeURIComponent(resourceId)}/reveal`,
+    {},
+  )
 }
 
 export function listRegistrationResourceTemplates(params?: Record<string, unknown>) {

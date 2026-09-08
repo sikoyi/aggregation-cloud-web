@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Database, Download, Eye, Plus, RefreshCw, Trash2, Upload } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox, ElNotification, type UploadFile } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import {
   createRegistrationResourceTemplate,
@@ -20,6 +20,7 @@ import {
 import { ApiError } from '@/api/http'
 import { businessPlatformOptions, businessPlatformLabel } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
+import RegistrationResourceRevealDialog from '@/components/RegistrationResourceRevealDialog.vue'
 
 const auth = useAuthStore()
 const activeTab = ref('batches')
@@ -43,6 +44,8 @@ const detailTotal = ref(0)
 const detailPage = ref(1)
 const detailPageSize = ref(20)
 const detailStatus = ref('')
+const revealResourceId = ref('')
+let detailRequestId = 0
 
 const templateVisible = ref(false)
 const templateSubmitting = ref(false)
@@ -56,6 +59,7 @@ const templateForm = reactive({
 })
 
 const canManageTemplates = computed(() => auth.can('registration_resources.manage_templates'))
+const canReveal = computed(() => auth.can('registration_resources.reveal'))
 const enabledTemplates = computed(() => templates.value.filter((item) => item.status === 'enabled'))
 const detailTemplate = computed(() => templates.value.find((item) => item.id === detailBatch.value?.template_id))
 const detailFields = computed(() => detailTemplate.value?.fields || [])
@@ -195,6 +199,9 @@ async function submitImport() {
 
 async function loadDetailItems() {
   if (!detailBatch.value) return
+  const requestId = ++detailRequestId
+  revealResourceId.value = ''
+  detailItems.value = []
   detailLoading.value = true
   try {
     const data = await listRegistrationResourceItems(detailBatch.value.id, {
@@ -202,14 +209,26 @@ async function loadDetailItems() {
       page: detailPage.value,
       page_size: detailPageSize.value,
     })
+    if (requestId !== detailRequestId || !detailVisible.value) return
     detailItems.value = data.items
     detailTotal.value = data.total
   } catch (error) {
-    ElNotification.error({ title: '加载失败', message: error instanceof Error ? error.message : '资料明细加载失败' })
+    if (requestId === detailRequestId && detailVisible.value) ElNotification.error({ title: '加载失败', message: error instanceof Error ? error.message : '资料明细加载失败' })
   } finally {
-    detailLoading.value = false
+    if (requestId === detailRequestId) detailLoading.value = false
   }
 }
+
+watch(detailVisible, (visible) => {
+  if (!visible) {
+    detailRequestId += 1
+    revealResourceId.value = ''
+    detailItems.value = []
+    detailLoading.value = false
+  }
+})
+watch(canReveal, (allowed) => { if (!allowed) revealResourceId.value = '' })
+onBeforeUnmount(() => { detailRequestId += 1; revealResourceId.value = '' })
 
 function openDetail(rawBatch: unknown) {
   const batch = rawBatch as RegistrationResourceBatch
@@ -379,7 +398,7 @@ onMounted(() => {
           <el-table-column label="操作" width="120" align="center" fixed="right" class-name="registration-operation-column">
             <template #default="{ row }">
               <div class="operation-actions operation-actions--icons">
-                <el-tooltip content="查看资料" placement="top"><el-button text circle :icon="Eye" @click="openDetail(row)" /></el-tooltip>
+                <el-tooltip content="查看资料" placement="top"><el-button text circle :icon="Eye" aria-label="查看资料" @click="openDetail(row)" /></el-tooltip>
                 <el-tooltip v-if="auth.can('registration_resources.delete')" content="删除批次" placement="top"><el-button text circle type="danger" :icon="Trash2" @click="removeBatch(row)" /></el-tooltip>
               </div>
             </template>
@@ -482,11 +501,22 @@ onMounted(() => {
         <el-table-column label="任务 ID" width="110" align="center" fixed="right">
           <template #default="{ row }">{{ row.used_task_run_id || '-' }}</template>
         </el-table-column>
+        <el-table-column v-if="canReveal" label="操作" width="72" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-tooltip v-if="row.can_reveal" content="查看原文" placement="top" :enterable="false" :show-after="300">
+              <el-button text :icon="Eye" aria-label="查看原文" @click="revealResourceId = row.id" />
+            </el-tooltip>
+          </template>
+        </el-table-column>
       </el-table>
       <div class="flex justify-end py-3">
         <el-pagination v-model:current-page="detailPage" v-model:page-size="detailPageSize" :total="detailTotal" layout="total, sizes, prev, pager, next" @current-change="changeDetailPage" @size-change="changeDetailPage" />
       </div>
     </el-drawer>
+
+    <RegistrationResourceRevealDialog v-if="revealResourceId && detailBatch && canReveal"
+      :batch-id="detailBatch.id" :resource-id="revealResourceId" :fields="detailFields"
+      @close="revealResourceId = ''" />
 
     <el-dialog v-model="templateVisible" title="新增注册资源模板版本" width="860px" destroy-on-close>
       <el-form label-position="top">
