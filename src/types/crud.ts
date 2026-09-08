@@ -269,9 +269,11 @@ export interface ResourceConfig {
   deleteSuccessTitle?: string
   deleteNotificationType?: (deletedRecord: AnyRecord, record: AnyRecord) => 'success' | 'warning' | 'error' | 'info'
   deleteAllowed?: (record: AnyRecord) => boolean
+  editAllowed?: (record: AnyRecord) => boolean
   deleteBlockedMessage?: (record: AnyRecord) => string
   keepCreateOpenWhen?: (createdRecord: AnyRecord, payload: AnyRecord) => boolean
   createBody?: (payload: AnyRecord) => unknown
+  createPermission?: string
   listParams?: (params: AnyRecord) => AnyRecord
   afterCreate?: (createdRecord: AnyRecord, payload: AnyRecord) => Promise<unknown>
   loadEditRecord?: (record: AnyRecord) => Promise<AnyRecord>

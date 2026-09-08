@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RefreshCw } from 'lucide-vue-next'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -58,6 +58,7 @@ const resourcePickerValue = ref('')
 const resourcePickerParam = ref<ScriptParam | null>(null)
 const resourceLabelCache = ref<Record<string, string>>({})
 let requestSeq = 0
+onBeforeUnmount(() => { ++requestSeq })
 
 const values = computed<Record<string, unknown>>(() => {
   return props.modelValue && typeof props.modelValue === 'object' && !Array.isArray(props.modelValue)
@@ -415,17 +416,16 @@ async function loadAccountTags() {
 }
 
 async function loadParams(scriptKey: string) {
+  const seq = ++requestSeq
   const key = scriptKey.trim()
   params.value = []
   loadedScriptKey.value = ''
   error.value = ''
-  if (!key) return
-
-  const seq = ++requestSeq
+  if (!key) { loading.value = false; return }
   loading.value = true
   try {
-    const script = await http.get<ScriptPublic>(`/api/scripts/by-key/${encodeURIComponent(key)}`)
-    const items = await http.get<ScriptParam[]>(`/api/scripts/${script.id}/params`)
+    const script = await http.get<ScriptPublic>(`/api/task-script-options/by-key/${encodeURIComponent(key)}`)
+    const items = await http.get<ScriptParam[]>(`/api/task-script-options/${script.id}/params`)
     if (seq !== requestSeq) return
     params.value = sortedParams(items)
     if (items.some(isAccountTagParam)) await loadAccountTags()

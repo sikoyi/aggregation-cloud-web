@@ -8,6 +8,44 @@ import {
 } from './options'
 import { resources } from './resources'
 
+describe('任务模板共享与管理归属', () => {
+  it('展示创建人，编辑删除及启停均按服务端归属判断', () => {
+    const config = resources.taskTemplates
+    expect(config.columns.find(column => column.key === 'created_by')?.label).toBe('创建人')
+    for (const record of [{}, { can_manage: false }]) {
+      expect(config.editAllowed?.(record)).toBe(false)
+      expect(config.deleteAllowed?.(record)).toBe(false)
+      for (const action of config.rowActions!.filter(item => ['enable', 'disable'].includes(item.key))) {
+        expect(action.visible?.(record)).toBe(false)
+        expect(action.visible?.({ can_manage: true })).toBe(true)
+      }
+    }
+    expect(config.editAllowed?.({ can_manage: true })).toBe(true)
+    expect(config.deleteAllowed?.({ can_manage: true })).toBe(true)
+  })
+
+  it('共享模板仍有只读详情和克隆入口', () => {
+    const actions = resources.taskTemplates.rowActions!
+    expect(actions.find(item => item.key === 'detail')?.permission).toBe('templates.view')
+    expect(actions.find(item => item.key === 'clone')?.visible).toBeUndefined()
+    expect(resources.taskTemplates.inlineActionKeys).toContain('detail')
+  })
+})
+
+describe('任务使用与脚本管理权限分离', () => {
+  it('任务创建使用下发权限，业务选择器使用只读接口', () => {
+    expect(resources.tasks.createPermission).toBe('tasks.dispatch')
+    for (const resource of [resources.tasks, resources.taskTemplates]) {
+      const fields = [...(resource.filters || []), ...(resource.createFields || []), ...(resource.updateFields || [])]
+      for (const field of fields.filter((item) => item.key === 'script_key')) {
+        expect(field.remote?.endpoint).toBe('/api/task-script-options')
+        expect(field.remote?.detailPath?.('a b')).toBe('/api/task-script-options/by-key/a%20b')
+      }
+    }
+    expect(resources.scripts.endpoint).toBe('/api/scripts')
+  })
+})
+
 
 describe('脚本执行平台约束', () => {
   const createFields = resources.scripts.createFields || []

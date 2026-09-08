@@ -5,6 +5,7 @@ import {
   Copy,
   Download,
   Edit3,
+  Eye,
   Link2,
   ListChecks,
   MoreHorizontal,
@@ -83,6 +84,7 @@ const PublishedContentDetailDialog = defineAsyncComponent(() => import('@/compon
 const PublishedContentTaskItems = defineAsyncComponent(() => import('@/components/PublishedContentTaskItems.vue'))
 const SlotGroupMemberEditor = defineAsyncComponent(() => import('@/components/SlotGroupMemberEditor.vue'))
 const TaskDetailDrawer = defineAsyncComponent(() => import('@/components/TaskDetailDrawer.vue'))
+const TaskTemplateDetailDialog = defineAsyncComponent(() => import('@/components/TaskTemplateDetailDialog.vue'))
 
 const props = defineProps<{
   config: ResourceConfig
@@ -98,6 +100,7 @@ const iconMap: IconMap = {
   copy: Copy,
   download: Download,
   edit: Edit3,
+  eye: Eye,
   link: Link2,
   list: ListChecks,
   play: Play,
@@ -180,9 +183,11 @@ const modal = reactive<{
 })
 
 const formState = ref<AnyRecord>({})
+const templateDetailId = ref<string | null>(null)
 
 const hasActiveUserOperation = computed(() => Boolean(
   modal.type
+  || templateDetailId.value
   || selectedRows.value.length
   || taskDetailVisible.value
   || interactionSessionDetailVisible.value
@@ -213,7 +218,8 @@ const modalWidth = computed(() => {
   if (isMediaAssetBatchCreateModal.value) return '900px'
   if (isInteractionSessionCreateModal.value) return '1240px'
   if (isPublishedContentDispatchModal.value && formState.value.dispatch_mode === 'account_pool') return '1420px'
-  if (isTaskDispatchModal.value || isPublishedContentDispatchModal.value) return '1120px'
+  if (isTaskDispatchModal.value) return 'min(1120px, calc(100vw - 24px))'
+  if (isPublishedContentDispatchModal.value) return '1120px'
   if (modal.type === 'edit' && props.config.editPreview === 'content') return '1100px'
   if (
     modal.type === 'edit'
@@ -328,6 +334,8 @@ function actionPermission(action: RowActionConfig) {
     cancel: `${permissionModule.value}.cancel`,
     retry: `${permissionModule.value}.retry`,
     clone: 'templates.create',
+    delete: `${permissionModule.value}.delete`,
+    __delete: `${permissionModule.value}.delete`,
     detail: `${permissionModule.value}.view`,
     download: `${permissionModule.value}.view`,
     slots: `${permissionModule.value}.view`,
@@ -343,7 +351,9 @@ function canRunAction(action: RowActionConfig) {
   return !permission || auth.can(permission)
 }
 
-const canCreateRow = computed(() => !props.config.readOnly && canResource('create'))
+const canCreateRow = computed(() => !props.config.readOnly && (
+  props.config.createPermission ? auth.can(props.config.createPermission) : canResource('create')
+))
 
 
 function defaultStatusSwitchConfig(column?: ColumnConfig) {
@@ -388,6 +398,14 @@ const showDropdownDelete = computed(() => canDeleteRow.value && !showDirectDelet
 
 function deleteAllowed(record: AnyRecord) {
   return canDeleteRow.value && (!props.config.deleteAllowed || props.config.deleteAllowed(record))
+}
+
+function editAllowed(record: AnyRecord) {
+  return canEditRow.value && (!props.config.editAllowed || props.config.editAllowed(record))
+}
+
+function rowActionAllowed(action: RowActionConfig, record: AnyRecord) {
+  return canRunAction(action) && (!action.visible || action.visible(record))
 }
 
 function deleteBlockedMessage(record: AnyRecord) {
@@ -715,8 +733,11 @@ function isEnabledStatus(value: unknown, column?: ColumnConfig) {
   return status !== '' && status !== 'disabled'
 }
 
-function isSwitchableStatusColumn(column: ColumnConfig) {
-  return column.type === 'statusSwitch' || (column.key === 'status' && hasInlineStatusSwitch.value)
+function isSwitchableStatusColumn(column: ColumnConfig, row: AnyRecord) {
+  const config = defaultStatusSwitchConfig(column)
+  const actions = [findInlineStatusAction(config.activeActionKey), findInlineStatusAction(config.inactiveActionKey)]
+  return (column.type === 'statusSwitch' || (column.key === 'status' && hasInlineStatusSwitch.value))
+    && actions.every((action) => !action || rowActionAllowed(action, row))
 }
 
 function shouldShowStatusBadgeWithSwitch(value: unknown) {
@@ -1009,6 +1030,7 @@ function applySystemDefaults(state: AnyRecord, defaults: SystemDefaults) {
 }
 
 async function openCreate() {
+  if (!canCreateRow.value) return
   modal.type = 'create'
   modal.record = null
   modal.action = null
@@ -1066,11 +1088,13 @@ defineExpose({
 })
 
 async function openEdit(record: AnyRecord) {
+  if (!editAllowed(record)) return
   loading.value = true
   error.value = ''
   try {
     // 部分资源的编辑表单需要额外子资源，例如脚本参数，需要先加载详情再打开弹窗。
     const editRecord = props.config.loadEditRecord ? await props.config.loadEditRecord(record) : record
+    if (!editAllowed(editRecord)) return
     modal.type = 'edit'
     modal.record = editRecord
     modal.action = null
@@ -1117,6 +1141,14 @@ async function confirmAction(
 }
 
 async function submitEntity() {
+  if (modal.type === 'edit' && (!modal.record || !editAllowed(modal.record))) {
+    ElMessage.error('当前账号没有编辑此记录的权限')
+    return
+  }
+  if (modal.type === 'create' && !canCreateRow.value) {
+    ElMessage.error('当前账号没有执行此操作的权限')
+    return
+  }
   submitting.value = true
   error.value = ''
   let successMessage = '保存成功'
@@ -1214,6 +1246,7 @@ function clearSelection() {
 }
 
 async function requestAction(action: RowActionConfig, record: AnyRecord, payload: AnyRecord = {}) {
+  if (!rowActionAllowed(action, record)) throw new Error('当前账号没有操作此记录的权限')
   if (!action.method || !action.path) throw new Error('当前操作缺少接口配置')
   const path = action.path(record, payload)
   const params = typeof action.params === 'function' ? action.params(payload, record) : action.params
@@ -1268,6 +1301,10 @@ async function runHeaderAction(action: RowActionConfig) {
 
 async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = {}) {
   if (!selectedRows.value.length || submitting.value) return false
+  if (!canRunAction(action) || (action.visible && selectedRows.value.some((record) => !action.visible!(record)))) {
+    ElMessage.warning('所选记录包含无权操作的数据，请调整选择后重试')
+    return false
+  }
   if (action.selectionLimit && selectedRows.value.length > action.selectionLimit) {
     ElMessage.warning(`每次最多选择 ${action.selectionLimit} 条，请减少选择后重试`)
     return false
@@ -1445,6 +1482,11 @@ function openAction(action: RowActionConfig, record: AnyRecord) {
 }
 
 async function runAction(action: RowActionConfig, record: AnyRecord) {
+  if (!rowActionAllowed(action, record)) return
+  if (props.config.key === 'taskTemplates' && action.key === 'detail') {
+    templateDetailId.value = rowId(record)
+    return
+  }
   if (props.config.key === 'accountIdentities' && action.key === 'edit-credentials') {
     if (submitting.value || identityCredentialsId.value || !auth.can('accounts.edit') || record.can_edit_credentials !== true) return
     identityCredentialsId.value = rowId(record)
@@ -1549,6 +1591,7 @@ function handleDropdown(command: string, row: AnyRecord) {
 }
 
 function initFilters() {
+  templateDetailId.value = null
   identityCredentialsId.value = null
   clearTableSelection()
   page.value = 1
@@ -1866,7 +1909,7 @@ onBeforeUnmount(() => {
               :row="row"
               :column="column"
             />
-            <div v-else-if="isSwitchableStatusColumn(column)" class="flex items-center gap-2">
+            <div v-else-if="isSwitchableStatusColumn(column, row)" class="flex items-center gap-2">
               <el-switch
                 :model-value="isEnabledStatus(row[column.key], column)"
                 :active-text="defaultStatusSwitchConfig(column).activeText"
@@ -1906,7 +1949,7 @@ onBeforeUnmount(() => {
         >
           <template #default="{ row }">
             <el-space :size="2">
-              <el-tooltip v-if="canEditRow" content="编辑" placement="top">
+              <el-tooltip v-if="editAllowed(row)" content="编辑" placement="top">
                 <el-button text circle :icon="Edit3" aria-label="编辑" :disabled="submitting" @click="openEdit(row)" />
               </el-tooltip>
               <el-tooltip
@@ -1930,7 +1973,7 @@ onBeforeUnmount(() => {
                 :content="config.deleteLabel"
                 placement="top"
               >
-                <el-button text circle type="danger" :icon="Trash2" :disabled="submitting" @click="deleteRow(row)" />
+                <el-button text circle type="danger" :icon="Trash2" :aria-label="config.deleteLabel" :disabled="submitting" @click="deleteRow(row)" />
               </el-tooltip>
               <el-dropdown
                 v-if="visibleDropdownRowActions(row).length || (showDropdownDelete && deleteAllowed(row))"
@@ -2127,6 +2170,11 @@ onBeforeUnmount(() => {
       @changed="loadRows()"
     />
     <TaskDetailDrawer v-if="config.key === 'tasks'" v-model="taskDetailVisible" :task-id="taskDetailId" />
+    <TaskTemplateDetailDialog
+      v-if="config.key === 'taskTemplates' && templateDetailId"
+      :template-id="templateDetailId"
+      @close="templateDetailId = null"
+    />
     <InteractionSessionDetailDialog
       v-if="config.key === 'interactionSessions'"
       v-model="interactionSessionDetailVisible"

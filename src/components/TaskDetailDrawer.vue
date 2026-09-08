@@ -35,10 +35,10 @@ const taskHistory = ref<string[]>([])
 const activeSlotGroups = ref<string[]>([])
 
 const scriptRelationConfig: RemoteSelectConfig = {
-  endpoint: '/api/scripts',
+  endpoint: '/api/task-script-options',
   labelKey: 'name',
   valueKey: 'script_key',
-  detailPath: (value: string) => `/api/scripts/by-key/${encodeURIComponent(value)}`,
+  detailPath: (value: string) => `/api/task-script-options/by-key/${encodeURIComponent(value)}`,
 }
 
 const visible = computed({
@@ -149,8 +149,8 @@ async function buildParamRows(currentTask: AnyRecord) {
 async function loadParamDefinitions(scriptKey: string): Promise<ScriptParamDefinition[]> {
   if (!scriptKey) return []
   try {
-    const script = await http.get<AnyRecord>(`/api/scripts/by-key/${encodeURIComponent(scriptKey)}`)
-    return await http.get<ScriptParamDefinition[]>(`/api/scripts/${encodeURIComponent(String(script.id))}/params`)
+    const script = await http.get<AnyRecord>(`/api/task-script-options/by-key/${encodeURIComponent(scriptKey)}`)
+    return await http.get<ScriptParamDefinition[]>(`/api/task-script-options/${encodeURIComponent(String(script.id))}/params`)
   } catch {
     return []
   }

@@ -101,11 +101,11 @@ function scriptRuntimePlatformLabel(script: AnyRecord) {
 }
 
 const scriptRemoteSelect = {
-  endpoint: "/api/scripts",
+  endpoint: "/api/task-script-options",
   labelKey: "name",
   valueKey: "script_key",
   detailPath: (value: string) =>
-    `/api/scripts/by-key/${encodeURIComponent(value)}`,
+    `/api/task-script-options/by-key/${encodeURIComponent(value)}`,
   secondaryFormatter: scriptRuntimePlatformLabel,
   searchParam: "keyword",
   params: (context?: AnyRecord) => ({
@@ -3376,8 +3376,11 @@ export const resources: Record<string, ResourceConfig> = {
     title: "任务模板",
     endpoint: "/api/task-templates",
     createLabel: "新增模板",
-    inlineActionKeys: ["clone"],
+    inlineActionKeys: ["detail", "clone"],
     directDelete: true,
+    editAllowed: (record) => record.can_manage === true,
+    deleteAllowed: (record) => record.can_manage === true,
+    deleteBlockedMessage: () => "仅模板创建人或超级管理员可以删除模板",
     createBody: (payload) => buildTaskTemplateBody(payload),
     updateBody: (payload) => buildTaskTemplateBody(payload),
     columns: [
@@ -3395,7 +3398,8 @@ export const resources: Record<string, ResourceConfig> = {
         minWidth: 160,
       },
       { key: "business_platform", label: "执行配置", type: "templateConfig", minWidth: 200 },
-      { key: "status", label: "状态", type: "status", width: 80, align: "center" },
+      { key: "created_by", label: "创建人", type: "taskOperator", width: 150 },
+      { key: "status", label: "状态", type: "status", width: 112, align: "center" },
       { key: "updated_at", label: "更新时间", type: "templateTimeline", width: 142, align: "center" },
     ],
     filters: [
@@ -3618,6 +3622,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "enable",
         label: "启用模板",
+        visible: (record) => record.can_manage === true,
         method: "POST",
         icon: "power",
         path: (record) => `/api/task-templates/${record.id}/enable`,
@@ -3626,11 +3631,18 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "disable",
         label: "禁用模板",
+        visible: (record) => record.can_manage === true,
         method: "POST",
         icon: "powerOff",
         variant: "danger",
         path: (record) => `/api/task-templates/${record.id}/disable`,
         confirm: "确认禁用该任务模板？禁用后不能再基于它创建任务。",
+      },
+      {
+        key: "detail",
+        label: "查看模板",
+        permission: "templates.view",
+        icon: "eye",
       },
     ],
     deleteLabel: "删除",
@@ -3645,6 +3657,7 @@ export const resources: Record<string, ResourceConfig> = {
     listEndpoint: "/api/tasks/summaries",
     createEndpoint: "/api/tasks/from-template",
     createLabel: "下发任务",
+    createPermission: "tasks.dispatch",
     createBody: (payload) => buildTaskDispatchBody(payload),
     operationWidth: 140,
     columns: [

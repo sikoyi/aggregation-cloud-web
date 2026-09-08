@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, type UploadFile } from 'element-plus'
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -10,6 +10,7 @@ import {
   isDataScopedFieldKey,
 } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
+import { notifyError } from '@/utils/notify'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig } from '@/types/crud'
 
@@ -35,11 +36,18 @@ const auth = useAuthStore()
 const templateLoading = ref(false)
 const scriptScopeLoading = ref(false)
 const scriptScope = ref<AnyRecord | null>(null)
+let templateRequestSeq = 0
+let scriptScopeRequestSeq = 0
+onBeforeUnmount(() => { ++templateRequestSeq; ++scriptScopeRequestSeq })
 const hasScriptScopeFields = computed(() => props.fields.some((field) => Boolean(field.scriptScopeKey)))
 const scriptScopeDependency = computed(() => String(props.modelValue.script_key || ''))
 
 function updateValue(key: string, value: unknown) {
   const nextValue = { ...props.modelValue, [key]: value }
+  if (key === 'runtime_platform' && value !== props.modelValue.runtime_platform) {
+    ++templateRequestSeq
+    templateLoading.value = false
+  }
   if (key === 'dispatch_mode' && String(value || '') !== String(props.modelValue.dispatch_mode || '')) {
     nextValue.account_ids = []
     if (value === 'account_pool') {
@@ -71,8 +79,10 @@ function updateValue(key: string, value: unknown) {
 }
 
 async function updateTemplateValue(field: FieldConfig, value: string | string[]) {
+  const request = ++templateRequestSeq
   const templateId = Array.isArray(value) ? String(value[0] || '') : String(value || '')
   if (!templateId || !field.remote?.detailPath) {
+    templateLoading.value = false
     emit('update:modelValue', {
       ...props.modelValue,
       [field.key]: templateId,
@@ -95,8 +105,9 @@ async function updateTemplateValue(field: FieldConfig, value: string | string[])
     const template = await http.get<AnyRecord>(field.remote.detailPath(templateId))
     const scriptKey = String(template.script_key || '')
     const script = scriptKey
-      ? await http.get<AnyRecord>(`/api/scripts/by-key/${encodeURIComponent(scriptKey)}`)
+      ? await http.get<AnyRecord>(`/api/task-script-options/by-key/${encodeURIComponent(scriptKey)}`)
       : null
+    if (request !== templateRequestSeq) return
     emit('update:modelValue', {
       ...props.modelValue,
       [field.key]: templateId,
@@ -111,8 +122,10 @@ async function updateTemplateValue(field: FieldConfig, value: string | string[])
       registration_target_mode: 'existing_slots',
       concurrent_registration_count: 1,
     })
+  } catch (error) {
+    if (request === templateRequestSeq) notifyError(error, '加载失败', '加载任务模板失败')
   } finally {
-    templateLoading.value = false
+    if (request === templateRequestSeq) templateLoading.value = false
   }
 }
 
@@ -213,21 +226,25 @@ function applyScriptScopeDefaults(scope: AnyRecord | null) {
 
 async function loadScriptScope(scriptKey: string) {
   if (!hasScriptScopeFields.value) return
+  const request = ++scriptScopeRequestSeq
   if (!scriptKey) {
     scriptScope.value = null
+    scriptScopeLoading.value = false
     return
   }
 
   scriptScopeLoading.value = true
   try {
-    const detail = await http.get<AnyRecord>(`/api/scripts/by-key/${encodeURIComponent(scriptKey)}`)
+    const detail = await http.get<AnyRecord>(`/api/task-script-options/by-key/${encodeURIComponent(scriptKey)}`)
+    if (request !== scriptScopeRequestSeq) return
     scriptScope.value = detail
     applyScriptScopeDefaults(detail)
   } catch {
+    if (request !== scriptScopeRequestSeq) return
     scriptScope.value = null
     ElMessage.error('加载脚本支持范围失败')
   } finally {
-    scriptScopeLoading.value = false
+    if (request === scriptScopeRequestSeq) scriptScopeLoading.value = false
   }
 }
 
