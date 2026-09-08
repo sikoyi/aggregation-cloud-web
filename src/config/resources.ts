@@ -836,6 +836,7 @@ function buildAccountImportPayload(payload: AnyRecord) {
   const body = pickPayload(payload, [
     "business_platform",
     "country",
+    "account_age_type",
     "tag_ids",
     "raw_text",
     "delimiter",
