@@ -685,6 +685,30 @@ function buildTaskTemplateBody(payload: AnyRecord) {
 }
 
 function buildTaskDispatchBody(payload: AnyRecord) {
+  const errors: string[] = [];
+  if (!String(payload.template_id || "").trim()) errors.push("请选择任务模板");
+  if (!payload.execution_mode) {
+    errors.push("请选择执行模式（立即执行或计划执行）");
+  } else if (payload.execution_mode !== "immediate" && payload.execution_mode !== "scheduled") {
+    errors.push("执行模式无效，请选择“立即执行”或“计划执行”");
+  }
+  if (payload.execution_mode === "scheduled" && !payload.scheduled_at) {
+    errors.push("计划执行必须选择计划时间");
+  }
+  if (payload.registration_target_mode === "create_windows") {
+    const count = payload.concurrent_registration_count;
+    if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > 1000) {
+      errors.push("同时注册数量必须为 1 至 1000 的整数");
+    }
+  } else if (!Array.isArray(payload.slot_ids) || !payload.slot_ids.some((id) => String(id || "").trim())) {
+    errors.push("请至少选择一个执行设备");
+  }
+  const executionCount = payload.execution_count;
+  if (executionCount !== undefined && executionCount !== null
+    && (typeof executionCount !== "number" || !Number.isInteger(executionCount) || executionCount < 1 || executionCount > 1000)) {
+    errors.push("每个目标执行次数必须为 1 至 1000 的整数");
+  }
+  if (errors.length) throw new Error(errors.join("；"));
   return pickPayload(payload, [
     "template_id",
     "title_prefix",

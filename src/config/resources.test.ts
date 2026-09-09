@@ -572,6 +572,7 @@ describe('账号注册任务下发', () => {
       template_id: '7',
       slot_ids: [],
       registration_target_mode: 'create_windows',
+      execution_mode: 'immediate',
       concurrent_registration_count: 10,
       execution_count: 10,
       params: { country: 'KOR' },
@@ -937,6 +938,48 @@ describe('任务模板脚本范围联动', () => {
 
 describe('任务下发执行模式', () => {
   const dispatchFields = resources.tasks.createFields || []
+
+  it('提交前同时提示模板和模式缺失', () => {
+    expect(() => resources.tasks.createBody?.({
+      template_id: '', execution_mode: '', slot_ids: ['one'], execution_count: 1,
+    })).toThrow('请选择任务模板；请选择执行模式（立即执行或计划执行）')
+  })
+
+  it.each(['bad-mode', 'immediate ', 1])('拒绝非法执行模式 %s', (mode) => {
+    expect(() => resources.tasks.createBody?.({
+      template_id: 'one', execution_mode: mode, slot_ids: ['one'], execution_count: 1,
+    })).toThrow('执行模式无效，请选择“立即执行”或“计划执行”')
+  })
+
+  it('计划执行未选择时间时提示选择计划时间', () => {
+    expect(() => resources.tasks.createBody?.({
+      template_id: 'one', execution_mode: 'scheduled', slot_ids: ['one'], scheduled_at: null,
+    })).toThrow('计划执行必须选择计划时间')
+  })
+
+  it('使用已有设备时提示未选设备', () => {
+    expect(() => resources.tasks.createBody?.({
+      template_id: 'one', execution_mode: 'immediate', slot_ids: [],
+    })).toThrow('请至少选择一个执行设备')
+  })
+
+  it.each([0, 1001, 1.5, NaN])('提示无效的执行次数 %s', (count) => {
+    expect(() => resources.tasks.createBody?.({
+      template_id: 'one', execution_mode: 'immediate', slot_ids: ['one'], execution_count: count,
+    })).toThrow('每个目标执行次数必须为 1 至 1000 的整数')
+  })
+
+  it('创建窗口只要求注册数量，不要求已有设备', () => {
+    const payload = { template_id: 'one', execution_mode: 'immediate', slot_ids: [], registration_target_mode: 'create_windows', concurrent_registration_count: 2 }
+    expect(resources.tasks.createBody?.(payload)).toEqual(payload)
+    expect(() => resources.tasks.createBody?.({ ...payload, concurrent_registration_count: 0 }))
+      .toThrow('同时注册数量必须为 1 至 1000 的整数')
+  })
+
+  it('有效的立即执行请求保持不变，不擅自更改模式', () => {
+    const payload = { template_id: 'one', execution_mode: 'immediate', slot_ids: ['one'], execution_count: 1000, params: { key: 'value' } }
+    expect(resources.tasks.createBody?.(payload)).toEqual(payload)
+  })
 
   it('允许单次下发覆盖模板执行模式', () => {
     const modeField = dispatchFields.find((field) => field.key === 'execution_mode')
