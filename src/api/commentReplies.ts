@@ -9,8 +9,13 @@ export interface CommentReplyPage {
 }
 
 export interface CommentReplyFilters {
+  business_platform?: string
   status?: string
   account_id?: string
+  account_tag_id?: string
+  reply_mode?: string
+  created_from?: string
+  created_to?: string
   keyword?: string
   page: number
   page_size: number

@@ -19,15 +19,24 @@ import {
   regenerateCommentReply,
   retryCommentReply,
 } from '@/api/commentReplies'
+import RemoteSelect from '@/components/RemoteSelect.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
+import {
+  buildCommentReplyQuery,
+  createDefaultCommentReplyFilters,
+  hasActiveCommentReplyFilters,
+} from '@/config/commentReplyFilters'
 import { businessPlatformLabel } from '@/config/options'
+import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
+import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
 const auth = useAuthStore()
+const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const statusOptions = [
   { label: '生成中', value: 'generating', type: 'primary' },
   { label: '待审核', value: 'pending_review', type: 'warning' },
@@ -55,13 +64,42 @@ const dialogVisible = ref(false)
 const activeJob = ref<AnyRecord | null>(null)
 const editedContent = ref('')
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
-  'list:comment-replies',
-  { status: '', keyword: '' },
+  'list:comment-replies:v2',
+  createDefaultCommentReplyFilters(),
 )
 let refreshTimer: number | undefined
 
-const hasFilters = computed(() => Boolean(filters.status || filters.keyword))
+const hasFilters = computed(() => hasActiveCommentReplyFilters(filters))
 const canApprove = computed(() => activeJob.value?.status === 'pending_review' && auth.can('operations.review'))
+const replyModeOptions = [
+  { label: '自动回复', value: 'automatic' },
+  { label: '人工审核', value: 'review' },
+]
+const accountSelectConfig = computed<RemoteSelectConfig>(() => ({
+  endpoint: '/api/accounts',
+  labelKeys: ['login_username', 'username', 'display_name', 'platform_account_id'],
+  valueKey: 'id',
+  detailPath: (value: string) => `/api/accounts/${encodeURIComponent(value)}`,
+  secondaryFormatter: (option: AnyRecord) => [
+    businessPlatformLabel(option.business_platform),
+    option.country,
+    `ID ${option.id}`,
+  ].filter(Boolean).join(' · '),
+  searchParam: 'keyword',
+  pageSize: 50,
+  params: {
+    business_platform: filters.businessPlatform || undefined,
+    tag_id: filters.accountTagId || undefined,
+  },
+}))
+const accountTagSelectConfig: RemoteSelectConfig = {
+  endpoint: '/api/account-tags',
+  labelKey: 'name',
+  valueKey: 'id',
+  detailPath: (value: string) => `/api/account-tags/${encodeURIComponent(value)}`,
+  searchParam: 'keyword',
+  pageSize: 50,
+}
 
 function statusMeta(value: unknown) {
   return statusOptions.find((item) => item.value === value) || { label: String(value || '-'), type: 'info' }
@@ -77,10 +115,7 @@ async function loadRows() {
   loading.value = true
   try {
     const data = await listCommentReplies({
-      status: filters.status || undefined,
-      keyword: filters.keyword.trim() || undefined,
-      page: page.value,
-      page_size: pageSize.value,
+      ...buildCommentReplyQuery(filters, page.value, pageSize.value),
     })
     rows.value = data.items
     total.value = data.total
@@ -225,10 +260,36 @@ onBeforeUnmount(() => {
       <div class="reply-review__body">
         <div class="reply-review__filters">
           <div class="filter-row">
+            <el-select v-model="filters.businessPlatform" clearable placeholder="业务平台" class="filter-platform">
+              <el-option
+                v-for="item in availableBusinessPlatformOptions"
+                :key="String(item.value)"
+                :label="item.label"
+                :value="String(item.value)"
+              />
+            </el-select>
+            <div class="filter-account">
+              <RemoteSelect v-model="filters.accountId" :config="accountSelectConfig" compact placeholder="搜索具体监听账号" />
+            </div>
+            <div class="filter-tag">
+              <RemoteSelect v-model="filters.accountTagId" :config="accountTagSelectConfig" compact placeholder="搜索账号标签" />
+            </div>
+            <el-select v-model="filters.replyMode" clearable placeholder="回复模式" class="filter-mode">
+              <el-option v-for="item in replyModeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
             <el-select v-model="filters.status" clearable placeholder="工单状态" class="filter-status">
               <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
             </el-select>
-            <el-input v-model="filters.keyword" clearable placeholder="评论作者 / 评论内容 / 回复文案" @keyup.enter="searchRows" />
+            <el-date-picker
+              v-model="filters.createdRange"
+              class="filter-date"
+              type="datetimerange"
+              value-format="YYYY-MM-DDTHH:mm:ssZ"
+              range-separator="至"
+              start-placeholder="发现时间起"
+              end-placeholder="发现时间止"
+            />
+            <el-input v-model="filters.keyword" class="filter-keyword" clearable placeholder="评论作者 / 内容 / 回复文案" @keyup.enter="searchRows" />
             <el-button type="primary" :icon="Search" @click="searchRows">查询</el-button>
             <el-button :disabled="!hasFilters" @click="resetFilters">清空</el-button>
           </div>
@@ -347,9 +408,14 @@ onBeforeUnmount(() => {
 .reply-review__filters,
 .reply-review__table { border: 1px solid #dbe4ed; border-radius: 6px; background: #fff; }
 .reply-review__filters { margin-bottom: 12px; padding: 12px; }
-.filter-row { gap: 10px; }
-.filter-row .el-input { max-width: 420px; }
+.filter-row { flex-wrap: wrap; gap: 10px; }
+.filter-platform { width: 140px; }
+.filter-account { width: min(260px, 100%); }
+.filter-tag { width: min(190px, 100%); }
+.filter-mode { width: 140px; }
 .filter-status { width: 160px; }
+.filter-date { width: 360px; }
+.filter-keyword { width: min(360px, 100%); }
 .reply-review__table { overflow: hidden; }
 .reply-review__pagination { justify-content: flex-end; padding: 12px; border-top: 1px solid #e5ebf1; }
 .account-copy strong { display: block; margin-bottom: 6px; color: #243548; }
@@ -373,8 +439,13 @@ onBeforeUnmount(() => {
 .review-block p { margin: 0; color: #405266; line-height: 1.7; white-space: pre-wrap; }
 @media (max-width: 720px) {
   .filter-row { align-items: stretch; flex-direction: column; }
-  .filter-row .el-input,
-  .filter-status { width: 100%; max-width: none; }
+  .filter-platform,
+  .filter-account,
+  .filter-tag,
+  .filter-mode,
+  .filter-status,
+  .filter-date,
+  .filter-keyword { width: 100%; max-width: none; }
   .review-dialog__meta { grid-template-columns: 1fr; }
 }
 </style>
