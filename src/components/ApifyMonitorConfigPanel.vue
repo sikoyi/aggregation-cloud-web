@@ -17,11 +17,18 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 
 import { http } from '@/api/http'
+import {
+  defaultMonitorProviderForPlatform,
+  isInternalMonitorProvider,
+  monitorProviderLabel,
+  normalizeMonitorProvider,
+  providerOptionsForPlatform,
+  type MonitorBusinessPlatform,
+  type MonitorProvider,
+} from '@/config/contentMonitorProviders'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
-
-type MonitorProvider = 'apify' | 'threads_protocol'
 
 interface ProviderToken {
   id: string
@@ -72,7 +79,7 @@ interface UsageSummary {
   refreshed_at?: string
 }
 
-const businessPlatform = ref<'threads' | 'x' | 'instagram'>('threads')
+const businessPlatform = ref<MonitorBusinessPlatform>('threads')
 const businessPlatformOptions = [
   { label: 'Threads', value: 'threads' },
   { label: 'X(Twitter)', value: 'x' },
@@ -91,12 +98,7 @@ const revealedTokenIds = ref<string[]>([])
 const enabled = ref(false)
 const provider = ref<MonitorProvider>('apify')
 const persistedProvider = ref<MonitorProvider>('apify')
-const providerOptions = computed(() => businessPlatform.value !== 'threads' ? [
-  { label: 'Apify', value: 'apify' },
-] : [
-  { label: 'Apify', value: 'apify' },
-  { label: 'Threads 内部协议', value: 'threads_protocol' },
-])
+const providerOptions = computed(() => providerOptionsForPlatform(businessPlatform.value))
 const protocolForm = reactive({
   base_url: '',
   token: '',
@@ -124,12 +126,22 @@ const xFreePlanTokens = computed(() => businessPlatform.value === 'x'
 const recentDailyUsages = computed(() => usage.value.daily_usages.slice(-14))
 const maxDailyUsage = computed(() => Math.max(...recentDailyUsages.value.map((item) => item.usage_usd), 0.000001))
 const providerDirty = computed(() => provider.value !== persistedProvider.value)
-const providerLabel = computed(() => provider.value === 'threads_protocol' ? '内部协议' : 'Apify')
-const providerDescription = computed(() => provider.value === 'threads_protocol'
-  ? '服务端调用 Threads 协议采集账号资料、帖子和评论；采集账号池由协议服务自行维护。'
-  : businessPlatform.value === 'x'
+const providerLabel = computed(() => monitorProviderLabel(provider.value))
+const providerDescription = computed(() => {
+  if (provider.value === 'threads_protocol') {
+    return '服务端调用 Threads 协议采集账号资料、帖子和评论；采集账号池由协议服务自行维护。'
+  }
+  if (provider.value === 'x_protocol') {
+    return '服务端调用 X 内部接口采集账号资料、最新帖子和一级回复；采集账号池由内部服务自行维护。'
+  }
+  return businessPlatform.value === 'x'
     ? '服务端通过 Apify 采集 X 账号资料、背景图、推文和回复；多个 Token 按轮换顺序承接任务。'
-    : '服务端固定使用 Apify Actor，多个 Token 按轮换顺序承接新的监听任务。')
+    : '服务端固定使用 Apify Actor，多个 Token 按轮换顺序承接新的监听任务。'
+})
+const protocolServiceName = computed(() => provider.value === 'x_protocol' ? 'X 内部接口' : 'Threads 协议服务')
+const protocolTargetDescription = computed(() => provider.value === 'x_protocol'
+  ? '内部服务只接收 X 用户名和帖子 ID；单轮最多采集最新 20 条帖子，回复请求由主系统限制并发。'
+  : '协议服务只接收目标账号主页和帖子标识；协议端使用的采集账号池由协议服务自行维护。')
 
 function emptyUsage(): UsageSummary {
   return {
@@ -160,8 +172,8 @@ async function changeBusinessPlatform() {
   protocolForm.base_url = ''
   protocolForm.token = ''
   protocolForm.token_configured = false
-  provider.value = 'apify'
-  persistedProvider.value = 'apify'
+  provider.value = defaultMonitorProviderForPlatform(businessPlatform.value)
+  persistedProvider.value = provider.value
   usage.value = emptyUsage()
   await refreshAll()
 }
@@ -173,9 +185,7 @@ async function loadConfig() {
     const data = await http.get<AnyRecord>(endpoint())
     if (revision !== platformRevision) return
     enabled.value = data.enabled === true
-    const loadedProvider = businessPlatform.value !== 'threads'
-      ? 'apify'
-      : data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
+    const loadedProvider = normalizeMonitorProvider(businessPlatform.value, data.provider)
     provider.value = loadedProvider
     persistedProvider.value = loadedProvider
     protocolForm.base_url = String(data.protocol_base_url || '')
@@ -213,8 +223,8 @@ async function refreshAll() {
 }
 
 async function saveProviderConfig() {
-  if (provider.value === 'threads_protocol' && !protocolForm.base_url.trim()) {
-    ElNotification.warning({ title: '请完善配置', message: '请填写 Threads 协议服务地址' })
+  if (isInternalMonitorProvider(provider.value) && !protocolForm.base_url.trim()) {
+    ElNotification.warning({ title: '请完善配置', message: `请填写${protocolServiceName.value}地址` })
     return
   }
   savingProvider.value = true
@@ -223,14 +233,12 @@ async function saveProviderConfig() {
       provider: provider.value,
       enabled: enabled.value,
     }
-    if (provider.value === 'threads_protocol') {
+    if (isInternalMonitorProvider(provider.value)) {
       payload.protocol_base_url = protocolForm.base_url.trim()
       if (protocolForm.token.trim()) payload.protocol_token = protocolForm.token.trim()
     }
     const data = await http.put<AnyRecord>(endpoint(), payload)
-    const savedProvider = businessPlatform.value !== 'threads'
-      ? 'apify'
-      : data.provider === 'threads_protocol' ? 'threads_protocol' : 'apify'
+    const savedProvider = normalizeMonitorProvider(businessPlatform.value, data.provider)
     provider.value = savedProvider
     persistedProvider.value = savedProvider
     enabled.value = data.enabled === true
@@ -238,7 +246,7 @@ async function saveProviderConfig() {
     protocolForm.token = ''
     protocolForm.token_configured = data.protocol_token_configured === true
     updatedAt.value = String(data.updated_at || '')
-    ElNotification.success({ title: '保存成功', message: providerLabel.value + '采集通道已生效' })
+    ElNotification.success({ title: '保存成功', message: `${providerLabel.value}采集通道已生效` })
     await loadUsage()
   } catch (err) {
     notifyError(err, '保存失败', '账号监听采集通道保存失败')
@@ -249,20 +257,20 @@ async function saveProviderConfig() {
 
 async function testProtocolConnection() {
   if (!protocolForm.base_url.trim()) {
-    ElNotification.warning({ title: '请完善配置', message: '请填写 Threads 协议服务地址' })
+    ElNotification.warning({ title: '请完善配置', message: `请填写${protocolServiceName.value}地址` })
     return
   }
   testingProtocol.value = true
   try {
     const payload: AnyRecord = {
-      provider: 'threads_protocol',
+      provider: provider.value,
       protocol_base_url: protocolForm.base_url.trim(),
     }
     if (protocolForm.token.trim()) payload.protocol_token = protocolForm.token.trim()
     await http.post(endpoint('/test'), payload)
-    ElNotification.success({ title: '连接成功', message: 'Threads 协议服务可以正常访问' })
+    ElNotification.success({ title: '连接成功', message: `${protocolServiceName.value}可以正常访问` })
   } catch (err) {
-    notifyError(err, '连接失败', 'Threads 协议服务当前不可用')
+    notifyError(err, '连接失败', `${protocolServiceName.value}当前不可用`)
   } finally {
     testingProtocol.value = false
   }
@@ -449,7 +457,7 @@ onMounted(refreshAll)
       </div>
       <div class="provider-actions">
         <el-button
-          v-if="provider === 'threads_protocol'"
+          v-if="isInternalMonitorProvider(provider)"
           :icon="PlugZap"
           :loading="testingProtocol"
           @click="testProtocolConnection"
@@ -460,11 +468,11 @@ onMounted(refreshAll)
       </div>
     </div>
 
-    <div v-if="provider === 'threads_protocol'" class="protocol-config">
+    <div v-if="isInternalMonitorProvider(provider)" class="protocol-config">
       <el-form label-position="top">
         <div class="protocol-fields">
-          <el-form-item label="协议服务地址" required>
-            <el-input v-model="protocolForm.base_url" placeholder="例如：http://crawler-service:8000" />
+          <el-form-item :label="`${protocolServiceName}地址`" required>
+            <el-input v-model="protocolForm.base_url" :placeholder="businessPlatform === 'x' ? '例如：http://x-service:8023' : '例如：http://crawler-service:8000'" />
           </el-form-item>
           <el-form-item>
             <template #label>
@@ -484,7 +492,7 @@ onMounted(refreshAll)
         </div>
       </el-form>
       <el-alert
-        title="协议服务只接收目标账号主页和帖子标识；协议端使用的采集账号池由协议服务自行维护。"
+        :title="protocolTargetDescription"
         type="info"
         :closable="false"
         show-icon

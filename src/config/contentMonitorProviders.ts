@@ -1,0 +1,49 @@
+export type MonitorBusinessPlatform = 'threads' | 'x' | 'instagram'
+export type MonitorProvider = 'apify' | 'threads_protocol' | 'x_protocol'
+
+export interface MonitorProviderOption {
+  label: string
+  value: MonitorProvider
+}
+
+const APIFY_OPTION: MonitorProviderOption = { label: 'Apify', value: 'apify' }
+
+export function providerOptionsForPlatform(platform: MonitorBusinessPlatform): MonitorProviderOption[] {
+  if (platform === 'threads') {
+    return [
+      APIFY_OPTION,
+      { label: 'Threads 内部协议', value: 'threads_protocol' },
+    ]
+  }
+  if (platform === 'x') {
+    return [
+      { label: 'X 内部接口', value: 'x_protocol' },
+      APIFY_OPTION,
+    ]
+  }
+  return [APIFY_OPTION]
+}
+
+export function defaultMonitorProviderForPlatform(platform: MonitorBusinessPlatform): MonitorProvider {
+  return platform === 'x' ? 'x_protocol' : 'apify'
+}
+
+export function normalizeMonitorProvider(
+  platform: MonitorBusinessPlatform,
+  value: unknown,
+): MonitorProvider {
+  const providers = providerOptionsForPlatform(platform).map((item) => item.value)
+  return providers.includes(value as MonitorProvider)
+    ? value as MonitorProvider
+    : defaultMonitorProviderForPlatform(platform)
+}
+
+export function isInternalMonitorProvider(provider: MonitorProvider): boolean {
+  return provider === 'threads_protocol' || provider === 'x_protocol'
+}
+
+export function monitorProviderLabel(provider: MonitorProvider): string {
+  if (provider === 'threads_protocol') return 'Threads 内部协议'
+  if (provider === 'x_protocol') return 'X 内部接口'
+  return 'Apify'
+}
