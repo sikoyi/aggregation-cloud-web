@@ -259,40 +259,57 @@ onBeforeUnmount(() => {
 
       <div class="reply-review__body">
         <div class="reply-review__filters">
-          <div class="filter-row">
-            <el-select v-model="filters.businessPlatform" clearable placeholder="业务平台" class="filter-platform">
-              <el-option
-                v-for="item in availableBusinessPlatformOptions"
-                :key="String(item.value)"
-                :label="item.label"
-                :value="String(item.value)"
-              />
-            </el-select>
-            <div class="filter-account">
-              <RemoteSelect v-model="filters.accountId" :config="accountSelectConfig" compact placeholder="搜索具体监听账号" />
-            </div>
-            <div class="filter-tag">
-              <RemoteSelect v-model="filters.accountTagId" :config="accountTagSelectConfig" compact placeholder="搜索账号标签" />
-            </div>
-            <el-select v-model="filters.replyMode" clearable placeholder="回复模式" class="filter-mode">
-              <el-option v-for="item in replyModeOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-            <el-select v-model="filters.status" clearable placeholder="工单状态" class="filter-status">
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-            <el-date-picker
-              v-model="filters.createdRange"
-              class="filter-date"
-              type="datetimerange"
-              value-format="YYYY-MM-DDTHH:mm:ssZ"
-              range-separator="至"
-              start-placeholder="发现时间起"
-              end-placeholder="发现时间止"
-            />
-            <el-input v-model="filters.keyword" class="filter-keyword" clearable placeholder="评论作者 / 内容 / 回复文案" @keyup.enter="searchRows" />
-            <el-button type="primary" :icon="Search" @click="searchRows">查询</el-button>
-            <el-button :disabled="!hasFilters" @click="resetFilters">清空</el-button>
+          <div class="filter-title">
+            <Search :size="16" />
+            <span>筛选条件</span>
           </div>
+          <el-form inline label-position="right" label-suffix=":" class="compact-filter-form">
+            <div class="filter-grid">
+              <el-form-item label="业务平台">
+                <el-select v-model="filters.businessPlatform" clearable placeholder="全部">
+                  <el-option
+                    v-for="item in availableBusinessPlatformOptions"
+                    :key="String(item.value)"
+                    :label="item.label"
+                    :value="String(item.value)"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="监听账号">
+                <RemoteSelect v-model="filters.accountId" :config="accountSelectConfig" compact placeholder="全部" />
+              </el-form-item>
+              <el-form-item label="账号标签">
+                <RemoteSelect v-model="filters.accountTagId" :config="accountTagSelectConfig" compact placeholder="全部" />
+              </el-form-item>
+              <el-form-item label="回复模式">
+                <el-select v-model="filters.replyMode" clearable placeholder="全部">
+                  <el-option v-for="item in replyModeOptions" :key="item.value" :label="item.label" :value="item.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="工单状态">
+                <el-select v-model="filters.status" clearable placeholder="全部">
+                  <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="发现时间" class="filter-grid__item--wide">
+                <el-date-picker
+                  v-model="filters.createdRange"
+                  type="datetimerange"
+                  value-format="YYYY-MM-DDTHH:mm:ssZ"
+                  range-separator="至"
+                  start-placeholder="开始时间"
+                  end-placeholder="结束时间"
+                />
+              </el-form-item>
+              <el-form-item label="关键词">
+                <el-input v-model="filters.keyword" clearable placeholder="评论作者 / 内容 / 回复文案" @keyup.enter="searchRows" />
+              </el-form-item>
+            </div>
+            <div class="filter-actions">
+              <el-button :icon="RotateCcw" :disabled="!hasFilters" @click="resetFilters">清空</el-button>
+              <el-button type="primary" :icon="Search" @click="searchRows">查询</el-button>
+            </div>
+          </el-form>
         </div>
 
         <div class="reply-review__table">
@@ -395,7 +412,8 @@ onBeforeUnmount(() => {
 .reply-review__workspace :deep(.el-card__body) { padding: 0; }
 .reply-review__header,
 .reply-review__heading,
-.filter-row,
+.filter-title,
+.filter-actions,
 .reply-review__pagination,
 .review-dialog__meta,
 .review-block header { display: flex; align-items: center; }
@@ -408,14 +426,22 @@ onBeforeUnmount(() => {
 .reply-review__filters,
 .reply-review__table { border: 1px solid #dbe4ed; border-radius: 6px; background: #fff; }
 .reply-review__filters { margin-bottom: 12px; padding: 12px; }
-.filter-row { flex-wrap: wrap; gap: 10px; }
-.filter-platform { width: 140px; }
-.filter-account { width: min(260px, 100%); }
-.filter-tag { width: min(190px, 100%); }
-.filter-mode { width: 140px; }
-.filter-status { width: 160px; }
-.filter-date { width: 360px; }
-.filter-keyword { width: min(360px, 100%); }
+.filter-title { gap: 6px; margin-bottom: 10px; color: #26384a; font-size: 13px; font-weight: 700; }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; }
+.filter-grid :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; }
+.filter-grid :deep(.el-form-item__label) {
+  min-width: 72px;
+  justify-content: flex-end;
+  color: #52606d;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+}
+.filter-grid :deep(.el-select),
+.filter-grid :deep(.el-input),
+.filter-grid :deep(.el-date-editor) { width: 100%; }
+.filter-grid :deep(.filter-grid__item--wide) { grid-column: span 2; }
+.filter-actions { gap: 8px; margin-top: 12px; }
 .reply-review__table { overflow: hidden; }
 .reply-review__pagination { justify-content: flex-end; padding: 12px; border-top: 1px solid #e5ebf1; }
 .account-copy strong { display: block; margin-bottom: 6px; color: #243548; }
@@ -437,15 +463,9 @@ onBeforeUnmount(() => {
 .review-block header span { font-weight: 700; }
 .review-block header small { color: #8a98a8; }
 .review-block p { margin: 0; color: #405266; line-height: 1.7; white-space: pre-wrap; }
-@media (max-width: 720px) {
-  .filter-row { align-items: stretch; flex-direction: column; }
-  .filter-platform,
-  .filter-account,
-  .filter-tag,
-  .filter-mode,
-  .filter-status,
-  .filter-date,
-  .filter-keyword { width: 100%; max-width: none; }
+@media (max-width: 768px) {
+  .filter-grid { grid-template-columns: 1fr; }
+  .filter-grid :deep(.filter-grid__item--wide) { grid-column: span 1; }
   .review-dialog__meta { grid-template-columns: 1fr; }
 }
 </style>
