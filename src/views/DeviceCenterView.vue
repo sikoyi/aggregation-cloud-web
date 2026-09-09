@@ -117,7 +117,11 @@ function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
 </template>
 
 <style scoped>
-:deep(.device-group-dialog .el-dialog__body) { max-height: 75vh; overflow-y: auto; }
+:deep(.device-group-dialog .el-dialog__body) {
+  max-height: 75vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
 :deep(.device-group-dialog .resource-page--embedded .resource-page__header) {
   margin-top: 0;
   padding-top: 4px;
