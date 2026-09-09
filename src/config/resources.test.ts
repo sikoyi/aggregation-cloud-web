@@ -789,6 +789,17 @@ describe('设备组同步失败提示', () => {
   })
 })
 
+describe('设备分组列表列宽', () => {
+  it('名称列优先展示完整内容，ID 列仅占用短编号所需空间', () => {
+    expect(resources.slotGroups.columns.find((column) => column.key === 'name')).toMatchObject({
+      minWidth: 220,
+    })
+    expect(resources.slotGroups.columns.find((column) => column.key === 'id')).toMatchObject({
+      width: 90,
+    })
+  })
+})
+
 describe('设备批量删除', () => {
   const action = resources.slots.batchActions?.find((item) => item.key === '__delete')
 

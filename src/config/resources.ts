@@ -1861,8 +1861,8 @@ export const resources: Record<string, ResourceConfig> = {
     deleteNotificationType: (data) => data.deleted ? "success" : "info",
     createLabel: "新增设备组",
     columns: [
-      { key: "id", label: "ID", type: "id" },
-      { key: "name", label: "名称", type: "deviceGroup", minWidth: 145 },
+      { key: "id", label: "ID", type: "id", width: 90 },
+      { key: "name", label: "名称", type: "deviceGroup", minWidth: 220 },
       { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
       { key: "member_count", label: "成员数" },
