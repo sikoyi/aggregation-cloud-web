@@ -35,7 +35,7 @@ async function main() {
       } else if (path.endsWith('/resources')) {
         // Deliberately advertise permission on the row; operator role still must not get a reveal button.
         data = { ...data, total: 2, items: ['r1', 'r2'].map((id, index) => ({ id, template_id: 'v1', batch_id: 'b1', row_number: index + 2,
-          payload: { first_name: '******', ssn: '******', address: '******' }, status: 'unused', can_reveal: true })) }
+          payload: { first_name: 'Synthetic User', ssn: '******', address: '******' }, status: 'unused', can_reveal: true })) }
       }
       await route.fulfill({ json: { code: 0, msg: 'ok', data } })
     })
@@ -62,6 +62,7 @@ async function main() {
     await page.mouse.move(10, 10)
     assert.equal(await page.getByRole('button', { name: '查看原文', exact: true }).count(), 0)
     assert.equal(mutations.length, 0)
+    assert.equal(await page.locator('.el-drawer:visible').getByText('Synthetic User', { exact: true }).count(), 2)
     assert.ok(!(await page.textContent('body')).includes(secret))
     await page.screenshot({ path: 'logs/registration-resource-operator.png', fullPage: true, animations: 'disabled' })
 
@@ -106,7 +107,7 @@ async function main() {
     await page.waitForTimeout(150)
     assert.ok(!(await page.textContent('body')).includes(secret))
     assert.deepEqual(errors, [])
-    console.log('PASS: operator masking, admin reveal, audit request, error retry, revoke/close cleanup and desktop/mobile layout')
+    console.log('PASS: public fields, sensitive masking, admin reveal, error retry, revoke/close cleanup and desktop/mobile layout')
   } finally { await browser.close() }
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

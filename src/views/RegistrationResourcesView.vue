@@ -502,7 +502,7 @@ onMounted(() => {
       <el-table v-loading="detailLoading" :data="detailItems" border max-height="calc(100vh - 230px)">
         <el-table-column prop="row_number" label="Excel 行" width="90" align="center" fixed />
         <el-table-column v-for="field in detailFields" :key="field.field_key" :label="field.display_name" min-width="150" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.payload[field.field_key] || '-' }}</template>
+          <template #default="{ row }">{{ row.payload[field.field_key] === '' ? '-' : (row.payload[field.field_key] ?? '-') }}</template>
         </el-table-column>
         <el-table-column label="状态" width="100" align="center" fixed="right">
           <template #default="{ row }"><el-tag :type="row.status === 'used' ? 'info' : 'success'">{{ row.status === 'used' ? '已使用' : '未使用' }}</el-tag></template>
