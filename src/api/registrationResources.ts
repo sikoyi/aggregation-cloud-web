@@ -27,6 +27,13 @@ export interface RegistrationResourceTemplate {
   updated_at: string
 }
 
+export interface RegistrationResourceTemplateUpdate {
+  name?: string
+  description?: string | null
+  status?: 'enabled' | 'disabled'
+  field_requirements?: Array<{ field_key: string; required: boolean }>
+}
+
 export interface RegistrationResourceBatch {
   id: string
   template_id: string
@@ -87,9 +94,15 @@ export function createRegistrationResourceTemplate(payload: Record<string, unkno
   )
 }
 
+export function getRegistrationResourceTemplate(templateId: string) {
+  return http.get<RegistrationResourceTemplate>(
+    `/api/resource-center/registration-resources/templates/${encodeURIComponent(templateId)}`,
+  )
+}
+
 export function updateRegistrationResourceTemplate(
   templateId: string,
-  payload: Record<string, unknown>,
+  payload: RegistrationResourceTemplateUpdate,
 ) {
   return http.put<RegistrationResourceTemplate>(
     `/api/resource-center/registration-resources/templates/${encodeURIComponent(templateId)}`,

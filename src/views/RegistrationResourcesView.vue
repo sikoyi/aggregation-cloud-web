@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Database, Download, Eye, Plus, RefreshCw, Trash2, Upload } from 'lucide-vue-next'
+import { Database, Download, Eye, Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox, ElNotification, type UploadFile } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
@@ -21,6 +21,7 @@ import { ApiError } from '@/api/http'
 import { businessPlatformOptions, businessPlatformLabel } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import RegistrationResourceRevealDialog from '@/components/RegistrationResourceRevealDialog.vue'
+import RegistrationResourceTemplateEditDialog from '@/components/RegistrationResourceTemplateEditDialog.vue'
 
 const auth = useAuthStore()
 const activeTab = ref('batches')
@@ -48,6 +49,7 @@ const revealResourceId = ref('')
 let detailRequestId = 0
 
 const templateVisible = ref(false)
+const editingTemplateId = ref('')
 const templateSubmitting = ref(false)
 const templateForm = reactive({
   template_key: '',
@@ -321,6 +323,10 @@ async function toggleTemplate(rawTemplate: unknown) {
   }
 }
 
+function templateUpdated(template: RegistrationResourceTemplate) {
+  templates.value = templates.value.map((item) => item.id === template.id ? template : item)
+}
+
 onMounted(() => {
   void refreshAll()
 })
@@ -428,10 +434,13 @@ onMounted(() => {
           <el-table-column label="状态" width="100" align="center">
             <template #default="{ row }"><el-tag :type="row.status === 'enabled' ? 'success' : 'info'">{{ row.status === 'enabled' ? '启用' : '停用' }}</el-tag></template>
           </el-table-column>
-          <el-table-column label="操作" width="170" align="center">
+          <el-table-column label="操作" width="210" align="center" fixed="right" class-name="registration-operation-column">
             <template #default="{ row }">
               <div class="operation-actions">
                 <el-button text :icon="Download" @click="downloadTemplate(row.id)">下载</el-button>
+                <el-tooltip v-if="canManageTemplates" content="编辑模板" placement="top">
+                  <el-button text circle :icon="Pencil" aria-label="编辑模板" @click="editingTemplateId = row.id" />
+                </el-tooltip>
                 <el-button v-if="canManageTemplates" text @click="toggleTemplate(row)">{{ row.status === 'enabled' ? '停用' : '启用' }}</el-button>
               </div>
             </template>
@@ -517,6 +526,9 @@ onMounted(() => {
     <RegistrationResourceRevealDialog v-if="revealResourceId && detailBatch && canReveal"
       :batch-id="detailBatch.id" :resource-id="revealResourceId" :fields="detailFields"
       @close="revealResourceId = ''" />
+
+    <RegistrationResourceTemplateEditDialog v-if="editingTemplateId && canManageTemplates"
+      :key="editingTemplateId" :template-id="editingTemplateId" @saved="templateUpdated" @close="editingTemplateId = ''" />
 
     <el-dialog v-model="templateVisible" title="新增注册资源模板版本" width="860px" destroy-on-close>
       <el-form label-position="top">
