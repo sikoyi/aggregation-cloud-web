@@ -4,6 +4,7 @@ import type { PageResult } from '@/types/api'
 export interface SystemUser {
   id: string
   username: string
+  is_system_admin?: boolean
   display_name: string
   roles: string[]
   role_ids: string[]

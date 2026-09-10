@@ -51,7 +51,9 @@ async function main() {
       const { useAuthStore } = await import('/src/stores/auth.ts')
       const { default: View } = await import('/src/views/RegistrationResourcesView.vue')
       const pinia = createPinia(), auth = useAuthStore(pinia)
-      window.setResourceRole = role => { auth.user = { id: 'operator', tenant_id: 't', username: 'operator', roles: [role],
+      window.setResourceRole = (role, builtin = role === 'super_admin') => { auth.user = {
+        id: builtin ? 'root' : 'operator', tenant_id: 't', username: builtin ? 'admin' : 'operator', roles: [role],
+        is_system_admin: builtin, status: 'active',
         permissions: ['registration_resources.view', 'registration_resources.create', 'registration_resources.reveal'] } }
       window.setResourceRole('operator')
       createApp({ setup: () => () => h(View) }).use(pinia).mount('#app')
@@ -66,6 +68,9 @@ async function main() {
     assert.ok(!(await page.textContent('body')).includes(secret))
     await page.screenshot({ path: 'logs/registration-resource-operator.png', fullPage: true, animations: 'disabled' })
 
+    await page.evaluate(() => window.setResourceRole('super_admin', false))
+    assert.equal(await page.getByRole('button', { name: '查看原文', exact: true }).count(), 0)
+    assert.equal(mutations.length, 0)
     await page.evaluate(() => window.setResourceRole('super_admin'))
     const reveal = page.getByRole('button', { name: '查看原文', exact: true }).first()
     await reveal.click()
@@ -91,7 +96,7 @@ async function main() {
     fail = false
     await dialog.getByRole('button', { name: '重新加载', exact: true }).click()
     await dialog.getByText(secret, { exact: true }).waitFor()
-    await page.evaluate(() => window.setResourceRole('operator'))
+    await page.evaluate(() => window.setResourceRole('super_admin', false))
     assert.ok(!(await page.textContent('body')).includes(secret))
     assert.equal(await page.getByRole('button', { name: '查看原文', exact: true }).count(), 0)
 

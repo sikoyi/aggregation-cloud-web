@@ -17,6 +17,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import { canResetUserPassword } from '@/utils/permissions'
 
 const auth = useAuthStore()
 const loading = ref(false)
@@ -179,6 +180,7 @@ async function toggleStatus(user: SystemUser) {
 }
 
 function openPasswordReset(user: SystemUser) {
+  if (!canResetUserPassword(auth.user, user)) return
   passwordUser.value = user
   passwordForm.new_password = ''
   passwordForm.confirm_password = ''
@@ -187,7 +189,7 @@ function openPasswordReset(user: SystemUser) {
 
 async function submitPasswordReset() {
   const user = passwordUser.value
-  if (!user) return
+  if (!user || !canResetUserPassword(auth.user, user)) return
   if (!validatePassword(passwordForm.new_password)) {
     ElMessage.warning('密码至少 8 位，且必须同时包含字母和数字')
     return
@@ -299,7 +301,7 @@ onMounted(async () => {
               <el-tooltip v-if="auth.can('users.edit') || auth.can('users.assign_roles')" content="编辑">
                 <el-button circle text :icon="Pencil" @click="openEdit(asSystemUser(row))" />
               </el-tooltip>
-              <el-tooltip v-if="auth.can('users.reset_password')" content="重置密码">
+              <el-tooltip v-if="canResetUserPassword(auth.user, asSystemUser(row))" content="重置密码">
                 <el-button circle text :icon="KeyRound" @click="openPasswordReset(asSystemUser(row))" />
               </el-tooltip>
               <el-button
