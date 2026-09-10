@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { LockKeyhole, Pencil, Plus, RefreshCw, Search, ShieldCheck, Trash2 } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import {
   createRole,
@@ -18,6 +18,7 @@ import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import { isAssignablePermission } from '@/utils/permissions'
 
 type ScopeMode = 'all' | 'selected'
 
@@ -51,6 +52,14 @@ const allPermissionCodes = computed(() =>
   permissionGroups.value.flatMap((group) => group.items.map((item) => item.code)),
 )
 const selectedCount = computed(() => editor.permission_codes.length)
+const canEdit = computed(() => auth.can(editorMode.value === 'create' ? 'roles.create' : 'roles.edit'))
+
+watch(canEdit, (allowed) => {
+  if (allowed) return
+  editorVisible.value = false
+  editingRole.value = null
+  editor.permission_codes = []
+})
 
 function resetDataScope() {
   editor.business_platform_scope_mode = 'all'
@@ -96,7 +105,9 @@ function scopeText(scope: string[] | null, options: Array<{ label: string; value
 
 async function loadPermissionCatalog() {
   try {
-    permissionGroups.value = await listPermissions()
+    permissionGroups.value = (await listPermissions())
+      .map((group) => ({ ...group, items: group.items.filter((item) => isAssignablePermission(item.code)) }))
+      .filter((group) => group.items.length > 0)
   } catch (error) {
     notifyError(error, '权限目录加载失败')
   }
@@ -132,6 +143,7 @@ function resetFilters() {
 }
 
 function openCreate() {
+  if (!auth.can('roles.create')) return
   editorMode.value = 'create'
   editingRole.value = null
   editor.name = ''
@@ -142,11 +154,12 @@ function openCreate() {
 }
 
 function openEdit(role: Role) {
+  if (!auth.can('roles.edit')) return
   editorMode.value = 'edit'
   editingRole.value = role
   editor.name = role.name
   editor.description = role.description || ''
-  editor.permission_codes = [...role.permission_codes]
+  editor.permission_codes = role.permission_codes.filter(isAssignablePermission)
   loadDataScope(role)
   editorVisible.value = true
 }
@@ -175,6 +188,7 @@ function clearPermissions() {
 }
 
 async function submitEditor() {
+  if (!canEdit.value || submitting.value) return
   if (!editor.name.trim()) {
     ElMessage.warning('请填写角色名称')
     return
@@ -214,6 +228,7 @@ async function submitEditor() {
 }
 
 async function toggleStatus(role: Role) {
+  if (!auth.can('roles.disable') || role.is_system) return
   const target = role.status === 'active' ? 'disabled' : 'active'
   const action = target === 'active' ? '启用' : '禁用'
   try {
@@ -224,6 +239,7 @@ async function toggleStatus(role: Role) {
       `${action}角色`,
       { type: target === 'disabled' ? 'warning' : 'info', confirmButtonText: action },
     )
+    if (!auth.can('roles.disable')) return
     await updateRoleStatus(role.id, { status: target, version: role.version })
     ElMessage.success(`角色已${action}`)
     await loadRoles()
@@ -234,12 +250,14 @@ async function toggleStatus(role: Role) {
 }
 
 async function removeRole(role: Role) {
+  if (!auth.can('roles.delete') || role.is_system) return
   try {
     await ElMessageBox.confirm(
       `确认删除角色“${role.name}”吗？已分配给用户的角色不能删除。`,
       '删除角色',
       { type: 'warning', confirmButtonText: '删除', confirmButtonClass: 'el-button--danger' },
     )
+    if (!auth.can('roles.delete')) return
     await deleteRole(role.id)
     ElMessage.success('角色已删除')
     await loadRoles()
@@ -313,7 +331,7 @@ onMounted(async () => {
           </template>
         </el-table-column>
         <el-table-column label="权限数量" width="110" align="center">
-          <template #default="{ row }">{{ row.code === 'super_admin' ? '全部' : row.permission_codes.length }}</template>
+          <template #default="{ row }">{{ row.code === 'super_admin' ? '全部' : asRole(row).permission_codes.filter(isAssignablePermission).length }}</template>
         </el-table-column>
         <el-table-column label="数据范围" min-width="270">
           <template #default="{ row }">

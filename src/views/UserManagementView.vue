@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { KeyRound, Pencil, Plus, RefreshCw, Search, ShieldCheck, UserCog } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import {
   assignUserRoles,
@@ -44,8 +44,36 @@ const passwordUser = ref<SystemUser | null>(null)
 const passwordForm = reactive({ new_password: '', confirm_password: '' })
 
 const activeRoles = computed(() => roles.value.filter((role) => role.status === 'active'))
+const canEdit = computed(() => auth.can(editorMode.value === 'create' ? 'users.create' : 'users.edit'))
+
+watch(canEdit, (allowed) => {
+  if (allowed) return
+  editorVisible.value = false
+  editingUser.value = null
+  editor.password = ''
+  editor.role_ids = []
+})
+watch(() => auth.can('users.reset_password'), (allowed) => {
+  if (allowed) return
+  passwordVisible.value = false
+  passwordUser.value = null
+  passwordForm.new_password = ''
+  passwordForm.confirm_password = ''
+})
+watch(editorVisible, (visible) => { if (!visible) editor.password = '' })
+watch(passwordVisible, (visible) => {
+  if (!visible) {
+    passwordForm.new_password = ''
+    passwordForm.confirm_password = ''
+  }
+})
+watch(() => auth.can('roles.view'), (allowed) => {
+  if (allowed) void loadRoles()
+  else roles.value = []
+})
 
 async function loadRoles() {
+  if (!auth.can('roles.view')) return
   try {
     roles.value = await listAllRoles()
   } catch (error) {
@@ -85,6 +113,7 @@ function resetFilters() {
 }
 
 function openCreate() {
+  if (!auth.can('users.create')) return
   editorMode.value = 'create'
   editingUser.value = null
   editor.username = ''
@@ -95,6 +124,7 @@ function openCreate() {
 }
 
 function openEdit(user: SystemUser) {
+  if (!auth.can('users.edit')) return
   editorMode.value = 'edit'
   editingUser.value = user
   editor.username = user.username
@@ -109,6 +139,7 @@ function validatePassword(password: string) {
 }
 
 async function submitEditor() {
+  if (!canEdit.value || submitting.value) return
   if (!editor.display_name.trim()) {
     ElMessage.warning('请填写显示名称')
     return
@@ -142,6 +173,7 @@ async function submitEditor() {
       const oldRoles = [...current.role_ids].sort().join(',')
       const newRoles = [...editor.role_ids].sort().join(',')
       if (oldRoles !== newRoles) {
+        if (!auth.can('users.assign_roles')) return
         current = await assignUserRoles(current.id, {
           role_ids: editor.role_ids,
           version: current.version,
@@ -160,6 +192,7 @@ async function submitEditor() {
 }
 
 async function toggleStatus(user: SystemUser) {
+  if (!auth.can('users.disable') || user.is_system_admin !== false || user.id === auth.user?.id) return
   const target = user.status === 'active' ? 'disabled' : 'active'
   const action = target === 'active' ? '启用' : '禁用'
   try {
@@ -170,6 +203,7 @@ async function toggleStatus(user: SystemUser) {
       `${action}用户`,
       { type: target === 'disabled' ? 'warning' : 'info', confirmButtonText: action },
     )
+    if (!auth.can('users.disable')) return
     await updateUserStatus(user.id, { status: target, version: user.version })
     ElMessage.success(`用户已${action}`)
     await loadUsers()
@@ -189,7 +223,7 @@ function openPasswordReset(user: SystemUser) {
 
 async function submitPasswordReset() {
   const user = passwordUser.value
-  if (!user || !canResetUserPassword(auth.user, user)) return
+  if (!user || !canResetUserPassword(auth.user, user) || submitting.value) return
   if (!validatePassword(passwordForm.new_password)) {
     ElMessage.warning('密码至少 8 位，且必须同时包含字母和数字')
     return
@@ -252,7 +286,7 @@ onMounted(async () => {
       </div>
       <div class="filter-item">
         <label>所属角色</label>
-        <el-select v-model="filters.role_id" clearable placeholder="全部角色">
+        <el-select v-model="filters.role_id" :disabled="!auth.can('roles.view')" clearable placeholder="全部角色">
           <el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.id" />
         </el-select>
       </div>
@@ -308,7 +342,7 @@ onMounted(async () => {
                 v-if="auth.can('users.disable')"
                 link
                 :type="row.status === 'active' ? 'danger' : 'success'"
-                :disabled="row.id === auth.user?.id"
+                :disabled="row.id === auth.user?.id || row.is_system_admin !== false"
                 @click="toggleStatus(asSystemUser(row))"
               >
                 {{ row.status === 'active' ? '禁用' : '启用' }}
@@ -344,7 +378,7 @@ onMounted(async () => {
           <el-input v-model="editor.password" type="password" show-password autocomplete="new-password" placeholder="至少 8 位，包含字母和数字" />
         </el-form-item>
         <el-form-item label="角色" required>
-          <el-select v-model="editor.role_ids" multiple filterable class="w-full" placeholder="至少选择一个角色">
+          <el-select v-model="editor.role_ids" :disabled="editorMode === 'edit' && editingUser?.is_system_admin !== false" multiple filterable class="w-full" placeholder="至少选择一个角色">
             <el-option v-for="role in activeRoles" :key="role.id" :label="role.name" :value="role.id">
               <div class="role-option"><ShieldCheck :size="14" /><span>{{ role.name }}</span><small>{{ role.description }}</small></div>
             </el-option>

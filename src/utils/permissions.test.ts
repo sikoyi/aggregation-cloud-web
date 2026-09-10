@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { canResetUserPassword, hasPermission } from './permissions'
+import { canResetUserPassword, hasPermission, isAssignablePermission } from './permissions'
 
 describe('管理员专属凭据权限', () => {
   it.each([{ roles: [] }, { roles: ['operator'] }, { roles: ['custom_admin'] }])('旧授权码不能恢复非管理员读取或导出权限 $roles', ({ roles }) => {
@@ -43,5 +43,31 @@ describe('管理员专属凭据权限', () => {
     expect(hasPermission(null, 'accounts.credentials')).toBe(false)
     expect(hasPermission(null, 'accounts.totp')).toBe(false)
     expect(hasPermission(null, 'accounts.export')).toBe(false)
+  })
+})
+
+describe('系统管理写权限不可委派', () => {
+  const writes = [
+    'users.create', 'users.edit', 'users.disable', 'users.reset_password', 'users.assign_roles',
+    'roles.create', 'roles.edit', 'roles.disable', 'roles.delete',
+  ]
+  it.each(writes)('%s 拒绝历史授权码，保留管理员操作', (code) => {
+    for (const roles of [[], ['operator'], ['custom_admin']]) {
+      expect(hasPermission({ roles, permissions: [code] }, code)).toBe(false)
+    }
+    expect(hasPermission({ roles: ['super_admin'], permissions: [] }, code)).toBe(true)
+    expect(hasPermission({ roles: ['super_admin'], permissions: [], status: 'disabled' }, code)).toBe(false)
+    expect(hasPermission(null, code)).toBe(false)
+    expect(isAssignablePermission(code)).toBe(false)
+  })
+
+  it('查看和业务权限仍可正常授权', () => {
+    for (const code of ['users.view', 'roles.view', 'tasks.dispatch', 'templates.dispatch', 'accounts.totp']) {
+      expect(isAssignablePermission(code)).toBe(true)
+      expect(hasPermission({ roles: ['operator'], permissions: [code] }, code)).toBe(true)
+    }
+    for (const code of ['accounts.credentials', 'accounts.export', 'registration_resources.reveal']) {
+      expect(isAssignablePermission(code)).toBe(false)
+    }
   })
 })
