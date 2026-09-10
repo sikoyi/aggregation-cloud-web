@@ -3,6 +3,8 @@ import { Copy, KeyRound, Link2, MapPin, MonitorSmartphone, ShieldCheck, Tags, Us
 import { ElMessage } from 'element-plus'
 import { computed } from 'vue'
 import AccountTotpPopover from '@/components/AccountTotpPopover.vue'
+import AccountCredentialRevealButton from '@/components/AccountCredentialRevealButton.vue'
+import { canRequestAccountCredentials } from '@/utils/permissions'
 
 import { resolveBackendUrl } from '@/api/http'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
@@ -27,6 +29,7 @@ const props = defineProps<{
 }>()
 
 const auth = useAuthStore()
+const canRequestCredentials = computed(() => canRequestAccountCredentials(auth.user))
 const canReadCredentials = computed(() => auth.can('accounts.credentials') && props.row.can_read_credentials !== false)
 const password = computed(() => canReadCredentials.value ? props.row.password_secret_ref : null)
 const totpSecret = computed(() => canReadCredentials.value ? props.row.totp_secret_ref : null)
@@ -124,7 +127,7 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   </div>
 
   <div v-else-if="kind === 'accountCredentials'" class="account-cell account-credentials">
-    <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials }">
+    <div class="account-credential-row" :class="{ 'account-credential-row--copyable': sharedCredentials || canRequestCredentials }">
       <span class="account-credential-row__label account-credential-row__label--password">
         <KeyRound />
         密码
@@ -138,7 +141,10 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
       >
         <code>{{ credentialText(password) }}</code>
       </el-tooltip>
-      <el-tooltip v-if="sharedCredentials" content="复制密码" placement="top">
+      <AccountCredentialRevealButton v-if="canRequestCredentials && row.id"
+        :source="sharedCredentials ? 'account-identities' : 'accounts'" :account-id="String(row.id)"
+        :account-name="String(row.login_username || '')" :revision="row.credentials_version ?? row.updated_at" />
+      <el-tooltip v-else-if="sharedCredentials" content="复制密码" placement="top">
         <el-button
           class="account-credential-copy"
           text

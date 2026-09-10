@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccountCredentialRevealButton from '@/components/AccountCredentialRevealButton.vue'
 import { Eye, Search, Trash2, UserPlus } from 'lucide-vue-next'
 import { ElDialog, ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
@@ -409,7 +410,11 @@ defineExpose({ isBusy: () => submitting.value, hasPendingSelection: () => select
           <el-descriptions-item label="公开用户名">{{ text(accountDetail.username) }}</el-descriptions-item>
           <el-descriptions-item label="国家">{{ text(accountDetail.country) }}</el-descriptions-item>
           <el-descriptions-item label="业务 App">{{ businessPlatformLabel(accountDetail.business_platform) }}</el-descriptions-item>
-          <el-descriptions-item label="密码">{{ canReadCredentials ? text(accountDetail.password_secret_ref) : '无凭据读取权限' }}</el-descriptions-item>
+          <el-descriptions-item label="密码">
+            {{ canReadCredentials ? text(accountDetail.password_secret_ref) : '无凭据读取权限' }}
+            <AccountCredentialRevealButton source="accounts" :account-id="String(accountDetail.id)"
+              :account-name="String(accountDetail.login_username || '')" :revision="accountDetail.updated_at" />
+          </el-descriptions-item>
           <el-descriptions-item label="2FA">{{ canReadCredentials ? text(accountDetail.totp_secret_ref) : '无凭据读取权限' }}</el-descriptions-item>
           <el-descriptions-item label="代理 ID">
             <span class="font-mono text-xs">{{ text(accountDetail.proxy_id) }}</span>

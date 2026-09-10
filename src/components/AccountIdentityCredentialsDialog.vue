@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RefreshCw, Save } from 'lucide-vue-next'
-import { computed, toRef } from 'vue'
+import { computed, toRef, watch } from 'vue'
 
 import { useAccountIdentityCredentials } from '@/composables/useAccountIdentityCredentials'
 import { useAuthStore } from '@/stores/auth'
@@ -24,6 +24,7 @@ const { detail, form, loading, submitting, conflict, error, canEdit, canSave, lo
   },
 )
 const formDisabled = computed(() => !canEdit.value || loading.value || submitting.value || conflict.value)
+watch(() => auth.user, () => emit('close'), { deep: true, flush: 'sync' })
 
 function close() {
   if (!submitting.value) emit('close')

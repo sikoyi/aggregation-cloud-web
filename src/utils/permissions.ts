@@ -14,11 +14,16 @@ type PermissionUser = Pick<SystemUser, 'roles' | 'permissions' | 'is_system_admi
 
 export function hasPermission(user: PermissionUser | null, code: string): boolean {
   if (!user || user.status === 'disabled') return false
-  if (code === 'registration_resources.reveal') {
+  if (['registration_resources.reveal', 'accounts.credentials', 'accounts.export'].includes(code)) {
     return user.is_system_admin === true && user.status === 'active' && user.roles.includes('super_admin')
   }
   if (user.roles.includes('super_admin')) return true
   return !superAdminOnlyPermissions.has(code) && user.permissions.includes(code)
+}
+
+export function canRequestAccountCredentials(user: PermissionUser | null): boolean {
+  return user?.status === 'active' && user.roles.includes('super_admin')
+    && !hasPermission(user, 'accounts.credentials')
 }
 
 export function canResetUserPassword(

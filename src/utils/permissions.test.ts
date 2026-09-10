@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { canResetUserPassword, hasPermission, isAssignablePermission } from './permissions'
+import { canRequestAccountCredentials, canResetUserPassword, hasPermission, isAssignablePermission } from './permissions'
 
 describe('管理员专属凭据权限', () => {
   it.each([{ roles: [] }, { roles: ['operator'] }, { roles: ['custom_admin'] }])('旧授权码不能恢复非管理员读取或导出权限 $roles', ({ roles }) => {
@@ -12,11 +12,22 @@ describe('管理员专属凭据权限', () => {
     expect(hasPermission(user, 'accounts.edit')).toBe(true)
   })
 
-  it('超级管理员无需单独授予凭据、验证码和导出权限', () => {
-    const user = { roles: ['super_admin'], permissions: [] }
+  it('仅启用的内置管理员直接读取凭据和导出', () => {
+    const user = { roles: ['super_admin'], permissions: [], status: 'active' as const, is_system_admin: true }
     for (const code of ['accounts.credentials', 'accounts.export', 'accounts.totp']) {
       expect(hasPermission(user, code)).toBe(true)
     }
+    for (const is_system_admin of [false, undefined]) {
+      const other = { ...user, is_system_admin }
+      expect(hasPermission(other, 'accounts.credentials')).toBe(false)
+      expect(hasPermission(other, 'accounts.export')).toBe(false)
+      expect(hasPermission(other, 'accounts.totp')).toBe(true)
+      expect(canRequestAccountCredentials(other)).toBe(true)
+    }
+    expect(canRequestAccountCredentials(user)).toBe(false)
+    expect(canRequestAccountCredentials({ ...user, is_system_admin: false, status: 'disabled' })).toBe(false)
+    expect(canRequestAccountCredentials({ ...user, roles: ['operator'] })).toBe(false)
+    expect(canRequestAccountCredentials(null)).toBe(false)
   })
 
   it('注册资料原文只认服务端确认的启用内置管理员，撤权立即生效', () => {

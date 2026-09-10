@@ -16,6 +16,11 @@ vi.mock('element-plus/es/components/tag/style/css', () => ({}))
 vi.mock('element-plus/es/components/tooltip/style/css', () => ({}))
 vi.mock('element-plus/es/components/button/style/css', () => ({}))
 vi.mock('element-plus/es/components/popover/style/css', () => ({}))
+vi.mock('element-plus/es/components/alert/style/css', () => ({}))
+vi.mock('element-plus/es/components/dialog/style/css', () => ({}))
+vi.mock('element-plus/es/components/form/style/css', () => ({}))
+vi.mock('element-plus/es/components/form-item/style/css', () => ({}))
+vi.mock('element-plus/es/components/input/style/css', () => ({}))
 
 async function renderCredentials(row: Record<string, unknown>, sharedCredentials = false) {
   const app = createSSRApp(AccountTableCell, {

@@ -58,8 +58,9 @@ async function main() {
       const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/accounts', component: Center }] })
       await router.push('/accounts')
       await router.isReady()
-      window.setPrivacyRole = (admin, totp = true) => {
+      window.setPrivacyRole = (admin, totp = true, builtin = admin) => {
         auth.user = { id: 'smoke', username: 'admin', display_name: 'Privacy test',
+          status: 'active', is_system_admin: builtin,
           roles: admin ? ['super_admin'] : ['operator'],
           permissions: ['accounts.view', 'accounts.batch', 'accounts.credentials', 'accounts.export', ...(totp ? ['accounts.totp'] : [])] }
       }
@@ -97,9 +98,11 @@ async function main() {
     await page.getByRole('button', { name: '导出账号', exact: true }).waitFor()
     await page.getByRole('button', { name: '复制密码', exact: true }).click()
     assert.equal(await page.evaluate(() => window.privacyClipboard), 'private-password')
-    await page.evaluate(() => window.setPrivacyRole(false))
+    await page.evaluate(() => window.setPrivacyRole(true, true, false))
     await page.getByText('private-password', { exact: true }).waitFor({ state: 'hidden' })
     assert.equal(await page.getByRole('button', { name: '导出账号', exact: true }).count(), 0)
+    assert.equal(await page.getByRole('tab', { name: '导出记录' }).count(), 0)
+    await page.getByRole('button', { name: '验证密码查看当前账号凭据' }).waitFor()
 
     await page.evaluate(() => window.privacyMode('records'))
     await page.getByText('当前账号没有导出权限', { exact: true }).waitFor()
@@ -108,7 +111,7 @@ async function main() {
     await page.getByText('old-export.txt', { exact: true }).waitFor()
     await page.getByRole('button', { name: '查看导出数据', exact: true }).click()
     await page.getByText('export-secret', { exact: true }).waitFor()
-    await page.evaluate(() => window.setPrivacyRole(false))
+    await page.evaluate(() => window.setPrivacyRole(true, true, false))
     await page.getByText('export-secret', { exact: true }).waitFor({ state: 'hidden' })
     assert.equal(await page.getByText('old-export.txt', { exact: true }).count(), 0)
     assert.equal(exportRequests, 2)
@@ -118,7 +121,7 @@ async function main() {
     await page.waitForTimeout(350)
     await page.screenshot({ path: 'logs/account-admin-privacy-mobile.png', fullPage: true })
     assert.deepEqual(errors, [])
-    console.log('Privacy smoke passed: stale grants/data blocked, super-admin credentials/export, operator TOTP, revoked preview cleared, desktop/mobile')
+    console.log('Privacy smoke passed: only builtin admin credentials/export, other-admin step-up, operator TOTP, revoked preview cleared, desktop/mobile')
   } finally { await browser.close() }
 }
 
