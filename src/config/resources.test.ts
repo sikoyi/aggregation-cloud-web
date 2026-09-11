@@ -8,6 +8,19 @@ import {
 } from './options'
 import { resources } from './resources'
 
+describe('任务重试部分成功提示', () => {
+  const action = resources.tasks.rowActions!.find(item => item.key === 'retry')!
+  it('同时展示已创建及未绑定账号的跳过数量', () => {
+    expect(action.successNotificationType?.({ skipped_count: 2 }, {})).toBe('warning')
+    expect(action.successMessage?.({ total: 8, skipped_count: 2 }, {}))
+      .toBe('已创建 8 条重试记录，已跳过 2 条未绑定目标平台账号的记录')
+  })
+  it('兼容没有跳过字段的响应', () => {
+    expect(action.successNotificationType?.({}, {})).toBe('success')
+    expect(action.successMessage?.({ total: 8 }, {})).toBe('已创建 8 条重试记录')
+  })
+})
+
 describe('任务模板共享与管理归属', () => {
   it('展示创建人，编辑删除及启停均按服务端归属判断', () => {
     const config = resources.taskTemplates

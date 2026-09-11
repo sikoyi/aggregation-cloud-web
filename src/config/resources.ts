@@ -3899,6 +3899,14 @@ export const resources: Record<string, ResourceConfig> = {
         icon: "rotate",
         path: (record) => `/api/tasks/${record.id}/retry`,
         confirm: "确认基于该任务的失败、过期、断连或取消记录创建重试任务吗？",
+        successNotificationType: (data) => Number(data?.skipped_count ?? 0) > 0 ? "warning" : "success",
+        successMessage: (data) => {
+          const total = Number(data?.total ?? 0);
+          const skipped = Number(data?.skipped_count ?? 0);
+          return skipped > 0
+            ? `已创建 ${total} 条重试记录，已跳过 ${skipped} 条未绑定目标平台账号的记录`
+            : `已创建 ${total} 条重试记录`;
+        },
       },
     ],
   },
