@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>账号统计预览</title></head>
+<body>
+  <div style="padding:16px;font-family:sans-serif;color:#526575">账号管理 · 模拟数据</div>
+  <div id="app" style="padding:0 16px 24px"></div>
+  <script type="module">
+    import { createApp, h } from 'vue'
+    import { createPinia } from 'pinia'
+    import CrudPage from '/src/components/CrudPage.vue'
+    import { resources } from '/src/config/resources.ts'
+    import { buildAccountIdentityResource } from '/src/config/accountIdentityResource.ts'
+    import { useAuthStore } from '/src/stores/auth.ts'
+    import '/src/styles.css'
+
+    const accounts = [
+      { id: '101', identity: '1', business_platform: 'threads', login_status: 'logged_in', online: true },
+      { id: '102', identity: '1', business_platform: 'instagram', login_status: 'banned' },
+      { id: '103', identity: '2', business_platform: 'threads', login_status: 'logged_in' },
+      { id: '104', identity: '3', business_platform: 'instagram', login_status: 'not_logged_in' },
+      { id: '105', identity: '4', business_platform: 'shopify', login_status: 'unknown', exported: true },
+      { id: '106', identity: '5', business_platform: 'threads', login_status: 'challenge_required' },
+    ]
+    const matches = (account, key) => {
+      if (!key || key === 'total') return true
+      if (key === 'online') return !!account.online
+      if (key === 'exported') return !!account.exported
+      if (key === 'verification_required') return account.login_status === 'challenge_required'
+      return account.login_status === key
+    }
+    const nativeFetch = window.fetch.bind(window)
+    window.__overviewRequests = []
+    window.fetch = async (input, options) => {
+      const url = new URL(typeof input === 'string' ? input : input.url, location.href)
+      if (!url.pathname.startsWith('/api/')) return nativeFetch(input, options)
+      window.__overviewRequests.push(url.pathname + url.search)
+      let data = { items: [], total: 0 }
+      const filtered = accounts.filter(account =>
+        (!url.searchParams.get('business_platform') || account.business_platform === url.searchParams.get('business_platform'))
+        && (!url.searchParams.get('login_status') || account.login_status === url.searchParams.get('login_status')))
+      if (url.pathname === '/api/account-identities/statistics') {
+        data = Object.fromEntries(['total', 'online', 'logged_in', 'not_logged_in', 'banned', 'verification_required', 'unknown', 'exported']
+          .map(key => [key, filtered.filter(account => matches(account, key)).length]))
+      } else if (url.pathname === '/api/account-identities') {
+        const matched = filtered.filter(account => matches(account, url.searchParams.get('account_status')))
+        const ids = [...new Set(matched.map(account => account.identity))]
+        data = { items: ids.map(id => ({
+          id, login_username: 'preview' + id + '@example.test',
+          account_count: accounts.filter(account => account.identity === id).length,
+          matched_account_ids: matched.filter(account => account.identity === id).map(account => account.id),
+          filtered_business_platform: url.searchParams.get('business_platform'),
+          can_read_credentials: false, can_edit_credentials: false,
+          credentials_exported_at: id === '4' ? '2026-09-11T00:00:00Z' : null,
+          platform_summaries: accounts.filter(account => account.identity === id).map(account => ({
+            account_id: account.id, business_platform: account.business_platform,
+            login_status: account.login_status, tag_names: [],
+          })),
+          created_at: '2026-09-11T00:00:00Z',
+        })), total: ids.length }
+      } else if (/\/account-identities\/[^/]+\/accounts$/.test(url.pathname)) {
+        const ids = (url.searchParams.get('account_ids') || '').split(',')
+        data = { items: accounts.filter(account => ids.includes(account.id)).map(account => ({
+          ...account, display_name: 'Preview ' + account.business_platform,
+          login_username: 'preview' + account.identity + '@example.test', tag_names: [],
+        })) }
+      }
+      return new Response(JSON.stringify({ code: 0, msg: 'ok', data }), { headers: { 'Content-Type': 'application/json' } })
+    }
+    const pinia = createPinia()
+    const auth = useAuthStore(pinia)
+    auth.user = { id: 'preview', username: 'preview', display_name: 'Preview', roles: [], permissions: ['accounts.view'] }
+    const config = buildAccountIdentityResource(resources.accounts)
+    config.filters = config.filters.filter(field => ['business_platform', 'login_status'].includes(field.key))
+    createApp({ setup: () => () => h(CrudPage, { config, embedded: true, hideHeaderActions: true }) })
+      .use(pinia).mount('#app')
+  </script>
+</body>
+</html>

@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { buildAccountIdentityResource } from '@/config/accountIdentityResource'
 import { resources } from '@/config/resources'
-import crudSource from '@/components/CrudPage.vue?raw'
+import rawCrudSource from '@/components/CrudPage.vue?raw'
 import platformDetailsSource from '@/components/AccountIdentityPlatformDetails.vue?raw'
 import dialogSource from '@/components/AccountIdentityCredentialsDialog.vue?raw'
 import accountCenterSource from '@/views/AccountCenterView.vue?raw'
+
+const crudSource = rawCrudSource.replace(/\r\n/g, '\n')
 
 describe('account identity resource', () => {
   it('平台筛选只收集对应账号，主行的多平台概览保持完整', () => {
