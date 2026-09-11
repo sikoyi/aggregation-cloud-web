@@ -29,6 +29,8 @@ import { getEnabledAiProviderOptions, resolveEnabledAiProvider } from '@/api/int
 import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import AccountTableCell from '@/components/AccountTableCell.vue'
 import AccountIdentityTableCell from '@/components/AccountIdentityTableCell.vue'
+import AccountStatisticsBar from '@/components/AccountStatisticsBar.vue'
+import { useAccountStatistics, type AccountStatisticKey } from '@/composables/useAccountStatistics'
 import DeviceTableCell from '@/components/DeviceTableCell.vue'
 import ContentTableCell from '@/components/ContentTableCell.vue'
 import DynamicForm from '@/components/DynamicForm.vue'
@@ -122,6 +124,9 @@ const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const rows = ref<AnyRecord[]>([])
+const accountStatistics = useAccountStatistics()
+const accountStatus = ref<AccountStatisticKey>('total')
+let accountStatisticsTimer: ReturnType<typeof setInterval> | undefined
 let appliedIdentityPlatform: string | undefined
 const {
   tableRef,
@@ -777,13 +782,18 @@ function buildListParams() {
     const key = filter.key
     if (value !== '' && value !== undefined && value !== null) params[key] = value
   })
-  return props.config.listParams?.(params) || params
+  const result = props.config.listParams?.(params) || params
+  if (props.config.key === 'accountIdentities' && accountStatus.value !== 'total') {
+    result.account_status = accountStatus.value
+  }
+  return result
 }
 
 async function loadRows(options?: { silent?: boolean } | number) {
   normalizeScopedFilters()
   const params = buildListParams()
   if (props.config.key === 'accountIdentities') {
+    void accountStatistics.refresh(params)
     const platform = String(params.business_platform || '')
     if (appliedIdentityPlatform !== undefined && appliedIdentityPlatform !== platform) {
       clearSelection()
@@ -815,7 +825,8 @@ async function loadRows(options?: { silent?: boolean } | number) {
 }
 
 function shouldRefreshForRealtime(event: RealtimeEventPayload) {
-  if (props.config.key === 'accounts' || props.config.key === 'accountIdentities') return event.topic === 'account'
+  if (props.config.key === 'accountIdentities') return event.topic === 'account' || event.topic === 'runtime'
+  if (props.config.key === 'accounts') return event.topic === 'account'
   if (props.config.key === 'tasks') return event.topic === 'task'
   if (props.config.key === 'runtimes') return event.topic === 'runtime' || event.topic === 'task'
   if (props.config.key === 'slots') return event.topic === 'runtime' || event.topic === 'task'
@@ -995,6 +1006,14 @@ function handleSizeChange(size: number) {
 }
 
 function applyFilters() {
+  accountStatus.value = 'total'
+  clearTableSelection()
+  page.value = 1
+  loadRows()
+}
+
+function selectAccountStatus(key: AccountStatisticKey) {
+  accountStatus.value = key
   clearTableSelection()
   page.value = 1
   loadRows()
@@ -1628,6 +1647,9 @@ watch(hasActiveUserOperation, (active) => {
 onMounted(() => {
   initFilters()
   loadRows()
+  accountStatisticsTimer = setInterval(() => {
+    if (props.config.key === 'accountIdentities' && !isRealtimeRefreshBlocked()) scheduleRealtimeRefresh()
+  }, 30_000)
   window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   document.addEventListener('visibilitychange', handleDocumentVisibilityChange)
   if (pageRootRef.value && typeof IntersectionObserver !== 'undefined') {
@@ -1640,6 +1662,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (accountStatisticsTimer) clearInterval(accountStatisticsTimer)
   window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   document.removeEventListener('visibilitychange', handleDocumentVisibilityChange)
   pageVisibilityObserver?.disconnect()
@@ -1685,6 +1708,11 @@ onBeforeUnmount(() => {
         </el-button>
       </el-space>
     </div>
+
+    <AccountStatisticsBar v-if="config.key === 'accountIdentities'"
+      :counts="accountStatistics.counts.value" :loading="accountStatistics.loading.value"
+      :failed="accountStatistics.failed.value" :active="accountStatus"
+      @select="selectAccountStatus" @retry="accountStatistics.refresh(buildListParams())" />
 
     <el-card v-if="config.filters?.length" shadow="never" class="filter-card">
       <div class="filter-card__header">
