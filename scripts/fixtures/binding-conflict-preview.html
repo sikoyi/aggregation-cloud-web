@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Binding conflict synthetic preview</title></head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { createApp, h, ref } from 'vue'
+import { createPinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
+import 'element-plus/es/components/message/style/css'
+import '/src/styles.css'
+import Dialog from '/src/components/BindingConflictDialog.vue'
+import { useAuthStore } from '/src/stores/auth.ts'
+
+// All API calls remain synthetic, including unsupported endpoints and mutations.
+const originalFetch = window.fetch.bind(window)
+const mode = ref('normal')
+const record = {
+  id: 'conflict-1', account_id: 'synthetic-account-1', business_platform: 'threads', username: 'synthetic-operator',
+  observed_slot: { id: 'observed-1', display_name: '其他 Agent 发现环境', provider_slot_id: 'synthetic-provider-observed-001' },
+  bound_slot: { id: 'bound-1', display_name: '正式运营环境', provider_slot_id: 'synthetic-provider-formal-001' },
+  observed_slot_restricted: false, bound_slot_restricted: false, runtime_id: null,
+  first_seen_at: '2026-09-13T01:00:00Z', last_seen_at: '2026-09-13T02:00:00Z',
+}
+window.fetch = async (input, init) => {
+  const url = new URL(typeof input === 'string' ? input : input.url, location.href)
+  if (!url.pathname.startsWith('/api/')) return originalFetch(input, init)
+  await new Promise(resolve => setTimeout(resolve, mode.value === 'loading' ? 4000 : 400))
+  if (mode.value === 'error') return new Response(JSON.stringify({ code: 403, msg: '无权查看冲突记录', data: null }), { status: 403 })
+  const items = mode.value === 'empty' ? [] : [record,
+    { ...record, id: 'conflict-2', observed_slot: { id: 'observed-2',
+      display_name: '跨区域运营团队重复发现的长环境名称-'.repeat(5), provider_slot_id: 'long-provider-'.repeat(9) } },
+    { ...record, id: 'conflict-3', bound_slot: null, username: null },
+    { ...record, id: 'conflict-4', observed_slot: null, bound_slot: null, observed_slot_restricted: true, bound_slot_restricted: true },
+  ]
+  return new Response(JSON.stringify({ code: 0, msg: 'ok', data: { items } }), { headers: { 'Content-Type': 'application/json' } })
+}
+const pinia = createPinia()
+const auth = useAuthStore(pinia)
+auth.user = { id: 'synthetic-preview', roles: [], permissions: ['accounts.view', 'devices.view'] }
+const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }] })
+await router.push('/preview')
+createApp({
+  setup() {
+    const target = ref({ source: 'accounts', id: 'synthetic-account-1' })
+    function open(value) { mode.value = value; target.value = null; setTimeout(() => { target.value = { source: 'accounts', id: 'synthetic-account-1' } }, 0) }
+    return () => h('main', { style: 'padding:16px' }, [
+      h('h1', { style: 'font-size:18px;margin-bottom:12px' }, '绑定冲突 · 合成数据预览'),
+      h('div', { style: 'display:flex;flex-wrap:wrap;gap:12px' }, ['normal', 'loading', 'empty', 'error'].map(value =>
+        h('button', { onClick: () => open(value) }, value))),
+      h('label', { style: 'display:block;margin-top:12px' }, [h('input', { type: 'checkbox', checked: auth.can('devices.view'),
+        onChange: event => { auth.user.permissions = event.target.checked ? ['accounts.view', 'devices.view'] : ['accounts.view'] } }), '设备查看权限']),
+      h('p', { role: 'status' }, '当前模拟路由：' + router.currentRoute.value.fullPath),
+      target.value ? h(Dialog, { target: target.value, onClose: () => { target.value = null } }) : null,
+    ])
+  },
+}).use(pinia).use(router).mount('#app')
+</script>
+</body>
+</html>

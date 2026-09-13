@@ -7,9 +7,10 @@ import DeviceTableCell from './DeviceTableCell.vue'
 
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
 vi.mock('element-plus/es/components/tag/style/css', () => ({}))
+vi.mock('element-plus/es/components/button/style/css', () => ({}))
 vi.mock('element-plus/es/components/tooltip/style/css', () => ({}))
 
-async function renderCell(kind: 'deviceState' | 'deviceAccount', row: Record<string, unknown>) {
+async function renderCell(kind: 'deviceState' | 'deviceAccount' | 'deviceGroup', row: Record<string, unknown>) {
   const app = createSSRApp(DeviceTableCell, { kind, row, column: { key: 'status', label: '状态' } })
   app.provide(ID_INJECTION_KEY, { prefix: 0, current: 0 })
   app.provide(ZINDEX_INJECTION_KEY, { current: 0 })
@@ -17,6 +18,28 @@ async function renderCell(kind: 'deviceState' | 'deviceAccount', row: Record<str
 }
 
 describe('设备状态与账号状态分列', () => {
+  it('有冲突但没有正式绑定的设备仍提供冲突入口', async () => {
+    const html = await renderCell('deviceAccount', { id: 'slot-1', binding_conflict_count: 2 })
+    expect(html).toContain('绑定冲突 2')
+    expect(html).toContain('未绑定账号')
+    expect(await renderCell('deviceAccount', { binding_conflict_count: 0 })).not.toContain('绑定冲突')
+  })
+
+  it('已生效分组传播中不再显示执行转圈或旧目标名称', async () => {
+    const html = await renderCell('deviceGroup', { group_name: '正式分组', pending_group_name: '待同步名称', group_sync_status: 'propagating' })
+    expect(html).toContain('正式分组')
+    expect(html).toContain('其他 Agent 待同步')
+    expect(html).not.toContain('device-group__spinner')
+    expect(html).not.toContain('同步至 待同步名称')
+  })
+
+  it.each(['queued', 'sent', 'acknowledged'])('%s 保留待确认执行状态', async group_sync_status => {
+    const html = await renderCell('deviceGroup', { group_name: '原分组', pending_group_name: '新分组', group_sync_status })
+    expect(html).toContain('原分组')
+    expect(html).toContain('同步至 新分组')
+    expect(html).toContain('device-group__spinner')
+    expect(html).not.toContain('其他 Agent 待同步')
+  })
   const sessions = [
     { id: '1', account_id: '1', business_platform: 'instagram', login_status: 'logged_in' },
     { id: '2', account_id: '2', business_platform: 'threads', login_status: 'unknown' },

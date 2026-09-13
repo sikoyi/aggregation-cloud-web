@@ -10,6 +10,17 @@ import accountCenterSource from '@/views/AccountCenterView.vue?raw'
 const crudSource = rawCrudSource.replace(/\r\n/g, '\n')
 
 describe('account identity resource', () => {
+  it('设备和登录身份支持可选绑定冲突筛选，展开行共用只读弹窗', () => {
+    for (const config of [resources.slots, buildAccountIdentityResource(resources.accounts)]) {
+      expect(config.filters?.find(item => item.key === 'has_binding_conflict')).toMatchObject({
+        type: 'select', options: [{ label: '存在绑定冲突', value: true }],
+      })
+    }
+    expect(crudSource).toContain("bindingConflictTarget = { source: 'accounts', id: $event }")
+    expect(crudSource).toContain("bindingConflictTarget = { source: 'execution-slots', id: $event }")
+    expect(crudSource).toContain('<BindingConflictDialog')
+    expect(platformDetailsSource).toContain('row.binding_conflict_count')
+  })
   it('平台筛选只收集对应账号，主行的多平台概览保持完整', () => {
     const config = buildAccountIdentityResource(resources.accounts)
     const records = [{ id: 'identity-1', filtered_business_platform: 'threads', matched_account_ids: ['threads-1'], platform_summaries: [
@@ -179,6 +190,7 @@ describe('account identity resource', () => {
       'provider',
       'keyword',
       'bound_state',
+      'has_binding_conflict',
       'candidate_status',
     ])
     expect(config.listParams?.({

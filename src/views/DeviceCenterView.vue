@@ -23,6 +23,13 @@ const slotGroupPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
 const activeConfig = computed(() => slotConfig.value)
 const activePage = computed(() => slotPageRef.value)
 const activeCreateLabel = computed(() => activeConfig.value.createLabel || '新增')
+const exactSlotId = computed(() => typeof route.query.slot_id === 'string' ? route.query.slot_id.trim() : '')
+
+function clearExactSlot() {
+  const query = { ...route.query }
+  delete query.slot_id
+  void router.replace({ path: '/slots', query })
+}
 
 function normalizeTab(value: unknown): DeviceCenterTab {
   return 'slots'
@@ -106,7 +113,8 @@ function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
               设备列表
             </span>
           </template>
-          <CrudPage ref="slotPageRef" :config="slotConfig" embedded hide-header-actions />
+          <CrudPage ref="slotPageRef" :config="slotConfig" :exact-slot-id="exactSlotId" embedded hide-header-actions
+            @clear-exact-slot="clearExactSlot" />
         </el-tab-pane>
       </el-tabs>
     </el-card>

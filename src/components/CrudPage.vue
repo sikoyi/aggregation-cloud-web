@@ -26,6 +26,8 @@ import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
+import type { BindingConflictTarget } from '@/api/bindingConflicts'
+import { getExactExecutionSlot } from '@/api/executionSlots'
 import { getEnabledAiProviderOptions, resolveEnabledAiProvider } from '@/api/interactionAi'
 import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults, type SystemDefaults } from '@/api/systemSettings'
 import AccountTableCell from '@/components/AccountTableCell.vue'
@@ -70,6 +72,7 @@ import {
 import { collectRuntimeSyncFailures, type RuntimeSyncFailure } from '@/utils/runtimeSyncFailures'
 
 const AccountTagMemberEditor = defineAsyncComponent(() => import('@/components/AccountTagMemberEditor.vue'))
+const BindingConflictDialog = defineAsyncComponent(() => import('@/components/BindingConflictDialog.vue'))
 const AccountIdentityPlatformDetails = defineAsyncComponent(() => import('@/components/AccountIdentityPlatformDetails.vue'))
 const AccountIdentityCredentialsDialog = defineAsyncComponent(() => import('@/components/AccountIdentityCredentialsDialog.vue'))
 const AccountExportPreflightDialog = defineAsyncComponent(() => import('@/components/AccountExportPreflightDialog.vue'))
@@ -94,9 +97,12 @@ const props = defineProps<{
   embedded?: boolean
   hideHeaderActions?: boolean
   inlineForms?: boolean
+  exactSlotId?: string
 }>()
 const auth = useAuthStore()
-const emit = defineEmits<{ exportRecords: [recordId?: string] }>()
+const emit = defineEmits<{ exportRecords: [recordId?: string]; clearExactSlot: [] }>()
+const exactSlot = computed(() => props.config.key === 'slots' ? props.exactSlotId || '' : '')
+const bindingConflictTarget = ref<BindingConflictTarget | null>(null)
 
 
 const iconMap: IconMap = {
@@ -200,6 +206,7 @@ const hasActiveUserOperation = computed(() => Boolean(
   || interactionSessionDetailVisible.value
   || publishedContentDetailVisible.value
   || identityCredentialsId.value
+  || bindingConflictTarget.value
   || exportSelection.value
   || assetViewerVisible.value,
 ))
@@ -480,9 +487,10 @@ const activeFilterCount = computed(
   () => Object.values(filters).filter((value) => hasFilterValue(value)).length,
 )
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
-const emptyDescription = computed(() => (hasActiveFilters.value ? '没有符合筛选条件的数据' : '暂无数据'))
+const emptyDescription = computed(() => exactSlot.value ? '目标设备不可用' : (hasActiveFilters.value ? '没有符合筛选条件的数据' : '暂无数据'))
 const emptyTip = computed(() =>
-  hasActiveFilters.value
+  exactSlot.value ? '设备可能已删除或无权访问。'
+    : hasActiveFilters.value
     ? '可以清空筛选条件后重新查看全部数据。'
     : '当前模块还没有数据，可以通过上方操作创建或导入。',
 )
@@ -813,13 +821,17 @@ async function loadRows(options?: { silent?: boolean } | number) {
     error.value = ''
   }
   try {
-    const data = await http.get<PageResult<AnyRecord>>(props.config.listEndpoint || props.config.endpoint, params)
+    const data = exactSlot.value
+      ? await getExactExecutionSlot(exactSlot.value)
+      : await http.get<PageResult<AnyRecord>>(props.config.listEndpoint || props.config.endpoint, params)
     if (requestId !== listRequestId) return
     rows.value = data.items
     total.value = data.total
     await restorePageSelection()
     void presentRuntimeSyncFailure(data.items)
   } catch (err) {
+    if (requestId !== listRequestId) return
+    if (exactSlot.value) { rows.value = []; total.value = 0 }
     if (!silent) error.value = notifyError(err, '加载失败', '加载失败')
   } finally {
     if (!silent && visibleLoadingRequestId === requestId) loading.value = false
@@ -1621,6 +1633,7 @@ function handleDropdown(command: string, row: AnyRecord) {
 }
 
 function initFilters() {
+  bindingConflictTarget.value = null
   templateDetailId.value = null
   identityCredentialsId.value = null
   clearTableSelection()
@@ -1653,6 +1666,14 @@ watch(
 
 watch(hasActiveUserOperation, (active) => {
   if (!active) window.setTimeout(flushPendingRealtimeRefresh, 0)
+})
+
+watch(exactSlot, () => {
+  clearTableSelection()
+  rows.value = []
+  total.value = 0
+  page.value = 1
+  void loadRows()
 })
 
 onMounted(() => {
@@ -1725,7 +1746,11 @@ onBeforeUnmount(() => {
       :failed="accountStatistics.failed.value" :active="accountStatus"
       @select="selectAccountStatus" @retry="accountStatistics.refresh(buildListParams())" />
 
-    <el-card v-if="config.filters?.length" shadow="never" class="filter-card">
+    <div v-if="exactSlot" class="exact-slot-filter">
+      <span>精确定位设备记录 ID <code>{{ exactSlot }}</code></span>
+      <el-button :icon="RotateCcw" @click="emit('clearExactSlot')">清除定位</el-button>
+    </div>
+    <el-card v-else-if="config.filters?.length" shadow="never" class="filter-card">
       <div class="filter-card__header">
         <div class="filter-card__title">
           <Search class="h-4 w-4 text-brand-600" />
@@ -1863,6 +1888,7 @@ onBeforeUnmount(() => {
                 :matched-account-ids="row.matched_account_ids || []"
                 :can-split="row.account_count > 1 && row.can_edit_credentials === true"
               @changed="loadRows({ silent: true })"
+              @binding-conflicts="bindingConflictTarget = { source: 'accounts', id: $event }"
             />
           </template>
         </el-table-column>
@@ -1891,6 +1917,7 @@ onBeforeUnmount(() => {
               :kind="column.type as 'deviceIdentity' | 'deviceGroup' | 'devicePlatform' | 'deviceState' | 'deviceAccount' | 'deviceProxy' | 'deviceActivity'"
               :row="row"
               :column="column"
+              @binding-conflicts="bindingConflictTarget = { source: 'execution-slots', id: $event }"
             />
             <ContentTableCell
               v-else-if="column.type && ['contentIdentity', 'contentPools', 'contentPlatform', 'contentType', 'contentTimeline'].includes(column.type)"
@@ -2050,14 +2077,14 @@ onBeforeUnmount(() => {
         <template #empty>
           <el-empty :description="emptyDescription" :image-size="78">
             <p class="table-empty__tip">{{ emptyTip }}</p>
-            <el-button v-if="hasActiveFilters" size="small" :icon="RotateCcw" @click="resetFilters">
+            <el-button v-if="hasActiveFilters && !exactSlot" size="small" :icon="RotateCcw" @click="resetFilters">
               清空筛选
             </el-button>
           </el-empty>
         </template>
       </el-table>
 
-      <div class="table-pagination">
+      <div v-if="!exactSlot" class="table-pagination">
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -2202,6 +2229,7 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
+    <BindingConflictDialog v-if="bindingConflictTarget" :target="bindingConflictTarget" @close="bindingConflictTarget = null" />
     <AccountIdentityCredentialsDialog
       v-if="config.key === 'accountIdentities' && identityCredentialsId"
       :identity-id="identityCredentialsId"
@@ -2228,6 +2256,8 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.exact-slot-filter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #52697e; }
+.exact-slot-filter > span { min-width: 0; overflow-wrap: anywhere; }
 .filter-card__header {
   display: flex;
   align-items: center;

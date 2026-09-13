@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Copy, ExternalLink, MapPin, Pencil, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
+import { AlertTriangle, Copy, ExternalLink, MapPin, Pencil, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
@@ -21,6 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   changed: []
+  bindingConflicts: [id: string]
 }>()
 
 const auth = useAuthStore()
@@ -262,6 +263,11 @@ onMounted(loadRows)
             </template>
             <span v-else class="identity-details__empty">未绑定设备</span>
             <small class="bound-device__group">设备分组：{{ row.bound_slot_group_name || '未分组' }}</small>
+            <el-button v-if="Number(row.binding_conflict_count || 0) > 0" class="bound-device__conflict"
+              type="warning" text size="small" :icon="AlertTriangle"
+              @click.stop="emit('bindingConflicts', String(row.id))">
+              绑定冲突 {{ row.binding_conflict_count }}
+            </el-button>
           </div>
         </template>
       </el-table-column>
@@ -393,6 +399,7 @@ onMounted(loadRows)
 .account-attributes__country svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .platform-tags { display: flex; min-width: 0; flex-wrap: wrap; gap: 4px; }
 .bound-device__group { color: #526f86 !important; }
+.bound-device__conflict { align-self: flex-start; }
 .backup-data { display: flex; align-items: center; justify-content: center; gap: 3px; }
 .backup-data__actions { display: inline-flex; align-items: center; gap: 0; }
 .backup-data__actions :deep(.el-button + .el-button) { margin-left: 0; }

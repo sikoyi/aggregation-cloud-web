@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network } from 'lucide-vue-next'
+import { AlertTriangle, Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -23,6 +23,8 @@ const props = defineProps<{
   column: ColumnConfig
 }>()
 
+defineEmits<{ bindingConflicts: [id: string] }>()
+
 function text(value: unknown) {
   return value === undefined || value === null || value === '' ? '-' : String(value)
 }
@@ -37,7 +39,7 @@ const providerNumber = computed(() => String(props.row.provider_slot_no || '').t
 const groupName = computed(() => String(props.row.group_name || props.row.name || '').trim())
 const groupSyncStatus = computed(() => String(props.row.group_sync_status || '').trim())
 const pendingGroupName = computed(() => String(props.row.pending_group_name || props.row.pending_name || '').trim())
-const groupSyncPending = computed(() => ['queued', 'sent', 'acknowledged', 'propagating'].includes(groupSyncStatus.value))
+const groupSyncPending = computed(() => ['queued', 'sent', 'acknowledged'].includes(groupSyncStatus.value))
 const pendingGroupLabel = computed(() => {
   if (pendingGroupName.value) return pendingGroupName.value
   if (props.row.group_control_command_id) return '未分组'
@@ -86,6 +88,9 @@ function accountTooltip(session: AnyRecord) {
       <LoaderCircle class="device-group__spinner" />
       <span>{{ pendingGroupLabel ? `同步至 ${pendingGroupLabel}` : '同步中' }}</span>
     </div>
+    <div v-else-if="groupSyncStatus === 'propagating'" class="device-group__sync device-group__sync--propagating">
+      <span>其他 Agent 待同步</span>
+    </div>
   </div>
 
   <div v-else-if="kind === 'devicePlatform'" class="device-cell device-platform">
@@ -113,6 +118,11 @@ function accountTooltip(session: AnyRecord) {
       </div>
     </template>
     <span v-else class="device-relation__empty">未绑定账号</span>
+    <el-button v-if="Number(row.binding_conflict_count || 0) > 0" class="device-conflict-button"
+      type="warning" text size="small" :icon="AlertTriangle"
+      @click.stop="$emit('bindingConflicts', String(row.id))">
+      绑定冲突 {{ row.binding_conflict_count }}
+    </el-button>
   </div>
 
   <div v-else-if="kind === 'deviceProxy'" class="device-cell device-relation">
@@ -155,6 +165,8 @@ function accountTooltip(session: AnyRecord) {
 .device-group__sync svg { width: 11px; height: 11px; flex: 0 0 11px; }
 .device-group__sync span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .device-group__sync--pending { color: #28719f; }
+.device-group__sync--propagating { color: #8494a5; }
+.device-conflict-button { align-self: flex-start; }
 .device-group__spinner { animation: device-group-spin 1s linear infinite; }
 @keyframes device-group-spin { to { transform: rotate(360deg); } }
 .device-platform { display: flex; flex-direction: column; gap: 7px; }
