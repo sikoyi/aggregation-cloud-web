@@ -1672,6 +1672,12 @@ export const resources: Record<string, ResourceConfig> = {
         ],
       },
       {
+        key: "has_binding_conflict",
+        label: "绑定冲突",
+        type: "select",
+        options: [{ label: "存在绑定冲突", value: true }],
+      },
+      {
         key: "business_platform",
         label: "业务 App",
         type: "select",
@@ -1871,7 +1877,9 @@ export const resources: Record<string, ResourceConfig> = {
       "确认删除该设备组？删除后组内设备会自动解绑，设备本身不会删除。",
     updateSuccessTitle: "设备组更新",
     updateSuccessMessage: (data) =>
-      ["queued", "sent", "acknowledged", "propagating"].includes(String(data.group_sync_status || ""))
+      data.group_sync_status === "propagating"
+        ? "设备组已更新，其他 Agent 待同步"
+        : ["queued", "sent", "acknowledged"].includes(String(data.group_sync_status || ""))
         ? "设备组改名已提交，供应商确认后生效"
         : "设备组更新成功",
     updateNotificationType: (data) =>

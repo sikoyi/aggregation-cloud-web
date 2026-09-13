@@ -210,6 +210,12 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
         ],
       },
       {
+        key: 'has_binding_conflict',
+        label: '绑定冲突',
+        type: 'select',
+        options: [{ label: '存在绑定冲突', value: true }],
+      },
+      {
         key: 'candidate_status',
         label: '关联候选',
         type: 'select',

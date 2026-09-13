@@ -18,6 +18,10 @@ async function renderCell(kind: 'loginIdentity' | 'identityTags' | 'identityPlat
 }
 
 describe('账号身份列表单元格', () => {
+  it('主行提示聚合冲突数，缺省零不显示', async () => {
+    expect(await renderCell('loginIdentity', { id: 'identity-1', binding_conflict_count: 3 })).toContain('绑定冲突 3')
+    expect(await renderCell('loginIdentity', { id: 'identity-1' })).not.toContain('绑定冲突')
+  })
   const row = {
     id: 'identity-1',
     display_name: 'operator@example.com',

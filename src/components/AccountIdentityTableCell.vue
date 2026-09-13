@@ -49,6 +49,9 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
         <el-tag v-if="row.credentials_exported_at" size="small" type="warning" effect="plain">已导出</el-tag>
       </span>
       <small>ID {{ row.id }} · {{ Number(row.account_count || 0) }} 个平台账号<span v-if="matched.length < summaries.length"> · 匹配 {{ matched.length }} 个</span><span v-if="row.country"> · {{ row.country }}</span></small>
+      <el-tag v-if="Number(row.binding_conflict_count || 0) > 0" class="identity-main__conflict" size="small" type="warning" effect="plain">
+        绑定冲突 {{ row.binding_conflict_count }}
+      </el-tag>
     </span>
   </div>
 
@@ -112,6 +115,7 @@ const boundSummaries = computed(() => summaries.value.filter((item) => item.sess
 .identity-main__content strong,
 .identity-main__content small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .identity-main__content strong { color: #243b53; font-size: 13px; }
+.identity-main__conflict { align-self: flex-start; }
 .identity-main__content small { color: #7b8da0; font-size: 10px; }
 .identity-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .identity-tag { display: inline-flex; max-width: 100%; align-items: center; overflow: hidden; white-space: nowrap; }

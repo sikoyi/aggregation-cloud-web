@@ -42,6 +42,7 @@ export interface AccountIdentityRow extends AccountIdentityDetail {
   platform_count: number
   account_count: number
   active_session_count: number
+  binding_conflict_count?: number
   has_pending_candidate: boolean
   platform_summaries: IdentityPlatformSummary[]
   matched_account_ids: string[]
