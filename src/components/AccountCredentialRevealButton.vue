@@ -21,9 +21,9 @@ const { visible, adminPassword, loading, error, credentials, allowed, open, clos
     :close-on-click-modal="false" @update:model-value="value => { if (!value) close() }">
     <div class="credential-reveal-account">{{ accountName || accountId }}</div>
     <el-form v-if="!credentials" label-position="top" @submit.prevent="reveal">
-      <el-form-item label="系统内置管理员登录密码">
+      <el-form-item label="安全验证密码">
         <el-input v-model="adminPassword" type="password" autocomplete="new-password" :maxlength="256"
-          :disabled="loading" aria-label="系统内置管理员登录密码" />
+          :disabled="loading" placeholder="请输入安全验证密码" aria-label="安全验证密码" />
       </el-form-item>
       <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon />
     </el-form>
