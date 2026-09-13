@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { statusLabel, statusTagType } from './format'
+import { formatCell, statusLabel, statusTagType } from './format'
+
+describe('多选业务名称', () => {
+  const column = { key: 'purposes', label: '业务', type: 'list' as const,
+    options: [{ value: 'account_warmup', label: '账号养号' }] }
+  it('业务用途显示中文且未知值不丢失', () => {
+    expect(formatCell({ purposes: ['account_warmup', 'future'] }, column)).toBe('账号养号、future')
+    expect(formatCell({ purposes: [] }, column)).toBe('-')
+  })
+})
 
 describe('互动场景格式化', () => {
   it('使用中文名称展示互动场景', () => {

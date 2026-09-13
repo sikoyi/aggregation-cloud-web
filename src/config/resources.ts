@@ -3943,6 +3943,10 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "runtime_id", label: "Runtime ID" },
       { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
       { key: "provider", label: "供应商" },
+      { key: "task_policy_mode", label: "任务分工", width: 110, options: [
+        { label: "通用任务", value: "general" }, { label: "专用任务", value: "dedicated" },
+      ] },
+      { key: "dedicated_task_purposes", label: "专用业务", type: "list", minWidth: 170, options: scriptPurposeOptions },
       { key: "status", label: "连接状态", type: "status", align: "center" },
       {
         key: "lifecycle_status",
@@ -3989,8 +3993,30 @@ export const resources: Record<string, ResourceConfig> = {
         ],
       },
     ],
-    inlineActionKeys: ["detail", "sync", "retire", "restore"],
+    inlineActionKeys: ["detail", "task-policy", "sync", "retire", "restore"],
     rowActions: [
+      {
+        key: "task-policy",
+        label: "任务分工",
+        permission: "runtimes.configure",
+        method: "PUT",
+        icon: "settings",
+        path: (record) => `/api/runtimes/${record.id}/task-policy`,
+        validate: (payload) => payload.task_policy_mode === "dedicated"
+          && (!Array.isArray(payload.dedicated_task_purposes) || !payload.dedicated_task_purposes.length)
+          ? "专用 Agent 至少选择一种业务类型" : undefined,
+        confirm: "专用业务将仅分配给同范围内对应的专用 Agent；离线时不会转交通用 Agent。已下发任务保持原执行。确认保存？",
+        fields: [
+          { key: "task_policy_mode", label: "任务分工", type: "select", required: true, defaultValue: "general", span: 2,
+            options: [{ label: "通用任务", value: "general" }, { label: "专用任务", value: "dedicated" }] },
+          { key: "dedicated_task_purposes", label: "专用业务", type: "select", multiple: true,
+            options: scriptPurposeOptions, defaultValue: [], span: 2,
+            visibleWhen: { key: "task_policy_mode", value: "dedicated" },
+            requiredWhen: { key: "task_policy_mode", value: "dedicated" }, clearWhenHidden: true },
+        ],
+        body: (payload) => ({ task_policy_mode: payload.task_policy_mode,
+          dedicated_task_purposes: payload.task_policy_mode === "dedicated" ? payload.dedicated_task_purposes : [] }),
+      },
       {
         key: "detail",
         label: "查看详情",

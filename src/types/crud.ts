@@ -229,6 +229,7 @@ export interface RowActionConfig {
   batchFields?: (records: AnyRecord[]) => FieldConfig[]
   resultColumns?: ColumnConfig[]
   body?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => unknown)
+  validate?: (payload: AnyRecord, record: AnyRecord) => string | undefined
   batchBody?: (payload: AnyRecord, records: AnyRecord[]) => unknown
   params?: AnyRecord | ((payload: AnyRecord, record: AnyRecord) => AnyRecord)
   batchParams?: AnyRecord | ((payload: AnyRecord, records: AnyRecord[]) => AnyRecord)

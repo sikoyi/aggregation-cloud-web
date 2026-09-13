@@ -8,6 +8,27 @@ import {
 } from './options'
 import { resources } from './resources'
 
+describe('Agent 业务分工', () => {
+  const action = resources.runtimes.rowActions!.find(item => item.key === 'task-policy')!
+  it('独立授权且只提供业务类型，不提供脚本选择', () => {
+    expect(action.permission).toBe('runtimes.configure')
+    expect(action.method).toBe('PUT')
+    expect(action.fields!.map(field => field.key)).toEqual(['task_policy_mode', 'dedicated_task_purposes'])
+    expect(action.fields![1].options).toEqual(scriptPurposeOptions)
+    expect(action.fields![1].multiple).toBe(true)
+    expect(action.fields![1].requiredWhen).toEqual({ key: 'task_policy_mode', value: 'dedicated' })
+    expect(action.validate!({ task_policy_mode: 'dedicated', dedicated_task_purposes: [] }, {})).toBeTruthy()
+    expect(action.validate!({ task_policy_mode: 'general' }, {})).toBeUndefined()
+  })
+  it('恢复通用时清空专用业务，专用模式保留多选', () => {
+    if (typeof action.body !== 'function') throw new Error('Expected payload builder')
+    expect(action.body({ task_policy_mode: 'general', dedicated_task_purposes: ['account_warmup'] }, {}))
+      .toEqual({ task_policy_mode: 'general', dedicated_task_purposes: [] })
+    expect(action.body({ task_policy_mode: 'dedicated', dedicated_task_purposes: ['account_warmup'] }, {}))
+      .toEqual({ task_policy_mode: 'dedicated', dedicated_task_purposes: ['account_warmup'] })
+  })
+})
+
 describe('任务重试部分成功提示', () => {
   const action = resources.tasks.rowActions!.find(item => item.key === 'retry')!
   it('同时展示已创建及未绑定账号的跳过数量', () => {

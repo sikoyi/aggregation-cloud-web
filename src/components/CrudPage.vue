@@ -16,6 +16,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Settings2,
   Trash2,
   Unlink,
   Upload,
@@ -109,6 +110,7 @@ const iconMap: IconMap = {
   power: Power,
   powerOff: PowerOff,
   rotate: RotateCcw,
+  settings: Settings2,
   trash: Trash2,
   unlink: Unlink,
   upload: Upload,
@@ -219,6 +221,7 @@ const isPublishedContentDispatchModal = computed(() => props.config.key === 'pub
 const isInteractionSessionCreateModal = computed(() => props.config.key === 'interactionSessions' && modal.type === 'create')
 const isMediaAssetBatchCreateModal = computed(() => Boolean(props.config.mediaAssetBatchUpload && modal.type === 'create'))
 const modalWidth = computed(() => {
+  if (props.config.key === 'runtimes' && modal.action?.key === 'task-policy') return 'min(560px, calc(100vw - 32px))'
   if (modal.type === 'batch' && modal.action?.key === 'export-accounts') return 'min(520px, calc(100vw - 32px))'
   if (isMediaAssetBatchCreateModal.value) return '900px'
   if (isInteractionSessionCreateModal.value) return '1240px'
@@ -1535,9 +1538,15 @@ async function runAction(action: RowActionConfig, record: AnyRecord) {
 }
 
 async function submitAction() {
-  if (!modal.action || !modal.record) return
-  await executeRequest(modal.action, modal.record, buildPayload(modal.action.fields || [], formState.value, 'action'))
-  closeModal()
+  if (!modal.action || !modal.record || submitting.value) return
+  try {
+    const payload = buildPayload(modal.action.fields || [], formState.value, 'action')
+    const validationError = modal.action.validate?.(payload, modal.record)
+    if (validationError) { ElMessage.warning(validationError); return }
+    if (await executeRequest(modal.action, modal.record, payload)) closeModal()
+  } catch (err) {
+    notifyError(err, '提交失败', '提交失败')
+  }
 }
 
 async function submitBatchAction() {
@@ -1560,10 +1569,10 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
       message = action.confirmFromPreview(preview, record)
     } catch (err) {
       error.value = notifyError(err, '预览失败', '无法加载操作影响范围')
-      return
+      return false
     }
   }
-  if (!(await confirmAction(message, isDanger ? 'error' : 'warning'))) return
+  if (!(await confirmAction(message, isDanger ? 'error' : 'warning'))) return false
 
   submitting.value = true
   error.value = ''
@@ -1585,6 +1594,7 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
       }
     }
     if (action.refresh !== false) await loadRows()
+    return true
   } catch (err) {
     error.value = notifyError(err, '操作失败', '操作失败')
     if (action.showResult) {
@@ -1594,6 +1604,7 @@ async function executeRequest(action: RowActionConfig, record: AnyRecord, payloa
         error_message: getErrorMessage(err, '操作失败'),
       }
     }
+    return false
   } finally {
     resultLoading.value = false
     submitting.value = false

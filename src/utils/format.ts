@@ -111,6 +111,9 @@ export function statusTagType(status: unknown) {
 export function formatCell(row: AnyRecord, column: ColumnConfig) {
   const value = getCellValue(row, column.key)
   if (value === undefined || value === null || value === '') return '-'
+  if (column.type === 'list' && Array.isArray(value) && column.options?.length) {
+    return value.map((entry) => column.options?.find((option) => String(option.value) === String(entry))?.label ?? String(entry)).join('、') || '-'
+  }
   if (column.options?.length) {
     const option = column.options.find((item) => String(item.value) === String(value))
     if (option) return option.label
