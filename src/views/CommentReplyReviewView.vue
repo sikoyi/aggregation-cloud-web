@@ -20,6 +20,7 @@ import {
   retryCommentReply,
 } from '@/api/commentReplies'
 import RemoteSelect from '@/components/RemoteSelect.vue'
+import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import {
@@ -252,9 +253,12 @@ onBeforeUnmount(() => {
             <p>集中处理监听到的新一级评论，确认 AI 文案后再交给设备执行。</p>
           </div>
         </div>
+        <div class="reply-review__tools">
+        <TelegramReviewBinding />
         <el-tooltip content="刷新" placement="bottom">
           <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
         </el-tooltip>
+        </div>
       </header>
 
       <div class="reply-review__body">
@@ -408,6 +412,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.reply-review__tools { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .reply-review__workspace { border-color: #d9e2ec; border-radius: 8px; }
 .reply-review__workspace :deep(.el-card__body) { padding: 0; }
 .reply-review__header,
