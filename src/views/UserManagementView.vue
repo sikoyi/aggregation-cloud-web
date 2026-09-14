@@ -231,7 +231,7 @@ async function toggleCredentialGrant(user: SystemUser) {
   try {
     await ElMessageBox.confirm(
       allowed
-        ? `授权 ${user.username} 查看账号密码和 2FA 密钥？每次查看仍需安全验证，授权后该用户需重新登录。`
+        ? `授权 ${user.username} 直接查看账号密码和 2FA 密钥？无需二次密码验证，不包含导出和敏感注册资料。授权后该用户需重新登录。`
         : `撤销 ${user.username} 的账号凭据查看授权？该用户的现有登录会话将失效。`,
       allowed ? '授权查看账号凭据' : '撤销查看授权',
       { type: 'warning', confirmButtonText: allowed ? '授权' : '撤销' },

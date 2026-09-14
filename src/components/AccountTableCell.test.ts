@@ -4,11 +4,16 @@ import { renderToString } from 'vue/server-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { http } from '@/api/http'
+import { hasPermission } from '@/utils/permissions'
 import AccountTableCell from './AccountTableCell.vue'
 import crudPageSource from './CrudPage.vue?raw'
 
 const permissions = vi.hoisted(() => new Set<string>())
-vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ can: (code: string) => permissions.has(code) }) }))
+const authState = vi.hoisted(() => ({ user: null as Parameters<typeof hasPermission>[0] }))
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({
+  get user() { return authState.user },
+  can: (code: string) => authState.user ? hasPermission(authState.user, code) : permissions.has(code),
+}) }))
 
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
 vi.mock('element-plus/es/components/avatar/style/css', () => ({}))
@@ -47,11 +52,33 @@ async function renderIdentity(row: Record<string, unknown>) {
 
 describe('共享登录凭据单元格', () => {
   beforeEach(() => {
+    authState.user = null
     permissions.clear()
     permissions.add('accounts.credentials')
     permissions.add('accounts.totp')
   })
   afterEach(() => vi.restoreAllMocks())
+
+  it.each([true, false])('独立授权超管直接展示原文，不提供密码验证入口 %s', async (shared) => {
+    authState.user = { roles: ['super_admin'], permissions: [], status: 'active',
+      is_system_admin: false, account_credential_reveal_allowed: true }
+    const html = await renderCredentials({ id: '1', password_secret_ref: 'granted-password',
+      totp_secret_ref: 'granted-secret', can_read_credentials: true }, shared)
+    expect(html).toContain('granted-password')
+    expect(html).toContain('granted-secret')
+    expect(html).not.toContain('无凭据读取权限')
+    expect(html).not.toContain('aria-label="验证密码查看当前账号凭据"')
+    if (shared) {
+      expect(html).toContain('aria-label="复制密码"')
+      expect(html).toContain('aria-label="复制 2FA"')
+    }
+    authState.user = { ...authState.user, account_credential_reveal_allowed: false }
+    const revoked = await renderCredentials({ id: '1', password_secret_ref: 'granted-password',
+      totp_secret_ref: 'granted-secret', can_read_credentials: true }, shared)
+    expect(revoked).not.toContain('granted-password')
+    expect(revoked).not.toContain('granted-secret')
+    expect(revoked).toContain('无凭据读取权限')
+  })
 
   it('基础查看即使收到旧凭据也不显示原值，不触发取码请求', async () => {
     permissions.clear()

@@ -23,7 +23,8 @@ describe('管理员专属凭据权限', () => {
       expect(hasPermission(other, 'accounts.export')).toBe(false)
       expect(hasPermission(other, 'accounts.totp')).toBe(true)
       expect(canRequestAccountCredentials(other)).toBe(false)
-      expect(canRequestAccountCredentials({ ...other, account_credential_reveal_allowed: true })).toBe(true)
+      expect(canRequestAccountCredentials({ ...other, account_credential_reveal_allowed: true })).toBe(false)
+      expect(hasPermission({ ...other, account_credential_reveal_allowed: true }, 'accounts.credentials')).toBe(true)
     }
     expect(canRequestAccountCredentials(user)).toBe(false)
     expect(canRequestAccountCredentials({ ...user, is_system_admin: false, status: 'disabled' })).toBe(false)
@@ -33,11 +34,15 @@ describe('管理员专属凭据权限', () => {
 
   it('独立授权不能放宽角色、状态、导出和资料原文边界', () => {
     const user = { roles: ['super_admin'], permissions: [], status: 'active' as const, is_system_admin: false, account_credential_reveal_allowed: true }
-    expect(canRequestAccountCredentials(user)).toBe(true)
+    expect(canRequestAccountCredentials(user)).toBe(false)
     expect(canRequestAccountCredentials({ ...user, account_credential_reveal_allowed: false })).toBe(false)
     expect(canRequestAccountCredentials({ ...user, roles: ['operator'] })).toBe(false)
     expect(canRequestAccountCredentials({ ...user, status: 'disabled' })).toBe(false)
-    for (const code of ['accounts.credentials', 'accounts.export', 'registration_resources.reveal']) expect(hasPermission(user, code)).toBe(false)
+    expect(hasPermission(user, 'accounts.credentials')).toBe(true)
+    for (const change of [{ account_credential_reveal_allowed: false }, { roles: ['operator'] }, { status: 'disabled' as const }]) {
+      expect(hasPermission({ ...user, ...change }, 'accounts.credentials')).toBe(false)
+    }
+    for (const code of ['accounts.export', 'registration_resources.reveal']) expect(hasPermission(user, code)).toBe(false)
     expect(hasPermission(user, 'accounts.totp')).toBe(true)
     expect(canManageAccountCredentialGrants(user)).toBe(false)
     expect(canManageAccountCredentialGrants({ ...user, is_system_admin: true })).toBe(true)

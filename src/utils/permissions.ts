@@ -14,7 +14,11 @@ type PermissionUser = Pick<SystemUser, 'roles' | 'permissions' | 'is_system_admi
 
 export function hasPermission(user: PermissionUser | null, code: string): boolean {
   if (!user || user.status === 'disabled') return false
-  if (['registration_resources.reveal', 'accounts.credentials', 'accounts.export'].includes(code)) {
+  if (code === 'accounts.credentials') {
+    return user.status === 'active' && user.roles.includes('super_admin')
+      && (user.is_system_admin === true || user.account_credential_reveal_allowed === true)
+  }
+  if (['registration_resources.reveal', 'accounts.export'].includes(code)) {
     return user.is_system_admin === true && user.status === 'active' && user.roles.includes('super_admin')
   }
   if (user.roles.includes('super_admin')) return true
@@ -22,6 +26,7 @@ export function hasPermission(user: PermissionUser | null, code: string): boolea
 }
 
 export function canRequestAccountCredentials(user: PermissionUser | null): boolean {
+  // Authorized users read directly; never offer the legacy password dialog.
   return user?.status === 'active' && user.roles.includes('super_admin')
     && user.account_credential_reveal_allowed === true
     && !hasPermission(user, 'accounts.credentials')
