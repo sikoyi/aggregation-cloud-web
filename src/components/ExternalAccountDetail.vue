@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ExternalLink, Heart, MessageCircle, UserRound } from 'lucide-vue-next'
 import ContentPreview from '@/components/ContentPreview.vue'
+import ExternalPostComments from '@/components/ExternalPostComments.vue'
 import { formatDate } from '@/utils/format'
 import type { AnyRecord } from '@/types/api'
 
@@ -74,13 +75,10 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
         <el-table :data="detail.posts" row-key="source_key" border stripe table-layout="fixed" empty-text="暂无已采集帖子">
           <el-table-column type="expand" width="44"><template #default="{ row }">
             <div class="external-post-expanded">
-              <ContentPreview :record="postPreview(row)" mode="full" />
-              <h4>已采集评论</h4>
-              <div v-for="(comment, i) in row.report?.comments || []" :key="comment.platform_comment_id || i" class="external-post-comment">
-                <strong>{{ comment.author_name || comment.author_username || '未知作者' }}</strong>
-                <p>{{ comment.content || '无文字内容' }}</p>
-              </div>
-              <el-empty v-if="!row.report?.comments?.length" description="本次未采集到评论" :image-size="48" />
+              <el-tabs model-value="comments">
+                <el-tab-pane label="评论" name="comments"><ExternalPostComments :comments="row.report?.comments" :total="row.report?.metrics?.comment_count" /></el-tab-pane>
+                <el-tab-pane label="完整帖文" name="content"><ContentPreview :record="postPreview(row)" mode="full" /></el-tab-pane>
+              </el-tabs>
             </div>
           </template></el-table-column>
           <el-table-column label="内容信息" min-width="300"><template #default="{ row }">
@@ -91,8 +89,8 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
           <el-table-column label="互动数据" width="166"><template #default="{ row }">
             <div class="external-post-metrics"><span><Heart :size="14" />点赞<strong>{{ count(row.report?.metrics?.like_count) }}</strong></span><span><MessageCircle :size="14" />评论<strong>{{ count(row.report?.metrics?.comment_count) }}</strong></span></div>
           </template></el-table-column>
-          <el-table-column label="时间" width="180"><template #default="{ row }">
-            <div class="external-post-time"><small>发布</small><span>{{ formatDate(row.report?.published_at) }}</span><small>最近采集</small><span>{{ formatDate(row.updated_at) }}</span></div>
+          <el-table-column label="时间" width="230"><template #default="{ row }">
+            <div class="external-post-time"><div><small>发布</small><span>{{ formatDate(row.report?.published_at) }}</span></div><div><small>最近采集</small><span>{{ formatDate(row.updated_at) }}</span></div></div>
           </template></el-table-column>
         </el-table>
         <div class="external-detail-pagination"><el-pagination :current-page="page" :page-size="20" :total="detail.total" background layout="total, prev, pager, next" :pager-count="5" @current-change="emit('update:page', $event)" /></div>
@@ -139,12 +137,10 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
 .external-post-metrics > span { display: flex; align-items: center; gap: 6px; color: #718096; }
 .external-post-metrics strong { margin-left: auto; color: #20384d; font-variant-numeric: tabular-nums; }
 .external-post-metrics svg { flex-shrink: 0; }
-.external-post-time { display: grid; gap: 3px; font-size: 12px; }
+.external-post-time { display: grid; gap: 8px; font-size: 12px; }
+.external-post-time > div { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: baseline; gap: 8px; white-space: nowrap; }
 .external-post-time small { color: #718096; }
-.external-post-expanded { padding: 16px 24px; }
-.external-post-expanded h4 { font-size: 14px; margin: 20px 0 0; }
-.external-post-comment { padding: 12px 0; border-bottom: 1px solid #edf1f5; }
-.external-post-comment p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.external-post-expanded { padding: 16px 24px; max-width: calc(96vw - 64px); }
 .external-detail-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 @media (max-width: 600px) {
   .external-profile { flex-wrap: wrap; gap: 12px; }

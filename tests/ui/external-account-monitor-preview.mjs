@@ -47,8 +47,10 @@ const server = await createServer({
       } else if (id) {
         const allPosts = Array.from({length:21}, (_,i) => ({ source_key:`post-${i + 1}`, content_url:`https://x.com/example/status/${i + 1}`, updated_at:now,
           report:{text_content:`第 ${i + 1} 条模拟帖子。` + '这是用于验证长正文换行和只读详情的模拟帖子。'.repeat(14),
-            media_urls:i === 0 ? ['http://127.0.0.1:5198/favicon.svg'] : [], metrics:{like_count: i === 1 ? null : 15,comment_count:0},published_at:now,
-            comments:i === 0 ? [{author_name:'Fixture Reader',content:'只读采集评论示例',platform_comment_id:'c1'}] : []} }))
+            media_urls:i === 0 ? ['http://127.0.0.1:5198/favicon.svg'] : [], metrics:{like_count: i === 1 ? null : 15,comment_count:i === 0 ? 15 : 0},published_at:now,
+            comments:i === 0 ? Array.from({length:13},(_,j)=>({author_name:`Reader ${j + 1}`,content:j === 1 ? '这是回复第一条评论的内容。\n保留换行，清晰区分回复对象。' : `第 ${j + 1} 条评论：这是用于验证作者、正文与互动层次的示例。`,platform_comment_id:`c${j + 1}`,parent_platform_comment_id:j === 1 ? 'c1' : null,commented_at:now,like_count:j,reply_count:j === 0 ? 1 : 0,
+              platform_metadata: {author_avatar_url:'http://127.0.0.1:5198/favicon.svg',media_urls:j === 0 ? ['http://127.0.0.1:5198/favicon.svg'] : j === 1 ? ['http://127.0.0.1:5198/missing-image.jpg'] : []}
+            })) : []} }))
         const start = (Number(url.searchParams.get('page') || 1) - 1) * 20
         data = { monitor: rows.find(row => row.id === id), total: allPosts.length, posts: allPosts.slice(start, start + 20), snapshots:[{captured_at:now,metrics:{followers_count:1234,following_count:0,posts_count:78,collected_post_count:21,collected_like_count:15,collected_comment_count:1}}] }
       } else {
