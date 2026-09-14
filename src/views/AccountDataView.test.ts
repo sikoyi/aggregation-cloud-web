@@ -31,4 +31,22 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain(':data="rows"')
     expect(source).toContain('metrics_captured_at')
   })
+
+  it('总览逐行复用监听设置入口并保留查看详情，不切换到详情视图', () => {
+    const overview = source.split('<section v-if="viewMode === \'overview\'"')[1]?.split('</section>')[0] || ''
+    expect(overview).toContain('@click="openMonitor(scope.row)"')
+    expect(overview).toContain('@click="openAccountDetail(scope.row)"')
+    expect(overview).toContain('aria-label="监听设置"')
+    expect(overview).toContain('content="监听设置"')
+    expect(overview).toContain('label="操作" width="112" fixed="right"')
+    expect(overview).toContain('class="account-overview__actions"')
+
+    const openMonitor = source.split('function openMonitor(account?: AnyRecord) {')[1]?.split('\nasync function ')[0] || ''
+    expect(openMonitor).toContain('monitorTargetAccount.value = account || null')
+    expect(openMonitor).toContain('account_id: String(account?.account_id')
+    expect(openMonitor).toContain('business_platform: String(account?.business_platform')
+    expect(openMonitor).toContain('monitorVisible.value = true')
+    expect(openMonitor).not.toContain('viewMode.value =')
+    expect(openMonitor).not.toContain('http.post')
+  })
 })

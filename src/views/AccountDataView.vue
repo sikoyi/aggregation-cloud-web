@@ -792,17 +792,30 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="82" fixed="right" align="center" header-align="center">
+            <el-table-column label="操作" width="112" fixed="right" align="center" header-align="center">
               <template #default="scope">
-                <el-tooltip content="查看账号详情" placement="top">
-                  <el-button
-                    circle
-                    text
-                    type="primary"
-                    :icon="Eye"
-                    @click="openAccountDetail(scope.row)"
-                  />
-                </el-tooltip>
+                <div class="account-overview__actions">
+                  <el-tooltip content="查看账号详情" placement="top">
+                    <el-button
+                      circle
+                      text
+                      type="primary"
+                      :icon="Eye"
+                      aria-label="查看账号详情"
+                      @click="openAccountDetail(scope.row)"
+                    />
+                  </el-tooltip>
+                  <el-tooltip content="监听设置" placement="top">
+                    <el-button
+                      circle
+                      text
+                      type="primary"
+                      :icon="Activity"
+                      aria-label="监听设置"
+                      @click="openMonitor(scope.row)"
+                    />
+                  </el-tooltip>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -1403,6 +1416,8 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 .account-overview__table { width: 100%; }
+.account-overview__actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.account-overview__actions :deep(.el-button) { width: 32px; height: 32px; flex: 0 0 32px; margin-left: 0; }
 .account-overview__table :deep(.el-table__cell) { padding: 9px 0; }
 .account-overview__account {
   display: flex;
