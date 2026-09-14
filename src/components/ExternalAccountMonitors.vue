@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Activity, Eye, ExternalLink, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, UserRound } from 'lucide-vue-next'
+import { Activity, Eye, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, UserRound } from 'lucide-vue-next'
+import ExternalAccountDetail from '@/components/ExternalAccountDetail.vue'
 import { ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -42,7 +43,6 @@ const detailVisible = ref(false)
 const detail = ref<ExternalDetail | null>(null)
 const detailId = ref('')
 const detailPage = ref(1)
-const detailTab = ref('posts')
 const detailLoading = ref(false)
 const detailError = ref('')
 let sequence = 0
@@ -118,7 +118,6 @@ function openDetail(row: ExternalMonitor) {
   detailId.value = row.id
   detailPage.value = 1
   detail.value = null
-  detailTab.value = 'posts'
   detailVisible.value = true
   void loadDetail()
 }
@@ -176,34 +175,10 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       </el-form>
       <template #footer><el-button :disabled="saving" @click="formVisible = false">关闭</el-button><el-button type="primary" :loading="saving" @click="save">{{ editing ? '保存' : '添加并继续' }}</el-button></template>
     </el-dialog>
-    <el-dialog v-model="detailVisible" title="外部账号数据" width="min(1100px, 96vw)" align-center class="external-monitor-detail">
+    <el-dialog v-model="detailVisible" title="外部账号数据" width="min(1240px, 96vw)" align-center class="external-monitor-detail" destroy-on-close>
       <div v-loading="detailLoading" class="external-monitors__detail">
         <el-alert v-if="detailError" :title="detailError" type="error" :closable="false" />
-        <template v-if="detail">
-          <div class="external-monitors__profile"><el-avatar :size="52" :src="safeUrl(detail.monitor.profile.avatar_url)"><UserRound /></el-avatar><div><h3>{{ detail.monitor.profile.display_name || detail.monitor.profile_url.split('/').pop() }}</h3><el-tag effect="plain">{{ platformLabel(detail.monitor.business_platform) }}</el-tag><a :href="safeUrl(detail.monitor.profile_url)" target="_blank" rel="noopener noreferrer">账号主页 <ExternalLink :size="14" /></a></div></div>
-          <p class="external-monitors__bio">{{ detail.monitor.profile.biography || '暂无简介' }}</p>
-          <el-tabs v-model="detailTab">
-            <el-tab-pane label="采集帖子" name="posts">
-              <el-table :data="detail.posts" border stripe table-layout="fixed" empty-text="暂无已采集帖子">
-                <el-table-column type="expand"><template #default="{ row }"><div class="external-monitors__comments"><div v-for="(comment, i) in row.report.comments || []" :key="comment.platform_comment_id || i"><strong>{{ comment.author_name || '未知作者' }}</strong><p>{{ comment.content }}</p></div><el-empty v-if="!row.report.comments?.length" description="本次未采集到评论" :image-size="48" /></div></template></el-table-column>
-                <el-table-column label="帖子内容" min-width="260"><template #default="{ row }"><p class="external-monitors__post">{{ row.report.text_content || row.report.title || '无文字内容' }}</p><a v-if="safeUrl(row.content_url)" :href="safeUrl(row.content_url)" target="_blank" rel="noopener noreferrer">查看原帖 <ExternalLink :size="13" /></a><div class="external-monitors__media"><a v-for="(url, i) in row.report.media_urls || []" :key="url" :href="safeUrl(url)" target="_blank" rel="noopener noreferrer">媒体 {{ i + 1 }}</a></div></template></el-table-column>
-                <el-table-column label="点赞" width="90" align="right"><template #default="{ row }">{{ number(row.report.metrics?.like_count) }}</template></el-table-column>
-                <el-table-column label="评论" width="90" align="right"><template #default="{ row }">{{ number(row.report.metrics?.comment_count) }}</template></el-table-column>
-                <el-table-column label="发布时间" width="175"><template #default="{ row }">{{ formatDate(row.report.published_at) }}</template></el-table-column>
-              </el-table>
-              <div class="external-monitors__pagination"><el-pagination v-model:current-page="detailPage" :page-size="20" :total="detail.total" background layout="total, prev, pager, next" @current-change="loadDetail" /></div>
-            </el-tab-pane>
-            <el-tab-pane label="最近采集记录" name="snapshots">
-              <el-table :data="detail.snapshots" border stripe table-layout="fixed">
-                <el-table-column label="采集时间" min-width="175"><template #default="{ row }">{{ formatDate(row.captured_at) }}</template></el-table-column>
-                <el-table-column label="粉丝" min-width="100"><template #default="{ row }">{{ number(row.metrics.followers_count) }}</template></el-table-column>
-                <el-table-column label="本轮帖子" min-width="100"><template #default="{ row }">{{ number(row.metrics.collected_post_count) }}</template></el-table-column>
-                <el-table-column label="本轮帖子点赞合计" min-width="150"><template #default="{ row }">{{ number(row.metrics.collected_like_count) }}</template></el-table-column>
-                <el-table-column label="本轮帖子评论合计" min-width="150"><template #default="{ row }">{{ number(row.metrics.collected_comment_count) }}</template></el-table-column>
-              </el-table>
-            </el-tab-pane>
-          </el-tabs>
-        </template>
+        <ExternalAccountDetail v-if="detail" :detail="detail" :page="detailPage" @update:page="detailPage = $event; loadDetail()" />
       </div>
       <template #footer><el-button :icon="RefreshCw" :loading="detailLoading" @click="loadDetail">刷新</el-button><el-button @click="detailVisible = false">关闭</el-button></template>
     </el-dialog>
@@ -219,7 +194,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors__filters > strong { font-size: 13px; margin-bottom: 12px; }
 .external-monitors__filters :deep(.el-form-item) { margin-bottom: 12px; margin-right: 18px; }
 .external-monitors__filters :deep(.el-select), .external-monitors__filters :deep(.el-input) { width: 190px; }
-.external-monitors__identity, .external-monitors__profile { display: flex; align-items: center; gap: 10px; }
+.external-monitors__identity { display: flex; align-items: center; gap: 10px; }
 .external-monitors__identity > div { min-width: 0; }
 .external-monitors__identity strong, .external-monitors__identity a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .external-monitors__identity a { font-size: 12px; margin-top: 4px; }
@@ -227,14 +202,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors a { color: #286794; overflow-wrap: anywhere; }
 .external-monitors__pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .external-monitors__full { width: 100%; }
-.external-monitors__detail { max-height: 65vh; overflow: auto; min-height: 180px; }
-.external-monitors__profile h3 { margin: 0 0 8px; font-size: 17px; overflow-wrap: anywhere; }
-.external-monitors__profile a { margin-left: 12px; }
-.external-monitors__bio, .external-monitors__post { white-space: pre-wrap; overflow-wrap: anywhere; }
-.external-monitors__post { max-height: 140px; overflow: auto; margin: 0 0 6px; }
-.external-monitors__comments { padding: 12px 24px; max-height: 300px; overflow: auto; }
-.external-monitors__comments p { white-space: pre-wrap; overflow-wrap: anywhere; }
-.external-monitors__media { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.external-monitors__detail { max-height: 72vh; overflow-y: auto; overflow-x: hidden; min-height: 180px; padding-right: 8px; }
 @media (max-width: 600px) {
   .external-monitors { padding: 10px; }
   .external-monitors :deep(.el-table-fixed-column--left), .external-monitors :deep(.el-table-fixed-column--right) { position: static !important; }

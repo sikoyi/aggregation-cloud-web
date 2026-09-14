@@ -11,17 +11,44 @@ function setup() {
     form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true },
     formVisible: { value: true }, rows: { value: [] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: {}, busy: { value: '' },
+    detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
+    detailError: { value: '' }, detail: { value: null as unknown },
     http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockResolvedValue({ items: [], total: 0 }) },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
-  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, safeUrl, load};`)(...Object.values(state)) as {
+  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, safeUrl, load, loadDetail};`)(...Object.values(state)) as {
     save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: () => Promise<void>
+    loadDetail: () => Promise<void>
   }
   return { ...state, ...actions }
 }
 
 describe('外部账号只读监听', () => {
+  it('详情翻页使用对应页码，较早的响应不能覆盖新页', async () => {
+    const s = setup()
+    let resolveFirst!: (value: unknown) => void
+    s.http.get.mockReturnValueOnce(new Promise(resolve => { resolveFirst = resolve }))
+    const first = s.loadDetail()
+    s.detailPage.value = 2
+    const result = { monitor: { id: 'external' }, posts: [{ source_key: 'page-2' }], total: 21, snapshots: [] }
+    s.http.get.mockResolvedValueOnce(result as never)
+    await s.loadDetail()
+    resolveFirst({ posts: [{ source_key: 'stale-page-1' }] })
+    await first
+    expect(s.detail.value).toEqual(result)
+    expect(s.http.get).toHaveBeenLastCalledWith('/api/external-account-monitors/external', { page: 2, page_size: 20 })
+    expect(s.detailLoading.value).toBe(false)
+  })
+  it('详情加载失败显示错误并保留当前数据供重试', async () => {
+    const s = setup()
+    s.detail.value = { posts: [] }
+    s.http.get.mockRejectedValueOnce(new Error('加载失败'))
+    await s.loadDetail()
+    expect(s.detailError.value).toBe('加载失败')
+    expect(s.detail.value).toEqual({ posts: [] })
+    expect(s.detailLoading.value).toBe(false)
+  })
   it('独立入口，不使用账号管理或任务接口', () => {
     expect(view).toContain('<ExternalAccountMonitors v-else-if="dataKind === \'external\'" />')
     expect(source).not.toContain('/api/accounts')
