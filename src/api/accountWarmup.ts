@@ -33,6 +33,7 @@ export interface WarmupPlanPayload {
   runtime_platform: 'fingerprint_browser' | 'cloud_phone'
   provider: 'morelogin' | 'adspower' | 'vmos'
   script_id?: string | null
+  cloud_login_mode?: 'backup_package' | 'password'
   plan_type: 'full' | 'maintenance'
   target_days?: number | null
   maintenance_schedule_type?: 'daily' | 'interval_days' | 'weekdays' | null

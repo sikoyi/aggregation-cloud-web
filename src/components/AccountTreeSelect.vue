@@ -22,6 +22,7 @@ const props = defineProps<{
   monitoringOnly?: boolean
   preferenceScope?: string
   publishPool?: boolean
+  tagFilter?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -101,7 +102,7 @@ const visibleTreeData = computed(() => {
   const groups = selectedIds.size
     ? treeData.value.filter((node) => selectedIds.has(node.id))
     : treeData.value
-  return props.publishPool ? filterTreeByAccountTag(groups, selectedTagId.value) : groups
+  return props.publishPool || props.tagFilter ? filterTreeByAccountTag(groups, selectedTagId.value) : groups
 })
 
 const selectedAccountIds = computed(() => {
@@ -151,13 +152,13 @@ const emptyMessage = computed(() => {
   return ''
 })
 const treeEmptyMessage = computed(() => {
-  if (props.publishPool && selectedTagId.value && !visibleTreeData.value.length) {
+  if ((props.publishPool || props.tagFilter) && selectedTagId.value && !visibleTreeData.value.length) {
     return '当前标签及分组下暂无符合条件的账号'
   }
   if (selectedGroupNodeIds.value.length && !visibleTreeData.value.length) {
     return props.groupByDevice ? '所选设备分组暂无符合条件的账号' : '所选账号分组暂无符合条件的账号'
   }
-  return emptyMessage.value || '暂无已登录账号'
+  return emptyMessage.value || (props.associationOnly ? '暂无符合条件的账号' : '暂无已登录账号')
 })
 
 
@@ -340,8 +341,8 @@ async function loadTree() {
         ? [
             {
               id: 'group:ungrouped',
-              label: props.publishPool ? '未分组帐号' : '未分组设备账号',
-              searchText: props.publishPool ? '未分组帐号' : '未分组设备账号',
+              label: props.publishPool || props.tagFilter ? '未分组账号' : '未分组设备账号',
+              searchText: props.publishPool || props.tagFilter ? '未分组账号' : '未分组设备账号',
               accountCount: ungroupedAccounts.length,
               children: ungroupedAccounts.map(toAccountNode),
             },
@@ -564,7 +565,7 @@ watch(
         </el-popover>
       </div>
       <el-select
-        v-if="publishPool"
+        v-if="publishPool || tagFilter"
         v-model="selectedTagId"
         class="account-tree-select__tag-filter"
         placeholder="账号标签（全部）"

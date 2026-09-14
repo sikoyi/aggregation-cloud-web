@@ -133,6 +133,7 @@ function initialForm(): WarmupPlanPayload {
     runtime_platform: 'fingerprint_browser',
     provider: 'morelogin',
     script_id: null,
+    cloud_login_mode: 'backup_package',
     plan_type: 'full',
     target_days: 5,
     maintenance_schedule_type: null,
@@ -170,6 +171,8 @@ const selectorFilters = computed(() => ({
   runtime_platform: form.runtime_platform,
   provider: form.provider,
 }))
+const cloudAccountFilters = computed(() => ({ business_platform: form.business_platform }))
+const cloudSlotFilters = computed(() => ({ runtime_platform: 'cloud_phone', provider: 'vmos' }))
 
 function optionLabel(options: { label: string; value: string }[], value: string) {
   return options.find((item) => item.value === value)?.label || value || '-'
@@ -237,6 +240,8 @@ function openEdit(tableRow: unknown) {
   suspendFormWatch.value = true
   editingPlan.value = row
   Object.assign(form, JSON.parse(JSON.stringify(row)))
+  form.cloud_login_mode = row.cloud_login_mode || 'backup_package'
+  if (form.runtime_platform === 'cloud_phone') form.target_mode = 'fixed'
   form.behavior_rules = {
     ...initialForm().behavior_rules,
     ...form.behavior_rules,
@@ -252,6 +257,11 @@ function openEdit(tableRow: unknown) {
 function normalizedPayload(): WarmupPlanPayload {
   const payload = JSON.parse(JSON.stringify(form)) as WarmupPlanPayload
   payload.script_id = null
+  if (payload.runtime_platform === 'cloud_phone') {
+    payload.target_mode = 'fixed'
+    payload.target_rules.account_tag_ids = []
+    payload.target_rules.slot_group_ids = []
+  }
   if (payload.plan_type === 'full') {
     payload.maintenance_schedule_type = null
     payload.maintenance_interval_days = null
@@ -284,6 +294,10 @@ function normalizedPayload(): WarmupPlanPayload {
 
 function validateForm() {
   if (!form.name.trim()) return '请填写计划名称'
+  if (form.runtime_platform === 'cloud_phone') {
+    if (!form.target_rules.slot_ids.length) return '请选择云手机设备池'
+    if (!form.target_rules.account_ids.length) return '请选择目标账号'
+  }
   if (form.plan_type === 'full' && !form.target_days) return '请填写养号天数'
   if (form.plan_type === 'maintenance' && !form.maintenance_schedule_type) return '请选择维护周期'
   if (form.target_mode === 'fixed') {
@@ -459,6 +473,7 @@ async function operateMember(tableRow: unknown, action: string) {
 watch(() => form.runtime_platform, (value) => {
   if (suspendFormWatch.value) return
   form.provider = value === 'cloud_phone' ? 'vmos' : 'morelogin'
+  if (value === 'cloud_phone') form.target_mode = 'fixed'
   form.script_id = null
   form.target_rules.account_ids = []
   form.target_rules.slot_ids = []
@@ -556,7 +571,7 @@ onMounted(() => {
       <div class="pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" layout="total, sizes, prev, pager, next" @change="loadRows" /></div>
     </el-card>
 
-    <el-dialog v-model="editorVisible" :title="editingPlan ? '编辑养号计划' : '新建养号计划'" width="1040px" destroy-on-close>
+    <el-dialog v-model="editorVisible" :title="editingPlan ? '编辑养号计划' : '新建养号计划'" width="min(1180px, 96vw)" destroy-on-close>
       <el-tabs v-model="editorTab" class="editor-tabs">
         <el-tab-pane label="基础规则" name="basic">
           <el-form label-position="top" class="form-grid">
@@ -565,6 +580,7 @@ onMounted(() => {
             <el-form-item label="业务 App" required><el-select v-model="form.business_platform"><el-option v-for="item in platformOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
             <el-form-item label="执行平台" required><el-select v-model="form.runtime_platform"><el-option v-for="item in runtimeOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
             <el-form-item label="供应商" required><el-select v-model="form.provider"><el-option v-for="item in providerOptions" :key="item.value" v-bind="item" /></el-select></el-form-item>
+            <el-form-item v-if="form.runtime_platform === 'cloud_phone'" label="上号方式（整个计划）" required><el-radio-group v-model="form.cloud_login_mode"><el-radio-button value="backup_package">备份包恢复</el-radio-button><el-radio-button value="password">账号密码登录</el-radio-button></el-radio-group></el-form-item>
             <el-form-item v-if="form.plan_type === 'full'" label="目标养号天数" required><el-input-number v-model="form.target_days" :min="1" :max="365" :disabled="Boolean(editingPlan && editingPlan.status !== 'draft')" /><div v-if="editingPlan && editingPlan.status !== 'draft'" class="field-help">计划开始执行后不可修改</div></el-form-item>
             <el-form-item v-else label="维护周期" required><el-select v-model="form.maintenance_schedule_type"><el-option label="每天" value="daily" /><el-option label="间隔天数" value="interval_days" /><el-option label="按星期" value="weekdays" /></el-select></el-form-item>
             <el-form-item v-if="form.plan_type === 'maintenance' && form.maintenance_schedule_type === 'interval_days'" label="间隔天数" required><el-input-number v-model="form.maintenance_interval_days" :min="1" :max="365" /></el-form-item>
@@ -585,16 +601,22 @@ onMounted(() => {
         </el-tab-pane>
 
         <el-tab-pane label="目标范围" name="target">
+          <div v-if="form.runtime_platform === 'cloud_phone'" class="cloud-target-picker">
+            <section class="cloud-target-column"><h3>设备池 <span>{{ form.target_rules.slot_ids.length }} 台</span></h3><SlotTreeSelect v-model="form.target_rules.slot_ids" :filters="cloudSlotFilters" account-presence="all" fill-height /></section>
+            <section class="cloud-target-column"><h3>目标账号 <span>{{ form.target_rules.account_ids.length }} 个</span></h3><AccountTreeSelect v-model="form.target_rules.account_ids" :filters="cloudAccountFilters" multiple association-only tag-filter preference-scope="selector:cloud-warmup-accounts" /></section>
+          </div>
+          <template v-else>
           <div class="target-mode"><el-segmented v-model="form.target_mode" :options="[{ label: '固定目标', value: 'fixed' }, { label: '账号标签', value: 'account_tags' }, { label: '设备分组', value: 'slot_groups' }, { label: '标签与分组交集', value: 'dynamic_intersection' }]" /></div>
           <div v-if="form.target_mode === 'fixed'" class="target-picker">
-            <el-segmented v-if="form.runtime_platform === 'fingerprint_browser'" v-model="fixedSource" :options="[{ label: '按账号选择', value: 'account' }, { label: '按设备选择', value: 'slot' }]" />
-            <div v-if="fixedSource === 'account' || form.runtime_platform === 'cloud_phone'" class="selector-panel"><h3>目标账号</h3><AccountTreeSelect v-model="form.target_rules.account_ids" :filters="selectorFilters" multiple association-only /></div>
-            <div v-if="fixedSource === 'slot' || form.runtime_platform === 'cloud_phone'" class="selector-panel"><h3>{{ form.runtime_platform === 'cloud_phone' ? '允许使用的设备池（可选）' : '目标设备' }}</h3><SlotTreeSelect v-model="form.target_rules.slot_ids" :filters="selectorFilters" :account-presence="form.runtime_platform === 'fingerprint_browser' ? 'bound' : 'all'" :warmup-business-platform="form.runtime_platform === 'fingerprint_browser' ? form.business_platform : undefined" /></div>
+            <el-segmented v-model="fixedSource" :options="[{ label: '按账号选择', value: 'account' }, { label: '按设备选择', value: 'slot' }]" />
+            <div v-if="fixedSource === 'account'" class="selector-panel"><h3>目标账号</h3><AccountTreeSelect v-model="form.target_rules.account_ids" :filters="selectorFilters" multiple association-only /></div>
+            <div v-if="fixedSource === 'slot'" class="selector-panel"><h3>目标设备</h3><SlotTreeSelect v-model="form.target_rules.slot_ids" :filters="selectorFilters" account-presence="bound" :warmup-business-platform="form.business_platform" /></div>
           </div>
           <div v-else class="form-grid target-selects">
             <el-form-item v-if="['account_tags', 'dynamic_intersection'].includes(form.target_mode)" label="账号标签" required><el-select v-model="form.target_rules.account_tag_ids" multiple filterable collapse-tags><el-option v-for="item in accountTags" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></el-form-item>
             <el-form-item v-if="['slot_groups', 'dynamic_intersection'].includes(form.target_mode)" label="设备分组" required><el-select v-model="form.target_rules.slot_group_ids" multiple filterable collapse-tags><el-option v-for="item in slotGroups" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></el-form-item>
           </div>
+          </template>
         </el-tab-pane>
 
         <el-tab-pane label="行为规则" name="behavior">
@@ -681,6 +703,17 @@ h1 { font-size: 20px; color: #17233d; }
 .span-2 { grid-column: span 2; }.time-range, .inline-range { gap: 10px; }.switches { display: flex; flex-direction: column; gap: 8px; }
 .switch-field { display: flex; align-items: center; gap: 10px; min-height: 32px; color: #334155; }
 .target-mode { margin-bottom: 16px; }.target-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.cloud-target-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.cloud-target-column { min-width: 0; display: flex; flex-direction: column; }
+.cloud-target-column h3 { display: flex; justify-content: space-between; font-size: 14px; margin: 0 0 12px; }
+.cloud-target-column h3 span { font-weight: 400; color: var(--el-text-color-secondary); }
+.cloud-target-column :deep(.account-tree-select) { max-height: none; overflow: hidden; }
+.cloud-target-column :deep(.slot-tree-select) { height: 490px; min-height: 0; }
+@media (max-width: 760px) {
+  .cloud-target-picker, .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .span-2 { grid-column: auto; }
+  .time-range :deep(.el-date-editor) { min-width: 0; width: 100%; }
+}
 .selector-panel { border: 1px solid #dce5ef; border-radius: 6px; padding: 14px; }.selector-panel h3 { font-size: 14px; margin-bottom: 10px; }
 .selector-panel :deep(.account-tree-select) { max-height: none; overflow: hidden; }
 .target-selects { padding-top: 10px; }.behavior-list { display: grid; gap: 12px; }
