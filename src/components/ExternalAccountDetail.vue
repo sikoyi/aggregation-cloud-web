@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { ExternalLink, Heart, MessageCircle, UserRound } from 'lucide-vue-next'
 import ContentPreview from '@/components/ContentPreview.vue'
 import ExternalPostComments from '@/components/ExternalPostComments.vue'
+import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatDate } from '@/utils/format'
 import type { AnyRecord } from '@/types/api'
 
@@ -60,7 +61,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
       <el-link v-if="safeUrl(detail.monitor.profile_url)" class="external-detail-link" :href="safeUrl(detail.monitor.profile_url)" target="_blank" rel="noopener noreferrer" type="primary" :icon="ExternalLink">打开主页</el-link>
     </header>
     <div class="external-profile__metrics">
-      <div v-for="metric in metrics" :key="metric.label"><small>{{ metric.label }}</small><strong>{{ count(metric.value) }}</strong></div>
+      <div v-for="metric in metrics" :key="metric.label"><small>{{ metric.label }}</small><strong><CompactFollowerCount v-if="metric.label === '粉丝'" :key="detail.monitor.id" :value="metric.value" /><template v-else>{{ count(metric.value) }}</template></strong></div>
     </div>
     <div class="external-profile__metadata">
       <span>最近成功 <strong>{{ formatDate(detail.monitor.last_success_at) }}</strong></span>
@@ -98,7 +99,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
       <el-tab-pane label="最近采集记录" name="snapshots">
         <el-table :data="detail.snapshots" border stripe table-layout="fixed" empty-text="暂无采集记录">
           <el-table-column label="采集时间" width="180"><template #default="{ row }">{{ formatDate(row.captured_at) }}</template></el-table-column>
-          <el-table-column label="粉丝" min-width="100" align="right"><template #default="{ row }">{{ count(row.metrics?.followers_count) }}</template></el-table-column>
+          <el-table-column label="粉丝" min-width="100" align="right"><template #default="{ row }"><CompactFollowerCount :key="row.captured_at" :value="row.metrics?.followers_count" /></template></el-table-column>
           <el-table-column label="关注" min-width="100" align="right"><template #default="{ row }">{{ count(row.metrics?.following_count) }}</template></el-table-column>
           <el-table-column label="账号帖子数" min-width="110" align="right"><template #default="{ row }">{{ count(row.metrics?.posts_count) }}</template></el-table-column>
           <el-table-column label="本轮采集帖子" min-width="125" align="right"><template #default="{ row }">{{ count(row.metrics?.collected_post_count) }}</template></el-table-column>

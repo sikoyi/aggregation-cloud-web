@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Activity, Eye, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, UserRound } from 'lucide-vue-next'
 import ExternalAccountDetail from '@/components/ExternalAccountDetail.vue'
+import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -149,7 +150,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
     <el-table v-loading="loading" :data="rows" stripe border table-layout="fixed" empty-text="暂无外部账号">
       <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="36" :src="safeUrl(row.profile.avatar_url)"><UserRound :size="18" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
-      <el-table-column label="粉丝" width="110" align="right"><template #default="{ row }">{{ number(row.profile.followers_count) }}</template></el-table-column>
+      <el-table-column label="粉丝" width="110" align="right"><template #default="{ row }"><CompactFollowerCount :key="row.id" :value="row.profile.followers_count" /></template></el-table-column>
       <el-table-column label="关注" width="100" align="right"><template #default="{ row }">{{ number(row.profile.following_count) }}</template></el-table-column>
       <el-table-column label="帖子" width="100" align="right"><template #default="{ row }">{{ number(row.profile.posts_count) }}</template></el-table-column>
       <el-table-column label="监听状态" width="125" align="center"><template #default="{ row }"><el-tag :type="row.status === 'active' ? 'success' : row.status === 'retrying' ? 'warning' : 'info'">{{ labels[row.status] || row.status }}</el-tag></template></el-table-column>
