@@ -1095,6 +1095,7 @@ onBeforeUnmount(() => {
       v-model="monitorVisible"
       :title="monitorDialogTitle"
       width="min(92vw, 860px)"
+      align-center
       destroy-on-close
       :close-on-click-modal="false"
       :close-on-press-escape="!submitting"
@@ -1765,7 +1766,8 @@ onBeforeUnmount(() => {
 .monitor-dialog-grid--locked { grid-template-columns: minmax(0, 1fr); }
 .monitor-dialog-account,
 .monitor-dialog-form { min-width: 0; padding: 12px; border: 1px solid #dbe4ed; border-radius: 6px; background: #f8fafc; }
-.monitor-dialog-account { max-height: 510px; overflow: auto; }
+.monitor-dialog-account { align-self: start; }
+.monitor-dialog-account :deep(.account-tree-select) { max-height: none; overflow: visible; }
 .monitor-type-switch { margin-bottom: 14px; }
 .monitor-type-switch :deep(.el-segmented) { min-height: 36px; }
 .dialog-section-title { margin-bottom: 12px; color: #26384a; font-size: 14px; font-weight: 700; }

@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
+    expect(source).toContain('width="min(92vw, 860px)"\n      align-center')
+    expect(source).toContain('.monitor-dialog-account { align-self: start; }')
+    expect(source).toContain('.monitor-dialog-account :deep(.account-tree-select) { max-height: none; overflow: visible; }')
+    expect(source).not.toContain('.monitor-dialog-account { max-height: 510px; overflow: auto; }')
+  })
   it('默认按账号展示总览并保留详情钻取', () => {
     expect(source).toContain("const viewMode = ref<'overview' | 'detail'>('overview')")
     expect(source).toContain("<section v-if=\"viewMode === 'overview'\" class=\"account-overview\">")
