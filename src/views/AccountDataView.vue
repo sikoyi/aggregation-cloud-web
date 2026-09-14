@@ -89,6 +89,9 @@ const overviewMetricColumns = [
 const auth = useAuthStore()
 const dataKind = ref(useRoute().query.view === 'shopify' ? 'shopify' : 'social')
 const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
+const monitorBusinessPlatformOptions = computed(() => availableBusinessPlatformOptions.value.filter(
+  (option) => ['threads', 'x', 'facebook'].includes(String(option.value)),
+))
 const loading = ref(false)
 const submitting = ref(false)
 const disablingAccountId = ref('')
@@ -158,6 +161,7 @@ const benchmarkForm = reactive({
 })
 let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
+const accountProfileLoading = ref(false)
 
 const activeFilterCount = computed(() => Object.values(filters).filter(Boolean).length)
 const hasFilters = computed(() => activeFilterCount.value > 0)
@@ -326,12 +330,15 @@ function handleSizeChange(size: number) {
 }
 
 function openMonitor(account?: AnyRecord) {
+  resetMonitorAccount()
   monitorFeature.value = 'account_data'
   monitorAccountLocked.value = Boolean(account)
   monitorTargetAccount.value = account || null
   const aiConfig = (account?.comment_reply_ai_config || {}) as AnyRecord
   Object.assign(monitorForm, {
-    business_platform: String(account?.business_platform || 'threads'),
+    business_platform: String(account?.business_platform || monitorBusinessPlatformOptions.value.find(
+      (option) => option.value === filters.business_platform,
+    )?.value || monitorBusinessPlatformOptions.value[0]?.value || ''),
     account_id: String(account?.account_id || ''),
     profile_url: String(account?.profile_url || ''),
     monitor_mode: String(account?.monitor_mode || 'system'),
@@ -350,7 +357,24 @@ function openMonitor(account?: AnyRecord) {
   monitorVisible.value = true
 }
 
+function resetMonitorAccount() {
+  accountProfileRequest += 1
+  accountProfileLoading.value = false
+  monitorForm.account_id = ''
+  monitorForm.profile_url = ''
+  benchmarkForm.source_profile_url = ''
+}
+
+function finishMonitorSave() {
+  if (monitorAccountLocked.value) {
+    monitorVisible.value = false
+  } else {
+    resetMonitorAccount()
+  }
+}
+
 async function saveBenchmarkTracker() {
+  if (submitting.value || accountProfileLoading.value) return
   const accountId = String(monitorForm.account_id || '')
   if (!accountId) {
     ElNotification.warning({ title: '请选择账号', message: '请选择需要执行对标跟踪的系统账号' })
@@ -369,7 +393,7 @@ async function saveBenchmarkTracker() {
       monitor_mode: benchmarkForm.monitor_mode,
       interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
     })
-    monitorVisible.value = false
+    finishMonitorSave()
     ElNotification.success({
       title: '对标跟踪已开启',
       message: '正在同步对标账号资料并建立帖子基线，历史帖子不会补发。',
@@ -430,6 +454,7 @@ function submitMonitorForm() {
 }
 
 async function saveMonitor() {
+  if (submitting.value || accountProfileLoading.value) return
   if (!monitorForm.account_id) {
     ElNotification.warning({ title: '请选择账号', message: '请选择需要开启监听的账号' })
     return
@@ -458,7 +483,7 @@ async function saveMonitor() {
         max_length: monitorForm.ai_max_length,
       },
     })
-    monitorVisible.value = false
+    finishMonitorSave()
     ElNotification.success({
       title: '账号监听已开启',
       message: `首次同步已经启动，执行记录 ID：${String((data.monitor_run as AnyRecord | undefined)?.id || '-')}`,
@@ -540,20 +565,33 @@ watch(() => monitorForm.business_platform, (platform) => {
   if (platform !== 'threads') monitorFeature.value = 'account_data'
 })
 
+watch(monitorVisible, (visible) => {
+  if (!visible) {
+    accountProfileRequest += 1
+    accountProfileLoading.value = false
+  }
+})
+
 watch(
   () => monitorForm.account_id,
   async (accountId, previousAccountId) => {
-    if (monitorAccountLocked.value || !monitorVisible.value || !accountId || accountId === previousAccountId) return
-    monitorForm.profile_url = ''
+    if (monitorAccountLocked.value || !monitorVisible.value || accountId === previousAccountId) return
     const requestId = ++accountProfileRequest
+    monitorForm.profile_url = ''
+    accountProfileLoading.value = false
+    if (!accountId) return
+    const platform = monitorForm.business_platform
+    accountProfileLoading.value = true
     try {
       const account = await http.get<AnyRecord>(`/api/accounts/${encodeURIComponent(accountId)}`)
-      if (requestId === accountProfileRequest && monitorForm.account_id === accountId) {
+      if (requestId === accountProfileRequest && monitorVisible.value && monitorForm.account_id === accountId
+        && monitorForm.business_platform === platform) {
         monitorForm.profile_url = String(account.profile_url || '')
-        monitorForm.business_platform = String(account.business_platform || monitorForm.business_platform)
       }
     } catch (err) {
-      notifyError(err, '账号读取失败', '无法读取账号主页信息')
+      if (requestId === accountProfileRequest) notifyError(err, '账号读取失败', '无法读取账号主页信息')
+    } finally {
+      if (requestId === accountProfileRequest) accountProfileLoading.value = false
     }
   },
 )
@@ -1059,6 +1097,8 @@ onBeforeUnmount(() => {
       width="min(92vw, 860px)"
       destroy-on-close
       :close-on-click-modal="false"
+      :close-on-press-escape="!submitting"
+      :show-close="!submitting"
     >
       <div class="monitor-dialog-grid" :class="{ 'monitor-dialog-grid--locked': monitorAccountLocked }">
         <div v-if="!monitorAccountLocked" class="monitor-dialog-account">
@@ -1067,10 +1107,16 @@ onBeforeUnmount(() => {
             v-model="monitorForm.account_id"
             :filters="monitorAccountFilters"
             :multiple="false"
+            :disabled="submitting"
             association-only
           />
         </div>
-        <el-form label-position="top" class="monitor-dialog-form">
+        <el-form label-position="top" class="monitor-dialog-form" :disabled="submitting">
+          <el-form-item v-if="!monitorAccountLocked" label="业务 App">
+            <el-select v-model="monitorForm.business_platform" class="w-full" @change="resetMonitorAccount">
+              <el-option v-for="option in monitorBusinessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+            </el-select>
+          </el-form-item>
           <div class="monitor-type-switch">
             <el-segmented
               v-model="monitorFeature"
@@ -1091,14 +1137,10 @@ onBeforeUnmount(() => {
           </div>
           <template v-if="monitorFeature === 'account_data'">
             <div class="dialog-section-title">账号数据监听</div>
-            <el-form-item v-if="!monitorAccountLocked" label="业务 App">
-              <el-select v-model="monitorForm.business_platform" disabled class="w-full">
-                <el-option v-for="option in availableBusinessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
-              </el-select>
-            </el-form-item>
             <el-form-item label="账号主页链接" required>
               <el-input
                 v-model="monitorForm.profile_url"
+                :disabled="accountProfileLoading"
                 :placeholder="monitorForm.business_platform === 'facebook' ? '例如：https://www.facebook.com/username' : monitorForm.business_platform === 'x' ? '例如：https://x.com/username' : '例如：https://www.threads.com/@username'"
               />
             </el-form-item>
@@ -1259,8 +1301,8 @@ onBeforeUnmount(() => {
             >立即采集</el-button>
           </template>
           <div class="monitor-dialog-footer__actions">
-            <el-button @click="monitorVisible = false">取消</el-button>
-            <el-button type="primary" :icon="Play" :loading="submitting" @click="submitMonitorForm">{{ monitorSubmitLabel }}</el-button>
+            <el-button :disabled="submitting" @click="monitorVisible = false">关闭</el-button>
+            <el-button type="primary" :icon="Play" :loading="submitting" :disabled="accountProfileLoading || !monitorForm.account_id" @click="submitMonitorForm">{{ monitorSubmitLabel }}</el-button>
           </div>
         </div>
       </template>
