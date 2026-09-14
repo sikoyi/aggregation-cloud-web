@@ -84,6 +84,7 @@ const businessPlatformOptions = [
   { label: 'Threads', value: 'threads' },
   { label: 'X(Twitter)', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
+  { label: 'Facebook', value: 'facebook' },
 ]
 const loading = ref(false)
 const usageLoading = ref(false)

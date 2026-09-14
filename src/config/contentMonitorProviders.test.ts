@@ -8,6 +8,12 @@ import {
 } from './contentMonitorProviders'
 
 describe('content monitor providers', () => {
+  it('offers only Apify for Facebook until an internal adapter exists', () => {
+    expect(providerOptionsForPlatform('facebook')).toEqual([{ label: 'Apify', value: 'apify' }])
+    expect(normalizeMonitorProvider('facebook', 'threads_protocol')).toBe('apify')
+    expect(normalizeMonitorProvider('facebook', 'x_protocol')).toBe('apify')
+    expect(defaultMonitorProviderForPlatform('facebook')).toBe('apify')
+  })
   it('offers the X internal service first while keeping Apify available', () => {
     expect(providerOptionsForPlatform('x')).toEqual([
       { label: 'X 内部接口', value: 'x_protocol' },

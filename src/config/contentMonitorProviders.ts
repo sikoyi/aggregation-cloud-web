@@ -1,4 +1,4 @@
-export type MonitorBusinessPlatform = 'threads' | 'x' | 'instagram'
+export type MonitorBusinessPlatform = 'threads' | 'x' | 'instagram' | 'facebook'
 export type MonitorProvider = 'apify' | 'threads_protocol' | 'x_protocol'
 
 export interface MonitorProviderOption {

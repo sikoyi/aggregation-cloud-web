@@ -536,6 +536,10 @@ function handleRealtimeEvent(event: Event) {
   realtimeRefreshTimer = window.setTimeout(loadRows, 500)
 }
 
+watch(() => monitorForm.business_platform, (platform) => {
+  if (platform !== 'threads') monitorFeature.value = 'account_data'
+})
+
 watch(
   () => monitorForm.account_id,
   async (accountId, previousAccountId) => {
@@ -1082,7 +1086,7 @@ onBeforeUnmount(() => {
             <el-form-item label="账号主页链接" required>
               <el-input
                 v-model="monitorForm.profile_url"
-                :placeholder="monitorForm.business_platform === 'x' ? '例如：https://x.com/username' : '例如：https://www.threads.com/@username'"
+                :placeholder="monitorForm.business_platform === 'facebook' ? '例如：https://www.facebook.com/username' : monitorForm.business_platform === 'x' ? '例如：https://x.com/username' : '例如：https://www.threads.com/@username'"
               />
             </el-form-item>
             <div class="monitor-form-row">
