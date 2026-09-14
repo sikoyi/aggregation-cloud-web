@@ -98,6 +98,7 @@ const platformOptions = [
   { label: 'Threads', value: 'threads' },
   { label: 'X(Twitter)', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
+  { label: 'Facebook', value: 'facebook' },
 ]
 const runtimeOptions = [
   { label: '指纹浏览器', value: 'fingerprint_browser' },

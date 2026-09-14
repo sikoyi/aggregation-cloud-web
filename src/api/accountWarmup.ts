@@ -29,7 +29,7 @@ export interface WarmupBehaviorRules {
 
 export interface WarmupPlanPayload {
   name: string
-  business_platform: 'threads' | 'x' | 'instagram'
+  business_platform: 'threads' | 'x' | 'instagram' | 'facebook'
   runtime_platform: 'fingerprint_browser' | 'cloud_phone'
   provider: 'morelogin' | 'adspower' | 'vmos'
   script_id?: string | null

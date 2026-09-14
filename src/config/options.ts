@@ -4,6 +4,7 @@ export const businessPlatformOptions: SelectOption[] = [
   { label: 'Threads', value: 'threads' },
   { label: 'X(Twitter)', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
+  { label: 'Facebook', value: 'facebook' },
   { label: 'Shopify', value: 'shopify' },
 ]
 
