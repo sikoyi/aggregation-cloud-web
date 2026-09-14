@@ -55,6 +55,7 @@ import {
   isDataScopedFieldKey,
 } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
+import { managementFilters } from '@/config/managementFilters'
 import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
@@ -1763,7 +1764,7 @@ onBeforeUnmount(() => {
       <el-form inline label-position="right" label-suffix=":" class="compact-filter-form">
         <div class="filter-grid">
           <el-form-item
-            v-for="filter in config.filters"
+            v-for="filter in managementFilters(config)"
             :key="filter.key"
             :label="filter.label"
             :class="{ 'filter-grid__item--wide': filter.type === 'datetimeRange' }"
