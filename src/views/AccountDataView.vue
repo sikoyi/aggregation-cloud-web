@@ -155,6 +155,7 @@ const monitorForm = reactive({
   ai_max_length: 120,
 })
 const benchmarkForm = reactive({
+  profile_sync_fields: [] as string[],
   source_profile_url: '',
   monitor_mode: 'system',
   interval_minutes: 60,
@@ -350,6 +351,9 @@ function openMonitor(account?: AnyRecord) {
     ai_max_length: Number(aiConfig.max_length || 120),
   })
   Object.assign(benchmarkForm, {
+    profile_sync_fields: Array.isArray(account?.benchmark_profile_sync_fields)
+      ? [...account.benchmark_profile_sync_fields]
+      : account?.benchmark_tracker_id ? ['display_name', 'biography', 'avatar_url'] : [],
     source_profile_url: String(account?.benchmark_source_profile_url || ''),
     monitor_mode: String(account?.benchmark_monitor_mode || 'system'),
     interval_minutes: Number(account?.benchmark_interval_minutes || 60),
@@ -390,6 +394,7 @@ async function saveBenchmarkTracker() {
       target_account_id: accountId,
       business_platform: monitorForm.business_platform,
       source_profile_url: benchmarkForm.source_profile_url.trim(),
+      profile_sync_fields: [...benchmarkForm.profile_sync_fields],
       monitor_mode: benchmarkForm.monitor_mode,
       interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
     })
@@ -1216,6 +1221,13 @@ onBeforeUnmount(() => {
           </template>
           <template v-else>
             <div class="dialog-section-title">对标账号跟踪</div>
+            <el-form-item label="同步个人资料">
+              <el-checkbox-group v-model="benchmarkForm.profile_sync_fields">
+                <el-checkbox value="display_name">昵称</el-checkbox>
+                <el-checkbox value="biography">简介</el-checkbox>
+                <el-checkbox value="avatar_url">头像</el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
             <div v-if="monitorTargetAccount?.benchmark_tracker_id" class="benchmark-source">
               <el-avatar
                 :size="42"
@@ -1258,7 +1270,7 @@ onBeforeUnmount(() => {
               </el-form-item>
             </div>
             <el-alert
-              title="首次采集会立即同步头像、显示名称和简介，并以当前帖子建立基线；历史帖子不会补发。后续只复刻新增帖子，确认源帖删除后同步删除映射帖子。"
+              title="仅同步勾选的个人资料，全部不选时只跟踪帖子。首次采集建立帖子基线，历史帖子不补发；后续复刻新增帖子，确认源帖删除后同步删除映射帖子。"
               type="info"
               :closable="false"
               show-icon

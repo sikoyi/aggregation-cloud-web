@@ -23,7 +23,7 @@ function setup(locked = false) {
       monitor_mode: 'custom', interval_minutes: 120, comment_reply_mode: 'disabled',
       ai_provider: 'gemini', ai_language: 'auto', ai_tone: 'natural', ai_max_length: 120,
     },
-    benchmarkForm: { source_profile_url: 'https://www.threads.com/@source', monitor_mode: 'custom', interval_minutes: 90 },
+    benchmarkForm: { source_profile_url: 'https://www.threads.com/@source', monitor_mode: 'custom', interval_minutes: 90, profile_sync_fields: ['display_name'] },
     http: { post: vi.fn().mockResolvedValue({ monitor_run: { id: '456' } }), get: vi.fn() },
     ElNotification: { warning: vi.fn(), success: vi.fn() },
     notifyError: vi.fn(),
@@ -94,10 +94,38 @@ describe('监听窗口连续设置', () => {
     const s = setup()
     s.monitorForm.business_platform = 'threads'
     await s.saveBenchmarkTracker()
+    expect(s.http.post).toHaveBeenCalledWith('/api/benchmark-trackers', expect.objectContaining({ profile_sync_fields: ['display_name'] }))
     expect(s.monitorVisible.value).toBe(true)
     expect(s.monitorForm.account_id).toBe('')
     expect(s.benchmarkForm.source_profile_url).toBe('')
     expect(s.benchmarkForm.interval_minutes).toBe(90)
+    expect(s.benchmarkForm.profile_sync_fields).toEqual(['display_name'])
+  })
+
+  it('三项资料独立可选，全部关闭也能保存对标规则', async () => {
+    expect(source).toContain('v-model="benchmarkForm.profile_sync_fields"')
+    for (const field of ['display_name', 'biography', 'avatar_url']) {
+      expect(source).toContain(`<el-checkbox value="${field}">`)
+    }
+    expect(source).toContain('profile_sync_fields: [] as string[]')
+    expect(source).toContain('[...account.benchmark_profile_sync_fields]')
+    const s = setup()
+    s.monitorForm.business_platform = 'threads'
+    s.benchmarkForm.profile_sync_fields = []
+    await s.saveBenchmarkTracker()
+    expect(s.http.post).toHaveBeenCalledWith('/api/benchmark-trackers', expect.objectContaining({ profile_sync_fields: [] }))
+    expect(s.monitorVisible.value).toBe(true)
+  })
+
+  it('对标保存失败保留三个字段的选择', async () => {
+    const s = setup()
+    s.monitorForm.business_platform = 'threads'
+    s.benchmarkForm.profile_sync_fields = ['biography', 'avatar_url']
+    s.http.post.mockRejectedValueOnce(new Error('资料同步任务仍在运行'))
+    await s.saveBenchmarkTracker()
+    expect(s.benchmarkForm.profile_sync_fields).toEqual(['biography', 'avatar_url'])
+    expect(s.monitorForm.account_id).toBe('123')
+    expect(s.notifyError).toHaveBeenCalledOnce()
   })
 
   it('平台选项受用户范围与监听能力限制，切换后清除旧账号', () => {
