@@ -11,13 +11,14 @@ import {
   resetUserPassword,
   updateUser,
   updateUserStatus,
+  updateUserCredentialRevealGrant,
   type Role,
   type SystemUser,
 } from '@/api/rbac'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
-import { canResetUserPassword } from '@/utils/permissions'
+import { canManageAccountCredentialGrants, canResetUserPassword } from '@/utils/permissions'
 
 const auth = useAuthStore()
 const loading = ref(false)
@@ -28,6 +29,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const filters = reactive({ keyword: '', status: '', role_id: '' })
+const grantChangingId = ref('')
 
 const editorVisible = ref(false)
 const editorMode = ref<'create' | 'edit'>('create')
@@ -221,6 +223,34 @@ function openPasswordReset(user: SystemUser) {
   passwordVisible.value = true
 }
 
+async function toggleCredentialGrant(user: SystemUser) {
+  if (!canManageAccountCredentialGrants(auth.user) || grantChangingId.value || user.is_system_admin !== false) return false
+  const allowed = user.account_credential_reveal_allowed !== true
+  if (allowed && (user.status !== 'active' || !user.roles.includes('super_admin'))) return false
+  grantChangingId.value = user.id
+  try {
+    await ElMessageBox.confirm(
+      allowed
+        ? `授权 ${user.username} 查看账号密码和 2FA 密钥？每次查看仍需安全验证，授权后该用户需重新登录。`
+        : `撤销 ${user.username} 的账号凭据查看授权？该用户的现有登录会话将失效。`,
+      allowed ? '授权查看账号凭据' : '撤销查看授权',
+      { type: 'warning', confirmButtonText: allowed ? '授权' : '撤销' },
+    )
+    if (!canManageAccountCredentialGrants(auth.user)) return false
+    const updated = await updateUserCredentialRevealGrant(user.id, { allowed, version: user.version })
+    users.value = users.value.map(item => item.id === updated.id ? updated : item)
+    ElMessage.success('查看授权已更新，用户需要重新登录')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      notifyError(error, '查看授权更新失败')
+      await loadUsers()
+    }
+  } finally {
+    grantChangingId.value = ''
+  }
+  return false
+}
+
 async function submitPasswordReset() {
   const user = passwordUser.value
   if (!user || !canResetUserPassword(auth.user, user) || submitting.value) return
@@ -321,6 +351,20 @@ onMounted(async () => {
             <el-tag :type="row.status === 'active' ? 'success' : 'info'" effect="light">
               {{ row.status === 'active' ? '启用' : '禁用' }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="账号凭据查看" width="150" align="center">
+          <template #default="{ row }">
+            <span v-if="row.is_system_admin === true">内置权限</span>
+            <el-switch
+              v-else-if="canManageAccountCredentialGrants(auth.user) && row.is_system_admin === false && (row.roles.includes('super_admin') || row.account_credential_reveal_allowed === true)"
+              :model-value="row.account_credential_reveal_allowed === true"
+              :disabled="Boolean(grantChangingId) || (row.status !== 'active' && row.account_credential_reveal_allowed !== true)"
+              :loading="grantChangingId === row.id"
+              :before-change="() => toggleCredentialGrant(asSystemUser(row))"
+              :aria-label="`${row.username} 的账号凭据查看授权`" active-text="已授权" inactive-text="未授权" inline-prompt
+            />
+            <span v-else>{{ row.status === 'active' && row.roles.includes('super_admin') && row.account_credential_reveal_allowed === true ? '已授权' : '未授权' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="最后登录" min-width="170" align="center">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { canRequestAccountCredentials, canResetUserPassword, hasPermission, isAssignablePermission } from './permissions'
+import { canManageAccountCredentialGrants, canRequestAccountCredentials, canResetUserPassword, hasPermission, isAssignablePermission } from './permissions'
 
 describe('管理员专属凭据权限', () => {
   it.each([{ roles: [] }, { roles: ['operator'] }, { roles: ['custom_admin'] }])('旧授权码不能恢复非管理员读取或导出权限 $roles', ({ roles }) => {
@@ -22,12 +22,28 @@ describe('管理员专属凭据权限', () => {
       expect(hasPermission(other, 'accounts.credentials')).toBe(false)
       expect(hasPermission(other, 'accounts.export')).toBe(false)
       expect(hasPermission(other, 'accounts.totp')).toBe(true)
-      expect(canRequestAccountCredentials(other)).toBe(true)
+      expect(canRequestAccountCredentials(other)).toBe(false)
+      expect(canRequestAccountCredentials({ ...other, account_credential_reveal_allowed: true })).toBe(true)
     }
     expect(canRequestAccountCredentials(user)).toBe(false)
     expect(canRequestAccountCredentials({ ...user, is_system_admin: false, status: 'disabled' })).toBe(false)
     expect(canRequestAccountCredentials({ ...user, roles: ['operator'] })).toBe(false)
     expect(canRequestAccountCredentials(null)).toBe(false)
+  })
+
+  it('独立授权不能放宽角色、状态、导出和资料原文边界', () => {
+    const user = { roles: ['super_admin'], permissions: [], status: 'active' as const, is_system_admin: false, account_credential_reveal_allowed: true }
+    expect(canRequestAccountCredentials(user)).toBe(true)
+    expect(canRequestAccountCredentials({ ...user, account_credential_reveal_allowed: false })).toBe(false)
+    expect(canRequestAccountCredentials({ ...user, roles: ['operator'] })).toBe(false)
+    expect(canRequestAccountCredentials({ ...user, status: 'disabled' })).toBe(false)
+    for (const code of ['accounts.credentials', 'accounts.export', 'registration_resources.reveal']) expect(hasPermission(user, code)).toBe(false)
+    expect(hasPermission(user, 'accounts.totp')).toBe(true)
+    expect(canManageAccountCredentialGrants(user)).toBe(false)
+    expect(canManageAccountCredentialGrants({ ...user, is_system_admin: true })).toBe(true)
+    expect(canManageAccountCredentialGrants({ ...user, is_system_admin: true, status: 'disabled' })).toBe(false)
+    expect(canManageAccountCredentialGrants({ ...user, is_system_admin: true, roles: ['operator'] })).toBe(false)
+    expect(canManageAccountCredentialGrants(null)).toBe(false)
   })
 
   it('注册资料原文只认服务端确认的启用内置管理员，撤权立即生效', () => {
