@@ -10,7 +10,7 @@ export function isAssignablePermission(code: string): boolean {
   return !superAdminOnlyPermissions.has(code)
 }
 
-type PermissionUser = Pick<SystemUser, 'roles' | 'permissions' | 'is_system_admin'> & Partial<Pick<SystemUser, 'status'>>
+type PermissionUser = Pick<SystemUser, 'roles' | 'permissions' | 'is_system_admin' | 'account_credential_reveal_allowed'> & Partial<Pick<SystemUser, 'status'>>
 
 export function hasPermission(user: PermissionUser | null, code: string): boolean {
   if (!user || user.status === 'disabled') return false
@@ -23,7 +23,12 @@ export function hasPermission(user: PermissionUser | null, code: string): boolea
 
 export function canRequestAccountCredentials(user: PermissionUser | null): boolean {
   return user?.status === 'active' && user.roles.includes('super_admin')
+    && user.account_credential_reveal_allowed === true
     && !hasPermission(user, 'accounts.credentials')
+}
+
+export function canManageAccountCredentialGrants(user: PermissionUser | null): boolean {
+  return Boolean(user?.status === 'active' && user.is_system_admin === true && user.roles.includes('super_admin'))
 }
 
 export function canResetUserPassword(

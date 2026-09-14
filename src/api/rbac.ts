@@ -5,6 +5,7 @@ export interface SystemUser {
   id: string
   username: string
   is_system_admin?: boolean
+  account_credential_reveal_allowed?: boolean
   display_name: string
   roles: string[]
   role_ids: string[]
@@ -154,4 +155,8 @@ export function updateRoleStatus(
 
 export function deleteRole(roleId: string) {
   return http.delete<Role>(`/api/roles/${roleId}`)
+}
+
+export function updateUserCredentialRevealGrant(userId: string, payload: { allowed: boolean; version: number }) {
+  return http.put<SystemUser>(`/api/users/${encodeURIComponent(userId)}/credential-reveal-grant`, payload)
 }
