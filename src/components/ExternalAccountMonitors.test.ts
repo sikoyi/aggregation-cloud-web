@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import ts from 'typescript'
 import source from './ExternalAccountMonitors.vue?raw'
-import view from '../views/AccountDataView.vue?raw'
+import routes from '../router/accountDataRoutes.ts?raw'
 
 const ast = ts.createSourceFile('ExternalMonitor.ts', source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!, ts.ScriptTarget.Latest, true)
 const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => node.getText(ast)).join('\n')
@@ -50,7 +50,7 @@ describe('外部账号只读监听', () => {
     expect(s.detailLoading.value).toBe(false)
   })
   it('独立入口，不使用账号管理或任务接口', () => {
-    expect(view).toContain('<ExternalAccountMonitors v-else-if="dataKind === \'external\'" />')
+    expect(routes).toContain("name: 'account-data-external', component: () => import('@/components/ExternalAccountMonitors.vue')")
     expect(source).not.toContain('/api/accounts')
     expect(source).not.toContain('/api/tasks')
     expect(source).not.toContain('comment_reply_mode')

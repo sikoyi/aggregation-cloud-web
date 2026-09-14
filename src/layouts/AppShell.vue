@@ -150,6 +150,7 @@ const navGroups = computed(() => rawNavGroups
   .map((group) => ({ ...group, children: group.children.filter((item) => auth.can(item.permission)) }))
   .filter((group) => group.children.length > 0))
 const mobileNavItems = computed(() => navGroups.value.flatMap((group) => group.children))
+const activeMenuPath = computed(() => mobileNavItems.value.find(item => route.path === item.to || route.path.startsWith(`${item.to}/`))?.to || route.path)
 const defaultCollapsedGroups = new Set(['runtime', 'system'])
 const defaultOpeneds = computed(() => navGroups.value
   .filter((group) => (
@@ -355,7 +356,7 @@ watch(
         </div>
       </div>
       <el-scrollbar class="flex-1">
-        <el-menu router :default-active="route.path" :default-openeds="defaultOpeneds" class="app-menu">
+        <el-menu router :default-active="activeMenuPath" :default-openeds="defaultOpeneds" class="app-menu">
           <el-sub-menu v-for="group in navGroups" :key="group.index" :index="group.index">
             <template #title>
               <component :is="group.icon" class="mr-3 h-4 w-4" />

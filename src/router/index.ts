@@ -1,10 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
+import { accountDataRoute } from './accountDataRoutes'
 
 const AppShell = () => import('@/layouts/AppShell.vue')
 const AccountCenterView = () => import('@/views/AccountCenterView.vue')
-const AccountDataView = () => import('@/views/AccountDataView.vue')
 const AccountWarmupView = () => import('@/views/AccountWarmupView.vue')
 const BenchmarkSyncRecordsView = () => import('@/views/BenchmarkSyncRecordsView.vue')
 const BusinessEventStatisticsView = () => import('@/views/BusinessEventStatisticsView.vue')
@@ -40,7 +40,7 @@ export const router = createRouter({
         { path: 'users', component: UserManagementView, meta: { permission: 'users.view' } },
         { path: 'roles', component: RoleManagementView, meta: { permission: 'roles.view' } },
         { path: 'accounts', component: AccountCenterView, meta: { permission: 'accounts.view' } },
-        { path: 'account-data', component: AccountDataView, meta: { permission: 'accounts.view' } },
+        accountDataRoute,
         { path: 'account-warmup', component: AccountWarmupView, meta: { permission: 'account_warmup.view' } },
         { path: 'benchmark-sync-records', component: BenchmarkSyncRecordsView, meta: { permission: 'monitoring.view' } },
         { path: 'event-statistics', component: BusinessEventStatisticsView, meta: { permission: 'event_statistics.view' } },
