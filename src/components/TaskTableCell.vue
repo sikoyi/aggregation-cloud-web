@@ -15,6 +15,7 @@ import { computed } from 'vue'
 import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from '@/config/options'
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
+import { taskResultCounts } from '@/utils/taskResultCounts'
 
 type TaskCellKind = 'taskIdentity' | 'taskScript' | 'taskOperator' | 'taskPlatform' | 'taskResult' | 'taskTimeline'
 
@@ -41,6 +42,7 @@ function compactDate(value: unknown) {
 }
 
 const taskTitle = computed(() => text(props.row.title))
+const resultCounts = computed(() => taskResultCounts(props.row))
 const taskId = computed(() => text(props.row.id))
 const scriptName = computed(() => text(props.row.script_name || '脚本已删除或不可用'))
 const creatorName = computed(() => text(
@@ -98,13 +100,13 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
   <div v-else-if="kind === 'taskResult'" class="task-cell task-result">
     <div class="task-result__counts">
       <span class="task-result__count task-result__count--success" title="成功数量">
-        <CheckCircle2 />成功 <strong>{{ Number(row.child_succeeded || 0) }}</strong>
+        <CheckCircle2 />成功 <strong>{{ resultCounts.succeeded }}</strong>
       </span>
       <span class="task-result__count task-result__count--failed" title="失败数量">
-        <CircleX />失败 <strong>{{ Number(row.child_failed || 0) }}</strong>
+        <CircleX />失败 <strong>{{ resultCounts.failed }}</strong>
       </span>
       <span class="task-result__count task-result__count--canceled" title="取消数量">
-        <Ban />取消 <strong>{{ Number(row.child_canceled || 0) }}</strong>
+        <Ban />取消 <strong>{{ resultCounts.canceled }}</strong>
       </span>
     </div>
   </div>
