@@ -20,6 +20,8 @@ import {
   retryCommentReply,
 } from '@/api/commentReplies'
 import RemoteSelect from '@/components/RemoteSelect.vue'
+import ReplyJobAccount from '@/components/ReplyJobAccount.vue'
+import ReplyJobPost from '@/components/ReplyJobPost.vue'
 import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
@@ -322,12 +324,15 @@ onBeforeUnmount(() => {
             <el-table-column label="发帖账号" min-width="150">
               <template #default="{ row }">
                 <div class="account-copy">
-                  <strong>{{ row.operator_account_name || row.operator_account_id }}</strong>
+                  <ReplyJobAccount :job="row" />
                   <el-tag size="small" effect="plain">{{ businessPlatformLabel(row.business_platform) }}</el-tag>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="新一级评论" min-width="280">
+            <el-table-column label="原帖" min-width="240">
+              <template #default="{ row }"><ReplyJobPost :job="row" /></template>
+            </el-table-column>
+            <el-table-column label="新一级评论" min-width="240">
               <template #default="{ row }">
                 <div class="comment-copy">
                   <strong>@{{ row.source_comment_author || '访客' }}</strong>
@@ -335,7 +340,7 @@ onBeforeUnmount(() => {
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="AI 回复" min-width="300">
+            <el-table-column label="AI 回复" min-width="240">
               <template #default="{ row }">
                 <p v-if="row.final_content || row.generated_content" class="reply-copy">{{ row.final_content || row.generated_content }}</p>
                 <span v-else class="text-muted">文案尚未生成</span>
@@ -377,10 +382,14 @@ onBeforeUnmount(() => {
     <el-dialog v-model="dialogVisible" title="新评论回复" width="min(92vw, 760px)" destroy-on-close :close-on-click-modal="false">
       <div v-if="activeJob" class="review-dialog">
         <div class="review-dialog__meta">
-          <div><small>发帖账号</small><strong>{{ activeJob.operator_account_name }}</strong></div>
+          <div><small>发帖账号</small><ReplyJobAccount :job="activeJob" /></div>
           <div><small>处理方式</small><strong>{{ replyModeLabel(activeJob.reply_mode) }}</strong></div>
           <div><small>当前状态</small><el-tag :type="statusMeta(activeJob.status).type">{{ statusMeta(activeJob.status).label }}</el-tag></div>
         </div>
+        <section class="review-block">
+          <header><span>原帖</span></header>
+          <ReplyJobPost :job="activeJob" />
+        </section>
         <section class="review-block review-block--comment">
           <header><span>新一级评论</span><strong>@{{ activeJob.source_comment_author || '访客' }}</strong></header>
           <p>{{ activeJob.source_comment_content }}</p>
@@ -450,7 +459,7 @@ onBeforeUnmount(() => {
 .filter-actions { gap: 8px; margin-top: 12px; }
 .reply-review__table { overflow: hidden; }
 .reply-review__pagination { justify-content: flex-end; padding: 12px; border-top: 1px solid #e5ebf1; }
-.account-copy strong { display: block; margin-bottom: 6px; color: #243548; }
+.account-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .comment-copy strong { display: block; margin-bottom: 5px; color: #2f6f97; font-size: 12px; }
 .comment-copy p,
 .reply-copy { display: -webkit-box; overflow: hidden; margin: 0; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.55; }
