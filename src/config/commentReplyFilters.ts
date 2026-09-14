@@ -49,7 +49,7 @@ export function hasActiveCommentReplyFilters(filters: CommentReplyFilterState) {
     || filters.accountId !== defaults.accountId
     || filters.accountTagId !== defaults.accountTagId
     || filters.replyMode !== defaults.replyMode
-    || filters.status !== defaults.status
+    || Boolean(filters.status)
     || filters.createdRange.length > 0
     || filters.keyword.trim() !== defaults.keyword
 }

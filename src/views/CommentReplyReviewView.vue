@@ -134,6 +134,7 @@ function searchRows() {
 
 function resetFilters() {
   resetCachedFilters()
+  filters.status = ''
   searchRows()
 }
 

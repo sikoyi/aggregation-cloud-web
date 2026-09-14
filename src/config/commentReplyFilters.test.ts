@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import reviewSource from '@/views/CommentReplyReviewView.vue?raw'
 
 import {
   buildCommentReplyQuery,
@@ -16,7 +17,15 @@ describe('回复审核筛选', () => {
       page: 1,
       page_size: 20,
     })
+    expect(hasActiveCommentReplyFilters(filters)).toBe(true)
+  })
+
+  it('清空状态后查询全部，默认待审核也允许点击清空', () => {
+    const filters = createDefaultCommentReplyFilters()
+    filters.status = ''
+    expect(buildCommentReplyQuery(filters, 1, 20)).toEqual({ page: 1, page_size: 20 })
     expect(hasActiveCommentReplyFilters(filters)).toBe(false)
+    expect(reviewSource.replace(/\r\n/g, '\n')).toContain("resetCachedFilters()\n  filters.status = ''\n  searchRows()")
   })
 
   it('提交平台、具体账号、标签、处理方式、状态、时间与关键词', () => {
