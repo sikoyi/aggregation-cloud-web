@@ -23,7 +23,7 @@ function setup(locked = false) {
       monitor_mode: 'custom', interval_minutes: 120, comment_reply_mode: 'disabled',
       ai_provider: 'gemini', ai_language: 'auto', ai_tone: 'natural', ai_max_length: 120,
     },
-    benchmarkForm: { source_profile_url: 'https://www.threads.com/@source', monitor_mode: 'custom', interval_minutes: 90, profile_sync_fields: ['display_name'] },
+    benchmarkForm: { source_business_platform: 'threads', source_profile_url: 'https://www.threads.com/@source', monitor_mode: 'custom', interval_minutes: 90, profile_sync_fields: ['display_name'] },
     http: { post: vi.fn().mockResolvedValue({ monitor_run: { id: '456' } }), get: vi.fn() },
     ElNotification: { warning: vi.fn(), success: vi.fn() },
     notifyError: vi.fn(),
@@ -115,6 +115,26 @@ describe('监听窗口连续设置', () => {
     await s.saveBenchmarkTracker()
     expect(s.http.post).toHaveBeenCalledWith('/api/benchmark-trackers', expect.objectContaining({ profile_sync_fields: [] }))
     expect(s.monitorVisible.value).toBe(true)
+  })
+
+  it('Threads 与 X 的目标和来源平台独立提交', async () => {
+    for (const target of ['threads', 'x']) {
+      for (const sourcePlatform of ['threads', 'x']) {
+        const s = setup()
+        s.monitorForm.business_platform = target
+        s.benchmarkForm.source_business_platform = sourcePlatform
+        s.benchmarkForm.source_profile_url = sourcePlatform === 'x' ? 'https://x.com/source' : 'https://www.threads.com/@source'
+        await s.saveBenchmarkTracker()
+        expect(s.http.post).toHaveBeenCalledWith('/api/benchmark-trackers', expect.objectContaining({
+          business_platform: target, source_business_platform: sourcePlatform,
+          profile_sync_fields: target === 'x' ? [] : ['display_name'],
+        }))
+        expect(s.monitorVisible.value).toBe(true)
+      }
+    }
+    expect(source).toContain("['threads', 'x'].includes(monitorForm.business_platform)")
+    expect(source).toContain('v-model="benchmarkForm.source_business_platform"')
+    expect(source).toContain('account?.benchmark_source_business_platform')
   })
 
   it('对标保存失败保留三个字段的选择', async () => {

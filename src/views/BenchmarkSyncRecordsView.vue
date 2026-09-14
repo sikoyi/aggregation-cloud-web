@@ -315,6 +315,7 @@ onMounted(loadRows)
                   <div>
                     <strong>{{ row.target_account_name }}</strong>
                     <small>账号 #{{ row.target_account_id }}</small>
+                    <small>{{ row.business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</small>
                   </div>
                 </div>
               </template>
@@ -331,6 +332,7 @@ onMounted(loadRows)
                   </el-avatar>
                   <div>
                     <strong>{{ sourceAccountName(row) }}</strong>
+                    <small>{{ row.source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</small>
                     <small>{{ row.source_username ? `@${row.source_username}` : row.source_profile_url }}</small>
                   </div>
                 </div>

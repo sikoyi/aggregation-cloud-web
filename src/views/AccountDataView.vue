@@ -155,6 +155,7 @@ const monitorForm = reactive({
   ai_max_length: 120,
 })
 const benchmarkForm = reactive({
+  source_business_platform: 'threads',
   profile_sync_fields: [] as string[],
   source_profile_url: '',
   monitor_mode: 'system',
@@ -181,7 +182,7 @@ const activeAccountTagName = computed(() => {
 const monitorAccountFilters = computed(() => ({
   business_platform: monitorForm.business_platform,
 }))
-const monitorFeatureOptions = computed(() => monitorForm.business_platform === 'threads'
+const monitorFeatureOptions = computed(() => ['threads', 'x'].includes(monitorForm.business_platform)
   ? [
       { label: '账号数据监听', value: 'account_data' },
       { label: '对标账号跟踪', value: 'benchmark' },
@@ -351,6 +352,7 @@ function openMonitor(account?: AnyRecord) {
     ai_max_length: Number(aiConfig.max_length || 120),
   })
   Object.assign(benchmarkForm, {
+    source_business_platform: String(account?.benchmark_source_business_platform || 'threads'),
     profile_sync_fields: Array.isArray(account?.benchmark_profile_sync_fields)
       ? [...account.benchmark_profile_sync_fields]
       : account?.benchmark_tracker_id ? ['display_name', 'biography', 'avatar_url'] : [],
@@ -367,6 +369,7 @@ function resetMonitorAccount() {
   monitorForm.account_id = ''
   monitorForm.profile_url = ''
   benchmarkForm.source_profile_url = ''
+  if (monitorForm.business_platform === 'x') benchmarkForm.profile_sync_fields = []
 }
 
 function finishMonitorSave() {
@@ -385,7 +388,7 @@ async function saveBenchmarkTracker() {
     return
   }
   if (!benchmarkForm.source_profile_url.trim()) {
-    ElNotification.warning({ title: '请填写对标主页', message: '请输入已授权对标账号的 Threads 主页链接' })
+    ElNotification.warning({ title: '请填写对标主页', message: '请输入所选来源平台的已授权账号主页链接' })
     return
   }
   submitting.value = true
@@ -394,14 +397,15 @@ async function saveBenchmarkTracker() {
       target_account_id: accountId,
       business_platform: monitorForm.business_platform,
       source_profile_url: benchmarkForm.source_profile_url.trim(),
-      profile_sync_fields: [...benchmarkForm.profile_sync_fields],
+      source_business_platform: benchmarkForm.source_business_platform,
+      profile_sync_fields: monitorForm.business_platform === 'x' ? [] : [...benchmarkForm.profile_sync_fields],
       monitor_mode: benchmarkForm.monitor_mode,
       interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
     })
     finishMonitorSave()
     ElNotification.success({
       title: '对标跟踪已开启',
-      message: '正在同步对标账号资料并建立帖子基线，历史帖子不会补发。',
+      message: '对标采集已加入队列，历史帖子不会补发。',
     })
     await loadRows()
   } catch (err) {
@@ -567,7 +571,8 @@ function handleRealtimeEvent(event: Event) {
 }
 
 watch(() => monitorForm.business_platform, (platform) => {
-  if (platform !== 'threads') monitorFeature.value = 'account_data'
+  if (!['threads', 'x'].includes(platform)) monitorFeature.value = 'account_data'
+  if (platform === 'x') benchmarkForm.profile_sync_fields = []
 })
 
 watch(monitorVisible, (visible) => {
@@ -1067,6 +1072,7 @@ onBeforeUnmount(() => {
                         </el-tag>
                       </div>
                       <div><small>对标账号</small><strong>{{ selectedAccount.benchmark_source_display_name || selectedAccount.benchmark_source_username || '-' }}</strong></div>
+                      <div><small>来源平台</small><strong>{{ selectedAccount.benchmark_source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</strong></div>
                       <div><small>帖子映射</small><strong>{{ formatNumber(selectedAccount.benchmark_mapping_count) }}</strong></div>
                       <div><small>最近成功</small><strong>{{ formatDate(selectedAccount.benchmark_last_success_at) }}</strong></div>
                       <div><small>下次采集</small><strong>{{ formatDate(selectedAccount.benchmark_next_run_at) }}</strong></div>
@@ -1221,8 +1227,14 @@ onBeforeUnmount(() => {
           </template>
           <template v-else>
             <div class="dialog-section-title">对标账号跟踪</div>
+            <el-form-item label="对标来源平台">
+              <el-select v-model="benchmarkForm.source_business_platform" class="w-full" @change="benchmarkForm.source_profile_url = ''">
+                <el-option label="Threads" value="threads" />
+                <el-option label="X(Twitter)" value="x" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="同步个人资料">
-              <el-checkbox-group v-model="benchmarkForm.profile_sync_fields">
+              <el-checkbox-group v-model="benchmarkForm.profile_sync_fields" :disabled="monitorForm.business_platform === 'x'">
                 <el-checkbox value="display_name">昵称</el-checkbox>
                 <el-checkbox value="biography">简介</el-checkbox>
                 <el-checkbox value="avatar_url">头像</el-checkbox>
@@ -1247,7 +1259,7 @@ onBeforeUnmount(() => {
               </el-tag>
             </div>
             <el-form-item label="对标账号主页链接" required>
-              <el-input v-model="benchmarkForm.source_profile_url" placeholder="例如：https://www.threads.com/@benchmark_user">
+              <el-input v-model="benchmarkForm.source_profile_url" :placeholder="benchmarkForm.source_business_platform === 'x' ? '例如：https://x.com/benchmark_user' : '例如：https://www.threads.com/@benchmark_user'">
                 <template #prefix><GitCompareArrows :size="15" /></template>
               </el-input>
             </el-form-item>
@@ -1270,7 +1282,7 @@ onBeforeUnmount(() => {
               </el-form-item>
             </div>
             <el-alert
-              title="仅同步勾选的个人资料，全部不选时只跟踪帖子。首次采集建立帖子基线，历史帖子不补发；后续复刻新增帖子，确认源帖删除后同步删除映射帖子。"
+              :title="monitorForm.business_platform === 'x' ? 'X 目标暂仅支持帖子跟踪与发布，资料同步、自动删帖待脚本适配。首次建立基线，历史帖子不补发。' : benchmarkForm.source_business_platform === 'x' ? '仅同步勾选的资料并跟踪新帖，历史帖子不补发。X 列表缺失不代表源帖已删除，暂不自动删帖。' : '仅同步勾选的资料并跟踪新帖，历史帖子不补发。Threads 源帖经缺失确认后同步删除映射帖子。'"
               type="info"
               :closable="false"
               show-icon

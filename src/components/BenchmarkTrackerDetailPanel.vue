@@ -203,6 +203,7 @@ watch(
           <div class="benchmark-profile__identity">
             <strong>{{ tracker.source_display_name || tracker.source_username || '等待首次采集' }}</strong>
             <span v-if="tracker.source_username">@{{ tracker.source_username }}</span>
+            <el-tag size="small" effect="plain">{{ tracker.source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</el-tag>
           </div>
           <p>{{ tracker.source_biography || '该账号暂未采集到简介' }}</p>
           <div class="benchmark-profile__links">
