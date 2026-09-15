@@ -102,8 +102,9 @@ watch(() => props.comments, () => { page.value = 1 })
 .external-comment__body header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; }
 .external-comment__body header strong { font-size: 13px; color: #263f54; overflow-wrap: anywhere; }
 .external-comment__body time { font-size: 12px; color: #8291a1; white-space: nowrap; }
-.external-comment__message { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin: 8px 0 10px; }
-.external-comment__body p { flex: 1 1 320px; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; line-height: 1.7; font-size: 14px; color: #334e68; }
+.external-comment__message { margin: 8px 0 10px; }
+.external-comment__body p { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; line-height: 1.7; font-size: 14px; color: #334e68; }
+.external-comment__reply + p { margin-top: 4px; }
 .external-comment__body footer { display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: #718096; }
 .external-comment__media { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
 .external-comment__media .el-image, .external-comment__media video { width: 160px; max-width: 100%; height: 120px; border: 1px solid #e1e8ef; border-radius: 4px; background: #f6f8fa; }

@@ -43,6 +43,7 @@ describe('外部评论阅读布局', () => {
     }])[0]).toMatchObject({ replyTo: '@thsottiaux', content: '' })
     expect(source).toContain('<strong>{{ comment.replyTo }}</strong>')
     expect(source).toContain('external-comment__message')
+    expect(source).toContain('.external-comment__reply + p { margin-top: 4px; }')
   })
   it('仅清理已经渲染的媒体地址，保留普通链接和非开头提及', () => {
     expect(stripRenderedMediaLinks('截图 https://example.com/photo.jpg', ['https://example.com/photo.jpg'])).toBe('截图')
