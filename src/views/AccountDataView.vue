@@ -67,8 +67,9 @@ const benchmarkStateOptions = [
   { label: '已关闭', value: 'paused' },
   { label: '跟踪异常', value: 'abnormal' },
 ]
-const commentReplyModeOptions = [
-  { label: '未开启', value: 'disabled' },
+const commentReplyStateOptions = [
+  { label: '未开启监听', value: 'not_configured' },
+  { label: '不自动回复', value: 'disabled' },
   { label: '自动回复', value: 'automatic' },
   { label: '审核后回复', value: 'review' },
 ]
@@ -548,9 +549,24 @@ function openProfile(account: AnyRecord) {
 }
 
 function replyModeLabel(value: unknown) {
+  if (value === 'not_configured') return '未开启监听'
+  if (value === 'disabled') return '不自动回复'
   if (value === 'automatic') return '自动回复'
   if (value === 'review') return '审核后回复'
-  return '未开启'
+  return '未开启监听'
+}
+
+function resolveReplyState(account: AnyRecord) {
+  const state = String(account?.comment_reply_state || '')
+  if (['not_configured', 'disabled', 'automatic', 'review'].includes(state)) return state
+  if (!account?.monitor_setting_id) return 'not_configured'
+  return String(account?.comment_reply_mode || 'disabled')
+}
+
+function replyModeType(value: unknown) {
+  if (value === 'automatic') return 'success'
+  if (value === 'review') return 'warning'
+  return 'info'
 }
 
 function accountPanelRecord(account: AnyRecord) {
@@ -721,9 +737,9 @@ onBeforeUnmount(() => {
                   <el-option v-for="option in benchmarkStateOptions" :key="option.value" :label="option.label" :value="option.value" />
                 </el-select>
               </el-form-item>
-              <el-form-item label="自动回复">
+              <el-form-item label="回复方式">
                 <el-select v-model="filters.comment_reply_mode" clearable placeholder="全部">
-                  <el-option v-for="option in commentReplyModeOptions" :key="option.value" :label="option.label" :value="option.value" />
+                  <el-option v-for="option in commentReplyStateOptions" :key="option.value" :label="option.label" :value="option.value" />
                 </el-select>
               </el-form-item>
               <el-form-item label="账号信息">
@@ -829,6 +845,18 @@ onBeforeUnmount(() => {
                   </el-tag>
                   <small>{{ formatDate(scope.row.metrics_captured_at) }}</small>
                 </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="回复方式" width="125" align="center" header-align="center">
+              <template #default="scope">
+                <el-tag
+                  size="small"
+                  :type="replyModeType(resolveReplyState(scope.row))"
+                  effect="light"
+                >
+                  {{ replyModeLabel(resolveReplyState(scope.row)) }}
+                </el-tag>
               </template>
             </el-table-column>
 
@@ -1034,7 +1062,7 @@ onBeforeUnmount(() => {
                         </el-tag>
                       </div>
                       <div><small>监听间隔</small><strong>{{ selectedAccount.monitor_interval_minutes ? selectedAccount.monitor_interval_minutes + ' 分钟' : '-' }}</strong></div>
-                      <div><small>新评论回复</small><strong>{{ replyModeLabel(selectedAccount.comment_reply_mode) }}</strong></div>
+                      <div><small>新评论回复</small><strong>{{ replyModeLabel(resolveReplyState(selectedAccount)) }}</strong></div>
                       <div><small>最近成功</small><strong>{{ formatDate(selectedAccount.last_success_at) }}</strong></div>
                       <div><small>下次监听</small><strong>{{ formatDate(selectedAccount.next_run_at) }}</strong></div>
                       <div><small>指标采集</small><strong>{{ formatDate(selectedAccount.metrics_captured_at) }}</strong></div>

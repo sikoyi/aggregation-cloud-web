@@ -38,6 +38,21 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('metrics_captured_at')
   })
 
+  it('总览展示并筛选四种评论回复方式', () => {
+    expect(source).toContain("{ label: '未开启监听', value: 'not_configured' }")
+    expect(source).toContain("{ label: '不自动回复', value: 'disabled' }")
+    expect(source).toContain("{ label: '自动回复', value: 'automatic' }")
+    expect(source).toContain("{ label: '审核后回复', value: 'review' }")
+    expect(source).toContain('<el-form-item label="回复方式">')
+    expect(source).toContain('v-model="filters.comment_reply_mode"')
+
+    const overview = source.split('<section v-if="viewMode === \'overview\'"')[1]?.split('</section>')[0] || ''
+    expect(overview).toContain('<el-table-column label="回复方式"')
+    expect(overview).toContain('resolveReplyState(scope.row)')
+    expect(source).toContain("if (!account?.monitor_setting_id) return 'not_configured'")
+    expect(source).toContain("return String(account?.comment_reply_mode || 'disabled')")
+  })
+
   it('总览逐行复用监听设置入口并保留查看详情，不切换到详情视图', () => {
     const overview = source.split('<section v-if="viewMode === \'overview\'"')[1]?.split('</section>')[0] || ''
     expect(overview).toContain('@click="openMonitor(scope.row)"')
