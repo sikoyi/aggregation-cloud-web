@@ -3719,6 +3719,17 @@ export const resources: Record<string, ResourceConfig> = {
         options: taskStatusOptions,
       },
       {
+        key: "task_record_scope",
+        label: "记录范围",
+        type: "select",
+        defaultValue: "business",
+        options: [
+          { label: "常规任务", value: "business" },
+          { label: "评论回复执行", value: "comment_reply" },
+          { label: "全部任务", value: "all" },
+        ],
+      },
+      {
         key: "business_platform",
         label: "业务 App",
         type: "select",
@@ -3879,8 +3890,10 @@ export const resources: Record<string, ResourceConfig> = {
     deleteLabel: "删除记录",
     deleteConfirm:
       "确认删除这条任务记录？删除后会同步删除它的设备执行子记录、分配记录和事件日志，此操作不可恢复，请谨慎操作。",
-    deleteAllowed: (record) => isTerminalTaskStatus(record.status),
-    deleteBlockedMessage: () => "任务尚未结束，不能删除；请先取消任务或等待全部执行结束。",
+    deleteAllowed: (record) => record.task_type !== "comment_reply_task" && isTerminalTaskStatus(record.status),
+    deleteBlockedMessage: (record) => record.task_type === "comment_reply_task"
+      ? "评论回复执行记录由回复工单管理，不能在任务中心删除。"
+      : "任务尚未结束，不能删除；请先取消任务或等待全部执行结束。",
     inlineActionKeys: ["detail", "retry"],
     rowActions: [
       {
@@ -3894,6 +3907,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "cancel",
         label: "取消任务",
+        visible: (record) => record.task_type !== "comment_reply_task",
         method: "POST",
         icon: "powerOff",
         variant: "danger",
@@ -3903,6 +3917,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "retry",
         label: "重试任务",
+        visible: (record) => record.task_type !== "comment_reply_task",
         method: "POST",
         icon: "rotate",
         path: (record) => `/api/tasks/${record.id}/retry`,

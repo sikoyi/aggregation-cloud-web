@@ -625,6 +625,7 @@ describe('任务记录筛选', () => {
       'task_id',
       'task_title',
       'status',
+      'task_record_scope',
       'business_platform',
       'runtime_platform',
       'provider',
@@ -636,6 +637,15 @@ describe('任务记录筛选', () => {
     expect(filters.find((field) => field.key === 'created_from')).toMatchObject({
       type: 'datetimeRange',
       endKey: 'created_to',
+    })
+    expect(filters.find((field) => field.key === 'task_record_scope')).toMatchObject({
+      type: 'select',
+      defaultValue: 'business',
+      options: [
+        { label: '常规任务', value: 'business' },
+        { label: '评论回复执行', value: 'comment_reply' },
+        { label: '全部任务', value: 'all' },
+      ],
     })
   })
 
@@ -1088,5 +1098,14 @@ describe('任务记录删除约束', () => {
     ]) {
       expect(deleteAllowed?.({ status })).toBe(true)
     }
+  })
+
+  it('评论回复执行记录只能查看，不能从任务中心变更', () => {
+    const replyTask = { task_type: 'comment_reply_task', status: 'failed' }
+    expect(resources.tasks.deleteAllowed?.(replyTask)).toBe(false)
+    expect(resources.tasks.deleteBlockedMessage?.(replyTask)).toContain('回复工单')
+    expect(resources.tasks.rowActions?.find(action => action.key === 'cancel')?.visible?.(replyTask)).toBe(false)
+    expect(resources.tasks.rowActions?.find(action => action.key === 'retry')?.visible?.(replyTask)).toBe(false)
+    expect(resources.tasks.rowActions?.find(action => action.key === 'detail')?.visible).toBeUndefined()
   })
 })

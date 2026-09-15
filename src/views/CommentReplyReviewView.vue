@@ -2,6 +2,7 @@
 import {
   Check,
   Eye,
+  ListChecks,
   MessageSquareReply,
   RefreshCw,
   RotateCcw,
@@ -23,6 +24,7 @@ import RemoteSelect from '@/components/RemoteSelect.vue'
 import ReplyJobAccount from '@/components/ReplyJobAccount.vue'
 import ReplyJobPost from '@/components/ReplyJobPost.vue'
 import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
+import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import {
@@ -66,6 +68,8 @@ const pageSize = ref(20)
 const dialogVisible = ref(false)
 const activeJob = ref<AnyRecord | null>(null)
 const editedContent = ref('')
+const taskDetailVisible = ref(false)
+const taskDetailId = ref<string | null>(null)
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:comment-replies:v2',
   createDefaultCommentReplyFilters(),
@@ -149,6 +153,20 @@ async function openJob(row: AnyRecord) {
   } catch (err) {
     notifyError(err, '读取失败', '无法读取回复工单详情')
   }
+}
+
+function openTaskDetail(row: AnyRecord | null) {
+  if (!row) return
+  const taskId = String(row.task_run_id || '').trim()
+  if (!taskId) return
+  dialogVisible.value = false
+  taskDetailId.value = taskId
+  taskDetailVisible.value = true
+}
+
+function canViewTaskDetail(row: AnyRecord | null) {
+  if (!row?.task_run_id || !auth.can('tasks.view')) return false
+  return auth.isSuperAdmin || String(row.reviewed_by || '') === String(auth.user?.id || '')
 }
 
 async function approveActive() {
@@ -355,9 +373,10 @@ onBeforeUnmount(() => {
             <el-table-column label="发现时间" width="165" align="center">
               <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="220" align="center" fixed="right">
+            <el-table-column label="操作" width="290" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button text type="primary" :icon="Eye" @click="openJob(row)">{{ row.status === 'pending_review' ? '审核' : '查看' }}</el-button>
+                <el-button v-if="canViewTaskDetail(row)" text :icon="ListChecks" @click="openTaskDetail(row)">执行详情</el-button>
                 <el-button v-if="row.status === 'pending_review' && auth.can('operations.review')" text type="primary" :icon="RotateCcw" @click="regenerate(row)">重生成</el-button>
                 <el-button v-if="['failed', 'blocked'].includes(row.status) && auth.can('operations.retry')" text type="danger" :icon="RefreshCw" @click="retry(row)">重试</el-button>
               </template>
@@ -413,11 +432,14 @@ onBeforeUnmount(() => {
       </div>
       <template #footer>
         <el-button @click="dialogVisible = false">关闭</el-button>
+        <el-button v-if="canViewTaskDetail(activeJob)" :icon="ListChecks" @click="openTaskDetail(activeJob)">执行详情</el-button>
         <el-button v-if="canApprove" :icon="SkipForward" :loading="actionLoading" @click="ignoreActive">忽略</el-button>
         <el-button v-if="canApprove" :icon="RotateCcw" :loading="actionLoading" @click="regenerateActive">重新生成</el-button>
         <el-button v-if="canApprove" type="primary" :icon="Check" :loading="actionLoading" @click="approveActive">确认下发</el-button>
       </template>
     </el-dialog>
+
+    <TaskDetailDrawer v-model="taskDetailVisible" :task-id="taskDetailId" />
   </section>
 </template>
 

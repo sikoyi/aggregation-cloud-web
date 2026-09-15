@@ -26,4 +26,13 @@ describe('回复审核筛选区', () => {
     expect(source).toContain('.filter-grid :deep(.filter-grid__item--wide)')
     expect(source).toContain('@media (max-width: 768px)')
   })
+
+  it('从工单进入关联执行任务详情', () => {
+    expect(source).toContain("import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'")
+    expect(source).toContain("function canViewTaskDetail(row: AnyRecord | null)")
+    expect(source).toContain("auth.isSuperAdmin || String(row.reviewed_by || '') === String(auth.user?.id || '')")
+    expect(source).toContain('v-if="canViewTaskDetail(row)"')
+    expect(source).toContain('>执行详情</el-button>')
+    expect(source).toContain('<TaskDetailDrawer v-model="taskDetailVisible" :task-id="taskDetailId" />')
+  })
 })
