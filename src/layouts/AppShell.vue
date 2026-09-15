@@ -287,25 +287,8 @@ function handleRealtimeEvent(event: Event) {
     })
     return
   }
-  if (payload?.topic === 'comment_reply') {
-    const data = payload.data && typeof payload.data === 'object'
-      ? payload.data as Record<string, unknown>
-      : {}
-    const status = String(data.status || '')
-    if (!['pending_review', 'failed', 'blocked'].includes(status)) return
-    const needsReview = status === 'pending_review'
-    const notification = ElNotification({
-      title: needsReview ? '有新的评论回复待审核' : '评论回复处理异常',
-      message: needsReview ? 'AI 文案已经生成，请确认或修改后下发。' : String(data.error_message || '回复任务暂时无法继续，请查看处理。'),
-      type: needsReview ? 'warning' : 'error',
-      duration: needsReview ? 8000 : 0,
-      onClick: () => {
-        router.push('/comment-replies')
-        notification.close()
-      },
-    })
-    return
-  }
+  // 回复审核和执行结果由 TG 机器人通知，系统仅保留工单状态与实时刷新。
+  if (payload?.topic === 'comment_reply') return
   if (!['content_monitor.abnormal', 'account_content_monitor.abnormal'].includes(String(payload?.type || ''))) return
   const data = payload.data && typeof payload.data === 'object'
     ? payload.data as Record<string, unknown>
