@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Activity, Eye, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, UserRound } from 'lucide-vue-next'
+import { Activity, Eye, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, UserRound } from 'lucide-vue-next'
 import ExternalAccountDetail from '@/components/ExternalAccountDetail.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
-import { ElNotification } from 'element-plus'
+import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
@@ -39,6 +39,7 @@ const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
 const saving = ref(false)
 const busy = ref('')
+const deleting = ref('')
 const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true })
 const detailVisible = ref(false)
 const detail = ref<ExternalDetail | null>(null)
@@ -97,13 +98,36 @@ async function save() {
   finally { saving.value = false }
 }
 async function toggle(row: ExternalMonitor) {
-  if (busy.value || !canEdit.value) return
+  if (busy.value || deleting.value || !canEdit.value) return
   busy.value = row.id
   try {
     await http.put(`/api/external-account-monitors/${row.id}`, { remark: row.remark, interval_minutes: row.interval_minutes, enabled: !row.enabled, expected_version: row.version })
     if (!disposed) await load()
   } catch (e) { if (!disposed) ElNotification.error({ title: '操作失败', message: message(e) }) }
   finally { busy.value = '' }
+}
+async function remove(row: ExternalMonitor) {
+  if (busy.value || deleting.value || !canEdit.value) return
+  deleting.value = row.id
+  const accountName = row.profile.display_name || row.profile.username || row.profile_url
+  try {
+    await ElMessageBox.confirm(
+      `删除“${accountName}”后，监听配置、已采集帖子和历史指标快照都会永久删除。操作日志仍会保留。`,
+      '删除外部账号监听',
+      { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' },
+    )
+    await http.delete(`/api/external-account-monitors/${row.id}?expected_version=${encodeURIComponent(row.version)}`)
+    if (disposed) return
+    ElNotification.success({ title: '外部账号监听已删除' })
+    if (rows.value.length === 1 && page.value > 1) page.value -= 1
+    else await load()
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close' && !disposed) {
+      ElNotification.error({ title: '删除失败', message: message(e) })
+    }
+  } finally {
+    deleting.value = ''
+  }
 }
 async function loadDetail() {
   const request = ++detailSequence
@@ -124,7 +148,7 @@ function openDetail(row: ExternalMonitor) {
 }
 watch([page, pageSize], () => { void load() })
 watch(detailVisible, (visible) => { if (!visible) ++detailSequence })
-onMounted(() => { void load(); timer = setInterval(() => { if (!document.hidden && !loading.value && !saving.value && !busy.value) void load() }, 30000) })
+onMounted(() => { void load(); timer = setInterval(() => { if (!document.hidden && !loading.value && !saving.value && !busy.value && !deleting.value) void load() }, 30000) })
 onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInterval(timer) })
 </script>
 
@@ -159,10 +183,11 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-table-column label="下次采集" width="170"><template #default="{ row }">{{ row.enabled ? formatDate(row.next_run_at) : '-' }}</template></el-table-column>
       <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
       <el-table-column prop="last_error" label="异常原因" min-width="200" show-overflow-tooltip />
-      <el-table-column label="操作" :width="canEdit ? 128 : 64" fixed="right" align="center"><template #default="{ row }">
+      <el-table-column label="操作" :width="canEdit ? 160 : 64" fixed="right" align="center"><template #default="{ row }">
         <el-tooltip content="查看数据"><el-button link :icon="Eye" aria-label="查看外部账号数据" @click="openDetail(row as ExternalMonitor)" /></el-tooltip>
         <el-tooltip v-if="canEdit" content="监听设置"><el-button link :icon="Pencil" aria-label="编辑外部账号监听" @click="openForm(row as ExternalMonitor)" /></el-tooltip>
-        <el-tooltip v-if="canEdit" :content="row.enabled ? '暂停监听' : '恢复监听'"><el-button link :icon="row.enabled ? Pause : Play" :aria-label="row.enabled ? '暂停监听' : '恢复监听'" :loading="busy === row.id" :disabled="!!busy" @click="toggle(row as ExternalMonitor)" /></el-tooltip>
+        <el-tooltip v-if="canEdit" :content="row.enabled ? '暂停监听' : '恢复监听'"><el-button link :icon="row.enabled ? Pause : Play" :aria-label="row.enabled ? '暂停监听' : '恢复监听'" :loading="busy === row.id" :disabled="!!busy || !!deleting" @click="toggle(row as ExternalMonitor)" /></el-tooltip>
+        <el-tooltip v-if="canEdit" content="删除监听"><el-button link type="danger" :icon="Trash2" aria-label="删除外部账号监听" :loading="deleting === row.id" :disabled="!!busy || !!deleting" @click="remove(row as ExternalMonitor)" /></el-tooltip>
       </template></el-table-column>
     </el-table>
     <div class="external-monitors__pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" background layout="total, sizes, prev, pager, next" @size-change="page = 1" /></div>

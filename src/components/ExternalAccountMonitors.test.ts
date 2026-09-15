@@ -10,16 +10,17 @@ function setup() {
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
     form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true },
     formVisible: { value: true }, rows: { value: [] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
-    loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: {}, busy: { value: '' },
+    loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: {}, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
-    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockResolvedValue({ items: [], total: 0 }) },
+    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockResolvedValue({ items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
+    ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, safeUrl, load, loadDetail};`)(...Object.values(state)) as {
+  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadDetail};`)(...Object.values(state)) as {
     save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: () => Promise<void>
-    loadDetail: () => Promise<void>
+    remove: (row: Record<string, unknown>) => Promise<void>; loadDetail: () => Promise<void>
   }
   return { ...state, ...actions }
 }
@@ -92,6 +93,24 @@ describe('外部账号只读监听', () => {
     expect(s.ElNotification.error).toHaveBeenCalled()
     await s.toggle({ id: 'external', version: 4, remark: 'note', enabled: true, interval_minutes: 60 })
     expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { enabled: false, interval_minutes: 60, remark: 'note', expected_version: 4 })
+  })
+  it('删除前确认并携带当前版本，取消时不调用接口', async () => {
+    const s = setup()
+    const row = { id: 'external', version: 4, profile_url: 'https://x.com/source', profile: { display_name: 'Source' } }
+    await s.remove(row)
+    expect(s.ElMessageBox.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('已采集帖子和历史指标快照'),
+      '删除外部账号监听',
+      expect.objectContaining({ confirmButtonText: '确认删除' }),
+    )
+    expect(s.http.delete).toHaveBeenCalledWith('/api/external-account-monitors/external?expected_version=4')
+    expect(s.ElNotification.success).toHaveBeenCalledWith({ title: '外部账号监听已删除' })
+
+    s.http.delete.mockClear()
+    s.ElMessageBox.confirm.mockRejectedValueOnce('cancel')
+    await s.remove(row)
+    expect(s.http.delete).not.toHaveBeenCalled()
+    expect(s.ElNotification.error).not.toHaveBeenCalled()
   })
   it('禁止脚本链接及带凭据的外部链接', () => {
     const s = setup()
