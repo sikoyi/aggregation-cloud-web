@@ -625,7 +625,6 @@ describe('任务记录筛选', () => {
       'task_id',
       'task_title',
       'status',
-      'task_record_scope',
       'business_platform',
       'runtime_platform',
       'provider',
@@ -638,15 +637,7 @@ describe('任务记录筛选', () => {
       type: 'datetimeRange',
       endKey: 'created_to',
     })
-    expect(filters.find((field) => field.key === 'task_record_scope')).toMatchObject({
-      type: 'select',
-      defaultValue: 'business',
-      options: [
-        { label: '常规任务', value: 'business' },
-        { label: '评论回复执行', value: 'comment_reply' },
-        { label: '全部任务', value: 'all' },
-      ],
-    })
+    expect(filters.some((field) => field.key === 'task_record_scope')).toBe(false)
   })
 
   it('保留任务脚本列能力但默认隐藏', () => {

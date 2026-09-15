@@ -3719,17 +3719,6 @@ export const resources: Record<string, ResourceConfig> = {
         options: taskStatusOptions,
       },
       {
-        key: "task_record_scope",
-        label: "记录范围",
-        type: "select",
-        defaultValue: "business",
-        options: [
-          { label: "常规任务", value: "business" },
-          { label: "评论回复执行", value: "comment_reply" },
-          { label: "全部任务", value: "all" },
-        ],
-      },
-      {
         key: "business_platform",
         label: "业务 App",
         type: "select",
