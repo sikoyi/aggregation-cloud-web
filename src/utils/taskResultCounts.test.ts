@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { taskResultCounts } from './taskResultCounts'
+import { taskResultAlertType, taskResultCounts } from './taskResultCounts'
+
+describe('任务详情执行结果样式', () => {
+  it.each(['all_failed', 'failed', 'expired', 'lost'])('%s 使用失败样式', status => {
+    expect(taskResultAlertType(status)).toBe('error')
+  })
+
+  it.each(['succeeded', 'completed'])('%s 使用成功样式', status => {
+    expect(taskResultAlertType(status)).toBe('success')
+  })
+
+  it('取消使用中性样式', () => {
+    expect(taskResultAlertType('canceled')).toBe('info')
+  })
+
+  it.each(['draft', 'queued', 'waiting_slot', 'waiting_runtime', 'dispatching', 'running', 'retry_wait', 'rate_limited', 'future'])('%s 使用未结束提示样式', status => {
+    expect(taskResultAlertType(status)).toBe('warning')
+  })
+})
 
 describe('任务执行结果数量', () => {
   it.each(['failed', 'expired', 'lost'])('107381 类单任务 %s 计一次失败', status => {

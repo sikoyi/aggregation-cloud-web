@@ -9,6 +9,7 @@ import { businessPlatformLabel } from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import { taskResultAlertType } from '@/utils/taskResultCounts'
 
 const props = defineProps<{
   modelValue: boolean
@@ -53,6 +54,8 @@ const resultDescription = computed(() => {
   }
   return ''
 })
+
+const resultType = computed(() => taskResultAlertType(task.value?.status))
 
 const isChildTask = computed(() => Boolean(task.value?.parent_task_run_id))
 
@@ -403,7 +406,7 @@ watch(
                 v-if="resultDescription"
                 class="mb-3"
                 :title="resultDescription"
-                type="success"
+                :type="resultType"
                 show-icon
                 :closable="false"
               />
