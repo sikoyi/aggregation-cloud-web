@@ -6,7 +6,7 @@ import detail from './ExternalAccountDetail.vue?raw'
 const ast = ts.createSourceFile('Comments.ts', source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!, ts.ScriptTarget.Latest, true)
 const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => node.getText(ast)).join('\n')
 const js = ts.transpileModule(functions, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-const { commentRows, count } = new Function(`${js}; return {commentRows, count}`)()
+const { commentRows, count, stripRenderedMediaLinks, splitLeadingMention } = new Function(`${js}; return {commentRows, count, stripRenderedMediaLinks, splitLeadingMention}`)()
 
 describe('外部评论阅读布局', () => {
   it('渲染头像与附图，拒绝危险地址并保留纯媒体评论', () => {
@@ -28,6 +28,28 @@ describe('外部评论阅读布局', () => {
     expect(result[0]).toMatchObject({ author: 'B', replyTo: 'A', likes: 0, replies: 0, content: '回复\n第二行', time: '2026-09-14T01:00:00Z' })
     expect(count(0)).toBe('0')
     expect(count(null)).toBe('--')
+  })
+  it('隐藏已渲染图片的尾部短链，并将正文开头用户名拆为回复对象', () => {
+    const row = commentRows([{
+      content: '@thsottiaux everyday https://t.co/9Krp3Z9ezX',
+      platform_metadata: { media_urls: ['https://pbs.twimg.com/media/HSPPUhzbEAAUNOD.jpg'] },
+    }])[0]
+    expect(row).toMatchObject({ replyTo: '@thsottiaux', content: 'everyday', nested: false })
+    expect(row.images).toEqual(['https://pbs.twimg.com/media/HSPPUhzbEAAUNOD.jpg'])
+    expect(row.content).not.toContain('t.co')
+    expect(commentRows([{
+      content: '@thsottiaux https://t.co/9Krp3Z9ezX',
+      platform_metadata: { media_urls: ['https://pbs.twimg.com/media/HSPPUhzbEAAUNOD.jpg'] },
+    }])[0]).toMatchObject({ replyTo: '@thsottiaux', content: '' })
+    expect(source).toContain('<strong>{{ comment.replyTo }}</strong>')
+    expect(source).toContain('external-comment__message')
+  })
+  it('仅清理已经渲染的媒体地址，保留普通链接和非开头提及', () => {
+    expect(stripRenderedMediaLinks('截图 https://example.com/photo.jpg', ['https://example.com/photo.jpg'])).toBe('截图')
+    expect(stripRenderedMediaLinks('参考 https://t.co/article', [])).toBe('参考 https://t.co/article')
+    expect(stripRenderedMediaLinks('参考 https://t.co/article\nhttps://t.co/media', ['https://example.com/photo.jpg'])).toBe('参考 https://t.co/article')
+    expect(splitLeadingMention('@target：你好')).toEqual({ replyTo: '@target', content: '你好' })
+    expect(splitLeadingMention('你好 @target')).toEqual({ replyTo: '', content: '你好 @target' })
   })
   it('缺失父评论不伪造回复对象，坏数据不导致渲染失败', () => {
     expect(commentRows(null)).toEqual([])
