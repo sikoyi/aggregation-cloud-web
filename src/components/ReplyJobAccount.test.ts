@@ -15,12 +15,19 @@ describe('回复工单账号与原帖', () => {
     expect(html).toContain('监听昵称')
     expect(html).toContain('@public_name')
     expect(html).not.toContain('@@public_name')
-    const post = await renderToString(createSSRApp(ReplyJobPost, { job: { content_url: 'https://x.com/public_name/status/123', content_title: '原帖标题', content_text: '原帖正文 <script>example</script>' } }))
+    const post = await renderToString(createSSRApp(ReplyJobPost, { job: {
+      content_url: 'https://x.com/public_name/status/123',
+      content_title: '原帖标题 https://t.co/title-media',
+      content_text: '原帖正文 https://t.co/post-media\n<script>example</script>',
+    } }))
     expect(post).toContain('href="https://x.com/public_name/status/123"')
     expect(post).toContain('target="_blank"')
     expect(post).toContain('rel="noopener noreferrer"')
     expect(post).toContain('原帖标题')
-    expect(post).toContain('原帖正文 &lt;script&gt;example&lt;/script&gt;')
+    expect(post).toContain('原帖正文')
+    expect(post).toContain('&lt;script&gt;example&lt;/script&gt;')
+    expect(post).not.toContain('https://t.co/title-media')
+    expect(post).not.toContain('https://t.co/post-media')
     expect(source).toContain('<ReplyJobAccount :job="row" />')
     expect(source).toContain('<ReplyJobAccount :job="activeJob" />')
     expect(source).toContain('<ReplyJobPost :job="row" />')
@@ -31,5 +38,15 @@ describe('回复工单账号与原帖', () => {
     const html = await renderToString(createSSRApp(ReplyJobPost, { job: { content_url } }))
     expect(html).toContain('暂无帖子链接')
     expect(html).not.toContain('href=')
+  })
+
+  it('原帖正文只有链接时显示正文缺失提示但保留原帖快捷入口', async () => {
+    const html = await renderToString(createSSRApp(ReplyJobPost, { job: {
+      content_url: 'https://x.com/public_name/status/123',
+      content_text: 'https://t.co/post-media',
+    } }))
+    expect(html).toContain('暂无帖子正文')
+    expect(html).not.toContain('https://t.co/post-media')
+    expect(html).toContain('href="https://x.com/public_name/status/123"')
   })
 })

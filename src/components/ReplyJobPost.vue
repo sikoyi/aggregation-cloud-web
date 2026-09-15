@@ -4,6 +4,19 @@ import { ExternalLink } from 'lucide-vue-next'
 import type { AnyRecord } from '@/types/api'
 
 const props = defineProps<{ job: AnyRecord }>()
+
+function withoutVisibleUrls(value: unknown) {
+  return String(value || '')
+    .replace(/(?:https?:\/\/|www\.)[^\s<>"'，。！？；：、）】}]+/giu, '')
+    .split(/\r?\n/)
+    .map(line => line.replace(/[ \t]{2,}/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+}
+
+const postTitle = computed(() => withoutVisibleUrls(props.job.content_title))
+const postText = computed(() => withoutVisibleUrls(props.job.content_text))
 const postUrl = computed(() => {
   try {
     const url = new URL(String(props.job.content_url || ''))
@@ -14,9 +27,9 @@ const postUrl = computed(() => {
 
 <template>
   <section class="reply-post">
-    <strong v-if="job.content_title">{{ job.content_title }}</strong>
-    <p v-if="job.content_text && job.content_text !== job.content_title">{{ job.content_text }}</p>
-    <span v-if="!job.content_title && !job.content_text" class="reply-post__empty">暂无帖子正文</span>
+    <strong v-if="postTitle">{{ postTitle }}</strong>
+    <p v-if="postText && postText !== postTitle">{{ postText }}</p>
+    <span v-if="!postTitle && !postText" class="reply-post__empty">暂无帖子正文</span>
     <el-link v-if="postUrl" :href="postUrl" target="_blank" rel="noopener noreferrer" type="primary" :icon="ExternalLink">打开原帖</el-link>
     <span v-else class="reply-post__empty">暂无帖子链接</span>
   </section>
