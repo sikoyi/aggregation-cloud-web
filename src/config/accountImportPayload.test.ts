@@ -5,6 +5,18 @@ import { buildFormState, buildPayload } from '@/utils/form'
 
 describe.each([resources.accounts, buildAccountIdentityResource(resources.accounts)])('$key 导入请求', config => {
   const fields = config.createFields || []
+  it('上号 Runtime 候选和详情均按业务分工过滤', () => {
+    const remote = fields.find(field => field.key === 'target_runtime_instance_id')?.remote
+    expect(typeof remote?.params).toBe('function')
+    if (typeof remote?.params === 'function') {
+      expect(remote.params({ provider: 'morelogin' })).toMatchObject({
+        task_purpose: 'account_onboarding', status: 'online', lifecycle_status: 'active', provider: 'morelogin',
+      })
+    }
+    expect(remote?.detailPath?.('runtime-1')).toContain('task_purpose=account_onboarding')
+    const batch = config.batchActions?.find(action => action.key === 'batch-account-onboarding')
+    expect(batch?.fields?.find(field => field.key === 'target_runtime_instance_id')?.remote).toBe(remote)
+  })
   for (const action of ['import_only', 'create_environment_and_login']) {
     it.each(['new', 'old', 'unknown'])(`${action} 保留主动选择的类型 %s`, type => {
       const state = { ...buildFormState(fields), account_age_type: type, country: '韩国',

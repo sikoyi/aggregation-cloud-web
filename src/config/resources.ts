@@ -252,15 +252,17 @@ const runtimeSlotSyncRemoteSelect = {
 
 const onlineFingerprintRuntimeRemoteSelect = {
   endpoint: "/api/runtimes",
+  detailPath: (value: string) => `/api/runtimes/${encodeURIComponent(value)}?task_purpose=account_onboarding`,
   labelKeys: ["runtime_id", "ip"],
   valueKey: "id",
-  detailPath: (value: string) => `/api/runtimes/${encodeURIComponent(value)}`,
   secondaryKeys: ["provider", "slot_running", "max_concurrent_slots"],
   pageSize: 100,
   clearWhenMissing: true,
   params: (context?: AnyRecord) => ({
     status: "online",
     runtime_platform: "fingerprint_browser",
+    lifecycle_status: "active",
+    task_purpose: "account_onboarding",
     provider: context?.provider || undefined,
   }),
   matchesContext: (runtime: AnyRecord, context?: AnyRecord) => (
@@ -269,7 +271,7 @@ const onlineFingerprintRuntimeRemoteSelect = {
     && runtime.runtime_platform === "fingerprint_browser"
     && (!context?.provider || runtime.provider === context.provider)
   ),
-  emptyText: "当前供应商暂无在线 Runtime，请先启动对应脚本端",
+  emptyText: "当前供应商暂无允许上号的在线 Runtime，请检查 Agent 在线状态和任务分工",
 };
 
 const proxyRemoteSelect = {
