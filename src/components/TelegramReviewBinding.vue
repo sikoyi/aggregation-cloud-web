@@ -9,6 +9,7 @@ import { formatDate } from '@/utils/format'
 
 interface Binding {
   configured: boolean
+  worker_status?: 'ready' | 'unavailable' | 'unknown' | 'unconfigured'
   bot_username: string
   bound: boolean
   telegram_user_id: string | null
@@ -109,6 +110,7 @@ onBeforeUnmount(close)
       <el-descriptions v-if="binding" :column="1" border>
         <el-descriptions-item label="机器人">{{ binding.bot_username ? `@${binding.bot_username}` : '-' }}</el-descriptions-item>
         <el-descriptions-item label="绑定状态"><el-tag :type="binding.bound ? 'success' : 'info'">{{ binding.bound ? '已绑定' : '未绑定' }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="通知服务"><el-tag :type="binding.worker_status === 'ready' ? 'success' : 'warning'">{{ binding.worker_status === 'ready' ? '已就绪' : binding.worker_status === 'unavailable' ? '未就绪' : binding.worker_status === 'unconfigured' ? '未配置' : '状态未知' }}</el-tag></el-descriptions-item>
         <el-descriptions-item v-if="binding.bound" label="TG 用户 ID">{{ binding.telegram_user_id }}</el-descriptions-item>
         <el-descriptions-item v-if="binding.bound" label="绑定时间">{{ formatDate(binding.bound_at) }}</el-descriptions-item>
       </el-descriptions>
