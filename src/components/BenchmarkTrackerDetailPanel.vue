@@ -8,24 +8,29 @@ import {
 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 
-import { ApiError, http, resolveBackendUrl } from '@/api/http'
+import { http, resolveBackendUrl } from '@/api/http'
+import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
+import { benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
 import type { AnyRecord, PageResult } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   account: AnyRecord
-}>()
+  active?: boolean
+}>(), { active: true })
 
-const trackerLoading = ref(false)
 const postLoading = ref(false)
-const tracker = ref<AnyRecord | null>(null)
 const posts = ref<AnyRecord[]>([])
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
 const accountId = computed(() => String(props.account?.id || props.account?.account_id || ''))
+const { tracker, loading: trackerLoading, error: collectionError, refresh: loadTracker } = useBenchmarkCollection(
+  () => accountId.value, () => props.active !== false,
+)
+const collectionStatus = computed(() => benchmarkCollectionStatus(tracker.value))
 const mappingCounts = computed<AnyRecord>(() => {
   const value = tracker.value?.mapping_counts
   return value && typeof value === 'object' ? value as AnyRecord : {}
@@ -101,44 +106,6 @@ function mediaKind(row: AnyRecord) {
   return 'file'
 }
 
-function trackerStatusLabel(value: unknown) {
-  const labels: Record<string, string> = {
-    active: '跟踪中',
-    paused: '已关闭',
-    abnormal: '跟踪异常',
-  }
-  return labels[String(value || '')] || String(value || '等待首次采集')
-}
-
-function trackerStatusType(value: unknown) {
-  if (value === 'active') return 'success'
-  if (value === 'abnormal') return 'danger'
-  return 'info'
-}
-
-async function loadTracker() {
-  const requestedAccountId = accountId.value
-  if (!requestedAccountId) return false
-  trackerLoading.value = true
-  try {
-    const data = await http.get<AnyRecord>(
-      `/api/benchmark-trackers/accounts/${encodeURIComponent(requestedAccountId)}`,
-    )
-    if (accountId.value !== requestedAccountId) return false
-    tracker.value = data
-    return true
-  } catch (err) {
-    if (accountId.value !== requestedAccountId) return false
-    tracker.value = null
-    // 未配置对标跟踪是正常空状态，不向运营弹出错误通知。
-    if (err instanceof ApiError && err.status === 404) return false
-    notifyError(err, '加载对标资料失败', '无法读取对标账号资料')
-    return false
-  } finally {
-    if (accountId.value === requestedAccountId) trackerLoading.value = false
-  }
-}
-
 async function loadPosts() {
   const requestedAccountId = accountId.value
   if (!requestedAccountId) return
@@ -165,8 +132,7 @@ async function loadPosts() {
 }
 
 async function refreshAll() {
-  const trackerExists = await loadTracker()
-  if (trackerExists) await loadPosts()
+  await loadTracker()
 }
 function handleSizeChange(size: number) {
   pageSize.value = size
@@ -178,18 +144,20 @@ watch(
   accountId,
   () => {
     page.value = 1
-    tracker.value = null
     posts.value = []
     total.value = 0
-    void refreshAll()
   },
   { immediate: true },
 )
+watch(tracker, () => {
+  if (tracker.value) void loadPosts()
+})
 </script>
 
 <template>
   <div class="benchmark-detail">
-    <div v-loading="trackerLoading" class="benchmark-profile">
+    <el-alert v-if="collectionError" :title="collectionError" type="error" :closable="false" />
+    <div v-loading="trackerLoading && !tracker" class="benchmark-profile">
       <template v-if="tracker">
         <el-avatar
           :size="72"
@@ -201,7 +169,7 @@ watch(
 
         <div class="benchmark-profile__main">
           <div class="benchmark-profile__identity">
-            <strong>{{ tracker.source_display_name || tracker.source_username || '等待首次采集' }}</strong>
+            <strong>{{ tracker.source_display_name || tracker.source_username || '对标账号' }}</strong>
             <span v-if="tracker.source_username">@{{ tracker.source_username }}</span>
             <el-tag size="small" effect="plain">{{ tracker.source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</el-tag>
           </div>
@@ -223,17 +191,23 @@ watch(
         </div>
 
         <div class="benchmark-profile__status">
-          <el-tag :type="trackerStatusType(tracker.status)" effect="light">
-            {{ trackerStatusLabel(tracker.status) }}
+          <el-tag :type="collectionStatus.type" effect="light">
+            {{ collectionStatus.label }}
           </el-tag>
+          <span v-if="tracker.collection_run?.started_at">本轮开始 {{ formatDate(tracker.collection_run.started_at) }}</span>
           <span>最近采集 {{ formatDate(tracker.last_success_at) }}</span>
           <span>下次采集 {{ formatDate(tracker.next_run_at) }}</span>
         </div>
       </template>
-      <el-empty v-else-if="!trackerLoading" :image-size="70" description="该账号尚未配置对标跟踪" />
+      <el-empty v-else-if="!trackerLoading && !collectionError" :image-size="70" description="该账号尚未配置对标跟踪" />
     </div>
 
     <template v-if="tracker">
+      <el-alert
+        v-if="tracker.collection_run?.error_message || tracker.last_error_message"
+        :title="String(tracker.collection_run?.error_message || tracker.last_error_message)"
+        type="error" :closable="false" show-icon
+      />
       <div class="benchmark-summary">
         <div>
           <span>已采集帖子</span>
@@ -401,6 +375,8 @@ watch(
 
 .benchmark-profile__identity {
   display: flex;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
   align-items: baseline;
   gap: 10px;
 }

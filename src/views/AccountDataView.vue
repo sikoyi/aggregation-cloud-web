@@ -27,6 +27,8 @@ import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
+import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
+import { benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import {
@@ -138,6 +140,17 @@ const monitorVisible = ref(false)
 const monitorFeature = ref<'account_data' | 'benchmark'>('account_data')
 const monitorAccountLocked = ref(false)
 const monitorTargetAccount = ref<AnyRecord | null>(null)
+const { tracker: monitorBenchmark, error: benchmarkCollectionError, refresh: refreshBenchmarkCollection } = useBenchmarkCollection(
+  () => String(monitorTargetAccount.value?.account_id || ''),
+  () => monitorVisible.value && monitorFeature.value === 'benchmark' && Boolean(monitorTargetAccount.value?.benchmark_tracker_id),
+)
+const benchmarkCollection = computed(() => benchmarkCollectionStatus(monitorBenchmark.value))
+const benchmarkMappingCount = computed(() => {
+  const counts = monitorBenchmark.value?.mapping_counts
+  return counts && typeof counts === 'object'
+    ? Object.values(counts).reduce<number>((sum, count) => sum + Number(count || 0), 0)
+    : Number(monitorTargetAccount.value?.benchmark_mapping_count || 0)
+})
 const detailTab = ref('overview')
 const selectedAccount = ref<AnyRecord | null>(null)
 const monitorForm = reactive({
@@ -444,6 +457,7 @@ async function runBenchmarkTrackerNow(account: AnyRecord) {
   submitting.value = true
   try {
     await http.post(`/api/benchmark-trackers/accounts/${encodeURIComponent(String(account.account_id))}/run-now`)
+    await refreshBenchmarkCollection()
     ElNotification.success({ title: '已加入采集队列', message: '服务端会立即执行一次对标采集' })
   } catch (err) {
     notifyError(err, '执行失败', '无法立即执行对标采集')
@@ -1111,6 +1125,7 @@ onBeforeUnmount(() => {
                     v-if="selectedAccount.benchmark_tracker_id"
                     :key="'benchmark-' + String(selectedAccount.account_id)"
                     :account="accountPanelRecord(selectedAccount)"
+                    :active="viewMode === 'detail' && detailTab === 'benchmark' && !monitorVisible"
                   />
                   <el-empty v-else description="该账号尚未配置对标跟踪" :image-size="80" />
                 </el-tab-pane>
@@ -1263,19 +1278,19 @@ onBeforeUnmount(() => {
             <div v-if="monitorTargetAccount?.benchmark_tracker_id" class="benchmark-source">
               <el-avatar
                 :size="42"
-                :src="resolveBackendUrl(monitorTargetAccount.benchmark_source_avatar_url) || undefined"
+                :src="resolveBackendUrl(monitorBenchmark?.source_avatar_url || monitorTargetAccount.benchmark_source_avatar_url) || undefined"
               >
-                {{ String(monitorTargetAccount.benchmark_source_display_name || monitorTargetAccount.benchmark_source_username || 'B').slice(0, 1) }}
+                {{ String(monitorBenchmark?.source_display_name || monitorBenchmark?.source_username || monitorTargetAccount.benchmark_source_display_name || monitorTargetAccount.benchmark_source_username || 'B').slice(0, 1) }}
               </el-avatar>
               <div>
-                <strong>{{ monitorTargetAccount.benchmark_source_display_name || monitorTargetAccount.benchmark_source_username || '等待首次采集' }}</strong>
+                <strong>{{ monitorBenchmark?.source_display_name || monitorBenchmark?.source_username || monitorTargetAccount.benchmark_source_display_name || monitorTargetAccount.benchmark_source_username || '对标账号' }}</strong>
                 <small>
-                  {{ monitorTargetAccount.benchmark_mapping_count || 0 }} 条帖子基线 / 映射
-                  · {{ formatDate(monitorTargetAccount.benchmark_last_success_at) }}
+                  {{ benchmarkMappingCount }} 条帖子基线 / 映射
+                  · {{ formatDate(monitorBenchmark?.last_success_at || monitorTargetAccount.benchmark_last_success_at) }}
                 </small>
               </div>
-              <el-tag :type="monitorStateType(monitorTargetAccount.benchmark_state)">
-                {{ monitorStateLabel(monitorTargetAccount.benchmark_state) }}
+              <el-tag :type="benchmarkCollection.type">
+                {{ benchmarkCollection.label }}
               </el-tag>
             </div>
             <el-form-item label="对标账号主页链接" required>
@@ -1308,8 +1323,8 @@ onBeforeUnmount(() => {
               show-icon
             />
             <el-alert
-              v-if="monitorTargetAccount?.benchmark_last_error_message"
-              :title="String(monitorTargetAccount.benchmark_last_error_message)"
+              v-if="benchmarkCollectionError || monitorBenchmark?.collection_run?.error_message || monitorBenchmark?.last_error_message"
+              :title="String(benchmarkCollectionError || monitorBenchmark?.collection_run?.error_message || monitorBenchmark?.last_error_message)"
               type="error"
               :closable="false"
               show-icon
