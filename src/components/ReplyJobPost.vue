@@ -39,6 +39,6 @@ const postUrl = computed(() => {
 .reply-post { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .reply-post strong, .reply-post p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; margin: 0; white-space: pre-line; line-height: 1.55; }
 .reply-post strong { -webkit-line-clamp: 2; }
-.reply-post__empty { color: #66788a; font-size: 12px; }
+.reply-post__empty { color: var(--app-text-muted, #66788a); font-size: 12px; }
 .reply-post :deep(.el-link__inner) { display: inline-flex; align-items: center; gap: 4px; }
 </style>

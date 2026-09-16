@@ -243,9 +243,9 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
 
 .account-identity__avatar {
   flex: 0 0 auto;
-  border: 1px solid #cfe1f2;
-  color: #245f87;
-  background: #edf6fc;
+  border: 1px solid var(--app-border, #cfe1f2);
+  color: var(--app-blue, #245f87);
+  background: var(--app-surface-muted, #edf6fc);
   font-size: 13px;
   font-weight: 700;
 }
@@ -266,13 +266,13 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
 }
 
 .account-identity__name {
-  color: #243b53;
+  color: var(--app-text, #243b53);
   font-size: 13px;
   font-weight: 700;
 }
 
 .account-identity__secondary {
-  color: #8293a5;
+  color: var(--app-text-muted, #8293a5);
   font-size: 11px;
 }
 
@@ -372,13 +372,13 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
 }
 
 .account-credential-row__label--password {
-  color: #52606d;
-  background: #edf1f5;
+  color: var(--app-text, #52606d);
+  background: var(--app-surface-muted, #edf1f5);
 }
 
 .account-credential-row__label--twofa {
-  color: #27704b;
-  background: #eaf7ef;
+  color: var(--app-green, #27704b);
+  background: var(--app-surface-muted, #eaf7ef);
 }
 
 .account-credential-row code {
@@ -387,7 +387,7 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   width: fit-content;
   justify-self: start;
   overflow: hidden;
-  color: #52606d;
+  color: var(--app-text, #52606d);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
   text-overflow: ellipsis;
@@ -405,14 +405,14 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #62758a;
+  color: var(--app-text-muted, #62758a);
   font-size: 12px;
 }
 
 .account-platform__country svg {
   width: 12px;
   height: 12px;
-  color: #8aa0b5;
+  color: var(--app-text-muted, #8aa0b5);
 }
 
 .account-environment {
@@ -432,7 +432,7 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   width: 14px;
   height: 14px;
   flex: 0 0 auto;
-  color: #527a98;
+  color: var(--app-text-muted, #527a98);
 }
 
 .account-environment__device-copy {
@@ -450,12 +450,12 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
 }
 
 .account-environment__device-copy strong {
-  color: #334e68;
+  color: var(--app-text, #334e68);
   font-size: 12px;
 }
 
 .account-environment__device-copy span {
-  color: #8293a5;
+  color: var(--app-text-muted, #8293a5);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
 }
@@ -473,7 +473,7 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
 }
 
 .account-environment__empty {
-  color: #9aa9b8;
+  color: var(--app-text-muted, #9aa9b8);
   font-size: 12px;
 }
 
@@ -483,13 +483,13 @@ const backupUrl = computed(() => String(props.row.account_package_download_url |
   min-width: 0;
   align-items: center;
   gap: 6px;
-  color: #2f6f9f;
+  color: var(--app-blue, #2f6f9f);
   font-size: 12px;
   text-decoration: none;
 }
 
 .account-backup__link:hover {
-  color: #1f5d8a;
+  color: var(--app-blue, #1f5d8a);
   text-decoration: underline;
 }
 

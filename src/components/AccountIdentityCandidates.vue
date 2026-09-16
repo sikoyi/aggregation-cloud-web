@@ -191,13 +191,13 @@ onMounted(loadRows)
 .identity-candidates__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .candidate-account { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .candidate-account > div { display: flex; min-width: 0; align-items: center; gap: 7px; }
-.candidate-account strong { overflow: hidden; color: #334e68; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.candidate-account small { overflow: hidden; color: #8494a5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.candidate-evidence { display: flex; flex-direction: column; gap: 4px; color: #6d7f91; font-size: 11px; }
-.candidate-evidence strong { color: #40566c; font-size: 12px; }
-.candidate-evidence__danger { color: #c24141; }
+.candidate-account strong { overflow: hidden; color: var(--app-text, #334e68); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.candidate-account small { overflow: hidden; color: var(--app-text-muted, #8494a5); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.candidate-evidence { display: flex; flex-direction: column; gap: 4px; color: var(--app-text-muted, #6d7f91); font-size: 11px; }
+.candidate-evidence strong { color: var(--app-text, #40566c); font-size: 12px; }
+.candidate-evidence__danger { color: var(--app-red, #c24141); }
 .candidate-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .candidate-actions :deep(.el-button + .el-button) { margin-left: 0; }
-.identity-candidates__empty { color: #9aa9b8; font-size: 11px; }
+.identity-candidates__empty { color: var(--app-text-muted, #9aa9b8); font-size: 11px; }
 .identity-candidates__pagination { display: flex; justify-content: flex-end; padding-top: 12px; }
 </style>

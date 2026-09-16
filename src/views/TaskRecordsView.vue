@@ -63,17 +63,17 @@ watch(
 </template>
 
 <style scoped>
-.task-records__workspace { --task-records-content-inset: 16px; border-radius: 8px; border-color: #d9e2ec; }
+.task-records__workspace { --task-records-content-inset: 16px; border-radius: 8px; border-color: var(--app-border, #d9e2ec); }
 .task-records__workspace :deep(.el-card__body) { padding: 0; }
-.task-records__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px var(--task-records-content-inset); border-bottom: 1px solid #e6edf3; background: #fff; }
+.task-records__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px var(--task-records-content-inset); border-bottom: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }
 .task-records__title,
 .task-records__actions { display: flex; align-items: center; }
 .task-records__title { min-width: 0; gap: 10px; }
 .task-records__actions { flex: 0 0 auto; justify-content: flex-end; gap: 10px; }
-.task-records__icon { display: inline-flex; width: 34px; height: 34px; flex: 0 0 34px; align-items: center; justify-content: center; border-radius: 8px; color: #1f668f; background: #eef8ff; }
-.task-records__title h1 { color: #1f2933; font-size: 18px; font-weight: 700; line-height: 1.25; }
-.task-records__title p { margin-top: 3px; color: #66788a; font-size: 12px; }
-.task-records__body { padding: 14px var(--task-records-content-inset) 16px; background: #f8fafc; }
+.task-records__icon { display: inline-flex; width: 34px; height: 34px; flex: 0 0 34px; align-items: center; justify-content: center; border-radius: 8px; color: var(--app-blue, #1f668f); background: var(--app-surface-muted, #eef8ff); }
+.task-records__title h1 { color: var(--app-text, #1f2933); font-size: 18px; font-weight: 700; line-height: 1.25; }
+.task-records__title p { margin-top: 3px; color: var(--app-text-muted, #66788a); font-size: 12px; }
+.task-records__body { padding: 14px var(--task-records-content-inset) 16px; background: var(--app-surface-muted, #f8fafc); }
 @media (max-width: 768px) {
   .task-records__header { align-items: flex-start; flex-direction: column; }
   .task-records__actions { width: 100%; }

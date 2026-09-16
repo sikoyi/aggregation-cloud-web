@@ -15,6 +15,6 @@ const username = computed(() => String(props.job.operator_account_username || ''
 
 <style scoped>
 .reply-account { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
-.reply-account strong { color: #243548; }
-.reply-account__username { color: #66788a; font-size: 12px; }
+.reply-account strong { color: var(--app-text, #243548); }
+.reply-account__username { color: var(--app-text-muted, #66788a); font-size: 12px; }
 </style>

@@ -189,14 +189,14 @@ function updateValue(value: AnyRecord) {
 .dispatch-panel {
   min-width: 0;
   padding: 14px;
-  border: 1px solid #e6edf3;
+  border: 1px solid var(--app-border, #e6edf3);
   border-radius: 8px;
-  background: #fbfdff;
+  background: var(--app-surface-muted, #fbfdff);
 }
 
 .dispatch-panel__title {
   margin-bottom: 12px;
-  color: #1f2933;
+  color: var(--app-text, #1f2933);
   font-size: 15px;
   font-weight: 700;
 }

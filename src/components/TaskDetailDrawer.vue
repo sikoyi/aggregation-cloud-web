@@ -556,14 +556,14 @@ watch(
 
 .detail-section__title {
   margin-bottom: 8px;
-  color: #1f2937;
+  color: var(--app-text, #1f2937);
   font-size: 13px;
   font-weight: 700;
 }
 
 .task-slot-snapshot {
   overflow: hidden;
-  border: 1px solid #dbe4ee;
+  border: 1px solid var(--app-border, #dbe4ee);
   border-radius: 4px;
 }
 
@@ -576,31 +576,31 @@ watch(
 
 .task-slot-snapshot__header {
   padding: 10px 14px;
-  color: #334155;
-  background: #f8fafc;
+  color: var(--app-text, #334155);
+  background: var(--app-surface-muted, #f8fafc);
   font-size: 13px;
   font-weight: 600;
 }
 
 .task-slot-snapshot__header span:last-child,
 .task-slot-group__title span:last-child {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-weight: 400;
 }
 
 .task-slot-groups {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--app-border, #e2e8f0);
   border-bottom: 0;
 }
 
 .task-slot-groups :deep(.el-collapse-item__header) {
   height: 44px;
   padding: 0 14px;
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: var(--app-border, #e2e8f0);
 }
 
 .task-slot-groups :deep(.el-collapse-item__wrap) {
-  border-bottom-color: #e2e8f0;
+  border-bottom-color: var(--app-border, #e2e8f0);
 }
 
 .task-slot-groups :deep(.el-collapse-item__content) {
@@ -610,16 +610,16 @@ watch(
 .task-slot-group__title {
   width: 100%;
   padding-right: 10px;
-  color: #1e293b;
+  color: var(--app-text, #1e293b);
 }
 
 .task-slot-provider-id {
-  color: #334155;
+  color: var(--app-text, #334155);
   font-size: 12px;
 }
 
 .task-slot-unavailable {
-  color: #94a3b8;
+  color: var(--app-text-muted, #94a3b8);
 }
 
 .task-param-table {
@@ -648,7 +648,7 @@ watch(
 }
 
 .task-device-cell code {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 11px;
 }
 </style>

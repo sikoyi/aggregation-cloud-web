@@ -44,5 +44,5 @@ const targetTitle = computed(() => String(
 .interaction-target-content :deep(svg) { width: 14px; height: 14px; flex: 0 0 14px; }
 .interaction-target-content strong,
 .interaction-target-content__plain { display: block; overflow: hidden; max-width: 100%; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.interaction-target-content__plain { color: #526578; }
+.interaction-target-content__plain { color: var(--app-text, #526578); }
 </style>

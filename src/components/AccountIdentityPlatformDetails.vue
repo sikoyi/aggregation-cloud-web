@@ -374,31 +374,31 @@ onMounted(loadRows)
 </template>
 
 <style scoped>
-.identity-details { padding: 14px 18px 18px 48px; background: #f8fafc; }
+.identity-details { padding: 14px 18px 18px 48px; background: var(--app-surface-muted, #f8fafc); }
 .identity-details__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .identity-details__header > div { display: flex; align-items: baseline; gap: 8px; }
-.identity-details__header strong { color: #243b53; font-size: 13px; }
-.identity-details__header span { color: #8293a5; font-size: 11px; }
+.identity-details__header strong { color: var(--app-text, #243b53); font-size: 13px; }
+.identity-details__header span { color: var(--app-text-muted, #8293a5); font-size: 11px; }
 .platform-account-identity { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.platform-account-identity__avatar { width: 34px; height: 34px; flex: 0 0 34px; color: #245f87; background: #edf6fc; }
+.platform-account-identity__avatar { width: 34px; height: 34px; flex: 0 0 34px; color: var(--app-blue, #245f87); background: var(--app-surface-muted, #edf6fc); }
 .platform-account-identity .platform-account { flex: 1; }
 .platform-account,
 .bound-device,
 .status-stack { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .platform-account strong,
-.bound-device strong { overflow: hidden; color: #334e68; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.bound-device strong { overflow: hidden; color: var(--app-text, #334e68); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .platform-account__heading { display: flex; min-width: 0; align-items: center; gap: 5px; }
 .platform-account__heading strong { min-width: 0; }
 .platform-account__heading :deep(.el-tag) { flex: 0 0 auto; }
 .platform-account small,
 .bound-device small,
-.status-stack small { overflow: hidden; color: #8494a5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.status-stack small { overflow: hidden; color: var(--app-text-muted, #8494a5); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .status-stack { align-items: center; }
 .account-attributes { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 5px; }
-.account-attributes__country { display: inline-flex; max-width: 100%; align-items: center; gap: 3px; overflow: hidden; color: #657b8f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.account-attributes__country { display: inline-flex; max-width: 100%; align-items: center; gap: 3px; overflow: hidden; color: var(--app-text-muted, #657b8f); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .account-attributes__country svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .platform-tags { display: flex; min-width: 0; flex-wrap: wrap; gap: 4px; }
-.bound-device__group { color: #526f86 !important; }
+.bound-device__group { color: var(--app-text-muted, #526f86) !important; }
 .bound-device__conflict { align-self: flex-start; }
 .backup-data { display: flex; align-items: center; justify-content: center; gap: 3px; }
 .backup-data__actions { display: inline-flex; align-items: center; gap: 0; }
@@ -406,5 +406,5 @@ onMounted(loadRows)
 .backup-data__actions :deep(.el-button) { width: 26px; height: 26px; }
 .identity-details__actions { display: flex; align-items: center; justify-content: center; gap: 2px; }
 .identity-details__actions :deep(.el-button + .el-button) { margin-left: 0; }
-.identity-details__empty { color: #9aa9b8; font-size: 11px; }
+.identity-details__empty { color: var(--app-text-muted, #9aa9b8); font-size: 11px; }
 </style>

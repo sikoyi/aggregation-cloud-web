@@ -441,9 +441,9 @@ defineExpose({ isBusy: () => submitting.value })
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  border: 1px solid #e6edf3;
+  border: 1px solid var(--app-border, #e6edf3);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--app-surface, #ffffff);
 }
 
 .member-editor__header,
@@ -464,23 +464,23 @@ defineExpose({ isBusy: () => submitting.value })
   justify-content: space-between;
   min-height: 40px;
   padding: 8px 10px;
-  border: 1px solid #dbe4f0;
+  border: 1px solid var(--app-border, #dbe4f0);
   border-radius: 8px;
-  background: #f8fafc;
-  color: #52606d;
+  background: var(--app-surface-muted, #f8fafc);
+  color: var(--app-text, #52606d);
   font-size: 13px;
 }
 
 .member-editor__header h3 {
   margin: 0;
-  color: #1f2933;
+  color: var(--app-text, #1f2933);
   font-size: 15px;
   font-weight: 700;
 }
 
 .member-editor__header p {
   margin: 4px 0 0;
-  color: #7b8794;
+  color: var(--app-text-muted, #7b8794);
   font-size: 12px;
 }
 

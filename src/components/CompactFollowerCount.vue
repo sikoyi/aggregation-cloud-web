@@ -17,6 +17,6 @@ const count = computed(() => formatCompactCount(props.value))
 
 <style scoped>
 .follower-count { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-variant-numeric: tabular-nums; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 4px; }
-.follower-count:focus-visible { outline: 2px solid #32688d; outline-offset: 3px; }
+.follower-count:focus-visible { outline: 2px solid var(--app-blue, #32688d); outline-offset: 3px; }
 .follower-count__full { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 </style>

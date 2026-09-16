@@ -651,9 +651,9 @@ watch(
   max-height: 420px;
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid #dbe4f0;
+  border: 1px solid var(--app-border, #dbe4f0);
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--app-surface-muted, #f8fafc);
 }
 
 .account-tree-select__alert {
@@ -666,8 +666,8 @@ watch(
   top: -10px;
   margin: -10px -12px 10px;
   padding: 10px 12px;
-  border-bottom: 1px solid #dbe4f0;
-  background: rgb(248 250 252 / 96%);
+  border-bottom: 1px solid var(--app-border, #dbe4f0);
+  background: var(--app-surface-muted, rgb(248 250 252 / 96%));
   backdrop-filter: blur(4px);
 }
 
@@ -676,7 +676,7 @@ watch(
   grid-template-columns: repeat(3, minmax(72px, 1fr));
   gap: 6px;
   margin-bottom: 8px;
-  color: #65778a;
+  color: var(--app-text-muted, #65778a);
   font-size: 12px;
   text-align: center;
 }
@@ -691,7 +691,7 @@ watch(
 
 .account-tree-select__summary strong {
   margin-left: 3px;
-  color: #1f668f;
+  color: var(--app-blue, #1f668f);
   font-size: 13px;
 }
 
@@ -731,7 +731,7 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  border: 2px solid #fff;
+  border: 2px solid var(--app-border, #fff);
   border-radius: 9px;
   background: #1f668f;
   color: #fff;
@@ -776,7 +776,7 @@ watch(
 
 .account-tree-node__device {
   overflow: hidden;
-  color: #7b8da1;
+  color: var(--app-text-muted, #7b8da1);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -793,7 +793,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
-  color: #27364a;
+  color: var(--app-text, #27364a);
   font-weight: 600;
 }
 
@@ -812,6 +812,6 @@ watch(
 }
 
 .group-filter-popover__options :deep(.el-checkbox:hover) {
-  background: #f3f7fb;
+  background: var(--app-surface-muted, #f3f7fb);
 }
 </style>

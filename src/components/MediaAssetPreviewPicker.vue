@@ -379,10 +379,10 @@ watch(
 .selected-asset {
   position: relative;
   min-width: 0;
-  border: 1px solid #dbe4f0;
+  border: 1px solid var(--app-border, #dbe4f0);
   border-radius: 8px;
   padding: 6px;
-  background: #f8fafc;
+  background: var(--app-surface-muted, #f8fafc);
 }
 
 .selected-asset :deep(.el-image),
@@ -390,7 +390,7 @@ watch(
   width: 100%;
   aspect-ratio: 1;
   border-radius: 6px;
-  background: #eef2f7;
+  background: var(--app-surface-muted, #eef2f7);
   object-fit: cover;
 }
 
@@ -398,7 +398,7 @@ watch(
   display: block;
   margin-top: 5px;
   overflow: hidden;
-  color: #475569;
+  color: var(--app-text, #475569);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -421,13 +421,13 @@ watch(
   justify-content: space-between;
   min-height: 42px;
   margin: 12px 0;
-  border-bottom: 1px solid #e5eaf1;
-  color: #64748b;
+  border-bottom: 1px solid var(--app-border, #e5eaf1);
+  color: var(--app-text-muted, #64748b);
   font-size: 13px;
 }
 
 .media-picker-dialog__summary strong {
-  color: #256a98;
+  color: var(--app-blue, #256a98);
   font-size: 16px;
 }
 
@@ -444,10 +444,10 @@ watch(
   position: relative;
   min-width: 0;
   align-self: start;
-  border: 1px solid #dbe4f0;
+  border: 1px solid var(--app-border, #dbe4f0);
   border-radius: 8px;
   padding: 6px;
-  background: #fff;
+  background: var(--app-surface, #fff);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -455,7 +455,7 @@ watch(
 
 .media-option:hover,
 .media-option.is-selected {
-  border-color: #409eff;
+  border-color: var(--app-blue, #409eff);
   box-shadow: 0 0 0 1px rgb(64 158 255 / 18%);
 }
 
@@ -464,7 +464,7 @@ watch(
   width: 100%;
   aspect-ratio: 1;
   border-radius: 6px;
-  background: #eef2f7;
+  background: var(--app-surface-muted, #eef2f7);
   object-fit: cover;
 }
 
@@ -478,14 +478,14 @@ watch(
 
 .media-option__name {
   margin-top: 6px;
-  color: #172033;
+  color: var(--app-text, #172033);
   font-size: 12px;
   font-weight: 600;
 }
 
 .media-option__groups {
   margin-top: 3px;
-  color: #94a3b8;
+  color: var(--app-text-muted, #94a3b8);
   font-size: 11px;
 }
 

@@ -250,6 +250,6 @@ function latencyTagType(value: unknown) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
 }
 </style>

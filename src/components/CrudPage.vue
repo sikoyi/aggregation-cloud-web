@@ -2257,7 +2257,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.exact-slot-filter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #52697e; }
+.exact-slot-filter { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--app-text-muted, #52697e); }
 .exact-slot-filter > span { min-width: 0; overflow-wrap: anywhere; }
 .filter-card__header {
   display: flex;
@@ -2296,7 +2296,7 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #1f2933;
+  color: var(--app-text, #1f2933);
   font-size: 13px;
   font-weight: 700;
 }
@@ -2316,7 +2316,7 @@ onBeforeUnmount(() => {
   min-width: 72px;
   justify-content: flex-end;
   text-align: right;
-  color: #52606d;
+  color: var(--app-text, #52606d);
   font-size: 12px;
   font-weight: 600;
 }
@@ -2347,9 +2347,9 @@ onBeforeUnmount(() => {
   min-height: 48px;
   padding: 10px 14px 10px 16px;
   overflow: hidden;
-  border: 1px solid #d9e6f2;
+  border: 1px solid var(--app-border, #d9e6f2);
   border-radius: 8px;
-  background: #fff;
+  background: var(--app-surface, #fff);
   box-shadow: 0 8px 22px rgb(15 23 42 / 6%);
 }
 
@@ -2366,13 +2366,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   min-width: 132px;
-  color: #475569;
+  color: var(--app-text, #475569);
   font-size: 13px;
   white-space: nowrap;
 }
 
 .batch-toolbar__summary strong {
-  color: #1e3a5f;
+  color: var(--app-text, #1e3a5f);
   font-weight: 700;
 }
 
@@ -2390,13 +2390,13 @@ onBeforeUnmount(() => {
 }
 
 .batch-toolbar :deep(.el-button.is-plain) {
-  border-color: #cddbea;
-  background: #f8fbff;
+  border-color: var(--app-border, #cddbea);
+  background: var(--app-surface-muted, #f8fbff);
 }
 
 .batch-toolbar :deep(.el-button--danger.is-plain) {
-  border-color: #f2b8b8;
-  background: #fff7f7;
+  border-color: var(--app-border, #f2b8b8);
+  background: var(--app-surface-muted, #fff7f7);
 }
 
 .resource-table :deep(.el-table__cell) {
@@ -2417,8 +2417,8 @@ onBeforeUnmount(() => {
 }
 
 .resource-table--accounts :deep(th.el-table__cell) {
-  color: #526477;
-  background: #f3f7fa;
+  color: var(--app-text, #526477);
+  background: var(--app-surface-muted, #f3f7fa);
   font-size: 12px;
   font-weight: 700;
 }
@@ -2428,32 +2428,32 @@ onBeforeUnmount(() => {
 }
 
 .resource-table--accounts :deep(.el-table__row:hover > td.el-table__cell) {
-  background: #f4f9fd;
+  background: var(--app-surface-muted, #f4f9fd);
 }
 
 .resource-table--accounts :deep(.el-button.is-circle) {
   border: 1px solid transparent;
-  color: #52677a;
-  background: #f4f7fa;
+  color: var(--app-text, #52677a);
+  background: var(--app-surface-muted, #f4f7fa);
 }
 
 .resource-table--accounts :deep(.el-button.is-circle:hover) {
-  border-color: #bfd5e6;
-  color: #1f668f;
-  background: #edf7fd;
+  border-color: var(--app-border, #bfd5e6);
+  color: var(--app-blue, #1f668f);
+  background: var(--app-surface-muted, #edf7fd);
 }
 
 .resource-table--accounts :deep(.el-button--danger.is-circle) {
-  color: #c94c4c;
-  background: #fff5f5;
+  color: var(--app-red, #c94c4c);
+  background: var(--app-surface-muted, #fff5f5);
 }
 
 .resource-table--proxies :deep(th.el-table__cell),
 .resource-table--tasks :deep(th.el-table__cell),
 .resource-table--scripts :deep(th.el-table__cell),
 .resource-table--taskTemplates :deep(th.el-table__cell) {
-  color: #526477;
-  background: #f3f7fa;
+  color: var(--app-text, #526477);
+  background: var(--app-surface-muted, #f3f7fa);
   font-size: 12px;
   font-weight: 700;
 }
@@ -2474,7 +2474,7 @@ onBeforeUnmount(() => {
 .resource-table--tasks :deep(.el-table__row:hover > td.el-table__cell),
 .resource-table--scripts :deep(.el-table__row:hover > td.el-table__cell),
 .resource-table--taskTemplates :deep(.el-table__row:hover > td.el-table__cell) {
-  background: #f4f9fd;
+  background: var(--app-surface-muted, #f4f9fd);
 }
 
 .resource-table--proxies :deep(.el-button.is-circle),
@@ -2482,38 +2482,38 @@ onBeforeUnmount(() => {
 .resource-table--scripts :deep(.el-button.is-circle),
 .resource-table--taskTemplates :deep(.el-button.is-circle) {
   border: 1px solid transparent;
-  color: #52677a;
-  background: #f4f7fa;
+  color: var(--app-text, #52677a);
+  background: var(--app-surface-muted, #f4f7fa);
 }
 
 .resource-table--proxies :deep(.el-button.is-circle:hover),
 .resource-table--tasks :deep(.el-button.is-circle:hover),
 .resource-table--scripts :deep(.el-button.is-circle:hover),
 .resource-table--taskTemplates :deep(.el-button.is-circle:hover) {
-  border-color: #bfd5e6;
-  color: #1f668f;
-  background: #edf7fd;
+  border-color: var(--app-border, #bfd5e6);
+  color: var(--app-blue, #1f668f);
+  background: var(--app-surface-muted, #edf7fd);
 }
 
 .resource-table--proxies :deep(.el-button--danger.is-circle),
 .resource-table--tasks :deep(.el-button--danger.is-circle),
 .resource-table--scripts :deep(.el-button--danger.is-circle),
 .resource-table--taskTemplates :deep(.el-button--danger.is-circle) {
-  color: #c94c4c;
-  background: #fff5f5;
+  color: var(--app-red, #c94c4c);
+  background: var(--app-surface-muted, #fff5f5);
 }
 
 .table-pagination {
   display: flex;
   justify-content: flex-end;
   padding: 14px 16px;
-  border-top: 1px solid #e6edf3;
+  border-top: 1px solid var(--app-border, #e6edf3);
 }
 
 .table-empty__tip {
   max-width: 320px;
   margin: -4px auto 12px;
-  color: #7b8794;
+  color: var(--app-text-muted, #7b8794);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -2528,9 +2528,9 @@ onBeforeUnmount(() => {
 .slot-group-edit-tabs__panel {
   min-width: 0;
   padding: 14px;
-  border: 1px solid #e6edf3;
+  border: 1px solid var(--app-border, #e6edf3);
   border-radius: 8px;
-  background: #fbfdff;
+  background: var(--app-surface-muted, #fbfdff);
 }
 
 .slot-group-edit-tabs :deep(.el-tabs__header) {
@@ -2544,14 +2544,14 @@ onBeforeUnmount(() => {
 
 .account-group-edit-layout__base {
   padding: 14px;
-  border: 1px solid #e6edf3;
+  border: 1px solid var(--app-border, #e6edf3);
   border-radius: 8px;
-  background: #fbfdff;
+  background: var(--app-surface-muted, #fbfdff);
 }
 
 .edit-panel-title {
   margin-bottom: 12px;
-  color: #1f2933;
+  color: var(--app-text, #1f2933);
   font-size: 15px;
   font-weight: 700;
 }
@@ -2569,9 +2569,9 @@ onBeforeUnmount(() => {
   max-height: 62vh;
   padding: 16px;
   overflow: auto;
-  border: 1px solid #dce6ef;
+  border: 1px solid var(--app-border, #dce6ef);
   border-radius: 8px;
-  background: #f8fbfd;
+  background: var(--app-surface-muted, #f8fbfd);
 }
 
 .asset-viewer {

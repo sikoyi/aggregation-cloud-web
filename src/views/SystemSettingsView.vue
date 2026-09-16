@@ -71,11 +71,11 @@ function refreshDefaults() {
 <style scoped>
 .system-settings__workspace {
   --content-inset: 16px;
-  border-color: #d9e2ec;
+  border-color: var(--app-border, #d9e2ec);
   border-radius: 8px;
 }
 .system-settings__workspace :deep(.el-card__body) { padding: 0; }
-.system-settings__header { padding: 13px var(--content-inset); border-bottom: 1px solid #e6edf3; background: #fff; }
+.system-settings__header { padding: 13px var(--content-inset); border-bottom: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }
 .system-settings__title,
 .tab-label { display: flex; align-items: center; }
 .system-settings__title { gap: 10px; }
@@ -86,19 +86,19 @@ function refreshDefaults() {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  color: #1f668f;
-  background: #eef8ff;
+  color: var(--app-blue, #1f668f);
+  background: var(--app-surface-muted, #eef8ff);
 }
-.system-settings__title h1 { color: #1f2933; font-size: 18px; font-weight: 700; line-height: 1.25; }
-.system-settings__title p { margin-top: 3px; color: #66788a; font-size: 12px; }
-.system-settings__tabs :deep(.el-tabs__header) { margin: 0; padding: 0 var(--content-inset); background: #fff; }
-.system-settings__tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: #e6edf3; }
-.system-settings__tabs :deep(.el-tabs__item) { height: 40px; color: #52606d; font-size: 13px; font-weight: 600; }
-.system-settings__tabs :deep(.el-tabs__item.is-active) { color: #1f668f; }
-.system-settings__tabs :deep(.el-tabs__content) { min-height: 500px; padding: 18px var(--content-inset) 22px; background: #f8fafc; }
+.system-settings__title h1 { color: var(--app-text, #1f2933); font-size: 18px; font-weight: 700; line-height: 1.25; }
+.system-settings__title p { margin-top: 3px; color: var(--app-text-muted, #66788a); font-size: 12px; }
+.system-settings__tabs :deep(.el-tabs__header) { margin: 0; padding: 0 var(--content-inset); background: var(--app-surface, #fff); }
+.system-settings__tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--app-surface-muted, #e6edf3); }
+.system-settings__tabs :deep(.el-tabs__item) { height: 40px; color: var(--app-text, #52606d); font-size: 13px; font-weight: 600; }
+.system-settings__tabs :deep(.el-tabs__item.is-active) { color: var(--app-blue, #1f668f); }
+.system-settings__tabs :deep(.el-tabs__content) { min-height: 500px; padding: 18px var(--content-inset) 22px; background: var(--app-surface-muted, #f8fafc); }
 .system-settings__tabs--readonly :deep(.el-button),
 .system-settings__tabs--readonly :deep(.el-switch) { display: none; }
-.system-settings__tabs :deep(.el-tab-pane) { padding: 16px; border: 1px solid #dbe4ed; border-radius: 6px; background: #fff; }
+.system-settings__tabs :deep(.el-tab-pane) { padding: 16px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); }
 .tab-label { gap: 6px; }
 @media (max-width: 720px) {
   .system-settings__tabs :deep(.el-tabs__content) { padding: 12px; }

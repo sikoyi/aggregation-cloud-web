@@ -110,9 +110,9 @@ onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
 .shopify-monitors { min-width: 0; margin-top: 16px; }
 .shopify-monitors__filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .shopify-monitors__filters .el-input, .shopify-monitors__filters .el-select { width: 240px; max-width: 100%; }
-.shopify-monitors__id { display: block; color: #718096; margin-top: 4px; }
+.shopify-monitors__id { display: block; color: var(--app-text-muted, #718096); margin-top: 4px; }
 .shopify-monitors__action { display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; }
-.table-pagination { display: flex; justify-content: flex-end; padding: 14px 16px; border-top: 1px solid #e6edf3; overflow-x: auto; }
+.table-pagination { display: flex; justify-content: flex-end; padding: 14px 16px; border-top: 1px solid var(--app-border, #e6edf3); overflow-x: auto; }
 @media (max-width: 640px) { .table-pagination { justify-content: flex-start; } }
-a { color: #2e6990; }
+a { color: var(--app-blue, #2e6990); }
 </style>

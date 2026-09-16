@@ -1,0 +1,61 @@
+/* Business styles retain their existing light values as variable fallbacks. */
+html.dark {
+  --el-bg-color: #202123;
+  --el-bg-color-page: #161719;
+  --el-bg-color-overlay: #262729;
+  --el-text-color-primary: #e8e9eb;
+  --el-text-color-regular: #c6c9ce;
+  --el-text-color-secondary: #a0a6ae;
+  --el-text-color-placeholder: #858b93;
+  --el-text-color-disabled: #747a82;
+  --el-border-color: #43464c;
+  --el-border-color-light: #383b41;
+  --el-border-color-lighter: #303339;
+  --el-border-color-extra-light: #2b2e33;
+  --el-fill-color: #303237;
+  --el-fill-color-light: #292b30;
+  --el-fill-color-lighter: #25272b;
+  --el-fill-color-extra-light: #222428;
+  --el-fill-color-blank: #202123;
+  --el-color-primary: #75bce2;
+  --el-color-primary-light-3: #5399c0;
+  --el-color-primary-light-5: #3c6f8b;
+  --el-color-primary-light-7: #2f4e60;
+  --el-color-primary-light-8: #293f4b;
+  --el-color-primary-light-9: #23323c;
+  --el-color-primary-dark-2: #91d1f2;
+  --app-scrollbar-thumb: #50545b;
+  --app-scrollbar-thumb-hover: #737983;
+  --app-surface: var(--el-bg-color);
+  --app-surface-muted: var(--el-fill-color-light);
+  --app-border: var(--el-border-color-light);
+  --app-text: var(--el-text-color-primary);
+  --app-text-muted: var(--el-text-color-secondary);
+  --app-blue: #83c8ed;
+  --app-green: #80d1a2;
+  --app-red: #f38e91;
+  --app-amber: #e9bf78;
+  --app-purple: #bbabf0;
+  --app-cyan: #7bd2d7;
+  --app-blue-bg: #243540;
+  --app-green-bg: #253b30;
+  --app-red-bg: #40292e;
+  --app-amber-bg: #403625;
+  --app-purple-bg: #332f45;
+  --app-cyan-bg: #233b3e;
+}
+
+html.dark body { background: var(--el-bg-color-page); color: var(--el-text-color-primary); }
+html.dark :is(.bg-paper, .bg-slate-50, .bg-slate-100) { background-color: var(--el-bg-color-page); }
+html.dark :is(.bg-white, .bg-white\/95, .panel, .input, .textarea, .btn-secondary) { background-color: var(--el-bg-color); }
+html.dark :is(.text-ink, .text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600, .input, .textarea, .btn-secondary) { color: var(--el-text-color-primary); }
+html.dark :is(.text-slate-500, .text-slate-400, .label, .btn-ghost) { color: var(--el-text-color-secondary); }
+html.dark :is(.border-line, .border-slate-100, .border-slate-200, .border-slate-300, .input, .textarea, .panel, .btn-secondary) { border-color: var(--el-border-color); }
+html.dark :is(.bg-brand-50, .bg-brand-100) { background-color: var(--app-blue-bg); }
+html.dark :is(.text-brand-500, .text-brand-600, .text-brand-700) { color: var(--app-blue); }
+html.dark .text-emerald-700 { color: var(--app-green); }
+html.dark :is(.text-red-500, .text-red-600) { color: var(--app-red); }
+html.dark :is(.hover\:bg-slate-50, .hover\:bg-slate-100, .btn-secondary, .btn-ghost):hover { background-color: var(--el-fill-color); }
+html.dark .el-button--primary:not(.is-plain):not(.is-text):not(.is-link) { --el-button-text-color: #15232b; --el-button-hover-text-color: #15232b; }
+html.dark .el-segmented { --el-segmented-item-selected-color: #15232b; }
+html.dark .el-radio-button { --el-radio-button-checked-text-color: #15232b; }

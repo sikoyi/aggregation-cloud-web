@@ -40,7 +40,7 @@ function formatProgress() {
 
 .interaction-progress :deep(.el-progress__text) {
   min-width: 42px;
-  color: #526578;
+  color: var(--app-text, #526578);
   font-size: 12px !important;
 }
 </style>

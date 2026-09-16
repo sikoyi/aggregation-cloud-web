@@ -634,7 +634,7 @@ async function updateSelected(value: string | string[]) {
 
 .remote-select-empty {
   padding: 16px 18px;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 13px;
   line-height: 1.6;
   text-align: center;

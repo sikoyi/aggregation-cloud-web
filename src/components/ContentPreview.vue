@@ -137,14 +137,14 @@ watch(
 
 .content-preview__heading {
   margin-bottom: 10px;
-  color: #1f2933;
+  color: var(--app-text, #1f2933);
   font-size: 14px;
   font-weight: 700;
 }
 
 .content-preview__text {
   margin: 0;
-  color: #334e68;
+  color: var(--app-text, #334e68);
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
@@ -160,7 +160,7 @@ watch(
 
 .content-preview__empty {
   margin: 0;
-  color: #94a3b8;
+  color: var(--app-text-muted, #94a3b8);
   font-size: 13px;
 }
 
@@ -176,7 +176,7 @@ watch(
 .content-preview__video {
   width: 64px;
   height: 64px;
-  border: 1px solid #d9e2ec;
+  border: 1px solid var(--app-border, #d9e2ec);
   border-radius: 6px;
   background: #0f172a;
 }
@@ -231,10 +231,10 @@ watch(
   height: 36px;
   padding: 0 10px;
   overflow: hidden;
-  border: 1px solid #d9e2ec;
+  border: 1px solid var(--app-border, #d9e2ec);
   border-radius: 6px;
-  color: #52606d;
-  background: #f8fafc;
+  color: var(--app-text, #52606d);
+  background: var(--app-surface-muted, #f8fafc);
   font-size: 12px;
 }
 
@@ -245,7 +245,7 @@ watch(
 }
 
 .content-preview__more {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
   font-weight: 600;
 }

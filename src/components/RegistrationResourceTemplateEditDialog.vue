@@ -120,8 +120,8 @@ onBeforeUnmount(() => { requestId += 1 })
 <style scoped>
 .template-editor { min-height: 140px; min-width: 0; }
 .template-editor-heading { display: grid; gap: 4px; margin-bottom: 16px; overflow-wrap: anywhere; }
-.template-editor-heading strong { font-size: 14px; color: #25374b; }
-.template-editor-heading span { font-size: 12px; color: #64748b; }
-.template-editor-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: #dc2626; }
+.template-editor-heading strong { font-size: 14px; color: var(--app-text, #25374b); }
+.template-editor-heading span { font-size: 12px; color: var(--app-text-muted, #64748b); }
+.template-editor-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--app-red, #dc2626); }
 .template-editor-error span { min-width: 0; overflow-wrap: anywhere; }
 </style>

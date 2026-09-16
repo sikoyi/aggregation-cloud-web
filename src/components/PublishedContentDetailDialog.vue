@@ -546,18 +546,18 @@ watch(metricPeriod, () => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--app-surface, #fff);
 }
 
 .metric-label {
   display: block;
   margin-bottom: 4px;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
 .metric-item strong {
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
   font-size: 20px;
 }
 
@@ -576,7 +576,7 @@ watch(metricPeriod, () => {
 }
 
 .monitor-inline__control span {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
@@ -601,11 +601,11 @@ watch(metricPeriod, () => {
 
 .trend-toolbar strong {
   display: block;
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
 }
 
 .trend-toolbar span {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
@@ -613,7 +613,7 @@ watch(metricPeriod, () => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   padding: 12px;
-  background: #fff;
+  background: var(--app-surface, #fff);
 }
 
 .trend-card__head {
@@ -621,14 +621,14 @@ watch(metricPeriod, () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
 .trend-card strong {
   display: block;
   margin-top: 8px;
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
   font-size: 22px;
 }
 
@@ -636,7 +636,7 @@ watch(metricPeriod, () => {
   display: grid;
   gap: 4px;
   margin-top: 8px;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
@@ -645,7 +645,7 @@ watch(metricPeriod, () => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   padding: 12px;
-  background: #fff;
+  background: var(--app-surface, #fff);
 }
 
 .trend-chart__header {
@@ -658,11 +658,11 @@ watch(metricPeriod, () => {
 
 .trend-chart__header strong {
   display: block;
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
 }
 
 .trend-chart__header span {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
@@ -676,7 +676,7 @@ watch(metricPeriod, () => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: #475569;
+  color: var(--app-text, #475569);
 }
 
 .trend-chart__legend i {
@@ -692,7 +692,7 @@ watch(metricPeriod, () => {
 }
 
 .axis-line {
-  stroke: #cbd5e1;
+  stroke: var(--app-text-muted, #cbd5e1);
   stroke-width: 1.5;
 }
 
@@ -703,7 +703,7 @@ watch(metricPeriod, () => {
 }
 
 .chart-label {
-  fill: #64748b;
+  fill: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
@@ -714,7 +714,7 @@ watch(metricPeriod, () => {
 .detail-section__title {
   margin-bottom: 10px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
 }
 
 .media-grid {
@@ -731,7 +731,7 @@ watch(metricPeriod, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
+  background: var(--app-surface-muted, #f8fafc);
 }
 
 .media-item img,
@@ -752,7 +752,7 @@ watch(metricPeriod, () => {
 }
 
 .comment-tree {
-  --el-tree-node-hover-bg-color: #f8fafc;
+  --el-tree-node-hover-bg-color: var(--app-surface-muted, #f8fafc);
 }
 
 :deep(.comment-tree .el-tree-node__content) {
@@ -777,7 +777,7 @@ watch(metricPeriod, () => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--app-border, #eef2f7);
   line-height: 1.45;
 }
 
@@ -792,13 +792,13 @@ watch(metricPeriod, () => {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
 .comment-node__content {
   margin: 5px 0;
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
   white-space: pre-wrap;
   word-break: break-word;
 }

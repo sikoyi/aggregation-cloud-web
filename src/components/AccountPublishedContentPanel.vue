@@ -315,14 +315,14 @@ onBeforeUnmount(() => {
 }
 
 .account-published-content__title {
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
   font-size: 15px;
   font-weight: 700;
 }
 
 .account-published-content__subtitle {
   margin-top: 4px;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
@@ -343,7 +343,7 @@ onBeforeUnmount(() => {
 .content-summary > strong {
   display: block;
   overflow: hidden;
-  color: #102a43;
+  color: var(--app-text, #102a43);
   font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -354,7 +354,7 @@ onBeforeUnmount(() => {
   display: -webkit-box;
   overflow: hidden;
   margin: 6px 0 8px;
-  color: #526d82;
+  color: var(--app-text-muted, #526d82);
   font-size: 12px;
   line-height: 1.55;
   word-break: break-word;
@@ -380,9 +380,9 @@ onBeforeUnmount(() => {
   height: 62px;
   margin: 0 auto;
   overflow: hidden;
-  border: 1px solid #dbe5ef;
+  border: 1px solid var(--app-border, #dbe5ef);
   border-radius: 6px;
-  background: #f4f8fb;
+  background: var(--app-surface-muted, #f4f8fb);
 }
 
 .content-media :deep(.el-image),
@@ -425,7 +425,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #829ab1;
+  color: var(--app-text-muted, #829ab1);
 }
 
 .content-media__count {
@@ -445,7 +445,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  color: #9fb3c8;
+  color: var(--app-text-muted, #9fb3c8);
   font-size: 11px;
 }
 
@@ -461,14 +461,14 @@ onBeforeUnmount(() => {
   align-items: center;
   border-radius: 5px;
   padding: 6px 8px;
-  color: #526d82;
-  background: #f5f8fb;
+  color: var(--app-text-muted, #526d82);
+  background: var(--app-surface-muted, #f5f8fb);
   font-size: 12px;
 }
 
 .content-metrics > div > strong {
   overflow: hidden;
-  color: #102a43;
+  color: var(--app-text, #102a43);
   font-size: 13px;
   text-align: right;
   text-overflow: ellipsis;
@@ -486,13 +486,13 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 6px;
-  color: #526d82;
+  color: var(--app-text-muted, #526d82);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .content-state em {
-  color: #829ab1;
+  color: var(--app-text-muted, #829ab1);
   font-style: normal;
 }
 
@@ -512,7 +512,7 @@ onBeforeUnmount(() => {
 }
 
 .account-published-content__table :deep(.el-table__row:hover > td.el-table__cell) {
-  background: #f7fbff;
+  background: var(--app-surface-muted, #f7fbff);
 }
 
 @media (max-width: 900px) {

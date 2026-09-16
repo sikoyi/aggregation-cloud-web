@@ -64,15 +64,15 @@ async function navigate(id: string) {
 
 <style scoped>
 .binding-conflicts { min-height: 150px; max-height: 65vh; overflow-y: auto; }
-.binding-conflicts__toolbar { display: flex; align-items: center; justify-content: space-between; color: #66788a; font-size: 12px; }
-.binding-conflicts__record { padding: 14px 0; border-bottom: 1px solid #e6edf3; }
+.binding-conflicts__toolbar { display: flex; align-items: center; justify-content: space-between; color: var(--app-text-muted, #66788a); font-size: 12px; }
+.binding-conflicts__record { padding: 14px 0; border-bottom: 1px solid var(--app-border, #e6edf3); }
 .binding-conflicts__record header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
-.binding-conflicts__record header strong { overflow-wrap: anywhere; color: #334e68; font-size: 13px; }
-.binding-conflicts__record header small { color: #8494a5; overflow-wrap: anywhere; }
+.binding-conflicts__record header strong { overflow-wrap: anywhere; color: var(--app-text, #334e68); font-size: 13px; }
+.binding-conflicts__record header small { color: var(--app-text-muted, #8494a5); overflow-wrap: anywhere; }
 .binding-conflicts__environments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-.binding-conflicts__environment { min-width: 0; border-left: 3px solid #85baa0; padding-left: 10px; }
-.binding-conflicts__environment--observed { border-color: #d9ac51; }
-.binding-conflicts__environment h3 { margin: 0 0 6px; font-size: 12px; color: #52697e; font-weight: 600; }
-.binding-conflicts__record footer { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; color: #8494a5; font-size: 11px; }
+.binding-conflicts__environment { min-width: 0; border-left: 3px solid var(--app-green, #85baa0); padding-left: 10px; }
+.binding-conflicts__environment--observed { border-color: var(--app-amber, #d9ac51); }
+.binding-conflicts__environment h3 { margin: 0 0 6px; font-size: 12px; color: var(--app-text-muted, #52697e); font-weight: 600; }
+.binding-conflicts__record footer { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; color: var(--app-text-muted, #8494a5); font-size: 11px; }
 @media (max-width: 640px) { .binding-conflicts__environments { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
 </style>

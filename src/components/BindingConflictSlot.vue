@@ -46,10 +46,10 @@ async function copyId(id: string) {
 
 <style scoped>
 .conflict-slot { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
-.conflict-slot strong { color: #334e68; font-size: 13px; overflow-wrap: anywhere; }
-.conflict-slot__id { display: flex; align-items: center; gap: 4px; color: #66788a; font-size: 11px; }
+.conflict-slot strong { color: var(--app-text, #334e68); font-size: 13px; overflow-wrap: anywhere; }
+.conflict-slot__id { display: flex; align-items: center; gap: 4px; color: var(--app-text-muted, #66788a); font-size: 11px; }
 .conflict-slot__id > span { min-width: 0; overflow-wrap: anywhere; }
-.conflict-slot__id code { color: #28719f; }
+.conflict-slot__id code { color: var(--app-blue, #28719f); }
 .conflict-slot__id :deep(.el-button) { width: 26px; height: 26px; flex: 0 0 26px; margin-left: 0; }
-.conflict-slot__empty { color: #8494a5; font-size: 12px; }
+.conflict-slot__empty { color: var(--app-text-muted, #8494a5); font-size: 12px; }
 </style>

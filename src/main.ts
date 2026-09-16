@@ -4,12 +4,17 @@ import { ElMessage } from 'element-plus'
 import 'element-plus/es/components/message/style/css'
 import 'element-plus/es/components/message-box/style/css'
 import 'element-plus/es/components/notification/style/css'
+import 'element-plus/theme-chalk/dark/css-vars.css'
 
 import App from './App.vue'
 import { setUnauthorizedHandler } from './api/http'
 import { router } from './router'
 import { useAuthStore } from './stores/auth'
 import './styles.css'
+import './theme.css'
+import { initializeTheme } from './composables/useTheme'
+
+initializeTheme()
 
 const pinia = createPinia()
 const app = createApp(App)

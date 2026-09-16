@@ -56,10 +56,10 @@ const metrics: { key: AccountStatisticKey; label: string; hint: string; tone?: s
 .account-statistics__metric:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -2px; }
 .account-statistics__label { font-size: 13px; color: var(--el-text-color-regular); overflow-wrap: anywhere; }
 .account-statistics__count { font-size: 24px; line-height: 30px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.green .account-statistics__count { color: #168451; }
-.teal .account-statistics__count { color: #16818b; }
-.red .account-statistics__count { color: #c3424b; }
-.amber .account-statistics__count { color: #a36b0c; }
+.green .account-statistics__count { color: var(--app-green, #168451); }
+.teal .account-statistics__count { color: var(--app-cyan, #16818b); }
+.red .account-statistics__count { color: var(--app-red, #c3424b); }
+.amber .account-statistics__count { color: var(--app-amber, #a36b0c); }
 .account-statistics__error { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 4px 12px; color: var(--el-text-color-secondary); font-size: 12px; }
 @media (max-width: 1200px) { .account-statistics__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 480px) { .account-statistics__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

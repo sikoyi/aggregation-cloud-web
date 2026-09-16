@@ -738,9 +738,9 @@ watch(
   box-sizing: border-box;
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid #dbe4f0;
+  border: 1px solid var(--app-border, #dbe4f0);
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--app-surface-muted, #f8fafc);
 }
 
 .slot-tree-select--fill {
@@ -761,8 +761,8 @@ watch(
   top: -10px;
   margin: -10px -12px 10px;
   padding: 10px 12px;
-  border-bottom: 1px solid #dbe4f0;
-  background: rgb(248 250 252 / 96%);
+  border-bottom: 1px solid var(--app-border, #dbe4f0);
+  background: var(--app-surface-muted, rgb(248 250 252 / 96%));
   backdrop-filter: blur(4px);
 }
 
@@ -771,7 +771,7 @@ watch(
   grid-template-columns: repeat(3, minmax(72px, 1fr));
   gap: 6px;
   margin-bottom: 8px;
-  color: #65778a;
+  color: var(--app-text-muted, #65778a);
   font-size: 12px;
   text-align: center;
 }
@@ -786,7 +786,7 @@ watch(
 
 .slot-tree-summary strong {
   margin-left: 3px;
-  color: #1f668f;
+  color: var(--app-blue, #1f668f);
   font-size: 13px;
 }
 
@@ -820,7 +820,7 @@ watch(
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  border: 2px solid #fff;
+  border: 2px solid var(--app-border, #fff);
   border-radius: 9px;
   background: #1f668f;
   color: #fff;
@@ -835,7 +835,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
-  color: #27364a;
+  color: var(--app-text, #27364a);
   font-weight: 600;
 }
 
@@ -843,7 +843,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: #27364a;
+  color: var(--app-text, #27364a);
   font-size: 13px;
   font-weight: 600;
 }
@@ -871,7 +871,7 @@ watch(
 }
 
 .group-filter-popover__options :deep(.el-checkbox:hover) {
-  background: #f3f7fb;
+  background: var(--app-surface-muted, #f3f7fb);
 }
 
 .slot-tree-select :deep(.el-tree-node__content) {
@@ -901,7 +901,7 @@ watch(
   bottom: 2px;
   left: 4px;
   height: 1px;
-  background: #c8d5e2;
+  background: var(--app-blue-bg, #c8d5e2);
   content: '';
 }
 
@@ -925,13 +925,13 @@ watch(
 }
 
 .slot-tree-node__id {
-  color: #7b8da1;
+  color: var(--app-text-muted, #7b8da1);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 10px;
 }
 
 .slot-tree-node__account {
-  color: #65778a;
+  color: var(--app-text-muted, #65778a);
   font-size: 11px;
 }
 
@@ -947,19 +947,19 @@ watch(
   height: 30px;
   border: 0;
   background: transparent;
-  color: #1f668f;
+  color: var(--app-blue, #1f668f);
   cursor: pointer;
   font-size: 12px;
   text-align: left;
 }
 
 .slot-tree-load-more:hover {
-  color: #164e73;
+  color: var(--app-blue, #164e73);
   text-decoration: underline;
 }
 
 .slot-tree-load-more:disabled {
-  color: #9aa8b7;
+  color: var(--app-text-muted, #9aa8b7);
   cursor: wait;
   text-decoration: none;
 }

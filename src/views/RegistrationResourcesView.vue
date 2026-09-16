@@ -560,12 +560,12 @@ onMounted(() => {
 <style scoped>
 .registration-tabs :deep(.el-tabs__header) { margin: 0; padding: 0 16px; }
 .registration-tabs :deep(.el-tabs__content) { overflow: visible; }
-.filter-field { display: grid; gap: 6px; width: 230px; font-size: 12px; color: #64748b; }
+.filter-field { display: grid; gap: 6px; width: 230px; font-size: 12px; color: var(--app-text-muted, #64748b); }
 .filter-field--short { width: 160px; }
 .count-grid { display: flex; justify-content: center; gap: 18px; }
 .count-grid span { display: grid; min-width: 34px; line-height: 1.1; }
 .count-grid b { font-size: 14px; }
-.count-grid small { margin-top: 5px; font-size: 11px; color: #94a3b8; }
+.count-grid small { margin-top: 5px; font-size: 11px; color: var(--app-text-muted, #94a3b8); }
 .operation-actions { display: inline-flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 4px; white-space: nowrap; }
 .operation-actions :deep(.el-button) { margin: 0; }
 .operation-actions--icons :deep(.el-button) { width: 30px; height: 30px; padding: 0; }

@@ -141,7 +141,7 @@ const timelineValue = computed(() => compactDate(props.row[props.column.key]))
 .asset-cell { min-width: 0; }
 .asset-identity { display: flex; align-items: center; min-height: 52px; }
 .asset-preview { display: flex; align-items: center; justify-content: center; min-height: 64px; }
-.asset-preview__button { position: relative; display: inline-flex; width: 72px; height: 56px; overflow: hidden; align-items: center; justify-content: center; padding: 0; border: 1px solid #d5e2ec; border-radius: 7px; color: #4f718a; background: #edf4f8; cursor: pointer; }
+.asset-preview__button { position: relative; display: inline-flex; width: 72px; height: 56px; overflow: hidden; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--app-border, #d5e2ec); border-radius: 7px; color: var(--app-text-muted, #4f718a); background: var(--app-surface-muted, #edf4f8); cursor: pointer; }
 .asset-preview__button.is-empty { cursor: default; }
 .asset-preview__button > img,
 .asset-preview__button > video { width: 100%; height: 100%; object-fit: cover; }
@@ -150,27 +150,27 @@ const timelineValue = computed(() => compactDate(props.row[props.column.key]))
 .asset-preview__zoom svg { width: 11px; height: 11px; }
 .asset-preview__button:hover .asset-preview__zoom { opacity: 1; }
 .asset-identity__main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 7px; }
-.asset-identity__main > strong { overflow: hidden; color: #243b53; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.asset-identity__main > strong { overflow: hidden; color: var(--app-text, #243b53); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .asset-identity__meta { display: flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
-.asset-identity__meta code { flex: 0 0 auto; color: #28719f; font-size: 11px; }
+.asset-identity__meta code { flex: 0 0 auto; color: var(--app-blue, #28719f); font-size: 11px; }
 .asset-identity__meta :deep(.el-tag) { max-width: 76px; }
 .asset-identity__meta :deep(.el-tag__content) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.asset-identity__meta small { color: #8293a5; font-size: 10px; }
-.asset-identity__empty { display: inline-flex; align-items: center; gap: 3px; color: #94a3b8; font-size: 11px; white-space: nowrap; }
+.asset-identity__meta small { color: var(--app-text-muted, #8293a5); font-size: 10px; }
+.asset-identity__empty { display: inline-flex; align-items: center; gap: 3px; color: var(--app-text-muted, #94a3b8); font-size: 11px; white-space: nowrap; }
 .asset-identity__empty svg { width: 11px; height: 11px; }
 .asset-groups { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 5px; }
 .asset-groups :deep(.el-tag) { max-width: 100%; }
 .asset-groups :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; }
 .asset-groups svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .asset-groups span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.asset-groups small { color: #8293a5; font-size: 10px; }
+.asset-groups small { color: var(--app-text-muted, #8293a5); font-size: 10px; }
 .asset-property { display: flex; align-items: center; justify-content: center; }
 .asset-property :deep(.el-tag__content) { display: inline-flex; align-items: center; gap: 5px; }
 .asset-property svg { width: 12px; height: 12px; }
 .asset-spec { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
-.asset-spec strong { color: #40566c; font-size: 12px; white-space: nowrap; }
-.asset-spec small { color: #8293a5; font-size: 11px; white-space: nowrap; }
+.asset-spec strong { color: var(--app-text, #40566c); font-size: 12px; white-space: nowrap; }
+.asset-spec small { color: var(--app-text-muted, #8293a5); font-size: 11px; white-space: nowrap; }
 .asset-timeline { display: flex; align-items: center; justify-content: center; gap: 7px; }
-.asset-timeline > svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
-.asset-timeline strong { color: #40566c; font-size: 12px; white-space: nowrap; }
+.asset-timeline > svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--app-text-muted, #527a98); }
+.asset-timeline strong { color: var(--app-text, #40566c); font-size: 12px; white-space: nowrap; }
 </style>

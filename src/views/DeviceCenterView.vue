@@ -138,7 +138,7 @@ function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
 .device-center__workspace {
   --device-center-content-inset: 16px;
   border-radius: 8px;
-  border-color: #d9e2ec;
+  border-color: var(--app-border, #d9e2ec);
 }
 
 .device-center__workspace :deep(.el-card__body) {
@@ -151,8 +151,8 @@ function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
   justify-content: space-between;
   gap: 16px;
   padding: 13px var(--device-center-content-inset);
-  border-bottom: 1px solid #e6edf3;
-  background: #ffffff;
+  border-bottom: 1px solid var(--app-border, #e6edf3);
+  background: var(--app-surface, #ffffff);
 }
 
 .device-center__title {
@@ -178,12 +178,12 @@ function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  color: #1f668f;
-  background: #eef8ff;
+  color: var(--app-blue, #1f668f);
+  background: var(--app-surface-muted, #eef8ff);
 }
 
 .device-center__title h1 {
-  color: #1f2933;
+  color: var(--app-text, #1f2933);
   font-size: 18px;
   font-weight: 700;
   line-height: 1.25;
@@ -191,35 +191,35 @@ function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
 
 .device-center__title p {
   margin-top: 3px;
-  color: #66788a;
+  color: var(--app-text-muted, #66788a);
   font-size: 12px;
 }
 
 .device-center__tabs :deep(.el-tabs__header) {
   margin: 0;
   padding: 0 var(--device-center-content-inset);
-  background: #ffffff;
+  background: var(--app-surface, #ffffff);
 }
 
 .device-center__tabs :deep(.el-tabs__nav-wrap::after) {
   height: 1px;
-  background: #e6edf3;
+  background: var(--app-surface-muted, #e6edf3);
 }
 
 .device-center__tabs :deep(.el-tabs__item) {
   height: 40px;
-  color: #52606d;
+  color: var(--app-text, #52606d);
   font-size: 13px;
   font-weight: 600;
 }
 
 .device-center__tabs :deep(.el-tabs__item.is-active) {
-  color: #1f668f;
+  color: var(--app-blue, #1f668f);
 }
 
 .device-center__tabs :deep(.el-tabs__content) {
   padding: 14px var(--device-center-content-inset) 16px;
-  background: #f8fafc;
+  background: var(--app-surface-muted, #f8fafc);
 }
 
 .device-center__tab-label {

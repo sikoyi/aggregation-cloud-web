@@ -154,12 +154,12 @@ defineExpose({ loadConfig })
 .config-panel { min-height: 300px; }
 .config-panel__heading,
 .config-panel__footer { display: flex; align-items: center; }
-.config-panel__heading { justify-content: space-between; gap: 20px; padding-bottom: 14px; border-bottom: 1px solid #e5ebf1; }
-.config-panel__heading h2 { color: #203246; font-size: 16px; font-weight: 700; }
-.config-panel__heading p { margin-top: 4px; color: #718096; font-size: 12px; }
+.config-panel__heading { justify-content: space-between; gap: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--app-border, #e5ebf1); }
+.config-panel__heading h2 { color: var(--app-text, #203246); font-size: 16px; font-weight: 700; }
+.config-panel__heading p { margin-top: 4px; color: var(--app-text-muted, #718096); font-size: 12px; }
 .config-form { max-width: 900px; padding-top: 18px; }
 .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; }
-.config-panel__footer { justify-content: space-between; gap: 16px; padding-top: 14px; border-top: 1px solid #e5ebf1; color: #8793a3; font-size: 12px; }
+.config-panel__footer { justify-content: space-between; gap: 16px; padding-top: 14px; border-top: 1px solid var(--app-border, #e5ebf1); color: var(--app-text-muted, #8793a3); font-size: 12px; }
 @media (max-width: 720px) {
   .config-grid { grid-template-columns: 1fr; }
   .config-panel__footer { align-items: flex-end; flex-direction: column; }

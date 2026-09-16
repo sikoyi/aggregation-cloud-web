@@ -26,9 +26,9 @@ const router = useRouter()
   align-items: center;
   justify-content: center;
   gap: 22px;
-  border: 1px solid #d9e2ec;
+  border: 1px solid var(--app-border, #d9e2ec);
   border-radius: 8px;
-  background: #fff;
+  background: var(--app-surface, #fff);
   text-align: left;
 }
 .forbidden-page__icon {
@@ -37,10 +37,10 @@ const router = useRouter()
   height: 64px;
   place-items: center;
   border-radius: 8px;
-  color: #b42318;
-  background: #fff1f0;
+  color: var(--app-red, #b42318);
+  background: var(--app-surface-muted, #fff1f0);
 }
-.forbidden-page__code { color: #1f668f; font-size: 13px; font-weight: 700; }
-h1 { margin: 4px 0 8px; color: #1f2933; font-size: 24px; }
-p { margin: 0 0 20px; color: #66788a; font-size: 14px; }
+.forbidden-page__code { color: var(--app-blue, #1f668f); font-size: 13px; font-weight: 700; }
+h1 { margin: 4px 0 8px; color: var(--app-text, #1f2933); font-size: 24px; }
+p { margin: 0 0 20px; color: var(--app-text-muted, #66788a); font-size: 14px; }
 </style>

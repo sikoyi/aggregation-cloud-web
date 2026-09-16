@@ -95,15 +95,15 @@ const mode = computed(() => optionLabel(proxyModeOptions, props.row.proxy_mode))
 <style scoped>
 .proxy-cell { min-width: 0; }
 .proxy-identity { display: flex; align-items: center; gap: 10px; }
-.proxy-identity__icon { display: inline-flex; width: 36px; height: 36px; flex: 0 0 36px; align-items: center; justify-content: center; border: 1px solid #cfe1f2; border-radius: 8px; color: #245f87; background: #edf6fc; }
+.proxy-identity__icon { display: inline-flex; width: 36px; height: 36px; flex: 0 0 36px; align-items: center; justify-content: center; border: 1px solid var(--app-border, #cfe1f2); border-radius: 8px; color: var(--app-blue, #245f87); background: var(--app-surface-muted, #edf6fc); }
 .proxy-identity__icon svg { width: 18px; height: 18px; }
 .proxy-identity__content { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .proxy-identity__content strong,
 .proxy-identity__content span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.proxy-identity__content strong { color: #243b53; font-size: 13px; }
+.proxy-identity__content strong { color: var(--app-text, #243b53); font-size: 13px; }
 .proxy-identity__meta { display: flex; min-width: 0; align-items: center; gap: 6px; }
-.proxy-identity__meta code { color: #28719f; font-size: 11px; }
-.proxy-identity__meta small { overflow: hidden; color: #8293a5; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.proxy-identity__meta code { color: var(--app-blue, #28719f); font-size: 11px; }
+.proxy-identity__meta small { overflow: hidden; color: var(--app-text-muted, #8293a5); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .proxy-groups { display: flex; flex-wrap: wrap; gap: 5px; }
 .proxy-group-tag { display: inline-flex; max-width: 100%; align-items: center; }
 .proxy-group-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; }
@@ -111,7 +111,7 @@ const mode = computed(() => optionLabel(proxyModeOptions, props.row.proxy_mode))
 .proxy-group-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proxy-endpoint { min-width: 0; }
 .proxy-endpoint__url { display: flex; min-width: 0; align-items: center; gap: 7px; }
-.proxy-endpoint__url svg { width: 15px; height: 15px; flex: 0 0 15px; color: #39759b; }
-.proxy-endpoint__url code { min-width: 0; overflow: hidden; color: #243b53; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.proxy-endpoint__url svg { width: 15px; height: 15px; flex: 0 0 15px; color: var(--app-blue, #39759b); }
+.proxy-endpoint__url code { min-width: 0; overflow: hidden; color: var(--app-text, #243b53); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .proxy-profile { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 8px; padding: 0 4px; white-space: nowrap; }
 </style>

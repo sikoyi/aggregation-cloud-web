@@ -112,7 +112,7 @@ onBeforeUnmount(() => { requestId += 1; media.removeEventListener('change', upda
 <style scoped>
 .template-detail { min-height: 120px; max-height: 65vh; overflow: auto; }
 .template-detail h3 { margin: 18px 0 10px; font-size: 14px; }
-.template-detail__secondary { display: block; color: #8293a5; font-size: 12px; }
+.template-detail__secondary { display: block; color: var(--app-text-muted, #8293a5); font-size: 12px; }
 .template-detail :deep(.el-descriptions__table) { table-layout: fixed; }
 .template-detail :deep(.el-descriptions__content),
 .template-detail :deep(.template-detail__value .cell) { overflow-wrap: anywhere; white-space: pre-wrap; }

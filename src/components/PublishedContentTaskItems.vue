@@ -189,18 +189,18 @@ onMounted(loadRows)
 </template>
 
 <style scoped>
-.published-task-items { padding: 14px 18px 18px 48px; background: #f8fafc; }
+.published-task-items { padding: 14px 18px 18px 48px; background: var(--app-surface-muted, #f8fafc); }
 .published-task-items__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
 .published-task-items__header > div { display: flex; align-items: baseline; gap: 8px; }
-.published-task-items__header strong { color: #243b53; font-size: 13px; }
+.published-task-items__header strong { color: var(--app-text, #243b53); font-size: 13px; }
 .published-task-items__header span,
-.published-task-items__header small { color: #8293a5; font-size: 11px; }
+.published-task-items__header small { color: var(--app-text-muted, #8293a5); font-size: 11px; }
 .published-task-items__table :deep(.cell) { min-width: 0; }
 .published-task-items__actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .published-task-items__actions :deep(.el-button + .el-button) { margin-left: 0; }
 .published-task-items__error { height: auto; margin-top: 5px; padding: 0; font-size: 10px; line-height: 16px; }
-.published-task-items__error-detail { color: #40566c; }
-.published-task-items__error-detail strong { display: block; margin-bottom: 7px; color: #b33e3e; font-size: 12px; }
-.published-task-items__error-detail p { margin: 0; color: #526578; font-size: 12px; line-height: 20px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.published-task-items__error-detail { color: var(--app-text, #40566c); }
+.published-task-items__error-detail strong { display: block; margin-bottom: 7px; color: var(--app-red, #b33e3e); font-size: 12px; }
+.published-task-items__error-detail p { margin: 0; color: var(--app-text, #526578); font-size: 12px; line-height: 20px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .published-task-items__pagination { display: flex; justify-content: flex-end; padding-top: 12px; }
 </style>

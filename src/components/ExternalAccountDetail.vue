@@ -114,33 +114,33 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
 <style scoped>
 .external-account-detail { min-width: 0; }
 .external-profile { display: flex; align-items: flex-start; gap: 16px; padding: 4px 0 20px; }
-.external-profile__avatar { flex-shrink: 0; background: #eef7fc; color: #316589; }
+.external-profile__avatar { flex-shrink: 0; background: var(--app-surface-muted, #eef7fc); color: var(--app-blue, #316589); }
 .external-profile__identity { flex: 1; min-width: 0; }
-.external-profile h2 { font-size: 20px; line-height: 1.4; margin: 0; color: #20384d; overflow-wrap: anywhere; }
-.external-profile__handle { margin-top: 4px; font-size: 12px; color: #718096; overflow-wrap: anywhere; }
+.external-profile h2 { font-size: 20px; line-height: 1.4; margin: 0; color: var(--app-text, #20384d); overflow-wrap: anywhere; }
+.external-profile__handle { margin-top: 4px; font-size: 12px; color: var(--app-text-muted, #718096); overflow-wrap: anywhere; }
 .external-profile__bio, .external-profile__remark { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 13px; }
 .external-profile__bio { margin: 8px 0 10px; }
 .external-profile__tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .external-detail-link { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 5px; white-space: nowrap; }
 .external-detail-link :deep(.el-link__inner) { display: inline-flex; align-items: center; gap: 5px; }
-.external-profile__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #f6f9fc; border-block: 1px solid #dce5ed; }
-.external-profile__metrics > div { padding: 16px 20px; border-right: 1px solid #dce5ed; min-width: 0; }
+.external-profile__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--app-surface-muted, #f6f9fc); border-block: 1px solid var(--app-border, #dce5ed); }
+.external-profile__metrics > div { padding: 16px 20px; border-right: 1px solid var(--app-border, #dce5ed); min-width: 0; }
 .external-profile__metrics > div:last-child { border: 0; }
-.external-profile__metrics small { display: block; color: #718096; font-size: 12px; }
-.external-profile__metrics strong { display: block; margin-top: 5px; font-size: 22px; color: #20384d; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.external-profile__metadata { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 14px 0; font-size: 12px; color: #718096; }
-.external-profile__metadata strong { margin-left: 6px; font-weight: 400; color: #40566c; }
+.external-profile__metrics small { display: block; color: var(--app-text-muted, #718096); font-size: 12px; }
+.external-profile__metrics strong { display: block; margin-top: 5px; font-size: 22px; color: var(--app-text, #20384d); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.external-profile__metadata { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 14px 0; font-size: 12px; color: var(--app-text-muted, #718096); }
+.external-profile__metadata strong { margin-left: 6px; font-weight: 400; color: var(--app-text, #40566c); }
 .external-detail-tabs :deep(.el-tabs__content) { overflow: visible; }
 .external-posts__heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; font-size: 13px; }
-.external-posts__heading span { color: #718096; }
+.external-posts__heading span { color: var(--app-text-muted, #718096); }
 .external-post-link { margin-top: 10px; }
 .external-post-metrics { display: grid; gap: 9px; font-size: 12px; }
-.external-post-metrics > span { display: flex; align-items: center; gap: 6px; color: #718096; }
-.external-post-metrics strong { margin-left: auto; color: #20384d; font-variant-numeric: tabular-nums; }
+.external-post-metrics > span { display: flex; align-items: center; gap: 6px; color: var(--app-text-muted, #718096); }
+.external-post-metrics strong { margin-left: auto; color: var(--app-text, #20384d); font-variant-numeric: tabular-nums; }
 .external-post-metrics svg { flex-shrink: 0; }
 .external-post-time { display: grid; gap: 8px; font-size: 12px; }
 .external-post-time > div { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: baseline; gap: 8px; white-space: nowrap; }
-.external-post-time small { color: #718096; }
+.external-post-time small { color: var(--app-text-muted, #718096); }
 .external-post-expanded { padding: 16px 24px; max-width: calc(96vw - 64px); }
 .external-detail-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 @media (max-width: 600px) {

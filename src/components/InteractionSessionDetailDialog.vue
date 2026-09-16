@@ -310,16 +310,16 @@ onBeforeUnmount(() => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--app-surface, #fff);
 }
 
 .metric-item span {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
 .metric-item strong {
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
   font-size: 20px;
 }
 
@@ -341,11 +341,11 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--app-border, #dbeafe);
   border-radius: 999px;
   padding: 5px 10px;
-  background: #eff6ff;
-  color: #1e3a8a;
+  background: var(--app-surface-muted, #eff6ff);
+  color: var(--app-blue, #1e3a8a);
   font-size: 12px;
 }
 
@@ -353,12 +353,12 @@ onBeforeUnmount(() => {
   content: "";
   width: 18px;
   height: 1px;
-  background: #bfdbfe;
+  background: var(--app-blue-bg, #bfdbfe);
   margin-left: 2px;
 }
 
 .chain-node span {
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
 }
 
 .chain-node strong {
@@ -370,10 +370,10 @@ onBeforeUnmount(() => {
 
 .step-card {
   min-height: 168px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--app-border, #e2e8f0);
   border-radius: 8px;
   padding: 10px;
-  background: #f8fafc;
+  background: var(--app-surface-muted, #f8fafc);
 }
 
 .step-card__head {
@@ -385,13 +385,13 @@ onBeforeUnmount(() => {
 }
 
 .step-card__action {
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
   font-weight: 600;
 }
 
 .step-card__meta {
   margin-top: 5px;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
@@ -403,15 +403,15 @@ onBeforeUnmount(() => {
   margin-top: 7px;
   border-radius: 6px;
   padding: 6px 8px;
-  background: #fff;
-  color: #64748b;
+  background: var(--app-surface, #fff);
+  color: var(--app-text-muted, #64748b);
   font-size: 12px;
 }
 
 .step-card__relation strong {
   min-width: 0;
   overflow: hidden;
-  color: #0f172a;
+  color: var(--app-text, #0f172a);
   font-weight: 600;
   text-align: right;
   text-overflow: ellipsis;
@@ -420,7 +420,7 @@ onBeforeUnmount(() => {
 
 .step-card__content {
   margin-top: 8px;
-  color: #334155;
+  color: var(--app-text, #334155);
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -430,7 +430,7 @@ onBeforeUnmount(() => {
 .step-card__content span {
   display: block;
   margin-bottom: 4px;
-  color: #64748b;
+  color: var(--app-text-muted, #64748b);
 }
 
 .step-card__content p {
@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
 
 .step-card__error {
   margin-top: 8px;
-  color: #dc2626;
+  color: var(--app-red, #dc2626);
   font-size: 12px;
 }
 </style>

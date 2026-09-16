@@ -117,27 +117,27 @@ const updatedAt = computed(() => compactDate(props.row.updated_at))
 <style scoped>
 .script-cell { min-width: 0; }
 .script-identity { display: flex; align-items: center; gap: 10px; }
-.script-identity__icon { display: inline-flex; width: 36px; height: 36px; flex: 0 0 36px; align-items: center; justify-content: center; border: 1px solid #cfe1f2; border-radius: 8px; color: #245f87; background: #edf6fc; }
+.script-identity__icon { display: inline-flex; width: 36px; height: 36px; flex: 0 0 36px; align-items: center; justify-content: center; border: 1px solid var(--app-border, #cfe1f2); border-radius: 8px; color: var(--app-blue, #245f87); background: var(--app-surface-muted, #edf6fc); }
 .script-identity__icon svg { width: 18px; height: 18px; }
 .script-identity__content { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 5px; }
-.script-identity__content > strong { overflow: hidden; color: #243b53; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.script-identity__content > strong { overflow: hidden; color: var(--app-text, #243b53); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .script-identity__meta { display: flex; min-width: 0; align-items: center; gap: 7px; }
-.script-identity__meta code { overflow: hidden; padding: 2px 6px; border: 1px solid #cfe1f2; border-radius: 4px; color: #24658f; background: #f2f8fc; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.script-identity__meta code { overflow: hidden; padding: 2px 6px; border: 1px solid var(--app-border, #cfe1f2); border-radius: 4px; color: var(--app-blue, #24658f); background: var(--app-surface-muted, #f2f8fc); font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .script-scope { display: flex; flex-direction: column; gap: 7px; }
-.script-scope__purpose { display: flex; align-items: center; gap: 6px; color: #334e68; }
-.script-scope__purpose svg { width: 14px; height: 14px; color: #527a98; }
+.script-scope__purpose { display: flex; align-items: center; gap: 6px; color: var(--app-text, #334e68); }
+.script-scope__purpose svg { width: 14px; height: 14px; color: var(--app-text-muted, #527a98); }
 .script-scope__purpose strong { font-size: 12px; }
 .script-scope__items { display: flex; min-width: 0; flex-wrap: wrap; gap: 5px; }
-.script-scope__items span { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; overflow: hidden; padding: 2px 6px; border: 1px solid #dbe6ee; border-radius: 4px; color: #587087; background: #f8fafc; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.script-scope__items span { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; overflow: hidden; padding: 2px 6px; border: 1px solid var(--app-border, #dbe6ee); border-radius: 4px; color: var(--app-text-muted, #587087); background: var(--app-surface-muted, #f8fafc); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .script-scope__items svg { width: 11px; height: 11px; flex: 0 0 11px; }
 .script-timeout,
 .script-timeline { display: flex; align-items: center; justify-content: center; gap: 7px; }
 .script-timeout > svg,
-.script-timeline > svg { width: 14px; height: 14px; flex: 0 0 14px; color: #527a98; }
+.script-timeline > svg { width: 14px; height: 14px; flex: 0 0 14px; color: var(--app-text-muted, #527a98); }
 .script-timeout > span,
 .script-timeline > span { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .script-timeout strong,
-.script-timeline strong { overflow: hidden; color: #40566c; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.script-timeline strong { overflow: hidden; color: var(--app-text, #40566c); font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .script-timeout small,
-.script-timeline small { color: #8a9aab; font-size: 10px; white-space: nowrap; }
+.script-timeline small { color: var(--app-text-muted, #8a9aab); font-size: 10px; white-space: nowrap; }
 </style>

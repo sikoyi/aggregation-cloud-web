@@ -716,7 +716,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
 }
 
 .number-range-field__separator {
-  color: #94a3b8;
+  color: var(--app-text-muted, #94a3b8);
   font-size: 16px;
   text-align: center;
 }

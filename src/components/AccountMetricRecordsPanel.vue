@@ -236,35 +236,35 @@ onMounted(loadRows)
 
 <style scoped>
 .filter-panel,
-.records-table { border: 1px solid #dbe4ed; border-radius: 6px; background: #fff; }
+.records-table { border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); }
 .filter-panel { margin-bottom: 12px; padding: 12px; }
 .filter-title,
 .filter-title > span,
 .filter-actions,
 .account-cell { display: flex; align-items: center; }
-.filter-title { justify-content: space-between; gap: 12px; margin-bottom: 10px; color: #26384a; font-size: 13px; font-weight: 700; }
+.filter-title { justify-content: space-between; gap: 12px; margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 13px; font-weight: 700; }
 .filter-title > span { gap: 6px; }
 .filter-grid { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(150px, .55fr) minmax(320px, 1.3fr); gap: 10px; }
 .filter-date { width: 100% !important; }
 .filter-actions { gap: 10px; margin-top: 10px; }
 .records-table { overflow: hidden; }
-.pagination { display: flex; justify-content: flex-end; padding: 12px; border-top: 1px solid #e5ebf1; }
+.pagination { display: flex; justify-content: flex-end; padding: 12px; border-top: 1px solid var(--app-border, #e5ebf1); }
 .account-cell { min-width: 0; gap: 10px; }
 .account-cell > div { min-width: 0; }
 .account-cell strong,
 .account-cell small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.account-cell strong { color: #243548; font-size: 13px; }
-.account-cell small { margin-top: 4px; color: #7b8b9b; font-size: 11px; }
-.account-avatar { border: 1px solid #d5e2ec; color: #245f87; background: #edf6fc; }
+.account-cell strong { color: var(--app-text, #243548); font-size: 13px; }
+.account-cell small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; }
+.account-avatar { border: 1px solid var(--app-border, #d5e2ec); color: var(--app-blue, #245f87); background: var(--app-surface-muted, #edf6fc); }
 .metric-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .metric-list--interaction { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.metric-list span { padding: 5px 7px; border-radius: 4px; background: #f5f8fb; text-align: center; }
+.metric-list span { padding: 5px 7px; border-radius: 4px; background: var(--app-surface-muted, #f5f8fb); text-align: center; }
 .metric-list small,
 .metric-list strong { display: block; }
-.metric-list small { color: #8190a0; font-size: 10px; }
-.metric-list strong { margin-top: 2px; color: #26384a; font-size: 13px; }
+.metric-list small { color: var(--app-text-muted, #8190a0); font-size: 10px; }
+.metric-list strong { margin-top: 2px; color: var(--app-text, #26384a); font-size: 13px; }
 .source-cell { display: flex; align-items: center; flex-direction: column; gap: 4px; }
-.source-cell small { color: #8190a0; font-size: 10px; }
+.source-cell small { color: var(--app-text-muted, #8190a0); font-size: 10px; }
 
 @media (max-width: 900px) {
   .filter-grid { grid-template-columns: 1fr; }

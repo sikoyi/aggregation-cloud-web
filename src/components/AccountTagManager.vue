@@ -119,5 +119,5 @@ defineExpose({ hasUnsavedChanges: () => editing.value !== null || Boolean(member
 .tag-manager__toolbar { display: flex; align-items: center; gap: 8px; }
 .tag-manager__toolbar .el-input { flex: 1; min-width: 100px; }
 .tag-manager__toolbar .el-button + .el-button { margin-left: 0; }
-.tag-manager__form { padding-bottom: 16px; border-bottom: 1px solid #e6edf3; }
+.tag-manager__form { padding-bottom: 16px; border-bottom: 1px solid var(--app-border, #e6edf3); }
 </style>

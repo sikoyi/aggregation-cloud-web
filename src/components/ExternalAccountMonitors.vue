@@ -212,11 +212,11 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 </template>
 
 <style scoped>
-.external-monitors { background: #fff; padding: 16px; border: 1px solid #dce5ed; }
+.external-monitors { background: var(--app-surface, #fff); padding: 16px; border: 1px solid var(--app-border, #dce5ed); }
 .external-monitors__header, .external-monitors__actions, .external-monitors h2, .external-monitors__filters > strong { display: flex; align-items: center; gap: 10px; }
 .external-monitors__header { justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; gap: 12px; }
 .external-monitors h2 { font-size: 18px; margin: 0; }
-.external-monitors__filters { padding: 14px; border: 1px solid #dce5ed; margin-bottom: 16px; }
+.external-monitors__filters { padding: 14px; border: 1px solid var(--app-border, #dce5ed); margin-bottom: 16px; }
 .external-monitors__filters > strong { font-size: 13px; margin-bottom: 12px; }
 .external-monitors__filters :deep(.el-form-item) { margin-bottom: 12px; margin-right: 18px; }
 .external-monitors__filters :deep(.el-select), .external-monitors__filters :deep(.el-input) { width: 190px; }
@@ -224,8 +224,8 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors__identity > div { min-width: 0; }
 .external-monitors__identity strong, .external-monitors__identity a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .external-monitors__identity a { font-size: 12px; margin-top: 4px; }
-.external-monitors :deep(.el-avatar) { flex-shrink: 0; background: #eaf4fb; color: #316589; }
-.external-monitors a { color: #286794; overflow-wrap: anywhere; }
+.external-monitors :deep(.el-avatar) { flex-shrink: 0; background: var(--app-surface-muted, #eaf4fb); color: var(--app-blue, #316589); }
+.external-monitors a { color: var(--app-blue, #286794); overflow-wrap: anywhere; }
 .external-monitors__pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .external-monitors__full { width: 100%; }
 .external-monitors__detail { max-height: 72vh; overflow-y: auto; overflow-x: hidden; min-height: 180px; padding-right: 8px; }

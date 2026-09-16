@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
 import { notifyError } from '@/utils/notify'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -27,6 +28,7 @@ async function submit() {
 
 <template>
   <main class="grid min-h-screen bg-paper lg:grid-cols-[1.05fr_0.95fr]">
+    <div class="fixed right-4 top-4 z-30"><ThemeToggle /></div>
     <section class="hidden border-r border-line bg-white px-12 py-10 lg:flex lg:flex-col lg:justify-between">
       <div class="flex items-center gap-3">
         <ServerCog class="h-8 w-8 text-brand-600" />

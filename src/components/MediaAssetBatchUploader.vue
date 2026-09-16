@@ -282,34 +282,34 @@ onBeforeUnmount(releasePreviews)
 <style scoped>
 .batch-uploader { display: grid; gap: 14px; }
 .batch-uploader__settings,
-.batch-uploader__queue { padding: 14px; border: 1px solid #dbe4ed; border-radius: 7px; background: #fff; }
+.batch-uploader__queue { padding: 14px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 7px; background: var(--app-surface, #fff); }
 .batch-uploader__settings :deep(.el-form-item) { margin-bottom: 8px; }
-.batch-uploader__section-title { margin-bottom: 10px; color: #26384a; font-size: 14px; font-weight: 700; }
+.batch-uploader__section-title { margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 14px; font-weight: 700; }
 .batch-uploader__dropzone :deep(.el-upload),
 .batch-uploader__dropzone :deep(.el-upload-dragger) { width: 100%; }
 .batch-uploader__dropzone :deep(.el-upload-dragger) { padding: 22px; border-radius: 7px; }
-.batch-uploader__dropzone svg { margin: 0 auto 8px; color: #3978a2; }
+.batch-uploader__dropzone svg { margin: 0 auto 8px; color: var(--app-blue, #3978a2); }
 .batch-uploader__queue header,
 .batch-uploader__summary,
 .batch-uploader__actions,
 .batch-file { display: flex; align-items: center; }
 .batch-uploader__queue header { justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.batch-uploader__queue header strong { margin-right: 8px; color: #243548; }
-.batch-uploader__queue header span { color: #7b8b9b; font-size: 12px; }
-.batch-uploader__progress { margin-bottom: 12px; padding: 10px 12px; border-radius: 6px; background: #f5f8fb; }
-.batch-uploader__summary { flex-wrap: wrap; gap: 8px; margin-bottom: 8px; color: #52667a; font-size: 12px; }
+.batch-uploader__queue header strong { margin-right: 8px; color: var(--app-text, #243548); }
+.batch-uploader__queue header span { color: var(--app-text-muted, #7b8b9b); font-size: 12px; }
+.batch-uploader__progress { margin-bottom: 12px; padding: 10px 12px; border-radius: 6px; background: var(--app-surface-muted, #f5f8fb); }
+.batch-uploader__summary { flex-wrap: wrap; gap: 8px; margin-bottom: 8px; color: var(--app-text, #52667a); font-size: 12px; }
 .batch-uploader__current { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.batch-uploader__files { display: grid; max-height: 320px; overflow-y: auto; border-top: 1px solid #e8edf2; }
-.batch-file { min-height: 58px; gap: 10px; padding: 8px 2px; border-bottom: 1px solid #edf1f5; }
+.batch-uploader__files { display: grid; max-height: 320px; overflow-y: auto; border-top: 1px solid var(--app-border, #e8edf2); }
+.batch-file { min-height: 58px; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--app-border, #edf1f5); }
 .batch-file img,
 .batch-file__icon { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 6px; }
 .batch-file img { object-fit: cover; }
-.batch-file__icon { display: inline-flex; align-items: center; justify-content: center; color: #3978a2; background: #edf6fc; }
+.batch-file__icon { display: inline-flex; align-items: center; justify-content: center; color: var(--app-blue, #3978a2); background: var(--app-surface-muted, #edf6fc); }
 .batch-file__content { min-width: 0; flex: 1; }
 .batch-file__content strong,
 .batch-file__content small { display: block; }
-.batch-file__content strong { overflow: hidden; color: #2d4053; text-overflow: ellipsis; white-space: nowrap; }
-.batch-file__content small { margin-top: 3px; color: #8a98a8; }
-.batch-file__content p { margin: 4px 0 0; color: #d9534f; font-size: 12px; }
+.batch-file__content strong { overflow: hidden; color: var(--app-text, #2d4053); text-overflow: ellipsis; white-space: nowrap; }
+.batch-file__content small { margin-top: 3px; color: var(--app-text-muted, #8a98a8); }
+.batch-file__content p { margin: 4px 0 0; color: var(--app-red, #d9534f); font-size: 12px; }
 .batch-uploader__actions { justify-content: flex-end; }
 </style>

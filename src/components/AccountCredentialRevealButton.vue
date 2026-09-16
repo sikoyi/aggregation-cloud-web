@@ -40,8 +40,8 @@ const { visible, adminPassword, loading, error, credentials, allowed, open, clos
 
 <style scoped>
 .credential-reveal-button { width: 24px; height: 24px; padding: 4px; }
-.credential-reveal-account { margin-bottom: 20px; overflow-wrap: anywhere; color: #334e68; }
+.credential-reveal-account { margin-bottom: 20px; overflow-wrap: anywhere; color: var(--app-text, #334e68); }
 .credential-reveal-values { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px 12px; margin: 0; }
-.credential-reveal-values dt { color: #62758a; }
+.credential-reveal-values dt { color: var(--app-text-muted, #62758a); }
 .credential-reveal-values dd { margin: 0; overflow-wrap: anywhere; user-select: all; font-family: ui-monospace, monospace; }
 </style>

@@ -41,6 +41,7 @@ import {
   type RealtimeEventPayload,
 } from '@/composables/useRealtimeEvents'
 import { useAuthStore } from '@/stores/auth'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -362,7 +363,8 @@ watch(
             <span class="truncate text-sm font-semibold text-ink">社媒聚合云控系统</span>
           </div>
           <div class="hidden text-sm text-slate-500 lg:block">运营管理工作台</div>
-          <div class="flex items-center gap-3">
+          <div class="flex shrink-0 items-center gap-2 sm:gap-3">
+            <ThemeToggle />
             <el-popover
               v-if="auth.can('notifications.view')"
               v-model:visible="notificationPopoverVisible"
@@ -418,7 +420,7 @@ watch(
               </div>
             </el-popover>
             <el-avatar :size="28">{{ userInitial }}</el-avatar>
-            <span class="max-w-40 truncate text-sm text-slate-600">{{ auth.displayName }}</span>
+            <span class="hidden max-w-40 truncate text-sm text-slate-600 sm:inline">{{ auth.displayName }}</span>
             <el-tooltip content="修改密码" placement="bottom">
               <el-button circle :icon="KeyRound" @click="openPasswordDialog" />
             </el-tooltip>
