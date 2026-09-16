@@ -41,9 +41,13 @@ async function main() {
       } else if (path === '/api/execution-slots/selection-page') {
         data = { ...data, items: [{ id: '10', name: 'Test device', provider_slot_id: 'external-10', status: 'idle' }], total: 1 }
       } else if (path === '/api/execution-slots/selection-ids') data = { slot_ids: ['10'] }
+      else if (path === '/api/tasks/summaries' && submissions.length) {
+        data = { ...data, items: [{ id: 'mock-task', title: 'Accepted task', status: 'queued',
+          child_total: 1, child_generated: 0, child_succeeded: 0, child_failed: 0, child_canceled: 0 }], total: 1 }
+      }
       else if (path === '/api/tasks/from-template') {
         submissions.push(request.postDataJSON())
-        data = { id: 'mock-task', created_count: 1 }
+        data = { template_id: '8', total: 1, task: { id: 'mock-task', child_total: 1, child_generated: 0 }, items: [] }
       } else if (path === '/api/system-settings/defaults') {
         return route.fulfill({ status: 403, json: { code: 40300, msg: 'No system settings permission' } })
       }
@@ -81,6 +85,9 @@ async function main() {
     await page.screenshot({ path: 'logs/task-dispatch-permissions-desktop.png', fullPage: true })
     await dialog.getByRole('button', { name: '确认执行', exact: true }).click()
     await dialog.waitFor({ state: 'hidden' })
+    await page.getByText('已生成 0 / 1', { exact: true }).waitFor()
+    await page.getByText('任务 mock-task 已受理，子任务将在后台逐步生成', { exact: true }).waitFor()
+    await page.screenshot({ path: 'logs/task-dispatch-accepted-desktop.png', fullPage: true })
     assert.equal(submissions.length, 1)
     assert.equal(submissions[0].template_id, '8')
     assert.deepEqual(submissions[0].slot_ids, ['10'])

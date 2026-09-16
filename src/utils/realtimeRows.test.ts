@@ -9,6 +9,13 @@ import {
 } from './realtimeRows'
 
 describe('patchTaskSummaryRows', () => {
+  it('updates durable generation progress without changing execution results', () => {
+    const result = patchTaskSummaryRows([{ id: '10', child_generated: 0, child_succeeded: 0 }], {
+      type: 'task.snapshot.updated', topic: 'task', resource_type: 'task',
+      data: { task: { id: '10', child_generated: 100, child_total: 200 } },
+    })
+    expect(result.rows[0]).toMatchObject({ child_generated: 100, child_succeeded: 0 })
+  })
   it('patches a visible parent row without losing list-only fields', () => {
     const rows = [{ id: '10', status: 'running', creator_display_name: '运营 A', child_finished: 1, updated_at: '2026-08-28T01:00:00Z' }]
     const result = patchTaskSummaryRows(rows, {

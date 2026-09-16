@@ -15,6 +15,7 @@ const TASK_SUMMARY_FIELDS = [
   'account_id',
   'runtime_instance_id',
   'child_total',
+  'child_generated',
   'child_finished',
   'child_succeeded',
   'child_failed',

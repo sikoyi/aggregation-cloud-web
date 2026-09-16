@@ -3688,6 +3688,11 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/tasks",
     listEndpoint: "/api/tasks/summaries",
     createEndpoint: "/api/tasks/from-template",
+    createSuccessMessage: (data) => {
+      const task = data.task && typeof data.task === "object" ? data.task as AnyRecord : {};
+      return `任务 ${task.id || ''} 已受理，子任务将在后台逐步生成`;
+    },
+    createSuccessTitle: "任务已受理",
     createLabel: "下发任务",
     createPermission: "tasks.dispatch",
     createBody: (payload) => buildTaskDispatchBody(payload),

@@ -392,6 +392,9 @@ watch(
                 </span>
               </el-descriptions-item>
               <el-descriptions-item label="超时秒">{{ text(task.timeout_seconds) }}</el-descriptions-item>
+              <el-descriptions-item v-if="task.child_generated != null" label="子任务生成">
+                {{ task.child_generated }} / {{ task.child_total }}
+              </el-descriptions-item>
               <el-descriptions-item label="计划时间">{{ taskTime('scheduled_at') }}</el-descriptions-item>
               <el-descriptions-item label="创建时间">{{ taskTime('created_at') }}</el-descriptions-item>
               <el-descriptions-item label="更新时间">{{ taskTime('updated_at') }}</el-descriptions-item>

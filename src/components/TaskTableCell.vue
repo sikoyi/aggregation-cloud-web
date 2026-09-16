@@ -98,6 +98,9 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
   </div>
 
   <div v-else-if="kind === 'taskResult'" class="task-cell task-result">
+    <span v-if="row.child_generated != null && Number(row.child_total) > 0" class="task-result__generation">
+      已生成 {{ row.child_generated }} / {{ row.child_total }}
+    </span>
     <div class="task-result__counts">
       <span class="task-result__count task-result__count--success" title="成功数量">
         <CheckCircle2 />成功 <strong>{{ resultCounts.succeeded }}</strong>
@@ -151,7 +154,8 @@ const provider = computed(() => optionLabel(providerOptions, props.row.provider)
 .task-platform__primary strong { font-size: 12px; }
 .task-platform__tags { display: flex; flex-wrap: nowrap; gap: 5px; white-space: nowrap; }
 .task-platform__tags :deep(.el-tag) { flex: 0 0 auto; }
-.task-result { display: flex; align-items: center; justify-content: center; padding: 0 8px; }
+.task-result { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 8px; }
+.task-result__generation { color: var(--app-text-muted, #7c8794); font-size: 12px; line-height: 18px; }
 .task-result__counts { display: flex; align-items: center; justify-content: center; gap: 12px; white-space: nowrap; }
 .task-result__count { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 20px; }
 .task-result__count svg { width: 13px; height: 13px; flex: 0 0 13px; }
