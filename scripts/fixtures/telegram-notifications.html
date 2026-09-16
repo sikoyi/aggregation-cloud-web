@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>TG notification settings check</title></head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp } from 'vue'
+      import { createPinia } from 'pinia'
+      import 'element-plus/theme-chalk/dark/css-vars.css'
+      import '/src/styles.css'
+      import '/src/theme.css'
+      import { initializeTheme } from '/src/composables/useTheme.ts'
+      import { useAuthStore } from '/src/stores/auth.ts'
+      import { http } from '/src/api/http.ts'
+      import Binding from '/src/components/TelegramReviewBinding.vue'
+      // All requests stay in memory: never bind or send to a real Telegram account.
+      let state = { configured: true, bot_username: 'preview_bot', bound: true,
+        telegram_user_id: 'preview', bound_at: '2026-09-16T06:00:00Z', last_error: null,
+        notify_auto_success: true, notify_auto_failure: true }
+      http.get = async () => ({ ...state })
+      http.put = async (_path, payload) => ({ ...(state = { ...state, ...payload }) })
+      http.post = async () => { throw new Error('Preview does not bind accounts') }
+      http.delete = async () => { state.bound = false }
+      const pinia = createPinia()
+      const auth = useAuthStore(pinia)
+      auth.token = ''
+      auth.user = { username: 'preview', roles: [], permissions: ['operations.view', 'operations.review'] }
+      initializeTheme()
+      createApp(Binding).use(pinia).mount('#app')
+    </script>
+  </body>
+</html>

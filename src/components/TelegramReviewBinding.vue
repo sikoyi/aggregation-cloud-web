@@ -14,6 +14,8 @@ interface Binding {
   telegram_user_id: string | null
   bound_at: string | null
   last_error: string | null
+  notify_auto_success: boolean
+  notify_auto_failure: boolean
 }
 const auth = useAuthStore()
 const visible = ref(false)
@@ -64,7 +66,7 @@ async function bind() {
 
 async function unbind() {
   if (loading.value || !binding.value?.bound) return
-  try { await ElMessageBox.confirm('解除后将停止向此 TG 身份推送审核消息，旧审核按钮立即失效。', '解除 TG 绑定', { type: 'warning' }) }
+  try { await ElMessageBox.confirm('解除后将停止向此 TG 身份推送审核和结果消息，旧审核按钮立即失效。', '解除 TG 绑定', { type: 'warning' }) }
   catch { return }
   loading.value = true
   try {
@@ -74,6 +76,20 @@ async function unbind() {
   } catch (error) { notifyError(error, '解绑失败', '无法解除 TG 绑定') }
   finally { loading.value = false }
   await refresh()
+}
+
+async function setNotification(key: 'notify_auto_success' | 'notify_auto_failure', value: boolean) {
+  if (loading.value || !canBind.value || !binding.value?.bound) return
+  loading.value = true
+  try {
+    binding.value = await api.put<Binding>('/api/telegram-review/notification-settings', {
+      notify_auto_success: binding.value.notify_auto_success,
+      notify_auto_failure: binding.value.notify_auto_failure,
+      [key]: value,
+    })
+  } catch (error) {
+    notifyError(error, '保存失败', '无法保存 TG 通知设置')
+  } finally { loading.value = false }
 }
 
 function close() {
@@ -96,6 +112,14 @@ onBeforeUnmount(close)
         <el-descriptions-item v-if="binding.bound" label="TG 用户 ID">{{ binding.telegram_user_id }}</el-descriptions-item>
         <el-descriptions-item v-if="binding.bound" label="绑定时间">{{ formatDate(binding.bound_at) }}</el-descriptions-item>
       </el-descriptions>
+      <el-form v-if="binding?.bound" label-position="left" label-width="180px">
+        <el-form-item label="自动回复成功通知">
+          <el-switch :model-value="binding.notify_auto_success" :disabled="loading || !canBind" aria-label="自动回复成功通知" @change="value => setNotification('notify_auto_success', Boolean(value))" />
+        </el-form-item>
+        <el-form-item label="自动回复失败通知">
+          <el-switch :model-value="binding.notify_auto_failure" :disabled="loading || !canBind" aria-label="自动回复失败通知" @change="value => setNotification('notify_auto_failure', Boolean(value))" />
+        </el-form-item>
+      </el-form>
       <el-alert v-if="binding?.last_error" :title="binding.last_error" type="warning" :closable="false" />
       <div v-if="activeUrl" class="telegram-binding__link">
         <a :href="activeUrl" target="_blank" rel="noopener noreferrer"><ExternalLink :size="16" />打开 TG 完成绑定</a>
