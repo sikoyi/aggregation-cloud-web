@@ -114,6 +114,7 @@ const summary = reactive({
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:account-data',
   {
+    sort_order: 'desc',
     business_platform: '',
     country: '',
     login_status: '',
@@ -177,8 +178,8 @@ let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
 const accountProfileLoading = ref(false)
 
-const activeFilterCount = computed(() => Object.values(filters).filter(Boolean).length)
-const hasFilters = computed(() => activeFilterCount.value > 0)
+const activeFilterCount = computed(() => Object.entries(filters).filter(([key, value]) => key !== 'sort_order' && Boolean(value)).length)
+const hasFilters = computed(() => activeFilterCount.value > 0 || filters.sort_order !== 'desc')
 const activeSlotGroupName = computed(() => {
   const groupId = String(filters.slot_group_id || '')
   if (!groupId) return ''
@@ -761,6 +762,12 @@ onBeforeUnmount(() => {
               </el-form-item>
               <el-form-item label="账号信息">
                 <el-input v-model="filters.keyword" clearable placeholder="账号 / 昵称 / 主页链接" @keyup.enter="searchRows" />
+              </el-form-item>
+              <el-form-item label="监听排序">
+                <el-select v-model="filters.sort_order" @change="searchRows">
+                  <el-option label="最新添加在前" value="desc" />
+                  <el-option label="最早添加在前" value="asc" />
+                </el-select>
               </el-form-item>
             </div>
             <div class="filter-actions">

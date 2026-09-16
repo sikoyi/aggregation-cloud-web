@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('支持监听创建时间正反排序，默认最新添加在前', () => {
+    expect(source).toContain("sort_order: 'desc'")
+    expect(source).toContain('v-model="filters.sort_order" @change="searchRows"')
+    expect(source).toContain('label="最新添加在前" value="desc"')
+    expect(source).toContain('label="最早添加在前" value="asc"')
+    expect(source).toContain("key !== 'sort_order'")
+  })
   it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
     expect(source).toContain('width="min(92vw, 860px)"\n      align-center')
     expect(source).toContain('.monitor-dialog-account { align-self: start; }')

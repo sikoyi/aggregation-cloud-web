@@ -33,7 +33,7 @@ const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
 const error = ref('')
-const filters = reactive({ platform: '', status: '', keyword: '' })
+const filters = reactive({ platform: '', status: '', keyword: '', sort_order: 'desc' })
 const appliedFilters = reactive({ ...filters })
 const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
@@ -70,7 +70,7 @@ async function load() {
   finally { if (id === sequence) loading.value = false }
 }
 function search() { Object.assign(appliedFilters, filters); if (page.value === 1) void load(); else page.value = 1 }
-function reset() { Object.assign(filters, { platform: '', status: '', keyword: '' }); search() }
+function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc' }); search() }
 function openForm(row?: ExternalMonitor) {
   editing.value = row || null
   Object.assign(form, row ? { business_platform: row.business_platform, profile_url: row.profile_url, remark: row.remark, interval_minutes: row.interval_minutes, enabled: row.enabled }
@@ -167,6 +167,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
+        <el-form-item label="监听排序"><el-select v-model="filters.sort_order" @change="search"><el-option label="最新添加在前" value="desc" /><el-option label="最早添加在前" value="asc" /></el-select></el-form-item>
       </el-form>
       <el-button :icon="RotateCcw" @click="reset">清空</el-button><el-button :icon="Search" type="primary" @click="search">查询</el-button>
     </div>

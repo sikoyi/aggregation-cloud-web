@@ -18,7 +18,8 @@ function setup() {
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadDetail};`)(...Object.values(state)) as {
+  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadDetail, search, reset};`)(...Object.values(state)) as {
+    search: () => void; reset: () => void
     save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: () => Promise<void>
     remove: (row: Record<string, unknown>) => Promise<void>; loadDetail: () => Promise<void>
   }
@@ -26,6 +27,19 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('排序随请求提交，切换回第一页，清空恢复最新优先', async () => {
+    const s = setup()
+    s.page.value = 3
+    Object.assign(s.filters, { sort_order: 'asc' })
+    s.search()
+    expect(s.page.value).toBe(1)
+    await s.load()
+    expect(s.http.get).toHaveBeenLastCalledWith('/api/external-account-monitors', { sort_order: 'asc', page: 1, page_size: 20 })
+    s.reset()
+    expect(s.filters).toMatchObject({ sort_order: 'desc' })
+    expect(s.appliedFilters).toMatchObject({ sort_order: 'desc' })
+    expect(source).toContain('v-model="filters.sort_order" @change="search"')
+  })
   it('详情翻页使用对应页码，较早的响应不能覆盖新页', async () => {
     const s = setup()
     let resolveFirst!: (value: unknown) => void
