@@ -126,6 +126,7 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
     monitor_state: '',
     benchmark_state: '',
     comment_reply_mode: '',
+    benchmark_post_sync_mode: '',
     keyword: '',
   },
 )
@@ -574,6 +575,22 @@ function replyModeLabel(value: unknown) {
   return '未开启监听'
 }
 
+const postSyncOptions = [
+  { label: '未配置对标', value: 'not_configured' },
+  { label: '不发布', value: 'disabled' },
+  { label: '自动发布', value: 'automatic' },
+  { label: '审核后发布', value: 'review' },
+]
+
+function resolvePostSyncMode(account: AnyRecord) {
+  if (!account.benchmark_tracker_id) return 'not_configured'
+  return String(account.benchmark_post_sync_mode || 'automatic')
+}
+
+function postSyncLabel(account: AnyRecord) {
+  return postSyncOptions.find(option => option.value === resolvePostSyncMode(account))?.label || '-'
+}
+
 function resolveReplyState(account: AnyRecord) {
   const state = String(account?.comment_reply_state || '')
   if (['not_configured', 'disabled', 'automatic', 'review'].includes(state)) return state
@@ -763,6 +780,11 @@ onBeforeUnmount(() => {
               <el-form-item label="账号信息">
                 <el-input v-model="filters.keyword" clearable placeholder="账号 / 昵称 / 主页链接" @keyup.enter="searchRows" />
               </el-form-item>
+              <el-form-item label="帖子同步">
+                <el-select v-model="filters.benchmark_post_sync_mode" clearable placeholder="全部">
+                  <el-option v-for="option in postSyncOptions" :key="option.value" :label="option.label" :value="option.value" />
+                </el-select>
+              </el-form-item>
               <el-form-item label="监听排序">
                 <el-select v-model="filters.sort_order" @change="searchRows">
                   <el-option label="最新添加在前" value="desc" />
@@ -881,6 +903,18 @@ onBeforeUnmount(() => {
                 >
                   {{ replyModeLabel(resolveReplyState(scope.row)) }}
                 </el-tag>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="帖子同步" width="130" align="center" header-align="center">
+              <template #default="scope">
+                <div class="account-overview__post-sync">
+                  <el-tag size="small" :type="replyModeType(resolvePostSyncMode(scope.row))" effect="light">
+                    {{ postSyncLabel(scope.row) }}
+                  </el-tag>
+                  <el-tag v-if="scope.row.benchmark_tracker_id && scope.row.benchmark_enabled === false" size="small" type="info">对标已暂停</el-tag>
+                  <el-tag v-else-if="scope.row.benchmark_state === 'abnormal'" size="small" type="danger">对标异常</el-tag>
+                </div>
               </template>
             </el-table-column>
 
@@ -1389,6 +1423,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.account-overview__post-sync { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .account-data__workspace {
   --content-inset: 16px;
   border-color: var(--app-border, #d9e2ec);

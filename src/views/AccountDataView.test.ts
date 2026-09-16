@@ -3,6 +3,17 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('总览展示帖子同步方式、暂停状态并提供服务端筛选', () => {
+    expect(source).toContain("benchmark_post_sync_mode: ''")
+    expect(source).toContain('v-model="filters.benchmark_post_sync_mode"')
+    expect(source).toContain('<el-table-column label="帖子同步"')
+    expect(source).toContain("if (!account.benchmark_tracker_id) return 'not_configured'")
+    expect(source).toContain('scope.row.benchmark_enabled === false')
+    expect(source).toContain('对标已暂停')
+    for (const label of ['未配置对标', '不发布', '自动发布', '审核后发布']) {
+      expect(source).toContain(`label: '${label}'`)
+    }
+  })
   it('账号身份放大并保留长文本边界', () => {
     expect(source).toContain('font-size: 16px; line-height: 1.5;')
     expect(source).toContain('font-size: 14px; line-height: 1.5;')
