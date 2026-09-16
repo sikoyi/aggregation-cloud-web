@@ -610,7 +610,7 @@ onMounted(() => {
           <div v-if="form.target_mode === 'fixed'" class="target-picker">
             <el-segmented v-model="fixedSource" :options="[{ label: '按账号选择', value: 'account' }, { label: '按设备选择', value: 'slot' }]" />
             <div v-if="fixedSource === 'account'" class="selector-panel"><h3>目标账号</h3><AccountTreeSelect v-model="form.target_rules.account_ids" :filters="selectorFilters" multiple association-only /></div>
-            <div v-if="fixedSource === 'slot'" class="selector-panel"><h3>目标设备</h3><SlotTreeSelect v-model="form.target_rules.slot_ids" :filters="selectorFilters" account-presence="bound" :warmup-business-platform="form.business_platform" /></div>
+            <div v-if="fixedSource === 'slot'" class="selector-panel"><h3>目标设备</h3><SlotTreeSelect v-model="form.target_rules.slot_ids" :filters="selectorFilters" account-presence="bound" :warmup-business-platform="form.business_platform" fill-height /></div>
           </div>
           <div v-else class="form-grid target-selects">
             <el-form-item v-if="['account_tags', 'dynamic_intersection'].includes(form.target_mode)" label="账号标签" required><el-select v-model="form.target_rules.account_tag_ids" multiple filterable collapse-tags><el-option v-for="item in accountTags" :key="String(item.id)" :label="String(item.name)" :value="String(item.id)" /></el-select></el-form-item>
@@ -716,6 +716,7 @@ h1 { font-size: 20px; color: #17233d; }
 }
 .selector-panel { border: 1px solid #dce5ef; border-radius: 6px; padding: 14px; }.selector-panel h3 { font-size: 14px; margin-bottom: 10px; }
 .selector-panel :deep(.account-tree-select) { max-height: none; overflow: hidden; }
+.selector-panel :deep(.slot-tree-select--fill) { height: 420px; min-height: 0; }
 .target-selects { padding-top: 10px; }.behavior-list { display: grid; gap: 12px; }
 .behavior-rule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .behavior-item { border: 1px solid #dce5ef; border-radius: 6px; padding: 15px 16px; }.behavior-title { justify-content: space-between; }.behavior-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 14px; border-top: 1px solid #edf1f5; margin-top: 14px; }.behavior-fields label { display: flex; align-items: center; gap: 8px; min-width: 0; color: #52677d; font-size: 13px; white-space: nowrap; }
