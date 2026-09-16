@@ -15,6 +15,7 @@ interface Binding {
   telegram_user_id: string | null
   bound_at: string | null
   last_error: string | null
+  next_retry_at?: string | null
   notify_auto_success: boolean
   notify_auto_failure: boolean
 }
@@ -113,6 +114,7 @@ onBeforeUnmount(close)
         <el-descriptions-item label="通知服务"><el-tag :type="binding.worker_status === 'ready' ? 'success' : 'warning'">{{ binding.worker_status === 'ready' ? '已就绪' : binding.worker_status === 'unavailable' ? '未就绪' : binding.worker_status === 'unconfigured' ? '未配置' : '状态未知' }}</el-tag></el-descriptions-item>
         <el-descriptions-item v-if="binding.bound" label="TG 用户 ID">{{ binding.telegram_user_id }}</el-descriptions-item>
         <el-descriptions-item v-if="binding.bound" label="绑定时间">{{ formatDate(binding.bound_at) }}</el-descriptions-item>
+        <el-descriptions-item v-if="binding.next_retry_at" label="下次重试检查">{{ formatDate(binding.next_retry_at) }}</el-descriptions-item>
       </el-descriptions>
       <el-form v-if="binding?.bound" label-position="left" label-width="180px">
         <el-form-item label="自动回复成功通知">
