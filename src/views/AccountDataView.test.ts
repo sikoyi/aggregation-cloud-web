@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('账号身份放大并保留长文本边界', () => {
+    expect(source).toContain('font-size: 16px; line-height: 1.5;')
+    expect(source).toContain('font-size: 14px; line-height: 1.5;')
+    expect(source).toContain(':size="88"')
+    expect(source).toContain('font-size: 16px; overflow-wrap: anywhere;')
+  })
   it('支持监听创建时间正反排序，默认最新添加在前', () => {
     expect(source).toContain("sort_order: 'desc'")
     expect(source).toContain('v-model="filters.sort_order" @change="searchRows"')
@@ -21,7 +27,7 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain("<section v-if=\"viewMode === 'overview'\" class=\"account-overview\">")
     expect(source).toContain("viewMode.value = 'detail'")
     expect(source).toContain('class="account-overview__identity"')
-    expect(source).toContain('flex: 0 0 38px')
+    expect(source).toContain('flex: 0 0 48px')
   })
 
   it('支持设备分组和账号标签两个独立筛选条件', () => {

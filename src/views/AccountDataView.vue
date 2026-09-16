@@ -809,7 +809,7 @@ onBeforeUnmount(() => {
                   @click="openAccountDetail(scope.row)"
                 >
                   <el-avatar
-                    :size="38"
+                    :size="48"
                     :src="resolveBackendUrl(scope.row.avatar_url) || undefined"
                     fit="cover"
                     class="account-data__avatar"
@@ -817,8 +817,8 @@ onBeforeUnmount(() => {
                     {{ String(scope.row.account_name || '-').slice(0, 1) }}
                   </el-avatar>
                   <span class="account-overview__identity">
-                    <strong>{{ scope.row.account_name || scope.row.login_username || '-' }}</strong>
-                    <small v-if="scope.row.username">@{{ scope.row.username }}</small>
+                    <strong :title="String(scope.row.account_name || scope.row.login_username || '')">{{ scope.row.account_name || scope.row.login_username || '-' }}</strong>
+                    <small v-if="scope.row.username" :title="'@' + scope.row.username">@{{ scope.row.username }}</small>
                     <small v-else>{{ scope.row.login_username || '暂无公开用户名' }}</small>
                   </span>
                 </button>
@@ -950,7 +950,7 @@ onBeforeUnmount(() => {
                     @click="selectAccount(account)"
                   >
                     <el-avatar
-                      :size="42"
+                      :size="48"
                       :src="resolveBackendUrl(account.avatar_url) || undefined"
                       fit="cover"
                       class="account-data__avatar"
@@ -958,8 +958,8 @@ onBeforeUnmount(() => {
                       {{ String(account.account_name || '-').slice(0, 1) }}
                     </el-avatar>
                     <span class="account-directory__copy">
-                      <strong>{{ account.account_name || account.login_username || '-' }}</strong>
-                      <small v-if="account.username">@{{ account.username }}</small>
+                      <strong :title="String(account.account_name || account.login_username || '')">{{ account.account_name || account.login_username || '-' }}</strong>
+                      <small v-if="account.username" :title="'@' + account.username">@{{ account.username }}</small>
                       <small v-else>{{ account.login_username || '暂无公开用户名' }}</small>
                       <span class="account-directory__tags">
                         <el-tag size="small" effect="plain">{{ optionLabel(businessPlatformOptions, account.business_platform) }}</el-tag>
@@ -996,7 +996,7 @@ onBeforeUnmount(() => {
               </div>
               <header class="account-profile__header" :class="{ 'has-cover': selectedAccount.cover_url }">
                 <el-avatar
-                  :size="76"
+                  :size="88"
                   :src="resolveBackendUrl(selectedAccount.avatar_url) || undefined"
                   fit="cover"
                   class="account-profile__avatar"
@@ -1552,9 +1552,9 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .account-overview__account .account-data__avatar {
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
 }
 .account-overview__identity { display: block; min-width: 0; flex: 1; }
 .account-overview__account strong,
@@ -1564,8 +1564,8 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.account-overview__account strong { color: var(--app-text, #20364b); font-size: 13px; }
-.account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; }
+.account-overview__account strong { color: var(--app-text, #20364b); font-size: 16px; line-height: 1.5; }
+.account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 14px; line-height: 1.5; }
 .account-overview__account:hover strong { color: var(--app-blue, #1f6f9f); }
 .account-overview__group { color: var(--app-text, #334e63); font-size: 12px; }
 .account-overview__attributes,
@@ -1669,8 +1669,8 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.account-directory__copy > strong { color: var(--app-text, #243548); font-size: 13px; }
-.account-directory__copy > small { margin-top: 3px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; }
+.account-directory__copy > strong { color: var(--app-text, #243548); font-size: 16px; line-height: 1.5; }
+.account-directory__copy > small { margin-top: 3px; color: var(--app-text-muted, #7b8b9b); font-size: 14px; line-height: 1.5; }
 .account-directory__tags { gap: 5px; margin-top: 6px; }
 .account-directory__tags :deep(.el-tag) { height: 20px; padding: 0 6px; font-size: 10px; }
 .account-directory__pagination {
@@ -1723,12 +1723,12 @@ onBeforeUnmount(() => {
   overflow: hidden;
   max-width: 100%;
   color: var(--app-text, #1f2f40);
-  font-size: 21px;
+  font-size: 24px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.account-profile__handle { flex-wrap: wrap; gap: 12px; margin-top: 5px; color: var(--app-text-muted, #718096); font-size: 12px; }
+.account-profile__handle { flex-wrap: wrap; gap: 12px; margin-top: 5px; color: var(--app-text-muted, #718096); font-size: 16px; overflow-wrap: anywhere; }
 .account-profile__handle span + span { position: relative; padding-left: 12px; }
 .account-profile__handle span + span::before {
   position: absolute;
@@ -1927,6 +1927,6 @@ onBeforeUnmount(() => {
   .profile-info-grid > div:nth-child(3n) { border-right: 0; border-bottom: 1px solid var(--app-border, #dce5ed); }
   .account-profile__metrics > div:last-child,
   .profile-info-grid > div:last-child { border-bottom: 0; }
-  .account-profile__name-row h2 { font-size: 18px; }
+  .account-profile__name-row h2 { font-size: 22px; }
 }
 </style>
