@@ -166,6 +166,7 @@ const monitorForm = reactive({
   ai_max_length: 120,
 })
 const benchmarkForm = reactive({
+  post_sync_mode: 'review',
   source_business_platform: 'threads',
   profile_sync_fields: [] as string[],
   source_profile_url: '',
@@ -363,6 +364,7 @@ function openMonitor(account?: AnyRecord) {
     ai_max_length: Number(aiConfig.max_length || 120),
   })
   Object.assign(benchmarkForm, {
+    post_sync_mode: String(account?.benchmark_post_sync_mode || (account?.benchmark_tracker_id ? 'automatic' : 'review')),
     source_business_platform: String(account?.benchmark_source_business_platform || 'threads'),
     profile_sync_fields: Array.isArray(account?.benchmark_profile_sync_fields)
       ? [...account.benchmark_profile_sync_fields]
@@ -410,6 +412,7 @@ async function saveBenchmarkTracker() {
       source_profile_url: benchmarkForm.source_profile_url.trim(),
       source_business_platform: benchmarkForm.source_business_platform,
       profile_sync_fields: monitorForm.business_platform === 'x' ? [] : [...benchmarkForm.profile_sync_fields],
+      post_sync_mode: benchmarkForm.post_sync_mode,
       monitor_mode: benchmarkForm.monitor_mode,
       interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
     })
@@ -1274,6 +1277,13 @@ onBeforeUnmount(() => {
                 <el-checkbox value="biography">简介</el-checkbox>
                 <el-checkbox value="avatar_url">头像</el-checkbox>
               </el-checkbox-group>
+            </el-form-item>
+            <el-form-item label="帖子同步">
+              <el-select v-model="benchmarkForm.post_sync_mode" class="w-full">
+                <el-option label="不发布" value="disabled" />
+                <el-option label="自动发布" value="automatic" />
+                <el-option label="审核后发布" value="review" />
+              </el-select>
             </el-form-item>
             <div v-if="monitorTargetAccount?.benchmark_tracker_id" class="benchmark-source">
               <el-avatar

@@ -49,6 +49,9 @@ const pendingCount = computed(() => (
 ))
 
 const mappingStatusOptions: Record<string, { label: string; type: 'success' | 'warning' | 'danger' | 'info' | 'primary' }> = {
+  pending_review: { label: '待审核', type: 'warning' },
+  collected_only: { label: '仅采集', type: 'info' },
+  ignored: { label: '已忽略', type: 'info' },
   baseline: { label: '历史基线', type: 'info' },
   pending_publish: { label: '待复刻', type: 'warning' },
   publishing: { label: '复刻中', type: 'primary' },
