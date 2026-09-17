@@ -110,7 +110,7 @@ const submitting = ref(false)
 const disablingAccountId = ref('')
 const disablingBenchmarkAccountId = ref('')
 const rows = ref<AnyRecord[]>([])
-const overviewTableRef = ref<{ clearSelection: () => void } | null>(null)
+const overviewTableRef = ref<{ clearSelection: () => void; clearSort: () => void } | null>(null)
 const selectedAccounts = ref<AnyRecord[]>([])
 const batchUpdating = ref(false)
 const batchIntervalVisible = ref(false)
@@ -205,13 +205,17 @@ let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
 const accountProfileLoading = ref(false)
 
-const sortSelection = computed({
-  get: () => `${filters.sort_by}:${filters.sort_order}`,
+const monitorSortOrder = computed({
+  get: () => filters.sort_by === 'monitor_created_at' ? filters.sort_order : '',
   set: (value: string) => {
-    const [field, order] = value.split(':')
-    filters.sort_by = field
-    filters.sort_order = order
+    filters.sort_by = 'monitor_created_at'
+    filters.sort_order = value
+    overviewTableRef.value?.clearSort()
   },
+})
+const overviewDefaultSort = computed(() => filters.sort_by === 'monitor_created_at' ? undefined : {
+  prop: filters.sort_by,
+  order: filters.sort_order === 'asc' ? 'ascending' as const : 'descending' as const,
 })
 const activeFilterCount = computed(() => Object.entries(filters).filter(([key, value]) => key !== 'sort_order' && key !== 'sort_by' && Boolean(value)).length)
 const hasFilters = computed(() => activeFilterCount.value > 0 || filters.sort_order !== 'desc' || filters.sort_by !== 'monitor_created_at')
@@ -363,8 +367,16 @@ function searchRows() {
   loadRows()
 }
 
+function handleOverviewSortChange({ prop, order }: { prop: string | null; order: 'ascending' | 'descending' | null }) {
+  if (order && !overviewMetricColumns.some(metric => metric.valueKey === prop)) return
+  filters.sort_by = order && prop ? prop : 'monitor_created_at'
+  filters.sort_order = order === 'ascending' ? 'asc' : 'desc'
+  searchRows()
+}
+
 function resetFilters() {
   resetCachedFilters()
+  overviewTableRef.value?.clearSort()
   searchRows()
 }
 
@@ -944,16 +956,10 @@ onBeforeUnmount(() => {
                   <el-option v-for="option in postSyncOptions" :key="option.value" :label="option.label" :value="option.value" />
                 </el-select>
               </el-form-item>
-              <el-form-item label="数据排序">
-                <el-select v-model="sortSelection" @change="searchRows">
-                  <el-option label="最新添加在前" value="monitor_created_at:desc" />
-                  <el-option label="最早添加在前" value="monitor_created_at:asc" />
-                  <el-option label="粉丝数量从多到少" value="followers_count:desc" />
-                  <el-option label="粉丝数量从少到多" value="followers_count:asc" />
-                  <el-option label="总浏览量从多到少" value="total_post_views_count:desc" />
-                  <el-option label="总浏览量从少到多" value="total_post_views_count:asc" />
-                  <el-option label="总点赞从多到少" value="total_likes_count:desc" />
-                  <el-option label="总点赞从少到多" value="total_likes_count:asc" />
+              <el-form-item label="监听排序">
+                <el-select v-model="monitorSortOrder" placeholder="按表头排序" @change="searchRows">
+                  <el-option label="最新添加在前" value="desc" />
+                  <el-option label="最早添加在前" value="asc" />
                 </el-select>
               </el-form-item>
             </div>
@@ -1045,11 +1051,13 @@ onBeforeUnmount(() => {
             ref="overviewTableRef"
             v-loading="loading"
             :data="rows"
+            :default-sort="overviewDefaultSort"
             row-key="account_id"
             border
             class="account-overview__table"
             empty-text="暂无符合条件的账号数据"
             @selection-change="handleOverviewSelectionChange"
+            @sort-change="handleOverviewSortChange"
           >
             <el-table-column type="selection" width="46" fixed="left" />
             <el-table-column label="账号" min-width="230" fixed="left">
@@ -1113,7 +1121,10 @@ onBeforeUnmount(() => {
               v-for="metric in overviewMetricColumns"
               :key="metric.valueKey"
               :label="metric.label"
-              width="132"
+              :prop="metric.valueKey"
+              sortable="custom"
+              :sort-orders="['descending', 'ascending', null]"
+              :width="metric.valueKey === 'total_post_views_count' ? 156 : 132"
               align="center"
               header-align="center"
             >

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { transpile } from 'typescript'
 
 import source from './AccountDataView.vue?raw'
 
@@ -57,16 +58,40 @@ describe('账号数据聚合总览', () => {
   it('支持监听创建时间正反排序，默认最新添加在前', () => {
     expect(source).toContain("sort_order: 'desc'")
     expect(source).toContain("sort_by: 'monitor_created_at'")
-    expect(source).toContain('v-model="sortSelection" @change="searchRows"')
-    expect(source).toContain('label="最新添加在前" value="monitor_created_at:desc"')
-    expect(source).toContain('label="最早添加在前" value="monitor_created_at:asc"')
+    expect(source).toContain('v-model="monitorSortOrder" placeholder="按表头排序" @change="searchRows"')
+    expect(source).toContain('label="最新添加在前" value="desc"')
+    expect(source).toContain('label="最早添加在前" value="asc"')
     expect(source).toContain("key !== 'sort_order'")
     expect(source).toContain("key !== 'sort_by'")
-    for (const field of ['followers_count', 'total_post_views_count', 'total_likes_count']) {
-      for (const order of ['asc', 'desc']) expect(source).toContain(`value="${field}:${order}"`)
+    expect(source).toContain('overviewTableRef.value?.clearSort()')
+    expect(source).not.toContain('label="数据排序"')
+  })
+  it('指标表头使用服务端排序并恢复已保存的排序箭头', () => {
+    expect(source).toContain(':prop="metric.valueKey"')
+    expect(source).toContain('sortable="custom"')
+    expect(source).toContain(':sort-orders="[\'descending\', \'ascending\', null]"')
+    expect(source).toContain('@sort-change="handleOverviewSortChange"')
+    expect(source).toContain(':default-sort="overviewDefaultSort"')
+  })
+  it('点击表头升降序和取消排序均保留联合筛选并重新查询', () => {
+    const fields = ['followers_count', 'total_post_views_count', 'total_likes_count']
+    const original = { business_platform: 'threads', slot_group_id: '12', monitor_state: 'monitoring', keyword: 'test' }
+    const filters = { ...original, sort_by: 'monitor_created_at', sort_order: 'desc' }
+    const searchRows = vi.fn()
+    const handlerSource = source.slice(source.indexOf('function handleOverviewSortChange('), source.indexOf('\nfunction resetFilters()'))
+    const handleSort = new Function('filters', 'overviewMetricColumns', 'searchRows',
+      `${transpile(handlerSource)}; return handleOverviewSortChange;`)(filters, fields.map(valueKey => ({ valueKey })), searchRows)
+    for (const prop of fields) {
+      for (const [order, direction] of [['descending', 'desc'], ['ascending', 'asc']] as const) {
+        handleSort({ prop, order })
+        expect(filters).toEqual({ ...original, sort_by: prop, sort_order: direction })
+      }
     }
-    expect(source).toContain('filters.sort_by = field')
-    expect(source).toContain('filters.sort_order = order')
+    handleSort({ prop: fields[0], order: null })
+    expect(filters).toEqual({ ...original, sort_by: 'monitor_created_at', sort_order: 'desc' })
+    expect(searchRows).toHaveBeenCalledTimes(7)
+    handleSort({ prop: 'unsupported', order: 'descending' })
+    expect(searchRows).toHaveBeenCalledTimes(7)
   })
   it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
     expect(source).toMatch(/width="min\(92vw, 860px\)"\r?\n\s+align-center/)
