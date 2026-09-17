@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('浏览量在总览和详情展示日增量，缺失与异常回落不伪装成持平', () => {
+    expect(source).toContain("deltaKey: 'total_post_views_day_delta'")
+    expect(source).toContain('delta: account.total_post_views_day_delta')
+    expect(source).toContain("value === null || value === undefined || value === ''")
+    expect(source).toContain("if (mode === 'views') return { icon: AlertTriangle, label: '数据待核对'")
+    expect(source).not.toContain('v-if="!metric.hint"')
+  })
   it('在账号数据页直接提供平台评论禁回时段入口', () => {
     expect(source).toContain("import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'")
     expect(source).toContain("auth.canAny(['system_settings.view', 'system_settings.edit'])")

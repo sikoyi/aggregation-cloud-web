@@ -96,7 +96,7 @@ const viewModeOptions = [
 ]
 const overviewMetricColumns = [
   { label: '粉丝', valueKey: 'followers_count', deltaKey: 'followers_day_delta' },
-  { label: '帖子总浏览量', valueKey: 'total_post_views_count', hint: '汇总当前账号已采集帖子的最新已知浏览量；未采集或未返回浏览量的帖子不计入。' },
+  { label: '帖子总浏览量', valueKey: 'total_post_views_count', deltaKey: 'total_post_views_day_delta', deltaMode: 'views', hint: '汇总已采集帖子的最新浏览量；按北京时间与前一天最后有效采集值比较，缺少完整基线时不计算增量。' },
   { label: '总点赞', valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
 ]
 
@@ -232,7 +232,7 @@ const profileMetricItems = computed(() => {
   if (!account) return []
   return [
     { label: '粉丝', value: account.followers_count, delta: account.followers_day_delta },
-    { label: '帖子总浏览量', value: account.total_post_views_count, hint: '汇总当前账号已采集帖子的最新已知浏览量；未采集或未返回浏览量的帖子不计入。' },
+    { label: '帖子总浏览量', value: account.total_post_views_count, delta: account.total_post_views_day_delta, deltaMode: 'views', hint: '汇总已采集帖子的最新浏览量；按北京时间与前一天最后有效采集值比较，缺少完整基线时不计算增量。' },
     { label: '总点赞', value: account.total_likes_count, delta: account.total_likes_day_delta },
     { label: '总回复', value: account.total_replies_count, delta: account.total_replies_day_delta },
     {
@@ -269,7 +269,7 @@ function formatNumber(value: unknown) {
 
 function metricDeltaMeta(value: unknown, mode: unknown = 'previous') {
   const numberValue = Number(value)
-  if (!Number.isFinite(numberValue)) {
+  if (value === null || value === undefined || value === '' || !Number.isFinite(numberValue)) {
     return { icon: Minus, label: '暂无前日数据', type: 'unknown' }
   }
   if (mode === 'daily') {
@@ -281,6 +281,7 @@ function metricDeltaMeta(value: unknown, mode: unknown = 'previous') {
     return { icon: ArrowUp, label: `较前一日 +${formatNumber(numberValue)}`, type: 'up' }
   }
   if (numberValue < 0) {
+    if (mode === 'views') return { icon: AlertTriangle, label: '数据待核对', type: 'unknown' }
     return { icon: ArrowDown, label: `较前一日 ${formatNumber(numberValue)}`, type: 'down' }
   }
   return { icon: Minus, label: '较前一日 持平', type: 'flat' }
@@ -1109,9 +1110,9 @@ onBeforeUnmount(() => {
                       <template v-else>{{ formatNumber(scope.row[metric.valueKey]) }}</template>
                     </strong>
                   </el-tooltip>
-                  <span v-if="metric.deltaKey" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey]).type">
-                    <component :is="metricDeltaMeta(scope.row[metric.deltaKey]).icon" :size="11" />
-                    {{ metricDeltaMeta(scope.row[metric.deltaKey]).label }}
+                  <span v-if="metric.deltaKey" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type">
+                    <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="11" />
+                    {{ metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).label }}
                   </span>
                 </div>
               </template>
@@ -1316,7 +1317,6 @@ onBeforeUnmount(() => {
                     </strong>
                   </el-tooltip>
                   <span
-                    v-if="!metric.hint"
                     class="account-profile__delta"
                     :class="'is-' + metricDeltaMeta(metric.delta, metric.deltaMode).type"
                   >
