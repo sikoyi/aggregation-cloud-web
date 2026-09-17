@@ -136,6 +136,7 @@ const summary = reactive({
 const selectedAccountIds = computed(() => selectedAccounts.value
   .map(account => String(account.account_id || '').trim())
   .filter(Boolean))
+const batchActionsDisabled = computed(() => !selectedAccountIds.value.length || batchUpdating.value)
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:account-data',
   {
@@ -664,6 +665,7 @@ watch(viewMode, (mode) => {
 })
 
 function openBatchMonitorInterval() {
+  if (batchActionsDisabled.value) return
   Object.assign(batchIntervalForm, {
     monitor_mode: 'system',
     interval_minutes: 60,
@@ -987,7 +989,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-if="selectedAccountIds.length" class="account-overview__batch-bar">
+          <div class="account-overview__batch-bar">
             <span class="account-overview__selected-count">
               已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
             </span>
@@ -995,16 +997,17 @@ onBeforeUnmount(() => {
               <el-button
                 :icon="Clock"
                 :loading="batchUpdating"
+                :disabled="batchActionsDisabled"
                 @click="openBatchMonitorInterval"
               >
                 批量设置监听间隔
               </el-button>
               <el-dropdown
                 trigger="click"
-                :disabled="batchUpdating"
+                :disabled="batchActionsDisabled"
                 @command="batchUpdateCommentReplyMode"
               >
-                <el-button :icon="MessageSquareReply" :loading="batchUpdating">批量设置回复方式</el-button>
+                <el-button :icon="MessageSquareReply" :loading="batchUpdating" :disabled="batchActionsDisabled">批量设置回复方式</el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
@@ -1019,10 +1022,10 @@ onBeforeUnmount(() => {
               </el-dropdown>
               <el-dropdown
                 trigger="click"
-                :disabled="batchUpdating"
+                :disabled="batchActionsDisabled"
                 @command="batchUpdatePostSyncMode"
               >
-                <el-button :icon="GitCompareArrows" :loading="batchUpdating">批量设置帖子同步</el-button>
+                <el-button :icon="GitCompareArrows" :loading="batchUpdating" :disabled="batchActionsDisabled">批量设置帖子同步</el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item
@@ -1039,7 +1042,7 @@ onBeforeUnmount(() => {
                 <el-button
                   circle
                   :icon="X"
-                  :disabled="batchUpdating"
+                  :disabled="batchActionsDisabled"
                   aria-label="取消选择"
                   @click="clearOverviewSelection"
                 />

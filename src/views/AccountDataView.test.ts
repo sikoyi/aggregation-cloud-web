@@ -4,6 +4,15 @@ import { transpile } from 'typescript'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('批量操作栏常驻，空选或提交中禁止操作，选中后启用', () => {
+    expect(source).toContain('<div class="account-overview__batch-bar">')
+    expect(source).not.toContain('<div v-if="selectedAccountIds.length" class="account-overview__batch-bar">')
+    expect(source).toContain('computed(() => !selectedAccountIds.value.length || batchUpdating.value)')
+    const toolbar = source.split('<div class="account-overview__batch-bar">')[1]?.split('<el-table')[0] || ''
+    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(6)
+    const openDialog = source.split('function openBatchMonitorInterval() {')[1]?.split('\n}')[0] || ''
+    expect(openDialog).toContain('if (batchActionsDisabled.value) return')
+  })
   it('粉丝、浏览量和总点赞统一缩写展示并点击查看完整数量', () => {
     expect(source).toContain('<CompactFollowerCount :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />')
     expect(source).toContain('<CompactFollowerCount v-if="metric.compact"')
