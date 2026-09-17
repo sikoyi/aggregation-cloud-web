@@ -267,15 +267,15 @@ const groupMembersTabLabel = computed(() => {
   if (props.config.mediaAssetGroupMembers) return '组内素材'
   return '组内设备'
 })
-const modalSubmitLabel = computed(() => (
-  (modal.type === 'action' || modal.type === 'batch') && modal.action?.submitLabel
-    ? modal.action.submitLabel
-    : isTaskDispatchModal.value
-      ? '确认执行'
-      : isPublishedContentDispatchModal.value || isInteractionSessionCreateModal.value
-        ? '确认下发'
-        : '保存'
-))
+const modalSubmitLabel = computed(() => {
+  if ((modal.type === 'action' || modal.type === 'batch') && modal.action?.submitLabel) return modal.action.submitLabel
+  if (modal.type === 'create' && isAccountResource.value) {
+    return formState.value.post_import_action === 'create_environment_and_login' ? '导入并上号' : '导入账号'
+  }
+  if (isTaskDispatchModal.value) return '确认执行'
+  if (isPublishedContentDispatchModal.value || isInteractionSessionCreateModal.value) return '确认下发'
+  return '保存'
+})
 const visibleColumns = computed(() => props.config.columns.filter((column) => !column.hidden))
 // 启用/禁用是高频状态动作，统一放到状态列开关里，右侧菜单只保留其它业务操作。
 const statusSwitchActionKeys = computed(() => {
@@ -479,7 +479,15 @@ const batchActions = computed<RowActionConfig[]>(() => {
 })
 const selectedCount = computed(() => selectedRows.value.length)
 const isAccountResource = computed(() => ['accounts', 'accountIdentities'].includes(props.config.key))
-const persistentBatchToolbar = computed(() => isAccountResource.value || props.config.key === 'slots')
+const persistentBatchToolbar = computed(() => isAccountResource.value || ['slots', 'proxies', 'contents', 'mediaAssets'].includes(props.config.key))
+const selectedCountUnit = computed(() => {
+  if (isAccountResource.value) return '个账号'
+  if (props.config.key === 'slots') return '台设备'
+  if (props.config.key === 'proxies') return '个代理'
+  if (props.config.key === 'contents') return '条内容'
+  if (props.config.key === 'mediaAssets') return '个素材'
+  return '条数据'
+})
 const selectedIdentityScope = computed(() => {
   if (props.config.key !== 'accountIdentities') return ''
   try { return identitySelectionLabel(selectedRows.value) }
@@ -1838,7 +1846,7 @@ onBeforeUnmount(() => {
         <ListChecks v-if="!persistentBatchToolbar" class="h-4 w-4 text-slate-500" />
         <span>已选择</span>
         <strong v-if="selectedIdentityScope">{{ selectedIdentityScope }}</strong>
-        <template v-else><strong>{{ selectedCount }}</strong><span>{{ isAccountResource ? '个账号' : config.key === 'slots' ? '台设备' : '条数据' }}</span></template>
+        <template v-else><strong>{{ selectedCount }}</strong><span>{{ selectedCountUnit }}</span></template>
       </div>
       <div class="batch-toolbar__actions">
         <el-button
