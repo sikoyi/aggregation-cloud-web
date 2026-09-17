@@ -59,6 +59,10 @@ const resultType = computed(() => taskResultAlertType(task.value?.status))
 
 const isChildTask = computed(() => Boolean(task.value?.parent_task_run_id))
 
+const showChildAccountColumn = computed(() => (
+  children.value.some((item) => Boolean(String(item.account_id || '').trim()))
+))
+
 const detailTitle = computed(() => {
   if (!task.value) return '任务详情'
   return `任务详情：${task.value.title || truncateId(task.value.id)}`
@@ -249,6 +253,23 @@ function taskTime(key: string) {
   return formatDate(task.value?.[key])
 }
 
+function accountPrimaryLabel(row: AnyRecord) {
+  if (!row.account_id) return '-'
+  return text(row.account_display_name || row.account_username || row.account_login_username || `账号 ${row.account_id}`)
+}
+
+function accountSecondaryLabel(row: AnyRecord) {
+  if (!row.account_id) return ''
+  const primary = accountPrimaryLabel(row)
+  const username = String(row.account_username || '').trim()
+  const loginUsername = String(row.account_login_username || '').trim()
+  const details: string[] = []
+  if (username && username !== primary) details.push(`@${username.replace(/^@/, '')}`)
+  if (loginUsername && loginUsername !== primary && loginUsername !== username) details.push(loginUsername)
+  details.push(`账号 ID ${row.account_id}`)
+  return details.join(' · ')
+}
+
 function slotGroupKey(group: TaskParameterSlotGroup, index: number) {
   return group.group_id || `${group.group_name}-${index}`
 }
@@ -349,7 +370,7 @@ watch(
   <el-dialog
     v-model="visible"
     :title="detailTitle"
-    width="860px"
+    width="min(1120px, calc(100vw - 32px))"
     class="task-detail-dialog"
     destroy-on-close
     append-to-body
@@ -475,6 +496,14 @@ watch(
                   <div class="task-device-cell">
                     <span>{{ text(row.slot_name) }}</span>
                     <code>{{ text(row.provider_slot_id) }}</code>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column v-if="showChildAccountColumn" label="账号" min-width="250">
+                <template #default="{ row }">
+                  <div class="task-account-cell" :title="accountSecondaryLabel(row)">
+                    <strong>{{ accountPrimaryLabel(row) }}</strong>
+                    <span>{{ accountSecondaryLabel(row) }}</span>
                   </div>
                 </template>
               </el-table-column>
@@ -651,6 +680,32 @@ watch(
 }
 
 .task-device-cell code {
+  color: var(--app-text-muted, #64748b);
+  font-size: 11px;
+}
+
+.task-account-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.35;
+}
+
+.task-account-cell strong,
+.task-account-cell span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-account-cell strong {
+  color: var(--app-text, #1f2937);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.task-account-cell span {
   color: var(--app-text-muted, #64748b);
   font-size: 11px;
 }

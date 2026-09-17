@@ -8,4 +8,12 @@ describe('任务详情执行结果', () => {
     expect(source).toContain(':type="resultType"')
     expect(source).not.toContain('type="success"')
   })
+
+  it('设备执行记录按关联账号动态展示账号信息', () => {
+    expect(source).toContain('const showChildAccountColumn = computed')
+    expect(source).toContain('v-if="showChildAccountColumn"')
+    expect(source).toContain('accountPrimaryLabel(row)')
+    expect(source).toContain('accountSecondaryLabel(row)')
+    expect(source).toContain('账号 ID')
+  })
 })
