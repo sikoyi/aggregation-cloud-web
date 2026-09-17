@@ -1783,7 +1783,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .account-overview__account strong { color: var(--app-text, #20364b); font-size: 16px; line-height: 1.5; }
-.account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 14px; line-height: 1.5; }
+.account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; line-height: 1.5; }
 .account-overview__account:hover strong { color: var(--app-blue, #1f6f9f); }
 .account-overview__group {
   display: inline-flex;

@@ -16,7 +16,7 @@ describe('账号数据聚合总览', () => {
   })
   it('账号身份放大并保留长文本边界', () => {
     expect(source).toContain('font-size: 16px; line-height: 1.5;')
-    expect(source).toContain('font-size: 14px; line-height: 1.5;')
+    expect(source).toContain('.account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; line-height: 1.5; }')
     expect(source).toContain(':size="88"')
     expect(source).toContain('font-size: 16px; overflow-wrap: anywhere;')
   })
