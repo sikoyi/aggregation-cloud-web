@@ -28,7 +28,7 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain("key !== 'sort_order'")
   })
   it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
-    expect(source).toContain('width="min(92vw, 860px)"\n      align-center')
+    expect(source).toMatch(/width="min\(92vw, 860px\)"\r?\n\s+align-center/)
     expect(source).toContain('.monitor-dialog-account { align-self: start; }')
     expect(source).toContain('.monitor-dialog-account :deep(.account-tree-select) { max-height: none; overflow: visible; }')
     expect(source).not.toContain('.monitor-dialog-account { max-height: 510px; overflow: auto; }')
@@ -48,21 +48,16 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('账号标签：{{ activeAccountTagName }}')
   })
 
-  it('将四项核心指标合并为紧凑宫格并从总览隐藏总回复', () => {
+  it('横向展示账号的核心监听指标', () => {
     for (const key of [
       'followers_count',
       'following_count',
       'posts_count',
       'total_likes_count',
+      'total_replies_count',
     ]) {
       expect(source).toContain(`valueKey: '${key}'`)
     }
-    const overviewMetrics = source.split('const overviewMetricColumns = [')[1]?.split('\n]')[0] || ''
-    expect(overviewMetrics).not.toContain('total_replies_count')
-    expect(source).toContain('<el-table-column label="账号指标" width="290"')
-    expect(source).toContain('class="account-overview__metrics-grid"')
-    expect(source).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));')
-    expect(source).toContain('compactMetricDeltaLabel(scope.row[metric.deltaKey])')
     expect(source).toContain(':data="rows"')
     expect(source).toContain('metrics_captured_at')
   })
