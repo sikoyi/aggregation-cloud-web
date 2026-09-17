@@ -2,6 +2,7 @@
 import {
   Activity,
   CalendarDays,
+  Clock3,
   Eye,
   EyeOff,
   Network,
@@ -90,6 +91,7 @@ const loading = ref(false)
 const usageLoading = ref(false)
 const savingEnabled = ref(false)
 const savingProvider = ref(false)
+const savingReplyQuiet = ref(false)
 const testingProtocol = ref(false)
 const submitting = ref(false)
 const testingTokenId = ref('')
@@ -105,6 +107,11 @@ const protocolForm = reactive({
   token: '',
   token_configured: false,
 })
+const replyQuietForm = reactive({
+  enabled: false,
+  start: '22:00:00',
+  end: '08:00:00',
+})
 const tokens = ref<ProviderToken[]>([])
 const updatedAt = ref('')
 const usage = ref<UsageSummary>(emptyUsage())
@@ -112,9 +119,10 @@ const tokenForm = reactive({ name: '', api_token: '', enabled: true })
 let platformRevision = 0
 const changingToken = ref(false)
 const platformLocked = computed(() => loading.value || usageLoading.value || savingEnabled.value
-  || savingProvider.value || testingProtocol.value || submitting.value || !!testingTokenId.value
+  || savingProvider.value || savingReplyQuiet.value || testingProtocol.value || submitting.value || !!testingTokenId.value
   || changingToken.value || dialogVisible.value)
 const collectionLabel = computed(() => businessPlatform.value === 'instagram' ? '互动采集' : '账号内容监听')
+const supportsCommentReplyPolicy = computed(() => ['threads', 'x', 'facebook'].includes(businessPlatform.value))
 
 const usageByTokenId = computed(() => {
   const values = new Map<string, TokenUsage>()
@@ -173,6 +181,9 @@ async function changeBusinessPlatform() {
   protocolForm.base_url = ''
   protocolForm.token = ''
   protocolForm.token_configured = false
+  replyQuietForm.enabled = false
+  replyQuietForm.start = '22:00:00'
+  replyQuietForm.end = '08:00:00'
   provider.value = defaultMonitorProviderForPlatform(businessPlatform.value)
   persistedProvider.value = provider.value
   usage.value = emptyUsage()
@@ -192,6 +203,9 @@ async function loadConfig() {
     protocolForm.base_url = String(data.protocol_base_url || '')
     protocolForm.token = ''
     protocolForm.token_configured = data.protocol_token_configured === true
+    replyQuietForm.enabled = data.comment_reply_quiet_enabled === true
+    replyQuietForm.start = String(data.comment_reply_quiet_start || '22:00:00')
+    replyQuietForm.end = String(data.comment_reply_quiet_end || '08:00:00')
     tokens.value = Array.isArray(data.tokens) ? data.tokens as unknown as ProviderToken[] : []
     updatedAt.value = String(data.updated_at || '')
   } catch (err) {
@@ -253,6 +267,35 @@ async function saveProviderConfig() {
     notifyError(err, '保存失败', '账号监听采集通道保存失败')
   } finally {
     savingProvider.value = false
+  }
+}
+
+async function saveReplyQuietPolicy() {
+  if (!supportsCommentReplyPolicy.value) return
+  if (replyQuietForm.enabled && (!replyQuietForm.start || !replyQuietForm.end)) {
+    ElNotification.warning({ title: '请完善配置', message: '请选择禁回开始和结束时间' })
+    return
+  }
+  if (replyQuietForm.enabled && replyQuietForm.start === replyQuietForm.end) {
+    ElNotification.warning({ title: '时间无效', message: '禁回开始和结束时间不能相同' })
+    return
+  }
+  savingReplyQuiet.value = true
+  try {
+    const data = await http.put<AnyRecord>(endpoint(), {
+      comment_reply_quiet_enabled: replyQuietForm.enabled,
+      comment_reply_quiet_start: replyQuietForm.enabled ? replyQuietForm.start : null,
+      comment_reply_quiet_end: replyQuietForm.enabled ? replyQuietForm.end : null,
+    })
+    replyQuietForm.enabled = data.comment_reply_quiet_enabled === true
+    replyQuietForm.start = String(data.comment_reply_quiet_start || replyQuietForm.start || '22:00:00')
+    replyQuietForm.end = String(data.comment_reply_quiet_end || replyQuietForm.end || '08:00:00')
+    updatedAt.value = String(data.updated_at || '')
+    ElNotification.success({ title: '保存成功', message: '评论禁回时段已更新' })
+  } catch (err) {
+    notifyError(err, '保存失败', '评论禁回时段保存失败')
+  } finally {
+    savingReplyQuiet.value = false
   }
 }
 
@@ -502,6 +545,43 @@ onMounted(refreshAll)
       />
     </div>
 
+    <div v-if="supportsCommentReplyPolicy" class="reply-quiet-config">
+      <div class="reply-quiet-heading">
+        <span class="provider-choice__icon"><Clock3 :size="18" /></span>
+        <div>
+          <strong>评论禁回时段</strong>
+          <small>北京时间（Asia/Shanghai）</small>
+        </div>
+        <el-switch v-model="replyQuietForm.enabled" />
+      </div>
+      <div class="reply-quiet-fields">
+        <label>
+          <span>开始时间</span>
+          <el-time-picker
+            v-model="replyQuietForm.start"
+            format="HH:mm"
+            value-format="HH:mm:ss"
+            :disabled="!replyQuietForm.enabled"
+            placeholder="选择开始时间"
+          />
+        </label>
+        <label>
+          <span>结束时间</span>
+          <el-time-picker
+            v-model="replyQuietForm.end"
+            format="HH:mm"
+            value-format="HH:mm:ss"
+            :disabled="!replyQuietForm.enabled"
+            placeholder="选择结束时间"
+          />
+        </label>
+        <span class="reply-quiet-note">时段内产生的评论不会创建回复工单，结束后也不会补发</span>
+      </div>
+      <el-button type="primary" :icon="Save" :loading="savingReplyQuiet" @click="saveReplyQuietPolicy">
+        保存回复规则
+      </el-button>
+    </div>
+
     <template v-if="provider === 'apify'">
       <el-alert
         v-if="xFreePlanTokens.length"
@@ -659,7 +739,10 @@ onMounted(refreshAll)
 .provider-config,
 .provider-choice,
 .provider-actions,
-.field-label { display: flex; align-items: center; }
+.field-label,
+.reply-quiet-config,
+.reply-quiet-heading,
+.reply-quiet-fields { display: flex; align-items: center; }
 .provider-config { justify-content: space-between; gap: 18px; margin: 16px 0; padding: 14px 16px; border: 1px solid var(--app-border, #dce5ed); border-radius: 6px; background: var(--app-surface, #fff); }
 .provider-choice { min-width: 0; gap: 11px; }
 .provider-choice > div { display: grid; min-width: 170px; gap: 2px; }
@@ -671,6 +754,17 @@ onMounted(refreshAll)
 .protocol-fields { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
 .protocol-fields :deep(.el-form-item) { margin-bottom: 14px; }
 .field-label { gap: 8px; }
+.reply-quiet-config { justify-content: space-between; gap: 18px; margin-bottom: 18px; padding: 14px 16px; border: 1px solid var(--app-border, #dce5ed); border-radius: 6px; background: var(--app-surface, #fff); }
+.reply-quiet-heading { min-width: 190px; gap: 11px; }
+.reply-quiet-heading > div { display: grid; gap: 2px; }
+.reply-quiet-heading strong { color: var(--app-text, #25384a); font-size: 13px; }
+.reply-quiet-heading small,
+.reply-quiet-fields label > span,
+.reply-quiet-note { color: var(--app-text-muted, #8793a3); font-size: 11px; }
+.reply-quiet-fields { min-width: 0; flex: 1; justify-content: flex-end; gap: 12px; }
+.reply-quiet-fields label { display: grid; min-width: 138px; gap: 5px; }
+.reply-quiet-fields :deep(.el-date-editor) { width: 138px; }
+.reply-quiet-note { max-width: 240px; line-height: 1.5; }
 .monitor-title { gap: 9px; }
 .monitor-title h2 { font-size: 17px; font-weight: 700; }
 .provider-mark { padding: 3px 8px; border-radius: 5px; color: #fff; background: #1d2939; font-size: 12px; font-weight: 700; }
@@ -728,6 +822,10 @@ onMounted(refreshAll)
 .refresh-time { white-space: nowrap; }
 .config-footer { margin-top: 14px; color: var(--app-text-muted, #98a4b3); font-size: 11px; text-align: right; }
 .enabled-field { min-height: 32px; color: var(--app-text-muted, #66788a); font-size: 12px; }
+@media (max-width: 1180px) {
+  .reply-quiet-config { flex-wrap: wrap; }
+  .reply-quiet-fields { order: 3; flex-basis: 100%; justify-content: flex-start; }
+}
 @media (max-width: 980px) {
   .summary-strip { grid-template-columns: repeat(2, 1fr); }
   .summary-item:nth-child(even) { border-right: 0; }
@@ -741,6 +839,11 @@ onMounted(refreshAll)
   .provider-choice :deep(.el-segmented) { width: 100%; }
   .provider-actions { width: 100%; justify-content: flex-end; }
   .protocol-fields { grid-template-columns: 1fr; gap: 0; }
+  .reply-quiet-config { align-items: stretch; flex-direction: column; }
+  .reply-quiet-fields { align-items: stretch; flex-direction: column; }
+  .reply-quiet-fields label,
+  .reply-quiet-fields :deep(.el-date-editor) { width: 100%; }
+  .reply-quiet-note { max-width: none; }
   .monitor-switch { width: 100%; justify-content: space-between; padding: 10px 0 0; border-top: 1px solid var(--app-border, #e5ebf1); border-left: 0; }
   .platform-switcher-scroll { width: 100%; }
   .monitor-switch div { text-align: left; }
