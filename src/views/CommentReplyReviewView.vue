@@ -24,7 +24,6 @@ import RemoteSelect from '@/components/RemoteSelect.vue'
 import ReplyJobAccount from '@/components/ReplyJobAccount.vue'
 import ReplyJobPost from '@/components/ReplyJobPost.vue'
 import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
-import BenchmarkPostReviews from '@/components/BenchmarkPostReviews.vue'
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
@@ -42,7 +41,6 @@ import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
 const auth = useAuthStore()
-const reviewKind = ref('reply')
 const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const statusOptions = [
   { label: '生成中', value: 'generating', type: 'primary' },
@@ -278,18 +276,13 @@ onBeforeUnmount(() => {
         </div>
         <div class="reply-review__tools">
         <TelegramReviewBinding />
-        <el-tooltip v-if="reviewKind === 'reply'" content="刷新" placement="bottom">
+        <el-tooltip content="刷新" placement="bottom">
           <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
         </el-tooltip>
         </div>
       </header>
 
-      <el-tabs v-model="reviewKind" class="review-kind-tabs">
-        <el-tab-pane label="评论回复" name="reply" />
-        <el-tab-pane label="对标帖子" name="benchmark" />
-      </el-tabs>
-      <BenchmarkPostReviews v-if="reviewKind === 'benchmark'" />
-      <div v-show="reviewKind === 'reply'" class="reply-review__body">
+      <div class="reply-review__body">
         <div class="reply-review__filters">
           <div class="filter-title">
             <Search :size="16" />
@@ -451,7 +444,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.review-kind-tabs { margin: 0 16px; }
 .reply-review__tools { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .reply-review__workspace { border-color: var(--app-border, #d9e2ec); border-radius: 8px; }
 .reply-review__workspace :deep(.el-card__body) { padding: 0; }

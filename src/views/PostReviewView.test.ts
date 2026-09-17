@@ -1,0 +1,32 @@
+import { describe, expect, it } from 'vitest'
+import source from './PostReviewView.vue?raw'
+import reply from './CommentReplyReviewView.vue?raw'
+import routes from '@/router/index.ts?raw'
+import shell from '@/layouts/AppShell.vue?raw'
+import reviews from '@/components/BenchmarkPostReviews.vue?raw'
+
+describe('运营中心独立帖子审核', () => {
+  it('提供独立懒加载路由，并沿用运营查看权限', () => {
+    expect(routes).toContain("const PostReviewView = () => import('@/views/PostReviewView.vue')")
+    expect(routes).toContain("{ path: 'post-reviews', component: PostReviewView, meta: { permission: 'operations.view' } }")
+    const operations = shell.split("label: '运营中心'")[1]?.split("label: '任务中心'")[0] || ''
+    expect(operations).toContain("{ label: '帖子审核', to: '/post-reviews', icon: FileCheck2, permission: 'operations.view' }")
+  })
+
+  it('复用帖子工单和 TG 绑定，不在回复审核重复展示', () => {
+    expect(source).toContain('<h1>帖子审核</h1>')
+    expect(source).toContain('<BenchmarkPostReviews />')
+    expect(source).toContain('<TelegramReviewBinding />')
+    expect(reply).not.toContain('BenchmarkPostReviews')
+    expect(reply).not.toContain('reviewKind')
+    expect(reply).toContain('<h1>回复审核</h1>')
+  })
+
+  it('保持现有审核权限、工单版本校验和发布接口', () => {
+    expect(reviews).toContain("selected.value?.status === 'pending_review' && auth.can('operations.review')")
+    expect(reviews).toContain('/api/benchmark-trackers/reviews')
+    expect(reviews).toContain('revision: job.revision')
+    expect(reviews).toContain("decide('approve')")
+    expect(reviews).toContain("decide('ignore')")
+  })
+})

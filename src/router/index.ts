@@ -10,6 +10,7 @@ const BenchmarkSyncRecordsView = () => import('@/views/BenchmarkSyncRecordsView.
 const BusinessEventStatisticsView = () => import('@/views/BusinessEventStatisticsView.vue')
 const ContentCenterView = () => import('@/views/ContentCenterView.vue')
 const CommentReplyReviewView = () => import('@/views/CommentReplyReviewView.vue')
+const PostReviewView = () => import('@/views/PostReviewView.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
 const DeviceCenterView = () => import('@/views/DeviceCenterView.vue')
 const ForbiddenView = () => import('@/views/ForbiddenView.vue')
@@ -55,6 +56,7 @@ export const router = createRouter({
         { path: 'media-asset-groups', redirect: { path: '/media-assets', query: { tab: 'groups' } } },
         { path: 'interaction-sessions', component: ResourceView, meta: { resource: 'interactionSessions', permission: 'operations.view' } },
         { path: 'comment-replies', component: CommentReplyReviewView, meta: { permission: 'operations.view' } },
+        { path: 'post-reviews', component: PostReviewView, meta: { permission: 'operations.view' } },
         { path: 'published-contents', component: ResourceView, meta: { resource: 'publishedContents', permission: 'operations.view' } },
         { path: 'content-comments', component: ResourceView, meta: { resource: 'contentComments', permission: 'monitoring.view' } },
         { path: 'scripts', component: ResourceView, meta: { resource: 'scripts', permission: 'scripts.view' } },

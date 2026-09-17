@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Database,
   FileText,
+  FileCheck2,
   Gauge,
   History,
   Image,
@@ -108,6 +109,7 @@ const rawNavGroups = [
     children: [
       { label: '互动会话', to: '/interaction-sessions', icon: PlaySquare, permission: 'operations.view' },
       { label: '回复审核', to: '/comment-replies', icon: MessageSquareReply, permission: 'operations.view' },
+      { label: '帖子审核', to: '/post-reviews', icon: FileCheck2, permission: 'operations.view' },
       { label: '发布内容', to: '/published-contents', icon: FileText, permission: 'operations.view' },
       { label: '账号养号', to: '/account-warmup', icon: Activity, permission: 'account_warmup.view' },
     ],
