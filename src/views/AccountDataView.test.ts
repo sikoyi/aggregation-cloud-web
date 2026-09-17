@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('粉丝、浏览量和总点赞统一缩写展示并点击查看完整数量', () => {
+    expect(source).toContain('<CompactFollowerCount :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />')
+    expect(source).toContain('<CompactFollowerCount v-if="metric.compact"')
+    const profileMetrics = source.split('const profileMetricItems = computed(() => {')[1]?.split('})')[0] || ''
+    for (const label of ['粉丝', '帖子总浏览量', '总点赞']) {
+      expect(profileMetrics.split('\n').find(line => line.includes(`label: '${label}'`))).toContain('compact: true')
+    }
+    expect(profileMetrics.split('\n').find(line => line.includes("label: '总回复'"))).not.toContain('compact: true')
+  })
   it('指标数字和日增量使用清晰字号，增量样式不影响浏览量数字', () => {
     expect(source).toContain('font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums;')
     expect(source).toContain('class="account-overview__delta"')

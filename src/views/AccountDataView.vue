@@ -231,9 +231,9 @@ const profileMetricItems = computed(() => {
   const account = selectedAccount.value
   if (!account) return []
   return [
-    { label: '粉丝', value: account.followers_count, delta: account.followers_day_delta },
-    { label: '帖子总浏览量', value: account.total_post_views_count, delta: account.total_post_views_day_delta, deltaMode: 'views', hint: '汇总已采集帖子的最新浏览量；按北京时间与前一天最后有效采集值比较，缺少完整基线时不计算增量。' },
-    { label: '总点赞', value: account.total_likes_count, delta: account.total_likes_day_delta },
+    { label: '粉丝', value: account.followers_count, delta: account.followers_day_delta, compact: true },
+    { label: '帖子总浏览量', value: account.total_post_views_count, delta: account.total_post_views_day_delta, deltaMode: 'views', compact: true, hint: '汇总已采集帖子的最新浏览量；按北京时间与前一天最后有效采集值比较，缺少完整基线时不计算增量。' },
+    { label: '总点赞', value: account.total_likes_count, delta: account.total_likes_day_delta, compact: true },
     { label: '总回复', value: account.total_replies_count, delta: account.total_replies_day_delta },
     {
       label: '采集次数',
@@ -1110,8 +1110,7 @@ onBeforeUnmount(() => {
               <template #default="scope">
                 <div class="account-overview__metric">
                   <strong>
-                    <CompactFollowerCount v-if="metric.valueKey === 'total_post_views_count'" :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
-                    <template v-else>{{ formatNumber(scope.row[metric.valueKey]) }}</template>
+                    <CompactFollowerCount :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
                   </strong>
                   <span v-if="metric.deltaKey" class="account-overview__delta" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type">
                     <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="12" />
@@ -1316,7 +1315,7 @@ onBeforeUnmount(() => {
                     <small>{{ metric.label }}</small>
                   </el-tooltip>
                   <strong>
-                    <CompactFollowerCount v-if="metric.label === '帖子总浏览量'" :key="String(selectedAccount.account_id)" :value="metric.value" :label="metric.label" />
+                    <CompactFollowerCount v-if="metric.compact" :key="String(selectedAccount.account_id)" :value="metric.value" :label="metric.label" />
                     <template v-else>{{ formatNumber(metric.value) }}</template>
                   </strong>
                   <span
