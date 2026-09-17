@@ -56,10 +56,17 @@ describe('账号数据聚合总览', () => {
   })
   it('支持监听创建时间正反排序，默认最新添加在前', () => {
     expect(source).toContain("sort_order: 'desc'")
-    expect(source).toContain('v-model="filters.sort_order" @change="searchRows"')
-    expect(source).toContain('label="最新添加在前" value="desc"')
-    expect(source).toContain('label="最早添加在前" value="asc"')
+    expect(source).toContain("sort_by: 'monitor_created_at'")
+    expect(source).toContain('v-model="sortSelection" @change="searchRows"')
+    expect(source).toContain('label="最新添加在前" value="monitor_created_at:desc"')
+    expect(source).toContain('label="最早添加在前" value="monitor_created_at:asc"')
     expect(source).toContain("key !== 'sort_order'")
+    expect(source).toContain("key !== 'sort_by'")
+    for (const field of ['followers_count', 'total_post_views_count', 'total_likes_count']) {
+      for (const order of ['asc', 'desc']) expect(source).toContain(`value="${field}:${order}"`)
+    }
+    expect(source).toContain('filters.sort_by = field')
+    expect(source).toContain('filters.sort_order = order')
   })
   it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
     expect(source).toMatch(/width="min\(92vw, 860px\)"\r?\n\s+align-center/)

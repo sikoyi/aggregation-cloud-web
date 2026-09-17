@@ -139,6 +139,7 @@ const selectedAccountIds = computed(() => selectedAccounts.value
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:account-data',
   {
+    sort_by: 'monitor_created_at',
     sort_order: 'desc',
     business_platform: '',
     country: '',
@@ -204,8 +205,16 @@ let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
 const accountProfileLoading = ref(false)
 
-const activeFilterCount = computed(() => Object.entries(filters).filter(([key, value]) => key !== 'sort_order' && Boolean(value)).length)
-const hasFilters = computed(() => activeFilterCount.value > 0 || filters.sort_order !== 'desc')
+const sortSelection = computed({
+  get: () => `${filters.sort_by}:${filters.sort_order}`,
+  set: (value: string) => {
+    const [field, order] = value.split(':')
+    filters.sort_by = field
+    filters.sort_order = order
+  },
+})
+const activeFilterCount = computed(() => Object.entries(filters).filter(([key, value]) => key !== 'sort_order' && key !== 'sort_by' && Boolean(value)).length)
+const hasFilters = computed(() => activeFilterCount.value > 0 || filters.sort_order !== 'desc' || filters.sort_by !== 'monitor_created_at')
 const activeSlotGroupName = computed(() => {
   const groupId = String(filters.slot_group_id || '')
   if (!groupId) return ''
@@ -935,10 +944,16 @@ onBeforeUnmount(() => {
                   <el-option v-for="option in postSyncOptions" :key="option.value" :label="option.label" :value="option.value" />
                 </el-select>
               </el-form-item>
-              <el-form-item label="监听排序">
-                <el-select v-model="filters.sort_order" @change="searchRows">
-                  <el-option label="最新添加在前" value="desc" />
-                  <el-option label="最早添加在前" value="asc" />
+              <el-form-item label="数据排序">
+                <el-select v-model="sortSelection" @change="searchRows">
+                  <el-option label="最新添加在前" value="monitor_created_at:desc" />
+                  <el-option label="最早添加在前" value="monitor_created_at:asc" />
+                  <el-option label="粉丝数量从多到少" value="followers_count:desc" />
+                  <el-option label="粉丝数量从少到多" value="followers_count:asc" />
+                  <el-option label="总浏览量从多到少" value="total_post_views_count:desc" />
+                  <el-option label="总浏览量从少到多" value="total_post_views_count:asc" />
+                  <el-option label="总点赞从多到少" value="total_likes_count:desc" />
+                  <el-option label="总点赞从少到多" value="total_likes_count:asc" />
                 </el-select>
               </el-form-item>
             </div>
