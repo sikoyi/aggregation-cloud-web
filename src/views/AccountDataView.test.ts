@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('指标数字和日增量使用清晰字号，增量样式不影响浏览量数字', () => {
+    expect(source).toContain('font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums;')
+    expect(source).toContain('class="account-overview__delta"')
+    const deltaStyle = source.split('.account-overview__delta {')[1]?.split('}')[0] || ''
+    expect(deltaStyle).toContain('font-size: 12px;')
+    expect(deltaStyle).toContain('line-height: 18px;')
+    expect(source).not.toContain('.account-overview__metric span {')
+  })
   it('浏览量在总览和详情展示日增量，缺失与异常回落不伪装成持平', () => {
     expect(source).toContain("deltaKey: 'total_post_views_day_delta'")
     expect(source).toContain('delta: account.total_post_views_day_delta')

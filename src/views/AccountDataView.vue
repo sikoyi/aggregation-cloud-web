@@ -1113,8 +1113,8 @@ onBeforeUnmount(() => {
                     <CompactFollowerCount v-if="metric.valueKey === 'total_post_views_count'" :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
                     <template v-else>{{ formatNumber(scope.row[metric.valueKey]) }}</template>
                   </strong>
-                  <span v-if="metric.deltaKey" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type">
-                    <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="11" />
+                  <span v-if="metric.deltaKey" class="account-overview__delta" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type">
+                    <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="12" />
                     {{ metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).label }}
                   </span>
                 </div>
@@ -1943,14 +1943,15 @@ onBeforeUnmount(() => {
 }
 .account-overview__attributes { gap: 5px; color: var(--app-text-muted, #718096); font-size: 11px; }
 .account-overview__metric { gap: 5px; }
-.account-overview__metric strong { color: var(--app-text, #20384d); font-size: 14px; }
-.account-overview__metric > span {
+.account-overview__metric strong { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }
+.account-overview__delta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 3px;
   color: var(--app-text-muted, #8291a1);
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 18px;
   white-space: nowrap;
 }
 .account-overview__metric span.is-up { color: var(--app-green, #238457); }
