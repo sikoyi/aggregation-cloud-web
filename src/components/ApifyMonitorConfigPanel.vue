@@ -429,13 +429,15 @@ onMounted(refreshAll)
         <div class="monitor-title"><span class="provider-mark">{{ providerLabel }}</span><h2>{{ collectionLabel }}</h2></div>
         <p v-if="businessPlatform !== 'instagram'">{{ providerDescription }}</p>
       </div>
-      <el-segmented
-        v-model="businessPlatform"
-        :options="businessPlatformOptions"
-        :disabled="platformLocked"
-        class="platform-switcher"
-        @change="changeBusinessPlatform"
-      />
+      <div class="platform-switcher-scroll">
+        <el-segmented
+          v-model="businessPlatform"
+          :options="businessPlatformOptions"
+          :disabled="platformLocked"
+          class="platform-switcher"
+          @change="changeBusinessPlatform"
+        />
+      </div>
       <div class="monitor-switch">
         <div><strong>{{ collectionLabel }}{{ enabled ? '已启用' : '已停止' }}</strong></div>
         <el-switch
@@ -644,7 +646,16 @@ onMounted(refreshAll)
 .row-actions,
 .enabled-field { display: flex; align-items: center; }
 .monitor-header { justify-content: space-between; gap: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--app-border, #e4ebf2); }
-.platform-switcher { width: 300px; max-width: 100%; flex: 0 0 300px; }
+.platform-switcher-scroll {
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.platform-switcher { width: max-content; min-width: max-content; }
+.platform-switcher :deep(.el-segmented__item) { flex: 0 0 auto; }
 .provider-config,
 .provider-choice,
 .provider-actions,
@@ -731,7 +742,7 @@ onMounted(refreshAll)
   .provider-actions { width: 100%; justify-content: flex-end; }
   .protocol-fields { grid-template-columns: 1fr; gap: 0; }
   .monitor-switch { width: 100%; justify-content: space-between; padding: 10px 0 0; border-top: 1px solid var(--app-border, #e5ebf1); border-left: 0; }
-  .platform-switcher { width: 100%; flex-basis: auto; }
+  .platform-switcher-scroll { width: 100%; }
   .monitor-switch div { text-align: left; }
   .summary-strip { grid-template-columns: 1fr; }
   .summary-item { border-right: 0; border-bottom: 1px solid var(--app-border, #e2e9f0); }
