@@ -9,6 +9,7 @@ import {
   Eye,
   ExternalLink,
   GitCompareArrows,
+  Layers3,
   MessageSquareReply,
   Play,
   RefreshCw,
@@ -991,9 +992,25 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="设备分组" min-width="145" show-overflow-tooltip>
+            <el-table-column label="设备分组" min-width="145">
               <template #default="scope">
-                <span class="account-overview__group">{{ scope.row.slot_group_name || '未分组' }}</span>
+                <el-tooltip
+                  :content="String(scope.row.slot_group_name || '未分组')"
+                  :disabled="!scope.row.slot_group_name"
+                  placement="top"
+                  :show-after="400"
+                >
+                  <el-tag
+                    size="small"
+                    effect="plain"
+                    :type="scope.row.slot_group_name ? 'primary' : 'info'"
+                    class="account-overview__group"
+                    :class="{ 'account-overview__group--empty': !scope.row.slot_group_name }"
+                  >
+                    <Layers3 v-if="scope.row.slot_group_name" class="account-overview__group-icon" />
+                    <span class="account-overview__group-label">{{ scope.row.slot_group_name || '未分组' }}</span>
+                  </el-tag>
+                </el-tooltip>
               </template>
             </el-table-column>
 
@@ -1769,7 +1786,25 @@ onBeforeUnmount(() => {
 .account-overview__account strong { color: var(--app-text, #20364b); font-size: 16px; line-height: 1.5; }
 .account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 14px; line-height: 1.5; }
 .account-overview__account:hover strong { color: var(--app-blue, #1f6f9f); }
-.account-overview__group { color: var(--app-text, #334e63); font-size: 12px; }
+.account-overview__group {
+  display: inline-flex;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.account-overview__group :deep(.el-tag__content) {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+.account-overview__group-icon { width: 13px; height: 13px; flex: 0 0 13px; }
+.account-overview__group-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-overview__group--empty { opacity: 0.78; }
 .account-overview__attributes,
 .account-overview__metric,
 .account-overview__monitor {

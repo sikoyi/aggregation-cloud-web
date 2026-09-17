@@ -48,6 +48,13 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('账号标签：{{ activeAccountTagName }}')
   })
 
+  it('设备分组使用紧凑标签并为长名称保留完整提示', () => {
+    expect(source).toContain('<Layers3 v-if="scope.row.slot_group_name"')
+    expect(source).toContain(':content="String(scope.row.slot_group_name || \'未分组\')"')
+    expect(source).toContain("account-overview__group--empty': !scope.row.slot_group_name")
+    expect(source).toContain('text-overflow: ellipsis;')
+  })
+
   it('横向展示账号的核心监听指标', () => {
     for (const key of [
       'followers_count',
