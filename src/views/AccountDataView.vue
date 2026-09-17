@@ -95,8 +95,7 @@ const viewModeOptions = [
 ]
 const overviewMetricColumns = [
   { label: '粉丝', valueKey: 'followers_count', deltaKey: 'followers_day_delta' },
-  { label: '关注', valueKey: 'following_count', deltaKey: 'following_day_delta' },
-  { label: '帖子', valueKey: 'posts_count', deltaKey: 'posts_day_delta' },
+  { label: '帖子总浏览量', valueKey: 'total_post_views_count', hint: '汇总当前账号已采集帖子的最新已知浏览量；未采集或未返回浏览量的帖子不计入。' },
   { label: '总点赞', valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
 ]
 
@@ -232,8 +231,7 @@ const profileMetricItems = computed(() => {
   if (!account) return []
   return [
     { label: '粉丝', value: account.followers_count, delta: account.followers_day_delta },
-    { label: '关注', value: account.following_count, delta: account.following_day_delta },
-    { label: '帖子', value: account.posts_count, delta: account.posts_day_delta },
+    { label: '帖子总浏览量', value: account.total_post_views_count, hint: '汇总当前账号已采集帖子的最新已知浏览量；未采集或未返回浏览量的帖子不计入。' },
     { label: '总点赞', value: account.total_likes_count, delta: account.total_likes_day_delta },
     { label: '总回复', value: account.total_replies_count, delta: account.total_replies_day_delta },
     {
@@ -1104,8 +1102,10 @@ onBeforeUnmount(() => {
             >
               <template #default="scope">
                 <div class="account-overview__metric">
-                  <strong>{{ formatNumber(scope.row[metric.valueKey]) }}</strong>
-                  <span :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey]).type">
+                  <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
+                    <strong>{{ formatNumber(scope.row[metric.valueKey]) }}</strong>
+                  </el-tooltip>
+                  <span v-if="metric.deltaKey" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey]).type">
                     <component :is="metricDeltaMeta(scope.row[metric.deltaKey]).icon" :size="11" />
                     {{ metricDeltaMeta(scope.row[metric.deltaKey]).label }}
                   </span>
@@ -1305,8 +1305,11 @@ onBeforeUnmount(() => {
               <div class="account-profile__metrics">
                 <div v-for="metric in profileMetricItems" :key="metric.label">
                   <small>{{ metric.label }}</small>
-                  <strong>{{ formatNumber(metric.value) }}</strong>
+                  <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
+                    <strong>{{ formatNumber(metric.value) }}</strong>
+                  </el-tooltip>
                   <span
+                    v-if="!metric.hint"
                     class="account-profile__delta"
                     :class="'is-' + metricDeltaMeta(metric.delta, metric.deltaMode).type"
                   >

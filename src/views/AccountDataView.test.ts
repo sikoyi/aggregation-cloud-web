@@ -77,13 +77,14 @@ describe('账号数据聚合总览', () => {
     const overviewMetrics = source.split('const overviewMetricColumns = [')[1]?.split(']')[0] || ''
     for (const key of [
       'followers_count',
-      'following_count',
-      'posts_count',
+      'total_post_views_count',
       'total_likes_count',
     ]) {
       expect(overviewMetrics).toContain(`valueKey: '${key}'`)
     }
     expect(overviewMetrics).not.toContain('total_replies_count')
+    expect(overviewMetrics).not.toContain("valueKey: 'following_count'")
+    expect(overviewMetrics).not.toContain("valueKey: 'posts_count'")
     expect(source).toContain("{ label: '总回复', value: account.total_replies_count")
     expect(source).toContain(':data="rows"')
     expect(source).toContain('metrics_captured_at')
