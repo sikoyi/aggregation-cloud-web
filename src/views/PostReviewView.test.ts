@@ -29,4 +29,12 @@ describe('运营中心独立帖子审核', () => {
     expect(reviews).toContain("decide('approve')")
     expect(reviews).toContain("decide('ignore')")
   })
+
+  it('仅允许有重试权限的用户重新发布失败工单，并明确保留旧任务', () => {
+    expect(reviews).toContain("selected.value?.status === 'failed' && auth.can('operations.retry')")
+    expect(reviews).toContain("row.status === 'failed' && auth.can('operations.retry')")
+    expect(reviews).toContain('/retry`')
+    expect(reviews).toContain('系统会创建新的发布任务，原失败任务仍会保留')
+    expect(reviews).toContain('帖子发布已重新进入任务队列')
+  })
 })

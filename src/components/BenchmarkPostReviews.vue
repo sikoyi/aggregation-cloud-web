@@ -29,6 +29,7 @@ const page = ref(1)
 const total = ref(0)
 const loading = ref(false)
 const saving = ref(false)
+const retryingId = ref('')
 const selected = ref<Review | null>(null)
 const visible = ref(false)
 const content = ref('')
@@ -38,6 +39,7 @@ const labels: Record<string, string> = {
   dispatching: '下发中', canceled: '已取消', expired: '已超时', lost: '结果丢失',
 }
 const editable = computed(() => selected.value?.status === 'pending_review' && auth.can('operations.review'))
+const retryable = computed(() => selected.value?.status === 'failed' && auth.can('operations.retry'))
 let request = 0
 let timer: ReturnType<typeof setInterval> | undefined
 function safeUrl(value?: string) {
@@ -76,6 +78,22 @@ async function decide(action: 'approve' | 'ignore') {
   } catch (error) { notifyError(error, '审核未完成，请刷新工单确认状态') }
   finally { saving.value = false }
 }
+async function retry(row: { id?: unknown }) {
+  if (retryingId.value) return
+  const reviewId = String(row.id || '')
+  if (!reviewId) return
+  try {
+    await ElMessageBox.confirm('确认重新发布这条对标帖子？系统会创建新的发布任务，原失败任务仍会保留。', '重试帖子发布', { type: 'warning', confirmButtonText: '确认重试', cancelButtonText: '取消' })
+  } catch { return }
+  retryingId.value = reviewId
+  try {
+    const result = await http.post<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(reviewId)}/retry`, {})
+    if (selected.value?.id === reviewId) selected.value = result
+    ElNotification.success({ title: '已重新下发', message: '帖子发布已重新进入任务队列' })
+    await load()
+  } catch (error) { notifyError(error, '重试失败', '帖子暂时无法重新发布') }
+  finally { retryingId.value = '' }
+}
 onMounted(() => { void load(); timer = setInterval(() => { if (!loading.value && !visible.value) void load() }, 10000) })
 onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 </script>
@@ -99,7 +117,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
       </template></el-table-column>
       <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)">{{ labels[row.status] || '等待发布' }}</el-tag></template></el-table-column>
       <el-table-column label="创建时间" width="175"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
-      <el-table-column label="操作" width="80" fixed="right"><template #default="{ row }"><el-tooltip content="查看审核工单"><el-button :icon="Eye" circle text @click="open(row)" /></el-tooltip></template></el-table-column>
+      <el-table-column label="操作" width="120" fixed="right"><template #default="{ row }"><el-tooltip content="查看审核工单"><el-button :icon="Eye" circle text @click="open(row)" /></el-tooltip><el-tooltip v-if="row.status === 'failed' && auth.can('operations.retry')" content="重试发布"><el-button :icon="RefreshCw" circle text type="danger" :loading="retryingId === row.id" :disabled="Boolean(retryingId)" @click="retry(row)" /></el-tooltip></template></el-table-column>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
     <el-dialog v-model="visible" title="对标帖子审核" top="5vh" width="min(92vw, 760px)" destroy-on-close :close-on-click-modal="false" :before-close="(done: () => void) => { if (!saving) done() }">
@@ -111,7 +129,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
         <el-input id="benchmark-review-content" v-model="content" type="textarea" :rows="7" maxlength="10000" :readonly="!editable || saving" />
         <span v-if="selected.task_run_id">任务 ID：{{ selected.task_run_id }}</span>
       </div>
-      <template #footer><el-button :disabled="saving" @click="visible = false">关闭</el-button><el-button v-if="editable" :icon="SkipForward" :disabled="saving" @click="decide('ignore')">忽略</el-button><el-button v-if="editable" type="primary" :icon="Check" :loading="saving" @click="decide('approve')">批准发布</el-button></template>
+      <template #footer><el-button :disabled="saving || Boolean(retryingId)" @click="visible = false">关闭</el-button><el-button v-if="editable" :icon="SkipForward" :disabled="saving" @click="decide('ignore')">忽略</el-button><el-button v-if="editable" type="primary" :icon="Check" :loading="saving" @click="decide('approve')">批准发布</el-button><el-button v-if="retryable && selected" type="primary" :icon="RefreshCw" :loading="retryingId === selected.id" :disabled="Boolean(retryingId) && retryingId !== selected.id" @click="retry(selected)">重新发布</el-button></template>
     </el-dialog>
   </section>
 </template>
