@@ -8,12 +8,15 @@ import {
   Clock,
   Eye,
   ExternalLink,
+  FileText,
   GitCompareArrows,
+  Heart,
   Play,
   RefreshCw,
   RotateCcw,
   Search,
   Minus,
+  UserPlus,
   Users,
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -80,11 +83,10 @@ const viewModeOptions = [
   { label: '账号详情', value: 'detail' },
 ]
 const overviewMetricColumns = [
-  { label: '粉丝', valueKey: 'followers_count', deltaKey: 'followers_day_delta' },
-  { label: '关注', valueKey: 'following_count', deltaKey: 'following_day_delta' },
-  { label: '帖子', valueKey: 'posts_count', deltaKey: 'posts_day_delta' },
-  { label: '总点赞', valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
-  { label: '总回复', valueKey: 'total_replies_count', deltaKey: 'total_replies_day_delta' },
+  { label: '粉丝', icon: Users, valueKey: 'followers_count', deltaKey: 'followers_day_delta' },
+  { label: '关注', icon: UserPlus, valueKey: 'following_count', deltaKey: 'following_day_delta' },
+  { label: '帖子', icon: FileText, valueKey: 'posts_count', deltaKey: 'posts_day_delta' },
+  { label: '总点赞', icon: Heart, valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
 ]
 
 const auth = useAuthStore()
@@ -376,6 +378,12 @@ function openMonitor(account?: AnyRecord) {
     interval_minutes: Number(account?.benchmark_interval_minutes || 60),
   })
   monitorVisible.value = true
+}
+
+function compactMetricDeltaLabel(value: unknown) {
+  const numberValue = Number(value || 0)
+  if (!Number.isFinite(numberValue) || numberValue === 0) return '持平'
+  return numberValue > 0 ? `+${formatNumber(numberValue)}` : formatNumber(numberValue)
 }
 
 function resetMonitorAccount() {
@@ -864,21 +872,30 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column
-              v-for="metric in overviewMetricColumns"
-              :key="metric.valueKey"
-              :label="metric.label"
-              width="132"
-              align="center"
-              header-align="center"
-            >
+            <el-table-column label="账号指标" width="290" header-align="left">
               <template #default="scope">
-                <div class="account-overview__metric">
-                  <strong>{{ formatNumber(scope.row[metric.valueKey]) }}</strong>
-                  <span :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey]).type">
-                    <component :is="metricDeltaMeta(scope.row[metric.deltaKey]).icon" :size="11" />
-                    {{ metricDeltaMeta(scope.row[metric.deltaKey]).label }}
-                  </span>
+                <div class="account-overview__metrics-grid">
+                  <div
+                    v-for="metric in overviewMetricColumns"
+                    :key="metric.valueKey"
+                    class="account-overview__metric"
+                    :title="`${metric.label} ${formatNumber(scope.row[metric.valueKey])}，${metricDeltaMeta(scope.row[metric.deltaKey]).label}`"
+                  >
+                    <span class="account-overview__metric-label">
+                      <component :is="metric.icon" :size="13" />
+                      {{ metric.label }}
+                    </span>
+                    <span class="account-overview__metric-value">
+                      <strong>{{ formatNumber(scope.row[metric.valueKey]) }}</strong>
+                      <small
+                        class="account-overview__metric-delta"
+                        :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey]).type"
+                      >
+                        <component :is="metricDeltaMeta(scope.row[metric.deltaKey]).icon" :size="9" />
+                        {{ compactMetricDeltaLabel(scope.row[metric.deltaKey]) }}
+                      </small>
+                    </span>
+                  </div>
                 </div>
               </template>
             </el-table-column>
@@ -1604,7 +1621,6 @@ onBeforeUnmount(() => {
 .account-overview__account:hover strong { color: var(--app-blue, #1f6f9f); }
 .account-overview__group { color: var(--app-text, #334e63); font-size: 12px; }
 .account-overview__attributes,
-.account-overview__metric,
 .account-overview__monitor {
   display: flex;
   align-items: center;
@@ -1612,19 +1628,54 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 .account-overview__attributes { gap: 5px; color: var(--app-text-muted, #718096); font-size: 11px; }
-.account-overview__metric { gap: 5px; }
-.account-overview__metric strong { color: var(--app-text, #20384d); font-size: 14px; }
-.account-overview__metric span {
-  display: inline-flex;
+.account-overview__metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding: 0 6px;
+}
+.account-overview__metric {
+  display: flex;
+  min-width: 0;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  background: var(--app-surface-muted, #f4f7fa);
+}
+.account-overview__metric strong {
+  color: var(--app-text, #20384d);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.account-overview__metric-label,
+.account-overview__metric-delta {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
   gap: 3px;
   color: var(--app-text-muted, #8291a1);
   font-size: 10px;
   white-space: nowrap;
 }
-.account-overview__metric span.is-up { color: var(--app-green, #238457); }
-.account-overview__metric span.is-down { color: var(--app-red, #cf4f4f); }
+.account-overview__metric-label { font-size: 11px; }
+.account-overview__metric-value {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+.account-overview__metric-delta {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  font-size: 9px;
+}
+.account-overview__metric-delta.is-up { color: var(--app-green, #238457); }
+.account-overview__metric-delta.is-down { color: var(--app-red, #cf4f4f); }
 .account-overview__monitor { gap: 6px; }
 .account-overview__monitor small { color: var(--app-text-muted, #718096); font-size: 10px; white-space: nowrap; }
 .account-overview__pagination {
