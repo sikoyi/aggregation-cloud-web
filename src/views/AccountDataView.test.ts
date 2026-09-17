@@ -41,6 +41,14 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('flex: 0 0 48px')
   })
 
+  it('离开总览时同步清空表格勾选和批量操作状态', () => {
+    expect(source).toMatch(/watch\(viewMode, \(mode\) => \{\r?\n\s+if \(mode !== 'overview'\) clearOverviewSelection\(\)\r?\n\}\)/)
+
+    const clearSelection = source.split('function clearOverviewSelection() {')[1]?.split('\n}')[0] || ''
+    expect(clearSelection).toContain('overviewTableRef.value?.clearSelection()')
+    expect(clearSelection).toContain('selectedAccounts.value = []')
+  })
+
   it('支持设备分组和账号标签两个独立筛选条件', () => {
     expect(source).toContain('v-model="filters.slot_group_id"')
     expect(source).toContain('v-model="filters.tag_id"')

@@ -636,6 +636,10 @@ function clearOverviewSelection() {
   selectedAccounts.value = []
 }
 
+watch(viewMode, (mode) => {
+  if (mode !== 'overview') clearOverviewSelection()
+})
+
 function openBatchMonitorInterval() {
   Object.assign(batchIntervalForm, {
     monitor_mode: 'system',
