@@ -479,6 +479,7 @@ const batchActions = computed<RowActionConfig[]>(() => {
 })
 const selectedCount = computed(() => selectedRows.value.length)
 const isAccountResource = computed(() => ['accounts', 'accountIdentities'].includes(props.config.key))
+const persistentBatchToolbar = computed(() => isAccountResource.value || props.config.key === 'slots')
 const selectedIdentityScope = computed(() => {
   if (props.config.key !== 'accountIdentities') return ''
   try { return identitySelectionLabel(selectedRows.value) }
@@ -1829,21 +1830,21 @@ onBeforeUnmount(() => {
     </el-card>
 
     <div
-      v-if="batchActions.length && (isAccountResource || hasSelectedRows)"
+      v-if="batchActions.length && (persistentBatchToolbar || hasSelectedRows)"
       class="batch-toolbar"
-      :class="{ 'batch-toolbar--accounts': isAccountResource }"
+      :class="{ 'batch-toolbar--persistent': persistentBatchToolbar }"
     >
       <div class="batch-toolbar__summary">
-        <ListChecks v-if="!isAccountResource" class="h-4 w-4 text-slate-500" />
+        <ListChecks v-if="!persistentBatchToolbar" class="h-4 w-4 text-slate-500" />
         <span>已选择</span>
         <strong v-if="selectedIdentityScope">{{ selectedIdentityScope }}</strong>
-        <template v-else><strong>{{ selectedCount }}</strong><span>{{ isAccountResource ? '个账号' : '条数据' }}</span></template>
+        <template v-else><strong>{{ selectedCount }}</strong><span>{{ isAccountResource ? '个账号' : config.key === 'slots' ? '台设备' : '条数据' }}</span></template>
       </div>
       <div class="batch-toolbar__actions">
         <el-button
           v-for="action in batchActions"
           :key="action.key"
-          :size="isAccountResource ? 'default' : 'small'"
+          :size="persistentBatchToolbar ? 'default' : 'small'"
           :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
           plain
           :icon="actionIcon(action)"
@@ -1853,7 +1854,7 @@ onBeforeUnmount(() => {
         >
           {{ action.label }}
         </el-button>
-        <el-button v-if="!isAccountResource" size="small" text :disabled="!selectedRows.length || submitting" @click="clearSelection">
+        <el-button v-if="!persistentBatchToolbar" size="small" text :disabled="!selectedRows.length || submitting" @click="clearSelection">
           取消选择
         </el-button>
       </div>
@@ -2404,7 +2405,7 @@ onBeforeUnmount(() => {
   background: var(--app-surface-muted, #fff7f7);
 }
 
-.batch-toolbar--accounts {
+.batch-toolbar--persistent {
   min-height: 52px;
   padding: 8px 14px;
   flex-wrap: wrap;
@@ -2415,23 +2416,23 @@ onBeforeUnmount(() => {
   box-shadow: none;
 }
 
-.batch-toolbar--accounts::before { display: none; }
-.batch-toolbar--accounts + .table-card {
+.batch-toolbar--persistent::before { display: none; }
+.batch-toolbar--persistent + .table-card {
   margin-top: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
-.batch-toolbar--accounts .batch-toolbar__summary {
+.batch-toolbar--persistent .batch-toolbar__summary {
   min-width: 0;
   flex-wrap: wrap;
   white-space: normal;
   color: var(--app-text-muted, #60758a);
 }
-.batch-toolbar--accounts .batch-toolbar__summary strong { color: var(--app-blue, #1f6f9f); }
-.batch-toolbar--accounts :deep(.el-button.is-plain) { background: var(--app-surface, #fff); }
+.batch-toolbar--persistent .batch-toolbar__summary strong { color: var(--app-blue, #1f6f9f); }
+.batch-toolbar--persistent :deep(.el-button.is-plain) { background: var(--app-surface, #fff); }
 
 @media (max-width: 1080px) {
-  .batch-toolbar--accounts .batch-toolbar__actions {
+  .batch-toolbar--persistent .batch-toolbar__actions {
     flex-basis: 100%;
     justify-content: flex-start;
   }
