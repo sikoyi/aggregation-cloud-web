@@ -9,12 +9,14 @@ import {
   Eye,
   ExternalLink,
   GitCompareArrows,
+  MessageSquareReply,
   Play,
   RefreshCw,
   RotateCcw,
   Search,
   Minus,
   Users,
+  X,
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -57,6 +59,15 @@ interface AccountDataPage {
   }
 }
 
+interface AccountDataBatchSettingsResult {
+  requested_count: number
+  updated_count: number
+  skipped_count: number
+  skipped_account_ids: string[]
+}
+
+type AccountDataConfigMode = 'disabled' | 'automatic' | 'review'
+
 const monitorStateOptions = [
   { label: '未开启', value: 'not_configured' },
   { label: '监听中', value: 'monitoring' },
@@ -97,6 +108,9 @@ const submitting = ref(false)
 const disablingAccountId = ref('')
 const disablingBenchmarkAccountId = ref('')
 const rows = ref<AnyRecord[]>([])
+const overviewTableRef = ref<{ clearSelection: () => void } | null>(null)
+const selectedAccounts = ref<AnyRecord[]>([])
+const batchUpdating = ref(false)
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -111,6 +125,9 @@ const summary = reactive({
   abnormal_accounts: 0,
   unmonitored_accounts: 0,
 })
+const selectedAccountIds = computed(() => selectedAccounts.value
+  .map(account => String(account.account_id || '').trim())
+  .filter(Boolean))
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:account-data',
   {
@@ -581,6 +598,8 @@ const postSyncOptions = [
   { label: '自动发布', value: 'automatic' },
   { label: '审核后发布', value: 'review' },
 ]
+const batchReplyModeOptions = commentReplyStateOptions.filter(option => option.value !== 'not_configured')
+const batchPostSyncOptions = postSyncOptions.filter(option => option.value !== 'not_configured')
 
 function resolvePostSyncMode(account: AnyRecord) {
   if (!account.benchmark_tracker_id) return 'not_configured'
@@ -596,6 +615,74 @@ function resolveReplyState(account: AnyRecord) {
   if (['not_configured', 'disabled', 'automatic', 'review'].includes(state)) return state
   if (!account?.monitor_setting_id) return 'not_configured'
   return String(account?.comment_reply_mode || 'disabled')
+}
+
+function handleOverviewSelectionChange(selection: AnyRecord[]) {
+  selectedAccounts.value = selection
+}
+
+function clearOverviewSelection() {
+  overviewTableRef.value?.clearSelection()
+  selectedAccounts.value = []
+}
+
+async function updateSelectedAccountSetting(
+  kind: 'comment_reply_mode' | 'post_sync_mode',
+  mode: AccountDataConfigMode,
+) {
+  const accountIds = selectedAccountIds.value
+  if (!accountIds.length || batchUpdating.value) return
+
+  const isReplyMode = kind === 'comment_reply_mode'
+  const modeLabel = isReplyMode
+    ? replyModeLabel(mode)
+    : batchPostSyncOptions.find(option => option.value === mode)?.label || mode
+  const featureLabel = isReplyMode ? '回复方式' : '帖子同步'
+  const missingConfigLabel = isReplyMode ? '账号监听' : '对标跟踪'
+  try {
+    await ElMessageBox.confirm(
+      `将 ${accountIds.length} 个所选账号的${featureLabel}设置为“${modeLabel}”。只更新已有${missingConfigLabel}配置，未配置的账号会跳过。`,
+      `批量设置${featureLabel}`,
+      {
+        type: 'warning',
+        confirmButtonText: '确认设置',
+        cancelButtonText: '取消',
+      },
+    )
+  } catch {
+    return
+  }
+
+  batchUpdating.value = true
+  try {
+    const endpoint = isReplyMode
+      ? '/api/accounts/data-overview/comment-reply-mode/batch'
+      : '/api/accounts/data-overview/post-sync-mode/batch'
+    const data = await http.put<AccountDataBatchSettingsResult>(endpoint, {
+      account_ids: accountIds,
+      [kind]: mode,
+    })
+    const message = `已更新 ${data.updated_count} 个账号${data.skipped_count ? `，跳过 ${data.skipped_count} 个未配置账号` : ''}`
+    if (data.updated_count > 0) {
+      ElNotification.success({ title: `${featureLabel}设置完成`, message })
+    } else {
+      ElNotification.warning({ title: '没有可更新的账号', message })
+    }
+    clearOverviewSelection()
+    await loadRows()
+  } catch (err) {
+    notifyError(err, '批量设置失败', `${featureLabel}未能保存`)
+  } finally {
+    batchUpdating.value = false
+  }
+}
+
+function batchUpdateCommentReplyMode(command: string | number | object) {
+  return updateSelectedAccountSetting('comment_reply_mode', String(command) as AccountDataConfigMode)
+}
+
+function batchUpdatePostSyncMode(command: string | number | object) {
+  return updateSelectedAccountSetting('post_sync_mode', String(command) as AccountDataConfigMode)
 }
 
 function replyModeType(value: unknown) {
@@ -816,13 +903,70 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <div v-if="selectedAccountIds.length" class="account-overview__batch-bar">
+            <span class="account-overview__selected-count">
+              已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
+            </span>
+            <div class="account-overview__batch-actions">
+              <el-dropdown
+                trigger="click"
+                :disabled="batchUpdating"
+                @command="batchUpdateCommentReplyMode"
+              >
+                <el-button :icon="MessageSquareReply" :loading="batchUpdating">批量设置回复方式</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="option in batchReplyModeOptions"
+                      :key="option.value"
+                      :command="option.value"
+                    >
+                      {{ option.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <el-dropdown
+                trigger="click"
+                :disabled="batchUpdating"
+                @command="batchUpdatePostSyncMode"
+              >
+                <el-button :icon="GitCompareArrows" :loading="batchUpdating">批量设置帖子同步</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="option in batchPostSyncOptions"
+                      :key="option.value"
+                      :command="option.value"
+                    >
+                      {{ option.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <el-tooltip content="取消选择" placement="top">
+                <el-button
+                  circle
+                  :icon="X"
+                  :disabled="batchUpdating"
+                  aria-label="取消选择"
+                  @click="clearOverviewSelection"
+                />
+              </el-tooltip>
+            </div>
+          </div>
+
           <el-table
+            ref="overviewTableRef"
             v-loading="loading"
             :data="rows"
+            row-key="account_id"
             border
             class="account-overview__table"
             empty-text="暂无符合条件的账号数据"
+            @selection-change="handleOverviewSelectionChange"
           >
+            <el-table-column type="selection" width="46" fixed="left" />
             <el-table-column label="账号" min-width="230" fixed="left">
               <template #default="scope">
                 <button
@@ -1569,6 +1713,29 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 6px;
 }
+.account-overview__batch-bar {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--app-border, #e5ebf1);
+  background: var(--app-surface-muted, #f7fafc);
+}
+.account-overview__selected-count {
+  color: var(--app-text-muted, #60758a);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.account-overview__selected-count strong { color: var(--app-blue, #1f6f9f); }
+.account-overview__batch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .account-overview__table { width: 100%; }
 .account-overview__actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .account-overview__actions :deep(.el-button) { width: 32px; height: 32px; flex: 0 0 32px; margin-left: 0; }
@@ -1935,6 +2102,8 @@ onBeforeUnmount(() => {
   .account-data__mode { min-width: 0; flex: 1; }
   .account-overview__header { align-items: flex-start; flex-direction: column; }
   .account-overview__scope { width: 100%; justify-content: flex-start; }
+  .account-overview__batch-bar { align-items: flex-start; flex-direction: column; }
+  .account-overview__batch-actions { width: 100%; justify-content: flex-start; }
   .account-data__summary,
   .filter-grid,
   .monitor-dialog-grid,
