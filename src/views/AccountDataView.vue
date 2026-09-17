@@ -29,6 +29,7 @@ import AccountPublishedContentPanel from '@/components/AccountPublishedContentPa
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'
+import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
@@ -1103,7 +1104,10 @@ onBeforeUnmount(() => {
               <template #default="scope">
                 <div class="account-overview__metric">
                   <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
-                    <strong>{{ formatNumber(scope.row[metric.valueKey]) }}</strong>
+                    <strong>
+                      <CompactFollowerCount v-if="metric.valueKey === 'total_post_views_count'" :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
+                      <template v-else>{{ formatNumber(scope.row[metric.valueKey]) }}</template>
+                    </strong>
                   </el-tooltip>
                   <span v-if="metric.deltaKey" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey]).type">
                     <component :is="metricDeltaMeta(scope.row[metric.deltaKey]).icon" :size="11" />
@@ -1306,7 +1310,10 @@ onBeforeUnmount(() => {
                 <div v-for="metric in profileMetricItems" :key="metric.label">
                   <small>{{ metric.label }}</small>
                   <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
-                    <strong>{{ formatNumber(metric.value) }}</strong>
+                    <strong>
+                      <CompactFollowerCount v-if="metric.label === '帖子总浏览量'" :key="String(selectedAccount.account_id)" :value="metric.value" :label="metric.label" />
+                      <template v-else>{{ formatNumber(metric.value) }}</template>
+                    </strong>
                   </el-tooltip>
                   <span
                     v-if="!metric.hint"

@@ -12,7 +12,8 @@ describe('粉丝数紧凑展示', () => {
   it('完整数值不采用缩写或舍入', () => {
     expect(formatCompactCount('674130').full).toBe('674,130')
     expect(component).toContain('trigger="click"')
-    expect(component).toContain('粉丝：{{ count.full }}')
+    expect(component).toContain("{ label: '粉丝' }")
+    expect(component).toContain('{{ label }}：{{ count.full }}')
     expect(component).toContain('type="button"')
   })
 })

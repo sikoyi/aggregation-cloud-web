@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatCompactCount } from '@/utils/compactCount'
-const props = defineProps<{ value: unknown }>()
+const props = withDefaults(defineProps<{ value: unknown; label?: string }>(), { label: '粉丝' })
 const count = computed(() => formatCompactCount(props.value))
 </script>
 
 <template>
   <el-popover v-if="count.expandable" trigger="click" placement="top" :width="200">
-    <span class="follower-count__full">粉丝：{{ count.full }}</span>
+    <span class="follower-count__full">{{ label }}：{{ count.full }}</span>
     <template #reference>
-      <button type="button" class="follower-count" title="点击查看完整粉丝数" :aria-label="`查看完整粉丝数（${count.compact}）`">{{ count.compact }}</button>
+      <button type="button" class="follower-count" :title="`点击查看完整${label}`" :aria-label="`查看完整${label}（${count.compact}）`">{{ count.compact }}</button>
     </template>
   </el-popover>
   <span v-else>{{ count.compact }}</span>
