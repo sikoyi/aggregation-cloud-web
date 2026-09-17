@@ -104,16 +104,21 @@ describe('账号数据聚合总览', () => {
     expect(openMonitor).not.toContain('http.post')
   })
 
-  it('支持批量设置回复方式和帖子同步，并跳过未配置账号', () => {
+  it('支持批量设置监听间隔、回复方式和帖子同步，并跳过未配置账号', () => {
     const overview = source.split('<section v-if="viewMode === \'overview\'"')[1]?.split('</section>')[0] || ''
     expect(overview).toContain('<el-table-column type="selection"')
     expect(overview).toContain('@selection-change="handleOverviewSelectionChange"')
+    expect(overview).toContain('@click="openBatchMonitorInterval"')
     expect(overview).toContain('@command="batchUpdateCommentReplyMode"')
     expect(overview).toContain('@command="batchUpdatePostSyncMode"')
+    expect(overview).toContain('批量设置监听间隔')
     expect(overview).toContain('批量设置回复方式')
     expect(overview).toContain('批量设置帖子同步')
+    expect(source).toContain('/api/accounts/data-overview/monitor-interval/batch')
     expect(source).toContain('/api/accounts/data-overview/comment-reply-mode/batch')
     expect(source).toContain('/api/accounts/data-overview/post-sync-mode/batch')
+    expect(source).toContain("batchIntervalForm.monitor_mode === 'custom'")
+    expect(source).toContain('只修改已有账号数据监听，未配置账号会跳过')
     expect(source).toContain('未配置的账号会跳过')
     expect(source).toContain('跳过 ${data.skipped_count} 个未配置账号')
   })

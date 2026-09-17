@@ -68,6 +68,7 @@ interface AccountDataBatchSettingsResult {
 }
 
 type AccountDataConfigMode = 'disabled' | 'automatic' | 'review'
+type AccountMonitorMode = 'system' | 'custom'
 
 const monitorStateOptions = [
   { label: '未开启', value: 'not_configured' },
@@ -111,6 +112,11 @@ const rows = ref<AnyRecord[]>([])
 const overviewTableRef = ref<{ clearSelection: () => void } | null>(null)
 const selectedAccounts = ref<AnyRecord[]>([])
 const batchUpdating = ref(false)
+const batchIntervalVisible = ref(false)
+const batchIntervalForm = reactive({
+  monitor_mode: 'system' as AccountMonitorMode,
+  interval_minutes: 60,
+})
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -600,6 +606,10 @@ const postSyncOptions = [
 ]
 const batchReplyModeOptions = commentReplyStateOptions.filter(option => option.value !== 'not_configured')
 const batchPostSyncOptions = postSyncOptions.filter(option => option.value !== 'not_configured')
+const batchMonitorModeOptions = [
+  { label: '系统默认（60 分钟）', value: 'system' },
+  { label: '自定义间隔', value: 'custom' },
+]
 
 function resolvePostSyncMode(account: AnyRecord) {
   if (!account.benchmark_tracker_id) return 'not_configured'
@@ -624,6 +634,46 @@ function handleOverviewSelectionChange(selection: AnyRecord[]) {
 function clearOverviewSelection() {
   overviewTableRef.value?.clearSelection()
   selectedAccounts.value = []
+}
+
+function openBatchMonitorInterval() {
+  Object.assign(batchIntervalForm, {
+    monitor_mode: 'system',
+    interval_minutes: 60,
+  })
+  batchIntervalVisible.value = true
+}
+
+async function saveBatchMonitorInterval() {
+  const accountIds = selectedAccountIds.value
+  if (!accountIds.length || batchUpdating.value) return
+
+  batchUpdating.value = true
+  try {
+    const data = await http.put<AccountDataBatchSettingsResult>(
+      '/api/accounts/data-overview/monitor-interval/batch',
+      {
+        account_ids: accountIds,
+        monitor_mode: batchIntervalForm.monitor_mode,
+        interval_minutes: batchIntervalForm.monitor_mode === 'custom'
+          ? batchIntervalForm.interval_minutes
+          : null,
+      },
+    )
+    const message = `已更新 ${data.updated_count} 个账号${data.skipped_count ? `，跳过 ${data.skipped_count} 个未配置账号` : ''}`
+    if (data.updated_count > 0) {
+      ElNotification.success({ title: '监听间隔设置完成', message })
+    } else {
+      ElNotification.warning({ title: '没有可更新的账号', message })
+    }
+    batchIntervalVisible.value = false
+    clearOverviewSelection()
+    await loadRows()
+  } catch (err) {
+    notifyError(err, '批量设置失败', '监听间隔未能保存')
+  } finally {
+    batchUpdating.value = false
+  }
 }
 
 async function updateSelectedAccountSetting(
@@ -908,6 +958,13 @@ onBeforeUnmount(() => {
               已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
             </span>
             <div class="account-overview__batch-actions">
+              <el-button
+                :icon="Clock"
+                :loading="batchUpdating"
+                @click="openBatchMonitorInterval"
+              >
+                批量设置监听间隔
+              </el-button>
               <el-dropdown
                 trigger="click"
                 :disabled="batchUpdating"
@@ -1340,6 +1397,47 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </el-card>
+
+    <el-dialog
+      v-model="batchIntervalVisible"
+      title="批量设置监听间隔"
+      width="min(92vw, 460px)"
+      align-center
+      destroy-on-close
+      :close-on-click-modal="!batchUpdating"
+      :close-on-press-escape="!batchUpdating"
+      :show-close="!batchUpdating"
+    >
+      <el-form label-position="top" :disabled="batchUpdating">
+        <el-form-item label="监听规则">
+          <el-segmented
+            v-model="batchIntervalForm.monitor_mode"
+            :options="batchMonitorModeOptions"
+            class="w-full"
+          />
+        </el-form-item>
+        <el-form-item label="监听间隔（分钟）">
+          <el-input-number
+            v-model="batchIntervalForm.interval_minutes"
+            :min="1"
+            :max="1440"
+            :disabled="batchIntervalForm.monitor_mode !== 'custom'"
+            controls-position="right"
+            class="w-full"
+          />
+        </el-form-item>
+        <el-alert
+          :title="`将更新 ${selectedAccountIds.length} 个所选账号。只修改已有账号数据监听，未配置账号会跳过；运行中的采集不会中断。`"
+          type="info"
+          :closable="false"
+          show-icon
+        />
+      </el-form>
+      <template #footer>
+        <el-button :disabled="batchUpdating" @click="batchIntervalVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchUpdating" @click="saveBatchMonitorInterval">确认设置</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="monitorVisible"
