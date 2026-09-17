@@ -17,7 +17,6 @@ import {
   Search,
   Minus,
   Users,
-  X,
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -1038,15 +1037,6 @@ onBeforeUnmount(() => {
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
-              <el-tooltip content="取消选择" placement="top">
-                <el-button
-                  circle
-                  :icon="X"
-                  :disabled="batchActionsDisabled"
-                  aria-label="取消选择"
-                  @click="clearOverviewSelection"
-                />
-              </el-tooltip>
             </div>
           </div>
 
