@@ -28,6 +28,7 @@ import { FALLBACK_SYSTEM_DEFAULTS, getSystemDefaults } from '@/api/systemSetting
 import AccountPublishedContentPanel from '@/components/AccountPublishedContentPanel.vue'
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
+import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
@@ -113,6 +114,7 @@ const overviewTableRef = ref<{ clearSelection: () => void } | null>(null)
 const selectedAccounts = ref<AnyRecord[]>([])
 const batchUpdating = ref(false)
 const batchIntervalVisible = ref(false)
+const replyQuietSettingsVisible = ref(false)
 const batchIntervalForm = reactive({
   monitor_mode: 'system' as AccountMonitorMode,
   interval_minutes: 60,
@@ -826,6 +828,13 @@ onBeforeUnmount(() => {
             :options="viewModeOptions"
             class="account-data__mode"
           />
+          <el-button
+            v-if="auth.canAny(['system_settings.view', 'system_settings.edit'])"
+            :icon="Clock"
+            @click="replyQuietSettingsVisible = true"
+          >
+            评论禁回时段
+          </el-button>
           <el-tooltip content="刷新" placement="bottom">
             <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
           </el-tooltip>
@@ -1680,6 +1689,11 @@ onBeforeUnmount(() => {
         </div>
       </template>
     </el-dialog>
+
+    <CommentReplyQuietSettingsDialog
+      v-model="replyQuietSettingsVisible"
+      :editable="auth.can('system_settings.edit')"
+    />
 
   </section>
 </template>

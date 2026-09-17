@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('在账号数据页直接提供平台评论禁回时段入口', () => {
+    expect(source).toContain("import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'")
+    expect(source).toContain("auth.canAny(['system_settings.view', 'system_settings.edit'])")
+    expect(source).toContain("auth.can('system_settings.edit')")
+    expect(source).toContain('@click="replyQuietSettingsVisible = true"')
+    expect(source).toContain('评论禁回时段')
+    expect(source).toContain('v-model="replyQuietSettingsVisible"')
+    expect(source).toContain(':editable="auth.can(\'system_settings.edit\')"')
+  })
+
   it('总览展示帖子同步方式、暂停状态并提供服务端筛选', () => {
     expect(source).toContain("benchmark_post_sync_mode: ''")
     expect(source).toContain('v-model="filters.benchmark_post_sync_mode"')
