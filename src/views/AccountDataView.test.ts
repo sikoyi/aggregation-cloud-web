@@ -56,15 +56,17 @@ describe('账号数据聚合总览', () => {
   })
 
   it('横向展示账号的核心监听指标', () => {
+    const overviewMetrics = source.split('const overviewMetricColumns = [')[1]?.split(']')[0] || ''
     for (const key of [
       'followers_count',
       'following_count',
       'posts_count',
       'total_likes_count',
-      'total_replies_count',
     ]) {
-      expect(source).toContain(`valueKey: '${key}'`)
+      expect(overviewMetrics).toContain(`valueKey: '${key}'`)
     }
+    expect(overviewMetrics).not.toContain('total_replies_count')
+    expect(source).toContain("{ label: '总回复', value: account.total_replies_count")
     expect(source).toContain(':data="rows"')
     expect(source).toContain('metrics_captured_at')
   })

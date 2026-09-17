@@ -96,7 +96,6 @@ const overviewMetricColumns = [
   { label: '关注', valueKey: 'following_count', deltaKey: 'following_day_delta' },
   { label: '帖子', valueKey: 'posts_count', deltaKey: 'posts_day_delta' },
   { label: '总点赞', valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
-  { label: '总回复', valueKey: 'total_replies_count', deltaKey: 'total_replies_day_delta' },
 ]
 
 const auth = useAuthStore()
