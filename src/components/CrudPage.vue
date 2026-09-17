@@ -478,6 +478,7 @@ const batchActions = computed<RowActionConfig[]>(() => {
   return actions
 })
 const selectedCount = computed(() => selectedRows.value.length)
+const isAccountResource = computed(() => ['accounts', 'accountIdentities'].includes(props.config.key))
 const selectedIdentityScope = computed(() => {
   if (props.config.key !== 'accountIdentities') return ''
   try { return identitySelectionLabel(selectedRows.value) }
@@ -1827,18 +1828,22 @@ onBeforeUnmount(() => {
       </el-form>
     </el-card>
 
-    <div v-if="batchActions.length && hasSelectedRows" class="batch-toolbar">
+    <div
+      v-if="batchActions.length && (isAccountResource || hasSelectedRows)"
+      class="batch-toolbar"
+      :class="{ 'batch-toolbar--accounts': isAccountResource }"
+    >
       <div class="batch-toolbar__summary">
-        <ListChecks class="h-4 w-4 text-slate-500" />
+        <ListChecks v-if="!isAccountResource" class="h-4 w-4 text-slate-500" />
         <span>已选择</span>
         <strong v-if="selectedIdentityScope">{{ selectedIdentityScope }}</strong>
-        <template v-else><strong>{{ selectedCount }}</strong><span>条数据</span></template>
+        <template v-else><strong>{{ selectedCount }}</strong><span>{{ isAccountResource ? '个账号' : '条数据' }}</span></template>
       </div>
       <div class="batch-toolbar__actions">
         <el-button
           v-for="action in batchActions"
           :key="action.key"
-          size="small"
+          :size="isAccountResource ? 'default' : 'small'"
           :type="action.variant === 'danger' ? 'danger' : action.variant === 'success' ? 'success' : undefined"
           plain
           :icon="actionIcon(action)"
@@ -1848,7 +1853,7 @@ onBeforeUnmount(() => {
         >
           {{ action.label }}
         </el-button>
-        <el-button size="small" text :disabled="!selectedRows.length || submitting" @click="clearSelection">
+        <el-button v-if="!isAccountResource" size="small" text :disabled="!selectedRows.length || submitting" @click="clearSelection">
           取消选择
         </el-button>
       </div>
@@ -2397,6 +2402,39 @@ onBeforeUnmount(() => {
 .batch-toolbar :deep(.el-button--danger.is-plain) {
   border-color: var(--app-border, #f2b8b8);
   background: var(--app-surface-muted, #fff7f7);
+}
+
+.batch-toolbar--accounts {
+  min-height: 52px;
+  padding: 8px 14px;
+  flex-wrap: wrap;
+  overflow: visible;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--app-surface-muted, #f7fafc);
+  box-shadow: none;
+}
+
+.batch-toolbar--accounts::before { display: none; }
+.batch-toolbar--accounts + .table-card {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.batch-toolbar--accounts .batch-toolbar__summary {
+  min-width: 0;
+  flex-wrap: wrap;
+  white-space: normal;
+  color: var(--app-text-muted, #60758a);
+}
+.batch-toolbar--accounts .batch-toolbar__summary strong { color: var(--app-blue, #1f6f9f); }
+.batch-toolbar--accounts :deep(.el-button.is-plain) { background: var(--app-surface, #fff); }
+
+@media (max-width: 1080px) {
+  .batch-toolbar--accounts .batch-toolbar__actions {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .resource-table :deep(.el-table__cell) {
