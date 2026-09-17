@@ -1102,14 +1102,17 @@ onBeforeUnmount(() => {
               align="center"
               header-align="center"
             >
+              <template #header>
+                <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
+                  <span>{{ metric.label }}</span>
+                </el-tooltip>
+              </template>
               <template #default="scope">
                 <div class="account-overview__metric">
-                  <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
-                    <strong>
-                      <CompactFollowerCount v-if="metric.valueKey === 'total_post_views_count'" :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
-                      <template v-else>{{ formatNumber(scope.row[metric.valueKey]) }}</template>
-                    </strong>
-                  </el-tooltip>
+                  <strong>
+                    <CompactFollowerCount v-if="metric.valueKey === 'total_post_views_count'" :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
+                    <template v-else>{{ formatNumber(scope.row[metric.valueKey]) }}</template>
+                  </strong>
                   <span v-if="metric.deltaKey" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type">
                     <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="11" />
                     {{ metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).label }}
@@ -1309,13 +1312,13 @@ onBeforeUnmount(() => {
 
               <div class="account-profile__metrics">
                 <div v-for="metric in profileMetricItems" :key="metric.label">
-                  <small>{{ metric.label }}</small>
                   <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
-                    <strong>
-                      <CompactFollowerCount v-if="metric.label === '帖子总浏览量'" :key="String(selectedAccount.account_id)" :value="metric.value" :label="metric.label" />
-                      <template v-else>{{ formatNumber(metric.value) }}</template>
-                    </strong>
+                    <small>{{ metric.label }}</small>
                   </el-tooltip>
+                  <strong>
+                    <CompactFollowerCount v-if="metric.label === '帖子总浏览量'" :key="String(selectedAccount.account_id)" :value="metric.value" :label="metric.label" />
+                    <template v-else>{{ formatNumber(metric.value) }}</template>
+                  </strong>
                   <span
                     class="account-profile__delta"
                     :class="'is-' + metricDeltaMeta(metric.delta, metric.deltaMode).type"
@@ -1941,7 +1944,7 @@ onBeforeUnmount(() => {
 .account-overview__attributes { gap: 5px; color: var(--app-text-muted, #718096); font-size: 11px; }
 .account-overview__metric { gap: 5px; }
 .account-overview__metric strong { color: var(--app-text, #20384d); font-size: 14px; }
-.account-overview__metric span {
+.account-overview__metric > span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
