@@ -831,7 +831,7 @@ onBeforeUnmount(() => {
             class="account-overview__table"
             empty-text="暂无符合条件的账号数据"
           >
-            <el-table-column label="账号" width="210" fixed="left">
+            <el-table-column label="账号" min-width="230" fixed="left">
               <template #default="scope">
                 <button
                   type="button"
@@ -855,7 +855,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="设备分组" width="130" show-overflow-tooltip>
+            <el-table-column label="设备分组" min-width="145" show-overflow-tooltip>
               <template #default="scope">
                 <span class="account-overview__group">{{ scope.row.slot_group_name || '未分组' }}</span>
               </template>
@@ -872,7 +872,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="账号指标" min-width="340" header-align="left">
+            <el-table-column label="账号指标" width="290" header-align="left">
               <template #default="scope">
                 <div class="account-overview__metrics-grid">
                   <div
