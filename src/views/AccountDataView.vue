@@ -855,7 +855,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="设备分组" min-width="145" show-overflow-tooltip>
+            <el-table-column label="设备分组" width="115" show-overflow-tooltip>
               <template #default="scope">
                 <span class="account-overview__group">{{ scope.row.slot_group_name || '未分组' }}</span>
               </template>
@@ -872,7 +872,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="账号指标" width="290" header-align="left">
+            <el-table-column label="账号指标" width="340" header-align="left">
               <template #default="scope">
                 <div class="account-overview__metrics-grid">
                   <div
