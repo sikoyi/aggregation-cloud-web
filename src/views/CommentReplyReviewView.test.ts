@@ -51,4 +51,8 @@ describe('回复审核筛选区', () => {
     expect(source).toContain("batchDeleteCommentReplies")
     expect(source).toContain('底层执行任务、审计和评论去重依据仍会保留')
   })
+
+  it('弹窗顶部信息卡统一拉伸为同一高度', () => {
+    expect(source).toContain('.review-dialog__meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }')
+  })
 })

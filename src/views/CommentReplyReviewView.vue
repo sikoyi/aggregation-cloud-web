@@ -596,7 +596,7 @@ onBeforeUnmount(() => {
 .reply-copy { color: var(--app-text, #34495e); }
 .text-muted { color: var(--app-text-muted, #94a3b8); font-size: 12px; }
 .review-dialog { display: grid; gap: 14px; }
-.review-dialog__meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.review-dialog__meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }
 .review-dialog__meta div { min-height: 62px; padding: 10px 12px; border: 1px solid var(--app-border, #e0e7ef); border-radius: 6px; background: var(--app-surface-muted, #f8fafc); }
 .review-dialog__meta small,
 .review-dialog__meta strong { display: block; }
