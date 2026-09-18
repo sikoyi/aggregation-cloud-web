@@ -109,6 +109,18 @@ export interface WarmupDailyRun {
   task_error_message?: string | null
 }
 
+export type WarmupPlanBatchAction = 'activate' | 'pause' | 'cancel'
+
+export interface WarmupPlanBatchResult {
+  requested_count: number
+  processed_count: number
+  skipped_count: number
+  failed_count: number
+  processed_plan_ids: string[]
+  skipped_plan_ids: string[]
+  failures: Array<{ plan_id: string; message: string }>
+}
+
 export function listWarmupPlans(params: Record<string, unknown>) {
   return http.get<PageResult<WarmupPlan>>('/api/account-warmup/plans', params)
 }
@@ -131,6 +143,13 @@ export function isWarmupPlanDeletable(status: string) {
 
 export function operateWarmupPlan(planId: string, action: 'activate' | 'pause' | 'resume' | 'cancel') {
   return http.post<WarmupPlan | { plan: WarmupPlan }>(`/api/account-warmup/plans/${planId}/${action}`)
+}
+
+export function batchOperateWarmupPlans(action: WarmupPlanBatchAction, planIds: string[]) {
+  return http.post<WarmupPlanBatchResult>(
+    `/api/account-warmup/plans/batch/${action}`,
+    { plan_ids: planIds },
+  )
 }
 
 export function syncWarmupScope(planId: string) {

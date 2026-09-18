@@ -47,3 +47,21 @@ describe('云手机养号计划', () => {
     expect(source).toContain(':filters="cloudSlotFilters" account-presence="all"')
   })
 })
+
+describe('养号计划批量状态操作', () => {
+  it('常驻展示选择数量和三个批量操作入口', () => {
+    expect(source).toContain('class="plan-batch-bar"')
+    expect(source).toContain('已选择 <strong>{{ selectedPlanIds.length }}</strong> 个计划')
+    expect(source).toContain('批量开启')
+    expect(source).toContain('批量关闭')
+    expect(source).toContain('批量取消')
+  })
+
+  it('列表支持勾选并把批量按钮绑定到统一处理函数', () => {
+    expect(source).toContain('@selection-change="handlePlanSelectionChange"')
+    expect(source).toContain('<el-table-column v-if="canBatchOperate" type="selection"')
+    expect(source).toContain("batchOperatePlans('activate')")
+    expect(source).toContain("batchOperatePlans('pause')")
+    expect(source).toContain("batchOperatePlans('cancel')")
+  })
+})

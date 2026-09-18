@@ -16,6 +16,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
+  batchOperateWarmupPlans,
   createWarmupPlan,
   deleteWarmupPlan,
   isWarmupPlanDeletable,
@@ -29,6 +30,8 @@ import {
   type WarmupDailyRun,
   type WarmupMember,
   type WarmupPlan,
+  type WarmupPlanBatchAction,
+  type WarmupPlanBatchResult,
   type WarmupPlanPayload,
 } from '@/api/accountWarmup'
 import { getAllPages } from '@/api/http'
@@ -43,8 +46,11 @@ import { notifyError } from '@/utils/notify'
 
 const loading = ref(false)
 const saving = ref(false)
+const batchOperating = ref(false)
 const deletingPlanId = ref<string | null>(null)
 const rows = ref<WarmupPlan[]>([])
+const selectedPlans = ref<WarmupPlan[]>([])
+const planTableRef = ref()
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -69,6 +75,13 @@ const contentGroups = ref<AnyRecord[]>([])
 const fixedSource = ref<'account' | 'slot'>('slot')
 const suspendFormWatch = ref(false)
 const auth = useAuthStore()
+const selectedPlanIds = computed(() => selectedPlans.value.map((plan) => plan.id))
+const canBatchOperate = computed(() => (
+  auth.can('account_warmup.edit') || auth.can('account_warmup.delete')
+))
+const batchActionsDisabled = computed(() => (
+  selectedPlanIds.value.length === 0 || batchOperating.value || loading.value
+))
 
 const { filters, resetFilters } = usePersistentFilters('list:account-warmup', {
   keyword: '',
@@ -205,6 +218,7 @@ async function loadRows() {
     })
     rows.value = data.items
     total.value = data.total
+    clearPlanSelection()
   } catch (error) {
     notifyError(error, '加载失败', '无法加载养号计划')
   } finally {
@@ -383,6 +397,70 @@ async function operatePlan(tableRow: unknown, action: 'activate' | 'pause' | 're
   }
 }
 
+function handlePlanSelectionChange(selection: WarmupPlan[]) {
+  selectedPlans.value = selection
+}
+
+function clearPlanSelection() {
+  selectedPlans.value = []
+  void nextTick(() => planTableRef.value?.clearSelection())
+}
+
+function showBatchResult(actionLabel: string, data: WarmupPlanBatchResult) {
+  const summary = `${actionLabel}完成：成功 ${data.processed_count} 条，跳过 ${data.skipped_count} 条，失败 ${data.failed_count} 条`
+  if (data.failed_count > 0) {
+    const failureDetail = data.failures.slice(0, 2).map((item) => item.message).join('；')
+    ElMessage.warning({ message: failureDetail ? `${summary}。${failureDetail}` : summary, duration: 5000 })
+  } else if (data.processed_count === 0) {
+    ElMessage.warning(summary)
+  } else {
+    ElMessage.success(summary)
+  }
+}
+
+async function batchOperatePlans(action: WarmupPlanBatchAction) {
+  const planIds = selectedPlanIds.value
+  if (!planIds.length || batchOperating.value) return
+  const config = {
+    activate: {
+      label: '批量开启',
+      message: `将开启 ${planIds.length} 个所选计划。草稿计划会激活，已暂停计划会恢复，其他状态会跳过。`,
+      confirmButtonText: '确认开启',
+      type: 'warning' as const,
+    },
+    pause: {
+      label: '批量关闭',
+      message: `将暂停 ${planIds.length} 个所选计划中的执行中计划，其他状态会跳过。`,
+      confirmButtonText: '确认关闭',
+      type: 'warning' as const,
+    },
+    cancel: {
+      label: '批量取消',
+      message: `将取消 ${planIds.length} 个所选计划中的未结束计划。取消后不再生成后续任务，正在执行的任务会自然结束。`,
+      confirmButtonText: '确认取消',
+      type: 'error' as const,
+    },
+  }[action]
+
+  try {
+    await ElMessageBox.confirm(config.message, config.label, {
+      type: config.type,
+      confirmButtonText: config.confirmButtonText,
+      cancelButtonText: '返回',
+    })
+    batchOperating.value = true
+    const data = await batchOperateWarmupPlans(action, planIds)
+    showBatchResult(config.label, data)
+    clearPlanSelection()
+    await loadRows()
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    notifyError(error, `${config.label}失败`, '养号计划状态未能全部更新')
+  } finally {
+    batchOperating.value = false
+  }
+}
+
 async function handleDeletePlan(tableRow: unknown) {
   const row = tableRow as WarmupPlan
   if (deletingPlanId.value) return
@@ -539,7 +617,56 @@ onMounted(() => {
         </div>
       </div>
 
-      <el-table v-loading="loading" :data="rows" border stripe class="plan-table">
+      <div v-if="canBatchOperate" class="plan-batch-bar">
+        <span class="plan-batch-bar__count">
+          已选择 <strong>{{ selectedPlanIds.length }}</strong> 个计划
+        </span>
+        <div class="plan-batch-bar__actions">
+          <el-button
+            v-if="auth.can('account_warmup.edit')"
+            type="primary"
+            plain
+            :icon="CirclePlay"
+            :loading="batchOperating"
+            :disabled="batchActionsDisabled"
+            @click="batchOperatePlans('activate')"
+          >
+            批量开启
+          </el-button>
+          <el-button
+            v-if="auth.can('account_warmup.edit')"
+            :icon="CirclePause"
+            :loading="batchOperating"
+            :disabled="batchActionsDisabled"
+            @click="batchOperatePlans('pause')"
+          >
+            批量关闭
+          </el-button>
+          <el-button
+            v-if="auth.can('account_warmup.delete')"
+            type="danger"
+            plain
+            :icon="X"
+            :loading="batchOperating"
+            :disabled="batchActionsDisabled"
+            @click="batchOperatePlans('cancel')"
+          >
+            批量取消
+          </el-button>
+        </div>
+      </div>
+
+      <el-table
+        ref="planTableRef"
+        v-loading="loading"
+        :data="rows"
+        row-key="id"
+        border
+        stripe
+        class="plan-table"
+        @selection-change="handlePlanSelectionChange"
+      >
+        <el-table-column v-if="canBatchOperate" type="selection" width="46" fixed="left" />
         <el-table-column prop="id" label="计划 ID" width="88" align="center" />
         <el-table-column label="计划信息" min-width="230">
           <template #default="{ row }"><strong>{{ row.name }}</strong><div class="subline">{{ planTypeLabel(row.plan_type) }} · {{ optionLabel(platformOptions, row.business_platform) }}<template v-if="row.plan_type === 'full' && row.auto_convert_to_old"> · 完成后转老号</template></div><div class="subline">创建人：{{ row.creator_name || '-' }}</div></template>
@@ -696,6 +823,22 @@ h1 { font-size: 20px; color: var(--app-text, #17233d); }
 .filter-title { gap: 6px; color: var(--app-text, #243b53); font-weight: 600; margin-bottom: 12px; }
 .filter-grid { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 12px; }
 .filter-actions { gap: 10px; margin-top: 12px; }
+.plan-batch-bar {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--app-border, #e1e8f0);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--app-surface-muted, #f8fafc);
+}
+.plan-batch-bar__count { color: var(--app-text-muted, #60758a); font-size: 13px; white-space: nowrap; }
+.plan-batch-bar__count strong { color: var(--app-blue, #1f6f9f); }
+.plan-batch-bar__actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.plan-table { width: 100%; }
 .metric-row { justify-content: center; gap: 15px; white-space: nowrap; }
 .success { color: var(--app-green, #2f8f46); }.danger { color: var(--app-red, #d14a4a); }.ml6 { margin-left: 6px; }.ml10 { margin-left: 10px; }
 .pagination { display: flex; justify-content: flex-end; padding-top: 14px; }
@@ -728,4 +871,8 @@ h1 { font-size: 20px; color: var(--app-text, #17233d); }
 .detail-toolbar { gap: 10px; margin-bottom: 12px; }.detail-toolbar .el-input, .detail-toolbar .el-select { width: 220px; }
 @media (max-width: 1200px) { .filter-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 900px) { .behavior-rule-grid, .behavior-fields, .behavior-language-filter { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .plan-batch-bar { align-items: flex-start; flex-direction: column; }
+  .plan-batch-bar__actions { width: 100%; justify-content: flex-start; }
+}
 </style>
