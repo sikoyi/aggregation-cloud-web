@@ -23,8 +23,8 @@ function setup() {
 }
 
 describe('TG 私聊绑定', () => {
-  it('使用全局图标入口，并只向超级管理员展示只读绑定用户页签', () => {
-    expect(source).toContain('aria-label="TG 审核"')
+  it('使用直观的全局文字入口，并只向超级管理员展示只读绑定用户页签', () => {
+    expect(source).toContain('<el-button :icon="Link2" @click="open">TG 审核</el-button>')
     expect(source).toContain('<el-tab-pane label="我的绑定" name="mine" />')
     expect(source).toContain('<el-tab-pane label="绑定用户" name="users" />')
     expect(source).toContain('v-if="isSuperAdmin"')

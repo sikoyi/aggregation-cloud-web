@@ -20,7 +20,7 @@ describe('运营中心独立帖子审核', () => {
     expect(reply).not.toContain('TelegramReviewBinding')
     expect(shell).toContain('<ThemeToggle />')
     expect(shell).toContain('<TelegramReviewBinding />')
-    expect(shell.indexOf('<TelegramReviewBinding />')).toBeGreaterThan(shell.indexOf('<ThemeToggle />'))
+    expect(shell.indexOf('<TelegramReviewBinding />')).toBeLessThan(shell.indexOf('<ThemeToggle />'))
     expect(reply).not.toContain('BenchmarkPostReviews')
     expect(reply).not.toContain('reviewKind')
     expect(reply).toContain('<h1>回复审核</h1>')

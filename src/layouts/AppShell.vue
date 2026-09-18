@@ -367,8 +367,8 @@ watch(
           </div>
           <div class="hidden text-sm text-slate-500 lg:block">运营管理工作台</div>
           <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-            <ThemeToggle />
             <TelegramReviewBinding />
+            <ThemeToggle />
             <el-popover
               v-if="auth.can('notifications.view')"
               v-model:visible="notificationPopoverVisible"

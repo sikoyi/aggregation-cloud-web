@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ExternalLink, Link2, RefreshCw, Search, Send, Unlink } from 'lucide-vue-next'
+import { ExternalLink, Link2, RefreshCw, Search, Unlink } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http as api } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -152,9 +152,7 @@ onBeforeUnmount(close)
 </script>
 
 <template>
-  <el-tooltip content="TG 审核" placement="bottom">
-    <el-button circle :icon="Send" aria-label="TG 审核" @click="open" />
-  </el-tooltip>
+  <el-button :icon="Link2" @click="open">TG 审核</el-button>
   <el-dialog
     v-model="visible"
     title="TG 审核"
