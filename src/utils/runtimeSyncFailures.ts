@@ -28,7 +28,7 @@ function failureForRecord(resourceKey: string, record: AnyRecord): RuntimeSyncFa
   const isGroup = resourceKey === 'slotGroups'
   const subject = isGroup
     ? `设备组“${value(record, 'name') || record.id || '-'}”`
-    : `设备“${value(record, 'display_name', 'provider_slot_no', 'provider_slot_id') || record.id || '-'}”`
+    : `设备“${value(record, 'display_name', 'provider_slot_id') || record.id || '-'}”`
   const reason = value(record, 'group_sync_error', 'sync_error')
     || (status === 'expired' ? '同步等待超时，请重新提交' : '供应商同步失败')
   const operationKey = batchId ? `batch:${batchId}` : `command:${commandId}`

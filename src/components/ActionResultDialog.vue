@@ -29,7 +29,6 @@ const KEY_LABELS: Record<string, string> = {
   provider_slot_id: '设备 ID',
   bound_slot_provider_id: '设备 ID',
   offline_provider_slot_ids: '离线设备 ID',
-  provider_slot_no: 'Provider 编号',
   runtime_platform: '执行平台',
   provider: '供应商',
   business_platform: '平台',

@@ -258,7 +258,7 @@ function resourceSelectConfig(param: ScriptParam | null): RemoteSelectConfig | n
   if (type === 'execution_slot') {
     return {
       endpoint: '/api/execution-slots',
-      labelKeys: ['display_name', 'provider_slot_id', 'provider_slot_no'],
+      labelKeys: ['display_name', 'provider_slot_id'],
       valueKey: 'id',
       detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
       secondaryKeys: ['provider_slot_id', 'provider'],

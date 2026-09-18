@@ -215,7 +215,6 @@ const slotRemoteSelect = {
   labelKeys: [
     "display_name",
     "provider_slot_id",
-    "provider_slot_no",
   ],
   valueKey: "id",
   detailPath: (value: string) =>
@@ -1580,7 +1579,7 @@ export const resources: Record<string, ResourceConfig> = {
     createLabel: "新增设备",
     loadEditRecord: loadSlotForEdit,
     updateBody: (payload) =>
-      pickPayload(payload, ["provider_slot_no", "display_name", "group_id"]),
+      pickPayload(payload, ["display_name", "group_id"]),
     headerActions: [
       {
         key: "request-runtime-slot-sync",
@@ -1708,7 +1707,7 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "keyword",
         label: "综合搜索",
-        placeholder: "编号 / 账号 / 分组",
+        placeholder: "名称 / Provider ID / 账号 / 分组",
       },
     ],
     createFields: [
@@ -1734,13 +1733,11 @@ export const resources: Record<string, ResourceConfig> = {
         defaultValue: "fingerprint_profile",
       },
       { key: "provider_slot_id", label: "设备 ID", required: true, placeholder: "请输入供应商侧 Provider ID" },
-      { key: "provider_slot_no", label: "Provider 编号" },
       { key: "display_name", label: "显示名称" },
     ],
     updateFields: [
       { key: "provider_slot_id", label: "设备 ID（Provider ID）", readonly: true },
       { key: "display_name", label: "设备名称", placeholder: "请输入运营识别名称" },
-      { key: "provider_slot_no", label: "Provider 编号" },
       {
         key: "group_id",
         label: "所属分组",

@@ -186,7 +186,7 @@ function groupNodeId(groupId: string) {
 }
 
 function slotLabel(slot: AnyRecord) {
-  return String(slot.display_name || slot.provider_slot_no || slot.provider_slot_id || '未命名设备')
+  return String(slot.display_name || slot.provider_slot_id || '未命名设备')
 }
 
 function toSlotNode(slot: AnyRecord): SlotTreeNode {

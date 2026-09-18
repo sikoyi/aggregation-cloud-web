@@ -235,7 +235,7 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
 
 function toDeviceAccountNode(slot: AnyRecord, account: AnyRecord): AccountTreeNode {
   const node = toAccountNode(account)
-  const slotName = String(slot.display_name || slot.provider_slot_no || '')
+  const slotName = String(slot.display_name || '')
   const providerSlotId = String(slot.provider_slot_id || '')
   return {
     ...node,

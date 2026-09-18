@@ -225,7 +225,7 @@ function resourceDisplayName(resource: AnyRecord, type: string) {
     return text(resource.login_username || resource.username || resource.display_name || resource.platform_account_id)
   }
   if (type === 'proxy_group') return text(resource.name)
-  if (type === 'execution_slot') return text(resource.display_name || resource.provider_slot_id || resource.provider_slot_no)
+  if (type === 'execution_slot') return text(resource.display_name || resource.provider_slot_id)
   return text(resource.name || resource.source_proxy_url || resource.host)
 }
 

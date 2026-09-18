@@ -884,6 +884,19 @@ describe('代理导入结果提示', () => {
 })
 
 describe('设备管理筛选', () => {
+  it('仅使用设备名称和 Provider ID，不再暴露供应商编号', () => {
+    expect(resources.slots.createFields?.some((field) => field.key === 'provider_slot_no')).toBe(false)
+    expect(resources.slots.updateFields?.some((field) => field.key === 'provider_slot_no')).toBe(false)
+    expect(resources.slots.updateBody?.({
+      provider_slot_no: 'legacy-1001',
+      display_name: '运营设备',
+      group_id: 'group-1',
+    }, {})).toEqual({
+      display_name: '运营设备',
+      group_id: 'group-1',
+    })
+  })
+
   it('设备本身不维护业务 App，但支持按绑定账号的业务 App 和国家筛选', () => {
     expect(resources.slots.filters?.some((field) => field.key === 'business_platform')).toBe(true)
     expect(resources.slots.filters?.some((field) => field.key === 'country')).toBe(true)

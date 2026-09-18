@@ -33,9 +33,8 @@ function optionLabel(options: Array<{ label: string; value: unknown }>, value: u
   return options.find((item) => String(item.value) === String(value))?.label || text(value)
 }
 
-const deviceName = computed(() => String(props.row.display_name || props.row.provider_slot_no || props.row.provider_slot_id || '-'))
+const deviceName = computed(() => String(props.row.display_name || props.row.provider_slot_id || '-'))
 const deviceId = computed(() => text(props.row.provider_slot_id))
-const providerNumber = computed(() => String(props.row.provider_slot_no || '').trim())
 const groupName = computed(() => String(props.row.group_name || props.row.name || '').trim())
 const groupSyncStatus = computed(() => String(props.row.group_sync_status || '').trim())
 const pendingGroupName = computed(() => String(props.row.pending_group_name || props.row.pending_name || '').trim())
@@ -74,7 +73,6 @@ function accountTooltip(session: AnyRecord) {
       <el-tooltip :content="deviceId" placement="top" :show-after="500">
         <code>{{ deviceId }}</code>
       </el-tooltip>
-      <small v-if="providerNumber && providerNumber !== deviceId">编号 {{ providerNumber }}</small>
     </span>
   </div>
 
