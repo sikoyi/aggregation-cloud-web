@@ -57,6 +57,11 @@ function includesScopeValue(values: unknown, value: unknown) {
 
 const ACCOUNT_UNGROUPED_FILTER_VALUE = "__ungrouped__";
 const ACCOUNT_UNASSIGNED_TAG_FILTER_VALUE = "__unassigned__";
+const ACCOUNT_COUNTRY_CLEAR_VALUE = "__clear__";
+const accountCountryBatchOptions = [
+  { label: "未填写", value: ACCOUNT_COUNTRY_CLEAR_VALUE },
+  ...accountCountryOptions,
+];
 
 function normalizeAccountListParams(params: AnyRecord) {
   const normalized = { ...params };
@@ -1450,6 +1455,34 @@ export const resources: Record<string, ResourceConfig> = {
             options: accountAgeTypeOptions,
             required: true,
             placeholder: "请选择目标账号类型",
+          },
+        ],
+      },
+      {
+        key: "batch-update-country",
+        label: "修改国家",
+        method: "PUT",
+        icon: "edit",
+        batchPath: () => "/api/accounts/country/batch",
+        batchBody: (payload, records) => ({
+          account_ids: records.map((record) => String(record.id)),
+          country: payload.country === ACCOUNT_COUNTRY_CLEAR_VALUE
+            ? null
+            : String(payload.country || ""),
+        }),
+        successTitle: "账号国家修改完成",
+        successMessage: (data) => {
+          const country = data.country || "未填写";
+          return `已将 ${Number(data.updated_count || 0)} 个账号的国家修改为${country}${Number(data.not_found_count || 0) ? `，跳过 ${Number(data.not_found_count || 0)} 个不存在的账号` : ""}`;
+        },
+        fields: [
+          {
+            key: "country",
+            label: "国家",
+            type: "select",
+            options: accountCountryBatchOptions,
+            required: true,
+            placeholder: "请选择目标国家",
           },
         ],
       },

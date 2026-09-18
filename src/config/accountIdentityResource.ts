@@ -135,6 +135,7 @@ function identityPlatformDeleteAction(): RowActionConfig {
 
 export function buildAccountIdentityResource(accounts: ResourceConfig): ResourceConfig {
   const accountAgeTypeAction = identityPlatformBatchAction(accounts, 'batch-update-account-age-type')
+  const accountCountryAction = identityPlatformBatchAction(accounts, 'batch-update-country')
   const accountLoginStatusAction = identityPlatformBatchAction(accounts, 'batch-update-login-status')
   const accountOnboardingAction = identityPlatformOnboardingAction(accounts)
   const accountTagAction = identityPlatformBatchAction(accounts, 'batch-set-tags')
@@ -157,6 +158,7 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
       accountExportAction('identities'),
       accountOnboardingAction,
       accountAgeTypeAction,
+      accountCountryAction,
       accountLoginStatusAction,
       accountTagAction,
       identityPlatformDeleteAction(),

@@ -805,6 +805,25 @@ describe('账号登录状态管理', () => {
   })
 })
 
+describe('账号批量修改国家', () => {
+  const action = resources.accounts.batchActions?.find(
+    (item) => item.key === 'batch-update-country',
+  )
+
+  it('支持设置具体国家和清空国家', () => {
+    expect(action?.batchPath?.([])).toBe('/api/accounts/country/batch')
+    expect(action?.batchBody?.({ country: '韩国' }, [{ id: '11' }, { id: '12' }])).toEqual({
+      account_ids: ['11', '12'],
+      country: '韩国',
+    })
+    expect(action?.batchBody?.({ country: '__clear__' }, [{ id: '11' }])).toEqual({
+      account_ids: ['11'],
+      country: null,
+    })
+    expect(action?.fields?.[0]?.options?.[0]).toEqual({ label: '未填写', value: '__clear__' })
+  })
+})
+
 describe('设备批量分组', () => {
   const action = resources.slots.batchActions?.find((item) => item.key === 'batch-set-group')
 

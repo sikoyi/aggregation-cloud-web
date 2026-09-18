@@ -27,8 +27,8 @@ describe('account identity resource', () => {
       { account_id: 'threads-1', business_platform: 'threads' },
       { account_id: 'instagram-1', business_platform: 'instagram' },
     ] }]
-    for (const key of ['batch-update-account-age-type', 'batch-update-login-status', 'batch-set-tags', 'batch-delete-accounts']) {
-      const body = config.batchActions?.find((action) => action.key === key)?.batchBody?.({ account_age_type: 'old', login_status: 'logged_in', tag_ids: ['tag'] }, records) as { account_ids: string[] }
+    for (const key of ['batch-update-account-age-type', 'batch-update-country', 'batch-update-login-status', 'batch-set-tags', 'batch-delete-accounts']) {
+      const body = config.batchActions?.find((action) => action.key === key)?.batchBody?.({ account_age_type: 'old', country: '韩国', login_status: 'logged_in', tag_ids: ['tag'] }, records) as { account_ids: string[] }
       expect(body.account_ids).toEqual(['threads-1'])
     }
     expect(records[0].platform_summaries).toHaveLength(2)
@@ -55,6 +55,7 @@ describe('account identity resource', () => {
       'export-accounts',
       'batch-account-onboarding',
       'batch-update-account-age-type',
+      'batch-update-country',
       'batch-update-login-status',
       'batch-set-tags',
       'batch-delete-accounts',
@@ -95,6 +96,13 @@ describe('account identity resource', () => {
     )).toEqual({
       account_ids: ['account-1', 'account-2', 'account-3'],
       login_status: 'not_logged_in',
+    })
+    expect(config.batchActions?.find((action) => action.key === 'batch-update-country')?.batchBody?.(
+      { country: '__clear__' },
+      selectedIdentities,
+    )).toEqual({
+      account_ids: ['account-1', 'account-2', 'account-3'],
+      country: null,
     })
     expect(config.batchActions?.find((action) => action.key === 'batch-set-tags')?.batchBody?.(
       { tag_ids: ['tag-1'] },
