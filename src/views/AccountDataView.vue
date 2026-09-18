@@ -672,6 +672,45 @@ function openBatchMonitorInterval() {
   batchIntervalVisible.value = true
 }
 
+async function batchEnableMonitors() {
+  const accountIds = selectedAccountIds.value
+  if (!accountIds.length || batchUpdating.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      `将批量开启 ${accountIds.length} 个所选账号的监听。只有异常或已关闭的账号会处理，正在监听和未配置账号会跳过。`,
+      '确认批量开启监听',
+      {
+        confirmButtonText: '确认开启',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  batchUpdating.value = true
+  try {
+    const data = await http.put<AccountDataBatchSettingsResult>(
+      '/api/accounts/data-overview/monitor-enable/batch',
+      { account_ids: accountIds },
+    )
+    const message = `已开启 ${data.updated_count} 个账号${data.skipped_count ? `，跳过 ${data.skipped_count} 个不符合状态的账号` : ''}`
+    if (data.updated_count > 0) {
+      ElNotification.success({ title: '账号监听已批量开启', message })
+    } else {
+      ElNotification.warning({ title: '没有可开启的账号', message })
+    }
+    clearOverviewSelection()
+    await loadRows()
+  } catch (err) {
+    notifyError(err, '批量开启失败', '账号监听未能批量开启')
+  } finally {
+    batchUpdating.value = false
+  }
+}
+
 async function saveBatchMonitorInterval() {
   const accountIds = selectedAccountIds.value
   if (!accountIds.length || batchUpdating.value) return
@@ -993,6 +1032,16 @@ onBeforeUnmount(() => {
               已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
             </span>
             <div class="account-overview__batch-actions">
+              <el-button
+                type="primary"
+                plain
+                :icon="Play"
+                :loading="batchUpdating"
+                :disabled="batchActionsDisabled"
+                @click="batchEnableMonitors"
+              >
+                批量开启监听
+              </el-button>
               <el-button
                 :icon="Clock"
                 :loading="batchUpdating"

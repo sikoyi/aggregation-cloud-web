@@ -9,7 +9,7 @@ describe('账号数据聚合总览', () => {
     expect(source).not.toContain('<div v-if="selectedAccountIds.length" class="account-overview__batch-bar">')
     expect(source).toContain('computed(() => !selectedAccountIds.value.length || batchUpdating.value)')
     const toolbar = source.split('<div class="account-overview__batch-bar">')[1]?.split('<el-table')[0] || ''
-    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(5)
+    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(6)
     expect(toolbar).not.toContain('取消选择')
     expect(source).toContain('<el-table-column type="selection"')
     const openDialog = source.split('function openBatchMonitorInterval() {')[1]?.split('\n}')[0] || ''
@@ -190,22 +190,26 @@ describe('账号数据聚合总览', () => {
     expect(openMonitor).not.toContain('http.post')
   })
 
-  it('支持批量设置监听间隔、回复方式和帖子同步，并跳过未配置账号', () => {
+  it('支持批量开启监听、设置监听间隔、回复方式和帖子同步，并跳过不符合条件的账号', () => {
     const overview = source.split('<section v-if="viewMode === \'overview\'"')[1]?.split('</section>')[0] || ''
     expect(overview).toContain('<el-table-column type="selection"')
     expect(overview).toContain('@selection-change="handleOverviewSelectionChange"')
     expect(overview).toContain('@click="openBatchMonitorInterval"')
+    expect(overview).toContain('@click="batchEnableMonitors"')
     expect(overview).toContain('@command="batchUpdateCommentReplyMode"')
     expect(overview).toContain('@command="batchUpdatePostSyncMode"')
     expect(overview).toContain('批量设置监听间隔')
+    expect(overview).toContain('批量开启监听')
     expect(overview).toContain('批量设置回复方式')
     expect(overview).toContain('批量设置帖子同步')
     expect(source).toContain('/api/accounts/data-overview/monitor-interval/batch')
+    expect(source).toContain('/api/accounts/data-overview/monitor-enable/batch')
     expect(source).toContain('/api/accounts/data-overview/comment-reply-mode/batch')
     expect(source).toContain('/api/accounts/data-overview/post-sync-mode/batch')
     expect(source).toContain("batchIntervalForm.monitor_mode === 'custom'")
     expect(source).toContain('只修改已有账号数据监听，未配置账号会跳过')
     expect(source).toContain('未配置的账号会跳过')
     expect(source).toContain('跳过 ${data.skipped_count} 个未配置账号')
+    expect(source).toContain('异常或已关闭')
   })
 })
