@@ -13,10 +13,14 @@ describe('运营中心独立帖子审核', () => {
     expect(operations).toContain("{ label: '帖子审核', to: '/post-reviews', icon: FileCheck2, permission: 'operations.view' }")
   })
 
-  it('复用帖子工单和 TG 绑定，不在回复审核重复展示', () => {
+  it('复用帖子工单，TG 绑定统一放在全局顶部栏', () => {
     expect(source).toContain('<h1>帖子审核</h1>')
     expect(source).toContain('<BenchmarkPostReviews />')
-    expect(source).toContain('<TelegramReviewBinding />')
+    expect(source).not.toContain('TelegramReviewBinding')
+    expect(reply).not.toContain('TelegramReviewBinding')
+    expect(shell).toContain('<ThemeToggle />')
+    expect(shell).toContain('<TelegramReviewBinding />')
+    expect(shell.indexOf('<TelegramReviewBinding />')).toBeGreaterThan(shell.indexOf('<ThemeToggle />'))
     expect(reply).not.toContain('BenchmarkPostReviews')
     expect(reply).not.toContain('reviewKind')
     expect(reply).toContain('<h1>回复审核</h1>')

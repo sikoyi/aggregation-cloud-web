@@ -27,7 +27,6 @@ import {
 import RemoteSelect from '@/components/RemoteSelect.vue'
 import ReplyJobAccount from '@/components/ReplyJobAccount.vue'
 import ReplyJobPost from '@/components/ReplyJobPost.vue'
-import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
@@ -352,10 +351,9 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="reply-review__tools">
-        <TelegramReviewBinding />
-        <el-tooltip content="刷新" placement="bottom">
-          <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
-        </el-tooltip>
+          <el-tooltip content="刷新" placement="bottom">
+            <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
+          </el-tooltip>
         </div>
       </header>
 

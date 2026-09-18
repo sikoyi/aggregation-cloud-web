@@ -7,19 +7,52 @@ const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => no
 function setup() {
   const state = {
     visible: { value: true }, loading: { value: false }, canBind: { value: true },
+    isSuperAdmin: { value: true }, activeTab: { value: 'mine' }, userLoading: { value: false },
+    boundUsers: { value: [] }, userKeyword: { value: '' }, userPage: { value: 1 }, userPageSize: { value: 20 }, userTotal: { value: 0 },
     binding: { value: { configured: true, bound: false, notify_auto_success: true, notify_auto_failure: true } }, bindingUrl: { value: '' }, expiresAt: { value: '' }, now: { value: 0 },
     api: { get: vi.fn().mockResolvedValue({ configured: true, bound: true, notify_auto_success: true, notify_auto_failure: true }), post: vi.fn().mockResolvedValue({ url: 'https://t.me/review_bot?start=code', expires_at: '2099-01-01' }), put: vi.fn(), delete: vi.fn().mockResolvedValue({}) },
     notifyError: vi.fn(), ElNotification: { success: vi.fn() }, ElMessageBox: { confirm: vi.fn().mockResolvedValue(true) },
   }
   const compiled = ts.transpileModule(`let timer; ${functions}`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {bind, unbind, refresh, close, setNotification};`)(...Object.values(state)) as {
+  const actions = new Function(...Object.keys(state), `${compiled}; return {bind, unbind, refresh, close, setNotification, loadBoundUsers, searchBoundUsers};`)(...Object.values(state)) as {
     bind: () => Promise<void>; unbind: () => Promise<void>; refresh: () => Promise<void>; close: () => void
     setNotification: (key: 'notify_auto_success' | 'notify_auto_failure', value: boolean) => Promise<void>
+    loadBoundUsers: () => Promise<void>; searchBoundUsers: () => void
   }
   return { ...state, ...actions }
 }
 
 describe('TG 私聊绑定', () => {
+  it('使用全局图标入口，并只向超级管理员展示只读绑定用户页签', () => {
+    expect(source).toContain('aria-label="TG 审核"')
+    expect(source).toContain('<el-tab-pane label="我的绑定" name="mine" />')
+    expect(source).toContain('<el-tab-pane label="绑定用户" name="users" />')
+    expect(source).toContain('v-if="isSuperAdmin"')
+    expect(source).toContain('/api/telegram-review/bindings')
+    expect(source).not.toContain('管理员解绑')
+  })
+
+  it('管理员绑定用户列表按搜索和分页参数加载', async () => {
+    const s = setup()
+    s.userKeyword.value = '  Alice  '
+    s.userPage.value = 2
+    s.userPageSize.value = 10
+    s.api.get.mockResolvedValueOnce({ items: [{ user_id: 'u1' }], total: 21, page: 2, page_size: 10 })
+    await s.loadBoundUsers()
+    expect(s.api.get).toHaveBeenCalledWith('/api/telegram-review/bindings', {
+      keyword: 'Alice', page: 2, page_size: 10,
+    })
+    expect(s.boundUsers.value).toEqual([{ user_id: 'u1' }])
+    expect(s.userTotal.value).toBe(21)
+  })
+
+  it('非超级管理员不会请求绑定用户列表', async () => {
+    const s = setup()
+    s.isSuperAdmin.value = false
+    await s.loadBoundUsers()
+    expect(s.api.get).not.toHaveBeenCalled()
+  })
+
   it('有权限才生成本人绑定链接，防重复提交', async () => {
     const s = setup()
     s.canBind.value = false

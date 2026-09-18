@@ -42,6 +42,7 @@ import {
   type RealtimeEventPayload,
 } from '@/composables/useRealtimeEvents'
 import { useAuthStore } from '@/stores/auth'
+import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const auth = useAuthStore()
@@ -367,6 +368,7 @@ watch(
           <div class="hidden text-sm text-slate-500 lg:block">运营管理工作台</div>
           <div class="flex shrink-0 items-center gap-2 sm:gap-3">
             <ThemeToggle />
+            <TelegramReviewBinding />
             <el-popover
               v-if="auth.can('notifications.view')"
               v-model:visible="notificationPopoverVisible"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { FileCheck2 } from 'lucide-vue-next'
 import BenchmarkPostReviews from '@/components/BenchmarkPostReviews.vue'
-import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
 </script>
 
 <template>
@@ -11,7 +10,6 @@ import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
         <span class="post-review__icon"><FileCheck2 :size="20" /></span>
         <h1>帖子审核</h1>
       </div>
-      <TelegramReviewBinding />
     </header>
     <BenchmarkPostReviews />
   </section>
