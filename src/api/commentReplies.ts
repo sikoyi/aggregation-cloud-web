@@ -21,6 +21,21 @@ export interface CommentReplyFilters {
   page_size: number
 }
 
+export interface CommentReplyBatchFailure {
+  job_id: string
+  message: string
+}
+
+export interface CommentReplyBatchResult {
+  requested_count: number
+  processed_count: number
+  skipped_count: number
+  failed_count: number
+  processed_job_ids: string[]
+  skipped_job_ids: string[]
+  failures: CommentReplyBatchFailure[]
+}
+
 export function listCommentReplies(filters: CommentReplyFilters) {
   return http.get<CommentReplyPage>('/api/interaction-center/comment-replies', { ...filters })
 }
@@ -45,4 +60,22 @@ export function ignoreCommentReply(id: string) {
 
 export function retryCommentReply(id: string) {
   return http.post<AnyRecord>(`/api/interaction-center/comment-replies/${encodeURIComponent(id)}/retry`, {})
+}
+
+export function batchApproveCommentReplies(jobIds: string[]) {
+  return http.post<CommentReplyBatchResult>('/api/interaction-center/comment-replies/batch/approve', {
+    job_ids: jobIds,
+  })
+}
+
+export function batchIgnoreCommentReplies(jobIds: string[]) {
+  return http.post<CommentReplyBatchResult>('/api/interaction-center/comment-replies/batch/ignore', {
+    job_ids: jobIds,
+  })
+}
+
+export function batchDeleteCommentReplies(jobIds: string[]) {
+  return http.post<CommentReplyBatchResult>('/api/interaction-center/comment-replies/batch/delete', {
+    job_ids: jobIds,
+  })
 }

@@ -8,12 +8,16 @@ import {
   RotateCcw,
   Search,
   SkipForward,
+  Trash2,
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import {
   approveCommentReply,
+  batchApproveCommentReplies,
+  batchDeleteCommentReplies,
+  batchIgnoreCommentReplies,
   getCommentReply,
   ignoreCommentReply,
   listCommentReplies,
@@ -61,7 +65,10 @@ const statusOptions = [
 
 const loading = ref(false)
 const actionLoading = ref(false)
+const batchLoading = ref(false)
 const rows = ref<AnyRecord[]>([])
+const selectedRows = ref<AnyRecord[]>([])
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -78,6 +85,8 @@ let refreshTimer: number | undefined
 
 const hasFilters = computed(() => hasActiveCommentReplyFilters(filters))
 const canApprove = computed(() => activeJob.value?.status === 'pending_review' && auth.can('operations.review'))
+const canManageReviews = computed(() => auth.can('operations.review'))
+const batchActionsDisabled = computed(() => batchLoading.value || selectedRows.value.length === 0)
 const replyModeOptions = [
   { label: '自动回复', value: 'automatic' },
   { label: '人工审核', value: 'review' },
@@ -142,6 +151,74 @@ function resetFilters() {
   resetCachedFilters()
   filters.status = ''
   searchRows()
+}
+
+function handleSelectionChange(selection: AnyRecord[]) {
+  selectedRows.value = selection
+}
+
+function clearBatchSelection() {
+  tableRef.value?.clearSelection()
+  selectedRows.value = []
+}
+
+type BatchAction = 'approve' | 'ignore' | 'delete'
+
+async function runBatchAction(action: BatchAction) {
+  if (batchActionsDisabled.value) return
+  const count = selectedRows.value.length
+  const settings = {
+    approve: {
+      title: '批量审核通过',
+      message: `确认审核通过已选择的 ${count} 条工单？系统会使用每条工单现有的回复文案下发任务。`,
+      confirmButtonText: '确认审核',
+      request: batchApproveCommentReplies,
+      successLabel: '审核',
+      type: 'warning' as const,
+    },
+    ignore: {
+      title: '批量忽略',
+      message: `确认忽略已选择的 ${count} 条工单？符合条件的评论将不再下发回复任务。`,
+      confirmButtonText: '确认忽略',
+      request: batchIgnoreCommentReplies,
+      successLabel: '忽略',
+      type: 'warning' as const,
+    },
+    delete: {
+      title: '批量删除记录',
+      message: `确认删除已选择的 ${count} 条记录？仅已结束工单会从列表隐藏，底层执行任务、审计和评论去重依据仍会保留。`,
+      confirmButtonText: '确认删除',
+      request: batchDeleteCommentReplies,
+      successLabel: '删除',
+      type: 'error' as const,
+    },
+  }[action]
+  try {
+    await ElMessageBox.confirm(settings.message, settings.title, {
+      type: settings.type,
+      confirmButtonText: settings.confirmButtonText,
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+
+  batchLoading.value = true
+  try {
+    const data = await settings.request(selectedRows.value.map((row) => String(row.id)))
+    const message = `已处理 ${data.processed_count} 条，跳过 ${data.skipped_count} 条，失败 ${data.failed_count} 条`
+    if (data.skipped_count || data.failed_count) {
+      ElNotification.warning({ title: `批量${settings.successLabel}已完成`, message })
+    } else {
+      ElNotification.success({ title: `批量${settings.successLabel}成功`, message })
+    }
+    clearBatchSelection()
+    await loadRows()
+  } catch (err) {
+    notifyError(err, `批量${settings.successLabel}失败`, '请刷新后重新选择工单')
+  } finally {
+    batchLoading.value = false
+  }
 }
 
 async function openJob(row: AnyRecord) {
@@ -338,7 +415,31 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="reply-review__table">
-          <el-table v-loading="loading" :data="rows" border stripe empty-text="暂无新评论回复工单">
+          <div v-if="canManageReviews" class="reply-review__batch-bar">
+            <span>已选择 <strong>{{ selectedRows.length }}</strong> 条工单</span>
+            <div class="reply-review__batch-actions">
+              <el-button :icon="Check" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('approve')">
+                批量审核通过
+              </el-button>
+              <el-button :icon="SkipForward" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('ignore')">
+                批量忽略
+              </el-button>
+              <el-button type="danger" plain :icon="Trash2" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('delete')">
+                批量删除记录
+              </el-button>
+            </div>
+          </div>
+          <el-table
+            ref="tableRef"
+            v-loading="loading"
+            :data="rows"
+            row-key="id"
+            border
+            stripe
+            empty-text="暂无新评论回复工单"
+            @selection-change="handleSelectionChange"
+          >
+            <el-table-column v-if="canManageReviews" type="selection" width="46" fixed="left" reserve-selection />
             <el-table-column label="发帖账号" min-width="150">
               <template #default="{ row }">
                 <div class="account-copy">
@@ -480,6 +581,13 @@ onBeforeUnmount(() => {
 .filter-grid :deep(.filter-grid__item--wide) { grid-column: span 2; }
 .filter-actions { gap: 8px; margin-top: 12px; }
 .reply-review__table { overflow: hidden; }
+.reply-review__batch-bar,
+.reply-review__batch-actions { display: flex; align-items: center; }
+.reply-review__batch-bar { min-height: 54px; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 9px 12px; border-bottom: 1px solid var(--app-border, #e5ebf1); background: var(--app-surface-muted, #f8fafc); }
+.reply-review__batch-bar > span { color: var(--app-text-muted, #66788a); font-size: 13px; }
+.reply-review__batch-bar strong { color: var(--app-blue, #1f668f); }
+.reply-review__batch-actions { flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.reply-review__batch-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .reply-review__pagination { justify-content: flex-end; padding: 12px; border-top: 1px solid var(--app-border, #e5ebf1); }
 .account-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .comment-copy strong { display: block; margin-bottom: 5px; color: var(--app-blue, #2f6f97); font-size: 12px; }
@@ -503,6 +611,7 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .filter-grid { grid-template-columns: 1fr; }
   .filter-grid :deep(.filter-grid__item--wide) { grid-column: span 1; }
+  .reply-review__batch-actions { width: 100%; justify-content: flex-start; }
   .review-dialog__meta { grid-template-columns: 1fr; }
 }
 </style>
