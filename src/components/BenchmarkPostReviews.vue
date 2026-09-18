@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { Check, Eye, ExternalLink, RefreshCw, SkipForward } from 'lucide-vue-next'
+import { Check, Eye, ExternalLink, RefreshCw, SkipForward, Trash2 } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
+import {
+  batchApproveBenchmarkPostReviews,
+  batchDeleteBenchmarkPostReviews,
+  batchIgnoreBenchmarkPostReviews,
+} from '@/api/benchmarkPostReviews'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -29,7 +34,10 @@ const page = ref(1)
 const total = ref(0)
 const loading = ref(false)
 const saving = ref(false)
+const batchLoading = ref(false)
 const retryingId = ref('')
+const selectedRows = ref<Review[]>([])
+const tableRef = ref<{ clearSelection: () => void } | null>(null)
 const selected = ref<Review | null>(null)
 const visible = ref(false)
 const content = ref('')
@@ -40,6 +48,8 @@ const labels: Record<string, string> = {
 }
 const editable = computed(() => selected.value?.status === 'pending_review' && auth.can('operations.review'))
 const retryable = computed(() => selected.value?.status === 'failed' && auth.can('operations.retry'))
+const canManageReviews = computed(() => auth.can('operations.review'))
+const batchActionsDisabled = computed(() => batchLoading.value || selectedRows.value.length === 0)
 let request = 0
 let timer: ReturnType<typeof setInterval> | undefined
 function safeUrl(value?: string) {
@@ -63,6 +73,69 @@ async function open(row: Record<string, unknown>) {
     content.value = selected.value.final_content
     visible.value = true
   } catch (error) { notifyError(error, '加载工单失败') }
+}
+function handleSelectionChange(selection: Review[]) {
+  selectedRows.value = selection
+}
+function clearBatchSelection() {
+  tableRef.value?.clearSelection()
+  selectedRows.value = []
+}
+type BatchAction = 'approve' | 'ignore' | 'delete'
+async function runBatchAction(action: BatchAction) {
+  if (batchActionsDisabled.value) return
+  const count = selectedRows.value.length
+  const settings = {
+    approve: {
+      title: '批量批准发布',
+      message: `确认批准发布已选择的 ${count} 条工单？系统会使用每条工单当前保存的发布文案创建任务。`,
+      confirmButtonText: '确认批准',
+      request: batchApproveBenchmarkPostReviews,
+      successLabel: '批准',
+      type: 'warning' as const,
+    },
+    ignore: {
+      title: '批量忽略',
+      message: `确认忽略已选择的 ${count} 条工单？符合条件的帖子将不再创建发布任务。`,
+      confirmButtonText: '确认忽略',
+      request: batchIgnoreBenchmarkPostReviews,
+      successLabel: '忽略',
+      type: 'warning' as const,
+    },
+    delete: {
+      title: '批量删除记录',
+      message: `确认删除已选择的 ${count} 条记录？仅已结束工单会从列表隐藏，发布任务、帖子映射和操作审计仍会保留。`,
+      confirmButtonText: '确认删除',
+      request: batchDeleteBenchmarkPostReviews,
+      successLabel: '删除',
+      type: 'error' as const,
+    },
+  }[action]
+  try {
+    await ElMessageBox.confirm(settings.message, settings.title, {
+      type: settings.type,
+      confirmButtonText: settings.confirmButtonText,
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  batchLoading.value = true
+  try {
+    const data = await settings.request(selectedRows.value.map((row) => row.id))
+    const message = `已处理 ${data.processed_count} 条，跳过 ${data.skipped_count} 条，失败 ${data.failed_count} 条`
+    if (data.skipped_count || data.failed_count) {
+      ElNotification.warning({ title: `批量${settings.successLabel}已完成`, message })
+    } else {
+      ElNotification.success({ title: `批量${settings.successLabel}成功`, message })
+    }
+    clearBatchSelection()
+    await load()
+  } catch (error) {
+    notifyError(error, `批量${settings.successLabel}失败`, '请刷新后重新选择工单')
+  } finally {
+    batchLoading.value = false
+  }
 }
 async function decide(action: 'approve' | 'ignore') {
   if (!selected.value || saving.value) return
@@ -107,7 +180,16 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
       </el-select>
       <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle :loading="loading" @click="load" /></el-tooltip>
     </div>
-    <el-table v-loading="loading" :data="rows" border empty-text="暂无对标帖子工单">
+    <div v-if="canManageReviews" class="review-batch-bar">
+      <span>已选择 <strong>{{ selectedRows.length }}</strong> 条工单</span>
+      <div class="review-batch-actions">
+        <el-button :icon="Check" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('approve')">批量批准发布</el-button>
+        <el-button :icon="SkipForward" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('ignore')">批量忽略</el-button>
+        <el-button type="danger" plain :icon="Trash2" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('delete')">批量删除记录</el-button>
+      </div>
+    </div>
+    <el-table ref="tableRef" v-loading="loading" :data="rows" row-key="id" border empty-text="暂无对标帖子工单" @selection-change="handleSelectionChange">
+      <el-table-column v-if="canManageReviews" type="selection" width="46" fixed="left" reserve-selection />
       <el-table-column label="来源账号" min-width="160"><template #default="{ row }"><strong>{{ row.source_display_name || row.source_username }}</strong><div>{{ row.source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</div></template></el-table-column>
       <el-table-column label="发布账号" min-width="160"><template #default="{ row }"><strong>{{ row.target_display_name || row.target_username }}</strong><div>{{ row.business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</div></template></el-table-column>
       <el-table-column label="帖子内容" min-width="300"><template #default="{ row }">
@@ -138,6 +220,13 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .benchmark-reviews { padding: 16px; min-width: 0; }
 .review-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .review-toolbar .el-select { width: 180px; }
+.review-batch-bar,
+.review-batch-actions { display: flex; align-items: center; }
+.review-batch-bar { min-height: 54px; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid var(--app-border, #e5ebf1); border-bottom: 0; background: var(--app-surface-muted, #f8fafc); }
+.review-batch-bar > span { color: var(--app-text-muted, #66788a); font-size: 13px; }
+.review-batch-bar strong { color: var(--app-blue, #1f668f); }
+.review-batch-actions { flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.review-batch-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .post-summary { margin: 0 0 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
 .post-link { display: inline-flex; align-items: center; gap: 5px; color: var(--el-color-primary); }
 .el-pagination { margin-top: 16px; justify-content: flex-end; }
@@ -146,4 +235,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .review-body dd { margin: 0; overflow-wrap: anywhere; }
 .review-media { display: flex; flex-wrap: wrap; gap: 8px; }
 .review-media .el-image { width: 140px; height: 120px; border: 1px solid var(--el-border-color); border-radius: 4px; }
+@media (max-width: 768px) {
+  .review-batch-actions { width: 100%; justify-content: flex-start; }
+}
 </style>
