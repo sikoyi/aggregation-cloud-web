@@ -68,6 +68,16 @@ interface AccountDataBatchSettingsResult {
   skipped_account_ids: string[]
 }
 
+interface ProfileSyncCapability {
+  loading: boolean
+  available: boolean
+  reason: string
+  script_key: string
+  business_platform: string
+  runtime_platform: string
+  provider: string
+}
+
 type AccountDataConfigMode = 'disabled' | 'automatic' | 'review'
 type AccountMonitorMode = 'system' | 'custom'
 
@@ -203,7 +213,17 @@ const benchmarkForm = reactive({
 })
 let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
+let profileSyncCapabilityRequest = 0
 const accountProfileLoading = ref(false)
+const profileSyncCapability = reactive<ProfileSyncCapability>({
+  loading: false,
+  available: false,
+  reason: '请先选择目标账号',
+  script_key: '',
+  business_platform: '',
+  runtime_platform: '',
+  provider: '',
+})
 
 const monitorSortOrder = computed({
   get: () => filters.sort_by === 'monitor_created_at' ? filters.sort_order : '',
@@ -391,6 +411,69 @@ function handleSizeChange(size: number) {
   loadRows()
 }
 
+function resetProfileSyncCapability(reason = '请先选择目标账号') {
+  profileSyncCapabilityRequest += 1
+  Object.assign(profileSyncCapability, {
+    loading: false,
+    available: false,
+    reason,
+    script_key: '',
+    business_platform: '',
+    runtime_platform: '',
+    provider: '',
+  })
+}
+
+async function loadProfileSyncCapability(accountId: string, platform: string) {
+  const normalizedAccountId = String(accountId || '').trim()
+  if (!normalizedAccountId || !['threads', 'x'].includes(platform)) {
+    resetProfileSyncCapability('当前业务 App 不支持对标资料同步')
+    return
+  }
+  const requestId = ++profileSyncCapabilityRequest
+  Object.assign(profileSyncCapability, {
+    loading: true,
+    available: false,
+    reason: '正在检查账号资料同步脚本',
+    script_key: '',
+    business_platform: platform,
+    runtime_platform: '',
+    provider: '',
+  })
+  try {
+    const capability = await http.get<AnyRecord>(
+      `/api/benchmark-trackers/accounts/${encodeURIComponent(normalizedAccountId)}/profile-sync-capability`,
+    )
+    if (requestId !== profileSyncCapabilityRequest || !monitorVisible.value
+      || monitorForm.account_id !== normalizedAccountId || monitorForm.business_platform !== platform) return
+    Object.assign(profileSyncCapability, {
+      loading: false,
+      available: Boolean(capability.available),
+      reason: String(capability.reason || ''),
+      script_key: String(capability.script_key || ''),
+      business_platform: String(capability.business_platform || platform),
+      runtime_platform: String(capability.runtime_platform || ''),
+      provider: String(capability.provider || ''),
+    })
+  } catch (err) {
+    if (requestId !== profileSyncCapabilityRequest) return
+    Object.assign(profileSyncCapability, {
+      loading: false,
+      available: false,
+      reason: '资料同步能力读取失败，请稍后重试',
+      script_key: '',
+      runtime_platform: '',
+      provider: '',
+    })
+    notifyError(err, '能力读取失败', '无法确认当前账号是否支持资料同步')
+  }
+}
+
+function profileSyncFieldDisabled(field: string) {
+  return profileSyncCapability.loading
+    || (!profileSyncCapability.available && !benchmarkForm.profile_sync_fields.includes(field))
+}
+
 function openMonitor(account?: AnyRecord) {
   resetMonitorAccount()
   monitorFeature.value = 'account_data'
@@ -422,6 +505,9 @@ function openMonitor(account?: AnyRecord) {
     interval_minutes: Number(account?.benchmark_interval_minutes || 60),
   })
   monitorVisible.value = true
+  if (monitorForm.account_id) {
+    void loadProfileSyncCapability(monitorForm.account_id, monitorForm.business_platform)
+  }
 }
 
 function resetMonitorAccount() {
@@ -430,7 +516,7 @@ function resetMonitorAccount() {
   monitorForm.account_id = ''
   monitorForm.profile_url = ''
   benchmarkForm.source_profile_url = ''
-  if (monitorForm.business_platform === 'x') benchmarkForm.profile_sync_fields = []
+  resetProfileSyncCapability()
 }
 
 function finishMonitorSave() {
@@ -442,7 +528,7 @@ function finishMonitorSave() {
 }
 
 async function saveBenchmarkTracker() {
-  if (submitting.value || accountProfileLoading.value) return
+  if (submitting.value || accountProfileLoading.value || profileSyncCapability.loading) return
   const accountId = String(monitorForm.account_id || '')
   if (!accountId) {
     ElNotification.warning({ title: '请选择账号', message: '请选择需要执行对标跟踪的系统账号' })
@@ -452,6 +538,13 @@ async function saveBenchmarkTracker() {
     ElNotification.warning({ title: '请填写对标主页', message: '请输入所选来源平台的已授权账号主页链接' })
     return
   }
+  if (benchmarkForm.profile_sync_fields.length && !profileSyncCapability.available) {
+    ElNotification.warning({
+      title: '资料同步不可用',
+      message: profileSyncCapability.reason || '当前账号没有匹配的资料同步脚本',
+    })
+    return
+  }
   submitting.value = true
   try {
     await http.post('/api/benchmark-trackers', {
@@ -459,7 +552,7 @@ async function saveBenchmarkTracker() {
       business_platform: monitorForm.business_platform,
       source_profile_url: benchmarkForm.source_profile_url.trim(),
       source_business_platform: benchmarkForm.source_business_platform,
-      profile_sync_fields: monitorForm.business_platform === 'x' ? [] : [...benchmarkForm.profile_sync_fields],
+      profile_sync_fields: [...benchmarkForm.profile_sync_fields],
       post_sync_mode: benchmarkForm.post_sync_mode,
       monitor_mode: benchmarkForm.monitor_mode,
       interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
@@ -824,13 +917,13 @@ function handleRealtimeEvent(event: Event) {
 
 watch(() => monitorForm.business_platform, (platform) => {
   if (!['threads', 'x'].includes(platform)) monitorFeature.value = 'account_data'
-  if (platform === 'x') benchmarkForm.profile_sync_fields = []
 })
 
 watch(monitorVisible, (visible) => {
   if (!visible) {
     accountProfileRequest += 1
     accountProfileLoading.value = false
+    resetProfileSyncCapability()
   }
 })
 
@@ -844,8 +937,10 @@ watch(
     if (!accountId) return
     const platform = monitorForm.business_platform
     accountProfileLoading.value = true
+    const accountRequest = http.get<AnyRecord>(`/api/accounts/${encodeURIComponent(accountId)}`)
+    void loadProfileSyncCapability(accountId, platform)
     try {
-      const account = await http.get<AnyRecord>(`/api/accounts/${encodeURIComponent(accountId)}`)
+      const account = await accountRequest
       if (requestId === accountProfileRequest && monitorVisible.value && monitorForm.account_id === accountId
         && monitorForm.business_platform === platform) {
         monitorForm.profile_url = String(account.profile_url || '')
@@ -1664,12 +1759,19 @@ onBeforeUnmount(() => {
               </el-select>
             </el-form-item>
             <el-form-item label="同步个人资料">
-              <el-checkbox-group v-model="benchmarkForm.profile_sync_fields" :disabled="monitorForm.business_platform === 'x'">
-                <el-checkbox value="display_name">昵称</el-checkbox>
-                <el-checkbox value="biography">简介</el-checkbox>
-                <el-checkbox value="avatar_url">头像</el-checkbox>
+              <el-checkbox-group v-model="benchmarkForm.profile_sync_fields">
+                <el-checkbox value="display_name" :disabled="profileSyncFieldDisabled('display_name')">昵称</el-checkbox>
+                <el-checkbox value="biography" :disabled="profileSyncFieldDisabled('biography')">简介</el-checkbox>
+                <el-checkbox value="avatar_url" :disabled="profileSyncFieldDisabled('avatar_url')">头像</el-checkbox>
               </el-checkbox-group>
             </el-form-item>
+            <el-alert
+              v-if="monitorForm.account_id && !profileSyncCapability.loading && !profileSyncCapability.available"
+              :title="profileSyncCapability.reason || '当前账号没有匹配的资料同步脚本'"
+              type="warning"
+              :closable="false"
+              show-icon
+            />
             <el-form-item label="帖子同步">
               <el-select v-model="benchmarkForm.post_sync_mode" class="w-full">
                 <el-option label="不发布" value="disabled" />
@@ -1719,7 +1821,7 @@ onBeforeUnmount(() => {
               </el-form-item>
             </div>
             <el-alert
-              :title="monitorForm.business_platform === 'x' ? 'X 目标暂仅支持帖子跟踪与发布，资料同步、自动删帖待脚本适配。首次建立基线，历史帖子不补发。' : benchmarkForm.source_business_platform === 'x' ? '仅同步勾选的资料并跟踪新帖，历史帖子不补发。X 列表缺失不代表源帖已删除，暂不自动删帖。' : '仅同步勾选的资料并跟踪新帖，历史帖子不补发。Threads 源帖经缺失确认后同步删除映射帖子。'"
+              :title="monitorForm.business_platform === 'x' ? '仅同步勾选的资料并跟踪新帖，首次建立基线，历史帖子不补发。X 目标暂不自动删帖。' : benchmarkForm.source_business_platform === 'x' ? '仅同步勾选的资料并跟踪新帖，历史帖子不补发。X 列表缺失不代表源帖已删除，暂不自动删帖。' : '仅同步勾选的资料并跟踪新帖，历史帖子不补发。Threads 源帖经缺失确认后同步删除映射帖子。'"
               type="info"
               :closable="false"
               show-icon

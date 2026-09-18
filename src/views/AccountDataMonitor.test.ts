@@ -6,7 +6,7 @@ import source from './AccountDataView.vue?raw'
 // Execute the actual dialog handlers without mounting the unrelated dashboard panels.
 const script = source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!
 const ast = ts.createSourceFile('AccountDataView.ts', script, ts.ScriptTarget.Latest, true)
-const handlers = ['resetMonitorAccount', 'finishMonitorSave', 'saveMonitor', 'saveBenchmarkTracker']
+const handlers = ['resetProfileSyncCapability', 'loadProfileSyncCapability', 'resetMonitorAccount', 'finishMonitorSave', 'saveMonitor', 'saveBenchmarkTracker']
 const handlerSource = ast.statements.filter((node) => ts.isFunctionDeclaration(node)
   && handlers.includes(node.name?.text || '')).map((node) => node.getText(ast)).join('\n')
 const accountWatcher = ast.statements.find((node) => ts.isExpressionStatement(node)
@@ -18,26 +18,39 @@ function setup(locked = false) {
     monitorVisible: { value: true },
     submitting: { value: false },
     accountProfileLoading: { value: false },
+    profileSyncCapability: {
+      loading: false, available: true, reason: '', script_key: 'sync_profile',
+      business_platform: 'x', runtime_platform: 'fingerprint_browser', provider: 'morelogin',
+    },
     monitorForm: {
       account_id: '123', business_platform: 'x', profile_url: 'https://x.com/example',
       monitor_mode: 'custom', interval_minutes: 120, comment_reply_mode: 'disabled',
       ai_provider: 'gemini', ai_language: 'auto', ai_tone: 'natural', ai_max_length: 120,
     },
     benchmarkForm: { source_business_platform: 'threads', source_profile_url: 'https://www.threads.com/@source', monitor_mode: 'custom', interval_minutes: 90, profile_sync_fields: ['display_name'] },
-    http: { post: vi.fn().mockResolvedValue({ monitor_run: { id: '456' } }), get: vi.fn() },
+    http: {
+      post: vi.fn().mockResolvedValue({ monitor_run: { id: '456' } }),
+      get: vi.fn().mockImplementation((path: string) => path.includes('profile-sync-capability')
+        ? Promise.resolve({
+            available: true, reason: null, script_key: 'sync_profile', business_platform: 'x',
+            runtime_platform: 'fingerprint_browser', provider: 'morelogin',
+          })
+        : Promise.resolve({ profile_url: 'https://x.com/example' })),
+    },
     ElNotification: { warning: vi.fn(), success: vi.fn() },
     notifyError: vi.fn(),
     loadRows: vi.fn().mockResolvedValue(undefined),
   }
   let accountChanged: (id: string, previous: string) => Promise<void> = async () => {}
   const watch = (_source: unknown, callback: typeof accountChanged) => { accountChanged = callback }
-  const compiled = ts.transpileModule(`let accountProfileRequest = 0;\n${handlerSource}\n${accountWatcher}`, {
+  const compiled = ts.transpileModule(`let accountProfileRequest = 0;\nlet profileSyncCapabilityRequest = 0;\n${handlerSource}\n${accountWatcher}`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText
   const actions = new Function(...Object.keys(state), 'watch', `${compiled}; return { ${handlers.join(', ')} };`)(...Object.values(state), watch) as {
     saveMonitor: () => Promise<void>
     saveBenchmarkTracker: () => Promise<void>
     resetMonitorAccount: () => void
+    loadProfileSyncCapability: (accountId: string, platform: string) => Promise<void>
   }
   return { ...state, ...actions, accountChanged }
 }
@@ -105,7 +118,7 @@ describe('监听窗口连续设置', () => {
   it('三项资料独立可选，全部关闭也能保存对标规则', async () => {
     expect(source).toContain('v-model="benchmarkForm.profile_sync_fields"')
     for (const field of ['display_name', 'biography', 'avatar_url']) {
-      expect(source).toContain(`<el-checkbox value="${field}">`)
+      expect(source).toContain(`<el-checkbox value="${field}"`)
     }
     expect(source).toContain('profile_sync_fields: [] as string[]')
     expect(source).toContain('[...account.benchmark_profile_sync_fields]')
@@ -127,7 +140,7 @@ describe('监听窗口连续设置', () => {
         await s.saveBenchmarkTracker()
         expect(s.http.post).toHaveBeenCalledWith('/api/benchmark-trackers', expect.objectContaining({
           business_platform: target, source_business_platform: sourcePlatform,
-          profile_sync_fields: target === 'x' ? [] : ['display_name'],
+          profile_sync_fields: ['display_name'],
         }))
         expect(s.monitorVisible.value).toBe(true)
       }
@@ -135,6 +148,58 @@ describe('监听窗口连续设置', () => {
     expect(source).toContain("['threads', 'x'].includes(monitorForm.business_platform)")
     expect(source).toContain('v-model="benchmarkForm.source_business_platform"')
     expect(source).toContain('account?.benchmark_source_business_platform')
+    expect(source).not.toContain("monitorForm.business_platform === 'x' ? []")
+    expect(source).not.toContain("if (platform === 'x') benchmarkForm.profile_sync_fields = []")
+  })
+
+  it('账号级脚本能力控制资料同步，不再按 X 平台硬编码', async () => {
+    const s = setup()
+    await s.loadProfileSyncCapability('123', 'x')
+    expect(s.http.get).toHaveBeenCalledWith('/api/benchmark-trackers/accounts/123/profile-sync-capability')
+    expect(s.profileSyncCapability.available).toBe(true)
+    expect(s.profileSyncCapability.script_key).toBe('sync_profile')
+    expect(source).toContain('profileSyncFieldDisabled')
+    expect(source).not.toContain(':disabled="monitorForm.business_platform === \'x\'"')
+    expect(source).not.toContain('X 目标暂仅支持帖子跟踪与发布')
+  })
+
+  it('缺少匹配脚本时阻止开启资料同步，但仍允许只保存帖子跟踪', async () => {
+    const s = setup()
+    s.profileSyncCapability.available = false
+    s.profileSyncCapability.reason = '未配置匹配脚本'
+    await s.saveBenchmarkTracker()
+    expect(s.http.post).not.toHaveBeenCalled()
+    expect(s.ElNotification.warning).toHaveBeenCalledWith(expect.objectContaining({
+      title: '资料同步不可用', message: '未配置匹配脚本',
+    }))
+
+    s.benchmarkForm.profile_sync_fields = []
+    await s.saveBenchmarkTracker()
+    expect(s.http.post).toHaveBeenCalledWith('/api/benchmark-trackers', expect.objectContaining({ profile_sync_fields: [] }))
+  })
+
+  it('连续切换账号时忽略旧账号晚到的资料同步能力', async () => {
+    const s = setup()
+    let resolveOld!: (capability: object) => void
+    s.http.get.mockReset()
+    s.http.get.mockReturnValueOnce(new Promise((done) => { resolveOld = done }))
+    const old = s.loadProfileSyncCapability('123', 'x')
+
+    s.monitorForm.account_id = '789'
+    s.http.get.mockResolvedValueOnce({
+      available: false, reason: '新账号没有匹配脚本', business_platform: 'x',
+      runtime_platform: 'cloud_phone', provider: 'vmos',
+    })
+    await s.loadProfileSyncCapability('789', 'x')
+    resolveOld({
+      available: true, reason: null, script_key: 'old_script', business_platform: 'x',
+      runtime_platform: 'fingerprint_browser', provider: 'morelogin',
+    })
+    await old
+
+    expect(s.profileSyncCapability.available).toBe(false)
+    expect(s.profileSyncCapability.reason).toBe('新账号没有匹配脚本')
+    expect(s.profileSyncCapability.runtime_platform).toBe('cloud_phone')
   })
 
   it('对标保存失败保留三个字段的选择', async () => {
@@ -164,7 +229,9 @@ describe('监听窗口连续设置', () => {
   it('切换平台后旧账号请求晚到不回填主页', async () => {
     const s = setup()
     let resolve!: (account: { profile_url: string }) => void
-    s.http.get.mockReturnValue(new Promise((done) => { resolve = done }))
+    s.http.get.mockImplementation((path: string) => path.includes('profile-sync-capability')
+      ? Promise.resolve({ available: true })
+      : new Promise((done) => { resolve = done }))
     const pending = s.accountChanged('123', '')
     expect(s.accountProfileLoading.value).toBe(true)
     s.monitorForm.business_platform = 'facebook'
@@ -178,7 +245,9 @@ describe('监听窗口连续设置', () => {
   it('连续切换账号只使用最后一次读取结果', async () => {
     const s = setup()
     let resolve!: (account: { profile_url: string }) => void
-    s.http.get.mockReturnValueOnce(new Promise((done) => { resolve = done }))
+    s.http.get.mockImplementationOnce((path: string) => path.includes('profile-sync-capability')
+      ? Promise.resolve({ available: true })
+      : new Promise((done) => { resolve = done }))
     const old = s.accountChanged('123', '')
     s.monitorForm.account_id = '789'
     s.http.get.mockResolvedValueOnce({ profile_url: 'https://x.com/next' })
