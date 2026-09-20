@@ -1981,7 +1981,7 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   background: var(--app-surface, #fff);
 }
-.filter-title { gap: 6px; margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 13px; font-weight: 700; }
+.filter-title { gap: 6px; min-height: 20px; margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 13px; font-weight: 700; }
 .filter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

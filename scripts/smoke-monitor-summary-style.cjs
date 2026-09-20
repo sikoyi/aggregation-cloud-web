@@ -7,14 +7,24 @@ async function main() {
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
     const errors = [], queries = []
+    let stability = false
     page.on('pageerror', error => errors.push(error.message))
-    await page.route('**/__summary_smoke', route => route.fulfill({ contentType: 'text/html', body: '<html><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div></body></html>' }))
+    await page.route('**/__summary_smoke', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div></body></html>' }))
     await page.route('**/api/**', route => {
       const url = new URL(route.request().url())
       if (!url.pathname.startsWith('/api/')) return route.continue()
       queries.push(url.href)
       let data = { items: [], total: 0 }
-      if (url.pathname.endsWith('/data-overview')) data.summary = { total_accounts: 3200, monitoring_accounts: 1, paused_accounts: 0, abnormal_accounts: 7, unmonitored_accounts: 3192 }
+      if (url.pathname.endsWith('/data-overview')) {
+        data.summary = { total_accounts: 3200, monitoring_accounts: 1, paused_accounts: 0, abnormal_accounts: 7, unmonitored_accounts: 3192 }
+        if (stability) {
+          const count = { monitoring: 1, paused: 0, abnormal: 7, not_configured: 20 }[url.searchParams.get('monitor_state')] ?? 20
+          data.items = Array.from({ length: count }, (_, index) => ({ account_id: String(index + 1),
+            display_name: `Account ${index + 1}`, username: `account_${index + 1}`, business_platform: 'x',
+            followers_count: 100, total_post_views: 200, total_likes: 30 }))
+          data.total = count
+        }
+      }
       else if (url.pathname.endsWith('/summary')) data = { total: 3200, active: 1, pending: 0, retrying: 7, paused: 3192 }
       else if (url.pathname.endsWith('/groups')) data = []
       else if (url.pathname.includes('options')) data = []
@@ -44,8 +54,16 @@ async function main() {
     const owned = page.locator('.account-data__summary')
     await owned.getByText('3,200', { exact: true }).waitFor()
     assert.equal(await owned.locator('.summary-item--total').getAttribute('aria-pressed'), 'true')
+    const filterGeometry = () => page.locator('.account-data__filters').evaluate(node => {
+      const title = node.querySelector('.filter-title').getBoundingClientRect()
+      const grid = node.querySelector('.filter-grid').getBoundingClientRect()
+      const bounds = node.getBoundingClientRect()
+      return { titleHeight: title.height, gridTop: grid.top, height: bounds.height, width: bounds.width }
+    })
+    const unfilteredGeometry = await filterGeometry()
     await owned.getByRole('button', { name: /监听异常/ }).click()
     await page.waitForFunction(() => document.querySelector('.summary-item--danger')?.getAttribute('aria-pressed') === 'true')
+    assert.deepEqual(await filterGeometry(), unfilteredGeometry)
     assert(queries.some(url => url.includes('monitor_state=abnormal')))
     await owned.getByRole('button', { name: /账号总数/ }).click()
     const styles = selector => page.locator(selector).first().evaluate(node => {
@@ -73,8 +91,27 @@ async function main() {
         await owned.screenshot({ path: `logs/monitor-summary-${width}-${dark ? 'dark' : 'light'}.png` })
       }
     }
+    stability = true
+    await page.evaluate(() => { document.querySelector('.external-monitors').style.display = 'none' })
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    const samples = []
+    for (const [label, count] of [['账号总数', 20], ['已关闭', 0], ['监听中', 1], ['监听异常', 7], ['未开启', 20]]) {
+      await owned.getByRole('button', { name: new RegExp(label) }).click()
+      await page.waitForFunction(count => document.querySelectorAll('.account-overview .el-table__body-wrapper .el-table__row').length === count, count)
+      samples.push({ label, ...await filterGeometry(), ...await page.evaluate(() => ({
+        scrollHeight: document.documentElement.scrollHeight, viewport: document.documentElement.clientHeight,
+        gutter: getComputedStyle(document.documentElement).scrollbarGutter,
+      })) })
+    }
+    const baseline = samples[0]
+    assert(samples.some(sample => sample.scrollHeight > sample.viewport))
+    assert(samples.some(sample => sample.scrollHeight === sample.viewport))
+    for (const sample of samples) {
+      for (const key of ['titleHeight', 'gridTop', 'height', 'width']) assert.equal(sample[key], baseline[key], `${sample.label}: ${key}`)
+      assert.equal(sample.gutter, 'stable')
+    }
     assert.deepEqual(errors, [])
-    console.log('PASS: matching card styles, selection/filter, desktop/tablet/mobile, light/dark')
+    console.log('PASS: matching card styles, stable filter geometry across 20/0/1/7 rows, reserved scrollbar gutter, desktop/tablet/mobile, light/dark')
   } finally { await browser.close() }
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })
