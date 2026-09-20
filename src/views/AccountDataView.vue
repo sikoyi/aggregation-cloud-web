@@ -45,6 +45,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
+import { lastPostElapsed } from '@/utils/lastPostElapsed'
 import { notifyError } from '@/utils/notify'
 
 interface AccountDataPage {
@@ -953,7 +954,11 @@ watch(
   },
 )
 
+const elapsedNow = ref(Date.now())
+let elapsedTimer: ReturnType<typeof setInterval> | undefined
+
 onMounted(() => {
+  elapsedTimer = setInterval(() => { elapsedNow.value = Date.now() }, 60_000)
   loadSlotGroups()
   loadAccountTags()
   loadReplyOptions()
@@ -962,6 +967,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (elapsedTimer) clearInterval(elapsedTimer)
   window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
 })
@@ -1280,6 +1286,15 @@ onBeforeUnmount(() => {
                     {{ metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).label }}
                   </span>
                 </div>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="距上次发帖" width="140" align="center" header-align="center">
+              <template #default="scope">
+                <el-tooltip v-if="scope.row.last_post_published_at" :content="formatDate(scope.row.last_post_published_at)" placement="top">
+                  <span>{{ lastPostElapsed(scope.row.last_post_published_at, elapsedNow) }}</span>
+                </el-tooltip>
+                <span v-else class="text-muted">暂无发帖数据</span>
               </template>
             </el-table-column>
 
