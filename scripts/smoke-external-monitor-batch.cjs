@@ -41,6 +41,9 @@ async function main() {
           }]
         })
         data = { succeeded: payload.items.length, skipped: 0, failed: 0, items: [] }
+      } else if (url.pathname.endsWith('/two')) {
+        data = { monitor: rows[1], posts: [{ source_key: 'saved-post', content_url: 'https://www.threads.com/@two/post/saved',
+          report: { text_content: 'Saved before comment collection completed', comments: [], metrics: {} } }], total: 1, snapshots: [] }
       } else data = { items: rows, total: rows.length }
       return route.fulfill({ json: { code: 0, msg: 'ok', data } })
     })
@@ -99,6 +102,24 @@ async function main() {
     await page.getByRole('button', { name: '批量关闭监听', exact: true }).click()
     await page.waitForFunction(() => document.querySelector('.external-batch-bar strong')?.textContent === '0')
     assert.equal(writes.at(-1).payload.action, 'disable')
+    rows = rows.map((row, index) => ({ ...row, enabled: true, status: 'collecting',
+      activity_status: index ? 'collecting' : 'waiting',
+      collection_progress: { phase: index ? 'comments' : 'posts', posts_collected: 24,
+        comments_completed: 3, comments_total: 24, last_progress_at: '2026-09-20T07:00:00+00:00' },
+    }))
+    await page.getByRole('button', { name: '刷新外部账号监听', exact: true }).click()
+    await page.getByText('等待调度', { exact: true }).waitFor()
+    await page.locator('.el-table').getByText('采集中', { exact: true }).waitFor()
+    await page.getByText('帖子已采集 24 条', { exact: true }).waitFor()
+    await page.getByText('评论采集 3 / 24 帖', { exact: true }).waitFor()
+    await page.getByText('最近整轮成功', { exact: true }).waitFor()
+    await page.getByRole('button', { name: '查看外部账号数据', exact: true }).nth(1).click()
+    const detailDialog = page.getByRole('dialog', { name: '外部账号数据', exact: true })
+    await detailDialog.getByText('评论采集 3 / 24 帖', { exact: true }).waitFor()
+    await detailDialog.getByText('Saved before comment collection completed', { exact: true }).waitFor()
+    await detailDialog.getByRole('tab', { name: '最近采集记录', exact: true }).click()
+    await detailDialog.getByText('暂无采集记录', { exact: true }).waitFor()
+    await detailDialog.getByRole('button', { name: '关闭', exact: true }).click()
     const notifications = page.locator('.el-notification__closeBtn')
     while (await notifications.count()) {
       await notifications.first().click()
@@ -109,6 +130,7 @@ async function main() {
       await page.setViewportSize({ width, height: 1000 })
       const boxes = await page.locator('.external-monitors__stat').evaluateAll(nodes => nodes.map(node => { const r = node.getBoundingClientRect(); return { x: r.x, right: r.right, fits: node.scrollWidth <= node.clientWidth } }))
       assert(boxes.every(box => box.x >= 0 && box.right <= width && box.fits))
+      assert(await page.locator('.external-collection-progress').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth)))
       await page.screenshot({ path: `logs/external-monitor-batch-${width}.png`, fullPage: true })
     }
     await page.setViewportSize({ width: 1440, height: 1000 })
@@ -125,7 +147,7 @@ async function main() {
     assert.equal(rows.length, 0)
     assert(queries.some(url => url.includes('status=paused')))
     assert.deepEqual(errors, [])
-    console.log('PASS: global counts, filter, selection reset, groups, batch enable/disable/interval/delete, cancellation, light/dark/mobile')
+    console.log('PASS: global counts, filter, selection reset, groups, batch enable/disable/interval/delete, cancellation, collection progress, light/dark/mobile')
   } finally { await browser.close() }
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

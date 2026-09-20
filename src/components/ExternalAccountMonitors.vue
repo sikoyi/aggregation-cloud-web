@@ -10,6 +10,7 @@ import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { formatDate } from '@/utils/format'
+import { externalMonitorProgress, externalMonitorStatus, type ExternalCollectionProgress } from '@/utils/externalMonitorProgress'
 import type { AnyRecord } from '@/types/api'
 
 interface ExternalMonitor {
@@ -20,6 +21,8 @@ interface ExternalMonitor {
   interval_minutes: number
   enabled: boolean
   status: string
+  activity_status?: string
+  collection_progress?: ExternalCollectionProgress
   version: number
   group_id?: string | null
   profile: { display_name?: string; username?: string; avatar_url?: string; biography?: string; followers_count?: number; following_count?: number; posts_count?: number }
@@ -231,9 +234,13 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-table-column label="粉丝" width="110" align="right"><template #default="{ row }"><CompactFollowerCount :key="row.id" :value="row.profile.followers_count" /></template></el-table-column>
       <el-table-column label="关注" width="100" align="right"><template #default="{ row }">{{ number(row.profile.following_count) }}</template></el-table-column>
       <el-table-column label="帖子" width="100" align="right"><template #default="{ row }">{{ number(row.profile.posts_count) }}</template></el-table-column>
-      <el-table-column label="监听状态" width="125" align="center"><template #default="{ row }"><el-tag :type="row.status === 'active' ? 'success' : row.status === 'retrying' ? 'warning' : 'info'">{{ labels[row.status] || row.status }}</el-tag></template></el-table-column>
+      <el-table-column label="监听状态 / 进度" width="180" align="center"><template #default="{ row }">
+        <el-tag :type="(row.activity_status || row.status) === 'active' ? 'success' : (row.activity_status || row.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(row as ExternalMonitor) }}</el-tag>
+        <div v-if="externalMonitorProgress(row.collection_progress)" class="external-collection-progress">{{ externalMonitorProgress(row.collection_progress) }}</div>
+        <div v-if="row.collection_progress?.last_progress_at" class="external-collection-progress">进展 {{ formatDate(row.collection_progress.last_progress_at) }}</div>
+      </template></el-table-column>
       <el-table-column label="间隔" width="100"><template #default="{ row }">{{ row.interval_minutes }} 分钟</template></el-table-column>
-      <el-table-column label="最近成功" width="170"><template #default="{ row }">{{ formatDate(row.last_success_at) }}</template></el-table-column>
+      <el-table-column label="最近整轮成功" width="170"><template #default="{ row }">{{ formatDate(row.last_success_at) }}</template></el-table-column>
       <el-table-column label="下次采集" width="170"><template #default="{ row }">{{ row.enabled ? formatDate(row.next_run_at) : '-' }}</template></el-table-column>
       <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
       <el-table-column prop="last_error" label="异常原因" min-width="200" show-overflow-tooltip />
@@ -266,6 +273,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 </template>
 
 <style scoped>
+.external-collection-progress { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--app-text-muted, #718096); overflow-wrap: anywhere; }
 .external-monitors { background: var(--app-surface, #fff); padding: 16px; border: 1px solid var(--app-border, #dce5ed); }
 .external-monitors__header, .external-monitors__actions, .external-monitors h2, .external-monitors__filters > strong { display: flex; align-items: center; gap: 10px; }
 .external-monitors__header { justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; gap: 12px; }

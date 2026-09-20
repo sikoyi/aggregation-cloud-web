@@ -5,12 +5,14 @@ import ContentPreview from '@/components/ContentPreview.vue'
 import ExternalPostComments from '@/components/ExternalPostComments.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatDate } from '@/utils/format'
+import { externalMonitorProgress, externalMonitorStatus, type ExternalCollectionProgress } from '@/utils/externalMonitorProgress'
 import type { AnyRecord } from '@/types/api'
 
 const props = defineProps<{
   detail: { monitor: {
     id: string; profile?: AnyRecord; profile_url: string; business_platform: string;
     status: string; enabled: boolean; interval_minutes: number; remark?: string;
+    activity_status?: string; collection_progress?: ExternalCollectionProgress;
     last_success_at?: unknown; next_run_at?: unknown; last_error?: string;
   }; posts: AnyRecord[]; total: number; snapshots: AnyRecord[] }
   page: number
@@ -18,7 +20,6 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:page': [value: number] }>()
 const tab = ref('posts')
 const profile = computed<AnyRecord>(() => props.detail.monitor.profile || {})
-const statuses: Record<string, string> = { pending: '等待采集', collecting: '采集中', active: '监听中', retrying: '等待重试', paused: '已暂停' }
 const metrics = computed(() => [
   { label: '粉丝', value: profile.value.followers_count },
   { label: '关注', value: profile.value.following_count },
@@ -55,7 +56,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
         <p class="external-profile__bio">{{ profile.biography || '暂未采集到账号简介' }}</p>
         <div class="external-profile__tags">
           <el-tag effect="plain">{{ detail.monitor.business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</el-tag>
-          <el-tag :type="detail.monitor.status === 'active' ? 'success' : detail.monitor.status === 'retrying' ? 'warning' : 'info'">{{ statuses[detail.monitor.status] || detail.monitor.status }}</el-tag>
+          <el-tag :type="(detail.monitor.activity_status || detail.monitor.status) === 'active' ? 'success' : (detail.monitor.activity_status || detail.monitor.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(detail.monitor) }}</el-tag>
         </div>
       </div>
       <el-link v-if="safeUrl(detail.monitor.profile_url)" class="external-detail-link" :href="safeUrl(detail.monitor.profile_url)" target="_blank" rel="noopener noreferrer" type="primary" :icon="ExternalLink">打开主页</el-link>
@@ -64,7 +65,9 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
       <div v-for="metric in metrics" :key="metric.label"><small>{{ metric.label }}</small><strong><CompactFollowerCount v-if="metric.label === '粉丝'" :key="detail.monitor.id" :value="metric.value" /><template v-else>{{ count(metric.value) }}</template></strong></div>
     </div>
     <div class="external-profile__metadata">
-      <span>最近成功 <strong>{{ formatDate(detail.monitor.last_success_at) }}</strong></span>
+      <span>最近整轮成功 <strong>{{ formatDate(detail.monitor.last_success_at) }}</strong></span>
+      <span v-if="externalMonitorProgress(detail.monitor.collection_progress)">当前阶段 <strong>{{ externalMonitorProgress(detail.monitor.collection_progress) }}</strong></span>
+      <span v-if="detail.monitor.collection_progress?.last_progress_at">最近进展 <strong>{{ formatDate(detail.monitor.collection_progress.last_progress_at) }}</strong></span>
       <span>监听间隔 <strong>{{ detail.monitor.interval_minutes }} 分钟</strong></span>
       <span>下次采集 <strong>{{ detail.monitor.enabled ? formatDate(detail.monitor.next_run_at) : '-' }}</strong></span>
     </div>
