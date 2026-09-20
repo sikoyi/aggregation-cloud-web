@@ -9,6 +9,7 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import App from './App.vue'
 import { setUnauthorizedHandler } from './api/http'
 import { router } from './router'
+import { installNavigationRecovery } from './router/navigationRecovery'
 import { useAuthStore } from './stores/auth'
 import './styles.css'
 import './theme.css'
@@ -19,6 +20,7 @@ initializeTheme()
 const pinia = createPinia()
 const app = createApp(App)
 
+installNavigationRecovery(router)
 app.use(pinia).use(router)
 
 let sessionExpiredNotifiedAt = 0

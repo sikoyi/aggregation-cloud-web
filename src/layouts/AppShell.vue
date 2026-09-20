@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { handleMenuNavigation } from '@/router/navigationRecovery'
 import {
   Boxes,
   BarChart3,
@@ -343,7 +344,7 @@ watch(
         </div>
       </div>
       <el-scrollbar class="flex-1">
-        <el-menu router :default-active="activeMenuPath" :default-openeds="defaultOpeneds" class="app-menu">
+        <el-menu router :default-active="activeMenuPath" :default-openeds="defaultOpeneds" class="app-menu" @select="handleMenuNavigation">
           <el-sub-menu v-for="group in navGroups" :key="group.index" :index="group.index">
             <template #title>
               <component :is="group.icon" class="mr-3 h-4 w-4" />
