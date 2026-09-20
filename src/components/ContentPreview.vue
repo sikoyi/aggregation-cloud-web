@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue'
 import { resolveBackendUrl } from '@/api/http'
 import { loadMediaAssetsByIds } from '@/api/mediaAssets'
 import type { AnyRecord } from '@/types/api'
+import { withoutVideoCovers } from '@/utils/postMedia'
 
 const props = withDefaults(defineProps<{
   record: AnyRecord
@@ -29,7 +30,7 @@ const assetIds = computed(() => (
 const embeddedAssets = computed(() => (
   Array.isArray(props.record.material_assets) ? props.record.material_assets : []
 ))
-const assets = computed(() => embeddedAssets.value.length ? embeddedAssets.value : loadedAssets.value)
+const assets = computed(() => withoutVideoCovers(embeddedAssets.value.length ? embeddedAssets.value : loadedAssets.value))
 const visibleAssets = computed(() => props.mode === 'compact' ? assets.value.slice(0, 3) : assets.value)
 const imageUrls = computed(() => assets.value
   .filter((asset) => assetKind(asset) === 'image')
