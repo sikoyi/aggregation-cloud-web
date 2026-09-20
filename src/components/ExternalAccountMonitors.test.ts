@@ -13,6 +13,8 @@ function setup() {
     loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: {}, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
+    batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn() } },
+    summary: { value: null as unknown }, groups: { value: [] },
     http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockResolvedValue({ items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
@@ -27,6 +29,19 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('统计不受状态和分页限制，刷新清除旧选择', async () => {
+    const s = setup()
+    Object.assign(s.appliedFilters, { platform: 'x', group_id: 'group', status: 'paused', keyword: 'source' })
+    s.selected.value = [{ id: 'old' }]
+    await s.load()
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', { platform: 'x', group_id: 'group', keyword: 'source' })
+    expect(s.selected.value).toEqual([])
+    expect(s.table.value.clearSelection).toHaveBeenCalled()
+    s.http.get.mockClear()
+    s.batchBusy.value = true
+    await s.load()
+    expect(s.http.get).not.toHaveBeenCalled()
+  })
   it('排序随请求提交，切换回第一页，清空恢复最新优先', async () => {
     const s = setup()
     s.page.value = 3
@@ -34,7 +49,7 @@ describe('外部账号只读监听', () => {
     s.search()
     expect(s.page.value).toBe(1)
     await s.load()
-    expect(s.http.get).toHaveBeenLastCalledWith('/api/external-account-monitors', { sort_order: 'asc', page: 1, page_size: 20 })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { sort_order: 'asc', page: 1, page_size: 20 })
     s.reset()
     expect(s.filters).toMatchObject({ sort_order: 'desc' })
     expect(s.appliedFilters).toMatchObject({ sort_order: 'desc' })

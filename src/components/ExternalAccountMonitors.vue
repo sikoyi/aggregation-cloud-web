@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Activity, Eye, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, UserRound } from 'lucide-vue-next'
+import { Activity, Clock3, Eye, Layers3, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, TriangleAlert, UserRound, Users } from 'lucide-vue-next'
+import ExternalMonitorGroups from '@/components/ExternalMonitorGroups.vue'
+import ExternalMonitorBatchBar from '@/components/ExternalMonitorBatchBar.vue'
 import ExternalAccountDetail from '@/components/ExternalAccountDetail.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -19,6 +21,7 @@ interface ExternalMonitor {
   enabled: boolean
   status: string
   version: number
+  group_id?: string | null
   profile: { display_name?: string; username?: string; avatar_url?: string; biography?: string; followers_count?: number; following_count?: number; posts_count?: number }
 }
 interface ExternalDetail { monitor: ExternalMonitor; posts: AnyRecord[]; total: number; snapshots: AnyRecord[] }
@@ -29,11 +32,23 @@ const canEdit = computed(() => auth.can('operations.edit'))
 const labels: Record<string, string> = { pending: '等待采集', collecting: '采集中', active: '监听中', retrying: '等待重试', paused: '已暂停' }
 const rows = ref<ExternalMonitor[]>([])
 const total = ref(0)
+const groups = ref<{ id: string; name: string; version: number }[]>([])
+const selected = ref<ExternalMonitor[]>([])
+const table = ref<{ clearSelection: () => void } | null>(null)
+const batchBusy = ref(false)
+const summary = ref<Record<string, number> | null>(null)
+const summaryCards = [
+  { key: 'total', label: '账号总数', status: '', icon: Users, tone: 'blue' },
+  { key: 'active', label: '监听中', status: 'active', icon: Activity, tone: 'green' },
+  { key: 'pending', label: '等待采集', status: 'pending', icon: Clock3, tone: 'blue' },
+  { key: 'retrying', label: '等待重试', status: 'retrying', icon: TriangleAlert, tone: 'amber' },
+  { key: 'paused', label: '已关闭', status: 'paused', icon: Pause, tone: 'muted' },
+]
 const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
 const error = ref('')
-const filters = reactive({ platform: '', status: '', keyword: '', sort_order: 'desc' })
+const filters = reactive({ platform: '', status: '', keyword: '', sort_order: 'desc', group_id: '' })
 const appliedFilters = reactive({ ...filters })
 const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
@@ -58,19 +73,46 @@ function safeUrl(value: unknown) {
 function number(value: unknown) { return value == null ? '--' : Number(value).toLocaleString() }
 function platformLabel(value: string) { return value === 'x' ? 'X(Twitter)' : 'Threads' }
 async function load() {
+  if (batchBusy.value) return
   const id = ++sequence
+  selected.value = []
+  table.value?.clearSelection()
   loading.value = true
   error.value = ''
   try {
-    const result = await http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, page: page.value, page_size: pageSize.value })
+    const [result, counts] = await Promise.all([
+      http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, page: page.value, page_size: pageSize.value }),
+      http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, keyword: appliedFilters.keyword, group_id: appliedFilters.group_id }),
+    ])
     if (disposed || id !== sequence) return
     rows.value = result.items
     total.value = result.total
+    summary.value = counts
   } catch (e) { if (!disposed && id === sequence) error.value = message(e) }
   finally { if (id === sequence) loading.value = false }
 }
 function search() { Object.assign(appliedFilters, filters); if (page.value === 1) void load(); else page.value = 1 }
-function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc' }); search() }
+function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc', group_id: '' }); search() }
+function filterStatus(status: string) { filters.status = status; search() }
+function groupName(id?: string | null) { return groups.value.find(group => group.id === id)?.name || (id ? '分组已变更' : '未分组') }
+async function loadGroups() {
+  try {
+    const result = await http.get<{ id: string; name: string; version: number }[]>('/api/external-account-monitors/groups')
+    if (!disposed) groups.value = result
+  } catch (e) { if (!disposed) ElNotification.error({ title: '加载分组失败', message: message(e) }) }
+}
+async function groupsChanged() {
+  await loadGroups()
+  if (filters.group_id && filters.group_id !== 'ungrouped' && !groups.value.some(group => group.id === filters.group_id)) filters.group_id = ''
+  search()
+}
+function batchCompleted() {
+  batchBusy.value = false
+  selected.value = []
+  table.value?.clearSelection()
+  if (page.value !== 1) page.value = 1
+  else void load()
+}
 function openForm(row?: ExternalMonitor) {
   editing.value = row || null
   Object.assign(form, row ? { business_platform: row.business_platform, profile_url: row.profile_url, remark: row.remark, interval_minutes: row.interval_minutes, enabled: row.enabled }
@@ -78,7 +120,7 @@ function openForm(row?: ExternalMonitor) {
   formVisible.value = true
 }
 async function save() {
-  if (saving.value || !canEdit.value) return
+  if (saving.value || batchBusy.value || !canEdit.value) return
   if (!safeUrl(form.profile_url)) { ElNotification.warning({ title: '请填写有效账号主页链接' }); return }
   saving.value = true
   try {
@@ -98,7 +140,7 @@ async function save() {
   finally { saving.value = false }
 }
 async function toggle(row: ExternalMonitor) {
-  if (busy.value || deleting.value || !canEdit.value) return
+  if (busy.value || deleting.value || batchBusy.value || !canEdit.value) return
   busy.value = row.id
   try {
     await http.put(`/api/external-account-monitors/${row.id}`, { remark: row.remark, interval_minutes: row.interval_minutes, enabled: !row.enabled, expected_version: row.version })
@@ -107,7 +149,7 @@ async function toggle(row: ExternalMonitor) {
   finally { busy.value = '' }
 }
 async function remove(row: ExternalMonitor) {
-  if (busy.value || deleting.value || !canEdit.value) return
+  if (busy.value || deleting.value || batchBusy.value || !canEdit.value) return
   deleting.value = row.id
   const accountName = row.profile.display_name || row.profile.username || row.profile_url
   try {
@@ -148,7 +190,7 @@ function openDetail(row: ExternalMonitor) {
 }
 watch([page, pageSize], () => { void load() })
 watch(detailVisible, (visible) => { if (!visible) ++detailSequence })
-onMounted(() => { void load(); timer = setInterval(() => { if (!document.hidden && !loading.value && !saving.value && !busy.value && !deleting.value) void load() }, 30000) })
+onMounted(() => { void load(); void loadGroups(); timer = setInterval(() => { if (!document.hidden && !loading.value && !saving.value && !busy.value && !deleting.value && !batchBusy.value && !selected.value.length) void load() }, 30000) })
 onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInterval(timer) })
 </script>
 
@@ -157,24 +199,35 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
     <header class="external-monitors__header">
       <h2><Activity :size="20" />外部账号监听</h2>
       <div class="external-monitors__actions">
-        <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" @click="load" /></el-tooltip>
+        <ExternalMonitorGroups v-if="canEdit" :groups="groups" @changed="groupsChanged" />
+        <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" :disabled="batchBusy" @click="load" /></el-tooltip>
         <el-button v-if="canEdit" type="primary" :icon="Plus" :disabled="!platforms.length" @click="openForm()">添加外部账号</el-button>
       </div>
     </header>
+    <div class="external-monitors__summary">
+      <button v-for="card in summaryCards" :key="card.key" type="button" :class="['external-monitors__stat', `external-monitors__stat--${card.tone}`, { 'is-active': appliedFilters.status === card.status }]" :aria-pressed="appliedFilters.status === card.status" :disabled="batchBusy" @click="filterStatus(card.status)">
+        <span class="external-monitors__stat-icon"><component :is="card.icon" :size="20" /></span>
+        <span><span class="external-monitors__stat-label">{{ card.label }}</span><strong>{{ summary ? number(summary[card.key]) : '--' }}</strong></span>
+      </button>
+    </div>
     <div class="external-monitors__filters">
       <strong><Search :size="15" />筛选条件</strong>
-      <el-form inline label-width="72px">
+      <el-form inline label-width="72px" :disabled="batchBusy">
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+        <el-form-item label="账号分组"><el-select v-model="filters.group_id" placeholder="全部分组" clearable filterable><el-option label="未分组" value="ungrouped" /><el-option v-for="group in groups" :key="group.id" :label="group.name" :value="group.id" /></el-select></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
         <el-form-item label="监听排序"><el-select v-model="filters.sort_order" @change="search"><el-option label="最新添加在前" value="desc" /><el-option label="最早添加在前" value="asc" /></el-select></el-form-item>
       </el-form>
-      <el-button :icon="RotateCcw" @click="reset">清空</el-button><el-button :icon="Search" type="primary" @click="search">查询</el-button>
+      <el-button :icon="RotateCcw" :disabled="batchBusy" @click="reset">清空</el-button><el-button :icon="Search" type="primary" :disabled="batchBusy" @click="search">查询</el-button>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <el-table v-loading="loading" :data="rows" stripe border table-layout="fixed" empty-text="暂无外部账号">
+    <ExternalMonitorBatchBar v-if="canEdit" :selected="selected" :groups="groups" :disabled="loading || saving || !!busy || !!deleting" @busy="batchBusy = $event" @completed="batchCompleted" />
+    <el-table ref="table" v-loading="loading" :data="rows" row-key="id" stripe border table-layout="fixed" empty-text="暂无外部账号" @selection-change="selected = $event">
+      <el-table-column v-if="canEdit" type="selection" width="44" fixed="left" :selectable="() => !batchBusy" />
       <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="36" :src="safeUrl(row.profile.avatar_url)"><UserRound :size="18" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
+      <el-table-column label="账号分组" min-width="150" show-overflow-tooltip><template #default="{ row }"><el-tag :type="row.group_id ? 'primary' : 'info'" effect="plain"><span class="external-monitors__group"><Layers3 v-if="row.group_id" :size="13" />{{ groupName(row.group_id) }}</span></el-tag></template></el-table-column>
       <el-table-column label="粉丝" width="110" align="right"><template #default="{ row }"><CompactFollowerCount :key="row.id" :value="row.profile.followers_count" /></template></el-table-column>
       <el-table-column label="关注" width="100" align="right"><template #default="{ row }">{{ number(row.profile.following_count) }}</template></el-table-column>
       <el-table-column label="帖子" width="100" align="right"><template #default="{ row }">{{ number(row.profile.posts_count) }}</template></el-table-column>
@@ -191,7 +244,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-tooltip v-if="canEdit" content="删除监听"><el-button link type="danger" :icon="Trash2" aria-label="删除外部账号监听" :loading="deleting === row.id" :disabled="!!busy || !!deleting" @click="remove(row as ExternalMonitor)" /></el-tooltip>
       </template></el-table-column>
     </el-table>
-    <div class="external-monitors__pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" background layout="total, sizes, prev, pager, next" @size-change="page = 1" /></div>
+    <div class="external-monitors__pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :disabled="batchBusy" :total="total" :page-sizes="[20, 50, 100]" background layout="total, sizes, prev, pager, next" @size-change="page = 1" /></div>
     <el-dialog v-model="formVisible" :title="editing ? '外部账号监听设置' : '添加外部账号'" width="min(520px, 96vw)" align-center :close-on-click-modal="false">
       <el-form label-position="top" @submit.prevent="save">
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
@@ -230,7 +283,20 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors__pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .external-monitors__full { width: 100%; }
 .external-monitors__detail { max-height: 72vh; overflow-y: auto; overflow-x: hidden; min-height: 180px; padding-right: 8px; }
+.external-monitors__summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.external-monitors__stat { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 64px; padding: 12px; border: 1px solid var(--app-border, #dce5ed); border-radius: 6px; background: var(--app-surface, #fff); text-align: left; cursor: pointer; }
+.external-monitors__stat.is-active { border-color: var(--app-blue, #316589); }
+.external-monitors__stat:focus-visible { outline: 2px solid var(--app-blue, #316589); outline-offset: 2px; }
+.external-monitors__stat-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 6px; background: var(--app-surface-muted, #eef8ff); color: var(--app-blue, #316589); }
+.external-monitors__stat--green .external-monitors__stat-icon { color: var(--app-green, #238756); }
+.external-monitors__stat--amber .external-monitors__stat-icon { color: var(--app-amber, #b67a16); }
+.external-monitors__stat--muted .external-monitors__stat-icon { color: var(--app-text-muted, #66788a); }
+.external-monitors__stat-label { display: block; color: var(--app-text-muted, #66788a); font-size: 12px; }
+.external-monitors__stat strong { display: block; font-size: 20px; line-height: 1.3; color: var(--app-text, #1f2933); overflow-wrap: anywhere; }
+.external-monitors__group { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
+@media (max-width: 1000px) { .external-monitors__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
+  .external-monitors__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .external-monitors { padding: 10px; }
   .external-monitors :deep(.el-table-fixed-column--left), .external-monitors :deep(.el-table-fixed-column--right) { position: static !important; }
   .external-monitors__filters :deep(.el-form-item) { display: flex; margin-right: 0; }
