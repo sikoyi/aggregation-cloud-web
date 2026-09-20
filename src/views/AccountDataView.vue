@@ -1000,24 +1000,24 @@ onBeforeUnmount(() => {
 
       <div class="account-data__body">
         <div class="account-data__summary">
-          <button type="button" class="summary-item summary-item--total" @click="filters.monitor_state = ''; searchRows()">
-            <span class="summary-item__icon"><Users :size="17" /></span>
+          <button type="button" class="summary-item summary-item--total" :class="{ 'is-active': !filters.monitor_state }" :aria-pressed="!filters.monitor_state" @click="filters.monitor_state = ''; searchRows()">
+            <span class="summary-item__icon"><Users :size="20" /></span>
             <span><small>账号总数</small><strong>{{ formatNumber(summary.total_accounts) }}</strong></span>
           </button>
-          <button type="button" class="summary-item summary-item--active" :class="{ 'is-active': filters.monitor_state === 'monitoring' }" @click="useMonitorFilter('monitoring')">
-            <span class="summary-item__icon"><Activity :size="17" /></span>
+          <button type="button" class="summary-item summary-item--active" :class="{ 'is-active': filters.monitor_state === 'monitoring' }" :aria-pressed="filters.monitor_state === 'monitoring'" @click="useMonitorFilter('monitoring')">
+            <span class="summary-item__icon"><Activity :size="20" /></span>
             <span><small>监听中</small><strong>{{ formatNumber(summary.monitoring_accounts) }}</strong></span>
           </button>
-          <button type="button" class="summary-item summary-item--paused" :class="{ 'is-active': filters.monitor_state === 'paused' }" @click="useMonitorFilter('paused')">
-            <span class="summary-item__icon"><Clock :size="17" /></span>
+          <button type="button" class="summary-item summary-item--paused" :class="{ 'is-active': filters.monitor_state === 'paused' }" :aria-pressed="filters.monitor_state === 'paused'" @click="useMonitorFilter('paused')">
+            <span class="summary-item__icon"><Clock :size="20" /></span>
             <span><small>已关闭</small><strong>{{ formatNumber(summary.paused_accounts) }}</strong></span>
           </button>
-          <button type="button" class="summary-item summary-item--danger" :class="{ 'is-active': filters.monitor_state === 'abnormal' }" @click="useMonitorFilter('abnormal')">
-            <span class="summary-item__icon"><AlertTriangle :size="17" /></span>
+          <button type="button" class="summary-item summary-item--danger" :class="{ 'is-active': filters.monitor_state === 'abnormal' }" :aria-pressed="filters.monitor_state === 'abnormal'" @click="useMonitorFilter('abnormal')">
+            <span class="summary-item__icon"><AlertTriangle :size="20" /></span>
             <span><small>监听异常</small><strong>{{ formatNumber(summary.abnormal_accounts) }}</strong></span>
           </button>
-          <button type="button" class="summary-item summary-item--muted" :class="{ 'is-active': filters.monitor_state === 'not_configured' }" @click="useMonitorFilter('not_configured')">
-            <span class="summary-item__icon"><CircleOff :size="17" /></span>
+          <button type="button" class="summary-item summary-item--muted" :class="{ 'is-active': filters.monitor_state === 'not_configured' }" :aria-pressed="filters.monitor_state === 'not_configured'" @click="useMonitorFilter('not_configured')">
+            <span class="summary-item__icon"><CircleOff :size="20" /></span>
             <span><small>未开启</small><strong>{{ formatNumber(summary.unmonitored_accounts) }}</strong></span>
           </button>
         </div>
@@ -1936,42 +1936,43 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 .summary-item {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 10px;
-  padding: 11px 12px;
-  border: 1px solid var(--app-border, #dbe4ed);
+  min-height: 64px;
+  padding: 12px;
+  border: 1px solid var(--app-border, #dce5ed);
   border-radius: 6px;
   color: var(--app-text, #334155);
   background: var(--app-surface, #fff);
   text-align: left;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  cursor: pointer;
 }
-.summary-item:hover,
-.summary-item.is-active { border-color: var(--app-text-muted, #5c91b4); box-shadow: 0 0 0 2px rgb(47 111 151 / 8%); }
+.summary-item.is-active { border-color: var(--app-blue, #316589); }
+.summary-item:focus-visible { outline: 2px solid var(--app-blue, #316589); outline-offset: 2px; }
 .summary-item__icon {
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  color: var(--app-blue, #2f6f97);
-  background: var(--app-surface-muted, #edf6fc);
+  color: var(--app-blue, #316589);
+  background: var(--app-surface-muted, #eef8ff);
 }
-.summary-item--active .summary-item__icon { color: var(--app-green, #2f855a); background: var(--app-surface-muted, #edf9f1); }
-.summary-item--paused .summary-item__icon { color: var(--app-amber, #ad6800); background: var(--app-amber-bg, #fff7e8); }
-.summary-item--danger .summary-item__icon { color: var(--app-red, #c2413b); background: var(--app-surface-muted, #fff1f0); }
-.summary-item--muted .summary-item__icon { color: var(--app-text-muted, #64748b); background: var(--app-surface-muted, #f1f5f9); }
+.summary-item--active .summary-item__icon { color: var(--app-green, #238756); }
+.summary-item--paused .summary-item__icon { color: var(--app-amber, #b67a16); }
+.summary-item--danger .summary-item__icon { color: var(--app-red, #c2413b); }
+.summary-item--muted .summary-item__icon { color: var(--app-text-muted, #66788a); }
 .summary-item small,
 .summary-item strong { display: block; }
-.summary-item small { color: var(--app-text-muted, #718096); font-size: 11px; }
-.summary-item strong { margin-top: 2px; font-size: 18px; line-height: 1.1; }
+.summary-item small { color: var(--app-text-muted, #66788a); font-size: 12px; }
+.summary-item strong { font-size: 20px; line-height: 1.3; color: var(--app-text, #1f2933); overflow-wrap: anywhere; }
 
 .account-data__filters {
   margin-bottom: 12px;
@@ -2416,7 +2417,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 1100px) {
-  .account-data__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .account-data__split { grid-template-columns: 260px minmax(0, 1fr); }
   .profile-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2437,7 +2437,6 @@ onBeforeUnmount(() => {
   .account-overview__scope { width: 100%; justify-content: flex-start; }
   .account-overview__batch-bar { align-items: flex-start; flex-direction: column; }
   .account-overview__batch-actions { width: 100%; justify-content: flex-start; }
-  .account-data__summary,
   .filter-grid,
   .monitor-dialog-grid,
   .monitor-form-row,
@@ -2465,5 +2464,11 @@ onBeforeUnmount(() => {
   .account-profile__metrics > div:last-child,
   .profile-info-grid > div:last-child { border-bottom: 0; }
   .account-profile__name-row h2 { font-size: 22px; }
+}
+@media (max-width: 1000px) {
+  .account-data__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .account-data__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

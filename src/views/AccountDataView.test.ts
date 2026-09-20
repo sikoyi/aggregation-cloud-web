@@ -4,6 +4,18 @@ import { transpile } from 'typescript'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('统计卡片与外部监听的尺寸和选中态一致', () => {
+    const summary = source.split('<div class="account-data__summary">')[1]?.split('<div class="account-data__filters">')[0] || ''
+    expect(summary.match(/:size="20"/g)).toHaveLength(5)
+    expect(summary.match(/:aria-pressed=/g)).toHaveLength(5)
+    expect(summary).toContain("'is-active': !filters.monitor_state")
+    const style = source.split('.summary-item {')[1]?.split('}')[0] || ''
+    expect(style).toContain('min-height: 64px')
+    expect(style).toContain('padding: 12px')
+    expect(source).toContain('.summary-item small { color: var(--app-text-muted, #66788a); font-size: 12px; }')
+    expect(source).toContain('.summary-item strong { font-size: 20px; line-height: 1.3;')
+    expect(source).toContain('.account-data__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }')
+  })
   it('批量操作栏常驻，空选或提交中禁止操作，选中后启用', () => {
     expect(source).toContain('<div class="account-overview__batch-bar">')
     expect(source).not.toContain('<div v-if="selectedAccountIds.length" class="account-overview__batch-bar">')
