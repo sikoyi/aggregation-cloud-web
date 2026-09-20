@@ -228,7 +228,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
     <ExternalMonitorBatchBar v-if="canEdit" :selected="selected" :groups="groups" :disabled="loading || saving || !!busy || !!deleting" @busy="batchBusy = $event" @completed="batchCompleted" />
     <el-table ref="table" v-loading="loading" :data="rows" row-key="id" stripe border table-layout="fixed" empty-text="暂无外部账号" @selection-change="selected = $event">
       <el-table-column v-if="canEdit" type="selection" width="44" fixed="left" :selectable="() => !batchBusy" />
-      <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="36" :src="safeUrl(row.profile.avatar_url)"><UserRound :size="18" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
+      <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="safeUrl(row.profile.avatar_url)"><UserRound :size="22" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
       <el-table-column label="账号分组" min-width="150" show-overflow-tooltip><template #default="{ row }"><el-tag :type="row.group_id ? 'primary' : 'info'" effect="plain"><span class="external-monitors__group"><Layers3 v-if="row.group_id" :size="13" />{{ groupName(row.group_id) }}</span></el-tag></template></el-table-column>
       <el-table-column label="粉丝" width="110" align="right"><template #default="{ row }"><CompactFollowerCount :key="row.id" :value="row.profile.followers_count" /></template></el-table-column>
@@ -283,8 +283,9 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors__filters :deep(.el-form-item) { margin-bottom: 12px; margin-right: 18px; }
 .external-monitors__filters :deep(.el-select), .external-monitors__filters :deep(.el-input) { width: 190px; }
 .external-monitors__identity { display: flex; align-items: center; gap: 10px; }
-.external-monitors__identity > div { min-width: 0; }
+.external-monitors__identity > div { min-width: 0; flex: 1; }
 .external-monitors__identity strong, .external-monitors__identity a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.external-monitors__identity strong { color: var(--app-text, #20364b); font-size: 16px; line-height: 1.5; }
 .external-monitors__identity a { font-size: 12px; margin-top: 4px; }
 .external-monitors :deep(.el-avatar) { flex-shrink: 0; background: var(--app-surface-muted, #eaf4fb); color: var(--app-blue, #316589); }
 .external-monitors a { color: var(--app-blue, #286794); overflow-wrap: anywhere; }

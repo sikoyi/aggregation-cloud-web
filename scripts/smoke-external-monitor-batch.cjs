@@ -10,7 +10,7 @@ async function main() {
     let groups = []
     let rows = [
       { id: 'one', business_platform: 'x', profile_url: 'https://x.com/one', remark: '', interval_minutes: 60, enabled: false, status: 'paused', version: 1, group_id: null, profile: { display_name: 'Example One', followers_count: 12500 } },
-      { id: 'two', business_platform: 'threads', profile_url: 'https://www.threads.com/@two', remark: '', interval_minutes: 60, enabled: true, status: 'retrying', version: 2, group_id: null, profile: { display_name: 'Example Two' } },
+      { id: 'two', business_platform: 'threads', profile_url: 'https://www.threads.com/@two', remark: '', interval_minutes: 60, enabled: true, status: 'retrying', version: 2, group_id: null, profile: { display_name: 'Example Two With A Very Long Display Name For Layout Checks' } },
     ]
     page.on('pageerror', error => errors.push(error.message))
     await page.route('**/__external_monitor_smoke', route => route.fulfill({ contentType: 'text/html', body: '<html><meta name="viewport" content="width=device-width, initial-scale=1"><body><div id="app"></div></body></html>' }))
@@ -120,6 +120,7 @@ async function main() {
     await detailDialog.getByRole('tab', { name: '最近采集记录', exact: true }).click()
     await detailDialog.getByText('暂无采集记录', { exact: true }).waitFor()
     await detailDialog.getByRole('button', { name: '关闭', exact: true }).click()
+    await detailDialog.waitFor({ state: 'hidden' })
     const notifications = page.locator('.el-notification__closeBtn')
     while (await notifications.count()) {
       await notifications.first().click()
@@ -128,6 +129,17 @@ async function main() {
     mkdirSync('logs', { recursive: true })
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 })
+      const identities = await page.locator('.external-monitors__identity').evaluateAll(nodes => nodes.map(node => {
+        const avatar = node.querySelector('.el-avatar').getBoundingClientRect()
+        const name = node.querySelector('strong')
+        const text = name.getBoundingClientRect()
+        const bounds = node.getBoundingClientRect()
+        return { width: avatar.width, height: avatar.height, font: getComputedStyle(name).fontSize,
+          ellipsis: getComputedStyle(name).textOverflow, fits: text.right <= bounds.right + 1,
+          separate: text.left >= avatar.right, truncated: name.scrollWidth > name.clientWidth }
+      }))
+      assert(identities.every(item => item.width === 48 && item.height === 48 && item.font === '16px' && item.ellipsis === 'ellipsis' && item.fits && item.separate))
+      assert(identities.some(item => item.truncated))
       const boxes = await page.locator('.external-monitors__stat').evaluateAll(nodes => nodes.map(node => { const r = node.getBoundingClientRect(); return { x: r.x, right: r.right, fits: node.scrollWidth <= node.clientWidth } }))
       assert(boxes.every(box => box.x >= 0 && box.right <= width && box.fits))
       assert(await page.locator('.external-collection-progress').evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth)))
