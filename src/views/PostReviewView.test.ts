@@ -6,6 +6,15 @@ import shell from '@/layouts/AppShell.vue?raw'
 import reviews from '@/components/BenchmarkPostReviews.vue?raw'
 
 describe('运营中心独立帖子审核', () => {
+  it('保留单条终态工单删除，复用软删除权限和接口', () => {
+    expect(reviews).toContain("new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])")
+    expect(reviews).toContain('v-if="canManageReviews && deletableStatuses.has(row.status)"')
+    expect(reviews).toContain('aria-label="删除记录"')
+    expect(reviews).toContain('batchDeleteBenchmarkPostReviews([row.id])')
+    expect(reviews).toContain('if (result.processed_count === 1)')
+    expect(reviews).toContain('result.failures[0]?.message')
+    expect(reviews).toContain('rows.value.length === 1 && page.value > 1')
+  })
   it('筛选区与回复审核统一，并保留状态筛选与清空查询', () => {
     for (const markup of ['筛选条件', 'class="compact-filter-form"', 'class="filter-grid"', 'class="filter-actions"', 'label-position="right"', 'label-suffix=":"']) {
       expect(reviews).toContain(markup)

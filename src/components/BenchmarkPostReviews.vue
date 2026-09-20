@@ -36,6 +36,7 @@ const loading = ref(false)
 const saving = ref(false)
 const batchLoading = ref(false)
 const retryingId = ref('')
+const deletingId = ref('')
 const selectedRows = ref<Review[]>([])
 const tableRef = ref<{ clearSelection: () => void } | null>(null)
 const selected = ref<Review | null>(null)
@@ -49,7 +50,8 @@ const labels: Record<string, string> = {
 const editable = computed(() => selected.value?.status === 'pending_review' && auth.can('operations.review'))
 const retryable = computed(() => selected.value?.status === 'failed' && auth.can('operations.retry'))
 const canManageReviews = computed(() => auth.can('operations.review'))
-const batchActionsDisabled = computed(() => batchLoading.value || selectedRows.value.length === 0)
+const batchActionsDisabled = computed(() => batchLoading.value || Boolean(deletingId.value) || selectedRows.value.length === 0)
+const deletableStatuses = new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])
 let request = 0
 let timer: ReturnType<typeof setInterval> | undefined
 function safeUrl(value?: string) {
@@ -90,6 +92,28 @@ function clearBatchSelection() {
   selectedRows.value = []
 }
 type BatchAction = 'approve' | 'ignore' | 'delete'
+async function removeReview(raw: unknown) {
+  const row = raw as Review
+  if (!canManageReviews.value || !deletableStatuses.has(row.status) || deletingId.value || batchLoading.value || retryingId.value) return
+  deletingId.value = row.id
+  try {
+    try {
+      await ElMessageBox.confirm('确认删除这条帖子审核记录？仅隐藏工单，发布任务、帖子映射和操作审计仍会保留。', '删除帖子审核记录', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' })
+    } catch { return }
+    const result = await batchDeleteBenchmarkPostReviews([row.id])
+    if (result.processed_count === 1) {
+      ElNotification.success({ title: '删除成功', message: '帖子审核记录已删除' })
+      if (selected.value?.id === row.id) { visible.value = false; selected.value = null }
+      if (rows.value.length === 1 && page.value > 1) page.value--
+    } else {
+      ElNotification.warning({ title: '未删除记录', message: result.failures[0]?.message || '工单状态已变化或记录不可删除，请刷新后重试' })
+    }
+    clearBatchSelection()
+    await load()
+  } catch (error) { notifyError(error, '删除失败', '帖子审核记录未能删除') }
+  finally { deletingId.value = '' }
+}
+
 async function runBatchAction(action: BatchAction) {
   if (batchActionsDisabled.value) return
   const count = selectedRows.value.length
@@ -160,7 +184,7 @@ async function decide(action: 'approve' | 'ignore') {
   finally { saving.value = false }
 }
 async function retry(row: { id?: unknown }) {
-  if (retryingId.value) return
+  if (retryingId.value || deletingId.value) return
   const reviewId = String(row.id || '')
   if (!reviewId) return
   try {
@@ -216,7 +240,11 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
       </template></el-table-column>
       <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)">{{ labels[row.status] || '等待发布' }}</el-tag></template></el-table-column>
       <el-table-column label="创建时间" width="175"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
-      <el-table-column label="操作" width="120" fixed="right"><template #default="{ row }"><el-tooltip content="查看审核工单"><el-button :icon="Eye" circle text @click="open(row)" /></el-tooltip><el-tooltip v-if="row.status === 'failed' && auth.can('operations.retry')" content="重试发布"><el-button :icon="RefreshCw" circle text type="danger" :loading="retryingId === row.id" :disabled="Boolean(retryingId)" @click="retry(row)" /></el-tooltip></template></el-table-column>
+      <el-table-column label="操作" width="148" fixed="right"><template #default="{ row }"><div class="review-row-actions">
+        <el-tooltip content="查看审核工单"><el-button :icon="Eye" circle text aria-label="查看审核工单" @click="open(row)" /></el-tooltip>
+        <el-tooltip v-if="row.status === 'failed' && auth.can('operations.retry')" content="重试发布"><el-button :icon="RefreshCw" circle text type="danger" :loading="retryingId === row.id" :disabled="Boolean(retryingId) || Boolean(deletingId)" @click="retry(row)" /></el-tooltip>
+        <el-tooltip v-if="canManageReviews && deletableStatuses.has(row.status)" content="删除记录"><el-button :icon="Trash2" circle text type="danger" aria-label="删除记录" :loading="deletingId === row.id" :disabled="Boolean(deletingId) || batchLoading || Boolean(retryingId)" @click="removeReview(row)" /></el-tooltip>
+      </div></template></el-table-column>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
     <el-dialog v-model="visible" title="对标帖子审核" top="5vh" width="min(92vw, 760px)" destroy-on-close :close-on-click-modal="false" :before-close="(done: () => void) => { if (!saving) done() }">
@@ -234,6 +262,8 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 </template>
 
 <style scoped>
+.review-row-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.review-row-actions :deep(.el-button) { margin: 0; flex-shrink: 0; }
 .benchmark-reviews { padding: 14px 16px 16px; min-width: 0; background: var(--app-surface-muted, #f8fafc); }
 .review-filters { margin-bottom: 12px; padding: 12px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); }
 .filter-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 13px; font-weight: 700; }

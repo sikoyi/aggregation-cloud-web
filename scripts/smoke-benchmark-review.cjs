@@ -9,6 +9,7 @@ async function main() {
     const errors = []
     const writes = []
     const listQueries = []
+    let deleted = false, skipDelete = false
     let job = { id: 'review-1', revision: 'revision-1', status: 'pending_review', source_display_name: 'Source Author', source_username: 'source',
       source_business_platform: 'threads', target_display_name: 'Target Account', target_username: 'target', business_platform: 'x',
       final_content: 'Original post text', created_at: '2026-09-16T09:00:00Z', task_run_id: null,
@@ -21,9 +22,13 @@ async function main() {
       if (path.endsWith('/reviews')) listQueries.push(new URL(route.request().url()).searchParams.toString())
       if (route.request().method() === 'POST') {
         writes.push({ path, body: route.request().postDataJSON() })
+        if (path.endsWith('/batch/delete')) {
+          deleted = !skipDelete
+          return route.fulfill({ json: { code: 0, msg: 'ok', data: { processed_count: skipDelete ? 0 : 1, skipped_count: skipDelete ? 1 : 0, failed_count: 0, failures: [] } } })
+        }
         job = { ...job, status: 'queued', final_content: writes.at(-1).body.content, task_run_id: 'task-1' }
       }
-      return route.fulfill({ json: { code: 0, msg: 'ok', data: path.endsWith('/reviews') ? { items: [job], total: 1 } : job } })
+      return route.fulfill({ json: { code: 0, msg: 'ok', data: path.endsWith('/reviews') ? { items: deleted ? [] : [job], total: deleted ? 0 : 1 } : job } })
     })
     await page.goto('http://127.0.0.1:5173/__benchmark_review_smoke')
     await page.evaluate(async () => {
@@ -85,6 +90,30 @@ async function main() {
     assert.equal(writes.length, 1)
     assert.deepEqual(writes[0].body, { revision: 'revision-1', content: 'Reviewed and edited post' })
     assert.equal(await page.getByRole('button', { name: '批准发布', exact: true }).count(), 0)
+    await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click()
+    await page.getByRole('dialog').waitFor({ state: 'hidden' })
+    assert.equal(await page.getByRole('button', { name: '删除记录', exact: true }).count(), 0)
+    job = { ...job, status: 'failed' }
+    await filters.getByRole('button', { name: '查询', exact: true }).click()
+    const remove = page.getByRole('button', { name: '删除记录', exact: true })
+    await remove.waitFor()
+    await remove.click()
+    await page.getByRole('button', { name: '取消', exact: true }).click()
+    assert.equal(writes.length, 1)
+    skipDelete = true
+    await remove.click()
+    await page.getByRole('button', { name: '确认删除', exact: true }).click()
+    await page.getByText('未删除记录', { exact: true }).waitFor()
+    assert.equal(deleted, false)
+    assert.deepEqual(writes.at(-1).body, { job_ids: ['review-1'] })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.locator('.review-row-actions').screenshot({ path: 'logs/post-review-row-actions.png' })
+    skipDelete = false
+    await remove.click()
+    await page.getByRole('button', { name: '确认删除', exact: true }).click()
+    await page.getByText('暂无对标帖子工单', { exact: true }).waitFor()
+    assert.equal(deleted, true)
+    assert.deepEqual(writes.at(-1).body, { job_ids: ['review-1'] })
     assert.deepEqual(errors, [])
     console.log('Benchmark review UI passed: scoped list, source/target, edit, confirmation, no pre-approval dispatch, desktop/mobile')
   } finally { await browser.close() }
