@@ -61,4 +61,17 @@ describe('回复审核筛选区', () => {
   it('弹窗顶部信息卡统一拉伸为同一高度', () => {
     expect(source).toContain('.review-dialog__meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 10px; }')
   })
+
+  it('批量重试使用独立权限，保留单条重试及结果汇总', () => {
+    expect(source).toContain("const canRetryReviews = computed(() => auth.can('operations.retry'))")
+    expect(source).toContain('v-if="canBatchOperate" type="selection"')
+    expect(source).toContain('v-if="canBatchOperate" class="reply-review__batch-bar"')
+    expect(source).toContain('v-if="canRetryReviews" :icon="RefreshCw"')
+    expect(source).toContain("@click=\"runBatchAction('retry')\"")
+    expect(source).toContain('request: batchRetryCommentReplies')
+    expect(source).toContain('仅处理失败或阻塞的工单，其他状态将跳过')
+    expect(source).toContain('settings.request(jobIds)')
+    expect(source).toContain('data.failed_count')
+    expect(source).toContain('@click="retry(row)"')
+  })
 })

@@ -18,6 +18,7 @@ import {
   batchApproveCommentReplies,
   batchDeleteCommentReplies,
   batchIgnoreCommentReplies,
+  batchRetryCommentReplies,
   getCommentReply,
   ignoreCommentReply,
   listCommentReplies,
@@ -85,6 +86,8 @@ let refreshTimer: number | undefined
 const hasFilters = computed(() => hasActiveCommentReplyFilters(filters))
 const canApprove = computed(() => activeJob.value?.status === 'pending_review' && auth.can('operations.review'))
 const canManageReviews = computed(() => auth.can('operations.review'))
+const canRetryReviews = computed(() => auth.can('operations.retry'))
+const canBatchOperate = computed(() => canManageReviews.value || canRetryReviews.value)
 const batchActionsDisabled = computed(() => batchLoading.value || selectedRows.value.length === 0)
 const replyModeOptions = [
   { label: '自动回复', value: 'automatic' },
@@ -161,12 +164,22 @@ function clearBatchSelection() {
   selectedRows.value = []
 }
 
-type BatchAction = 'approve' | 'ignore' | 'delete'
+type BatchAction = 'approve' | 'ignore' | 'delete' | 'retry'
 
 async function runBatchAction(action: BatchAction) {
   if (batchActionsDisabled.value) return
+  if (action === 'retry' ? !canRetryReviews.value : !canManageReviews.value) return
   const count = selectedRows.value.length
+  const jobIds = selectedRows.value.map((row) => String(row.id))
   const settings = {
+    retry: {
+      title: '批量重试',
+      message: `确认重试已选择的 ${count} 条工单？仅处理失败或阻塞的工单，其他状态将跳过。已有回复文案的工单将重新下发，无文案的工单将重新生成。`,
+      confirmButtonText: '确认重试',
+      request: batchRetryCommentReplies,
+      successLabel: '重试',
+      type: 'warning' as const,
+    },
     approve: {
       title: '批量审核通过',
       message: `确认审核通过已选择的 ${count} 条工单？系统会使用每条工单现有的回复文案下发任务。`,
@@ -204,7 +217,7 @@ async function runBatchAction(action: BatchAction) {
 
   batchLoading.value = true
   try {
-    const data = await settings.request(selectedRows.value.map((row) => String(row.id)))
+    const data = await settings.request(jobIds)
     const message = `已处理 ${data.processed_count} 条，跳过 ${data.skipped_count} 条，失败 ${data.failed_count} 条`
     if (data.skipped_count || data.failed_count) {
       ElNotification.warning({ title: `批量${settings.successLabel}已完成`, message })
@@ -413,16 +426,19 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="reply-review__table">
-          <div v-if="canManageReviews" class="reply-review__batch-bar">
+          <div v-if="canBatchOperate" class="reply-review__batch-bar">
             <span>已选择 <strong>{{ selectedRows.length }}</strong> 条工单</span>
             <div class="reply-review__batch-actions">
-              <el-button :icon="Check" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('approve')">
+              <el-button v-if="canManageReviews" :icon="Check" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('approve')">
                 批量审核通过
               </el-button>
-              <el-button :icon="SkipForward" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('ignore')">
+              <el-button v-if="canRetryReviews" :icon="RefreshCw" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('retry')">
+                批量重试
+              </el-button>
+              <el-button v-if="canManageReviews" :icon="SkipForward" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('ignore')">
                 批量忽略
               </el-button>
-              <el-button type="danger" plain :icon="Trash2" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('delete')">
+              <el-button v-if="canManageReviews" type="danger" plain :icon="Trash2" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('delete')">
                 批量删除记录
               </el-button>
             </div>
@@ -437,7 +453,7 @@ onBeforeUnmount(() => {
             empty-text="暂无新评论回复工单"
             @selection-change="handleSelectionChange"
           >
-            <el-table-column v-if="canManageReviews" type="selection" width="46" fixed="left" reserve-selection />
+            <el-table-column v-if="canBatchOperate" type="selection" width="46" fixed="left" reserve-selection />
             <el-table-column label="发帖账号" min-width="150">
               <template #default="{ row }">
                 <div class="account-copy">

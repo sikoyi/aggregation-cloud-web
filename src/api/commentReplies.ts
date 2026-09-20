@@ -74,6 +74,12 @@ export function batchIgnoreCommentReplies(jobIds: string[]) {
   })
 }
 
+export function batchRetryCommentReplies(jobIds: string[]) {
+  return http.post<CommentReplyBatchResult>('/api/interaction-center/comment-replies/batch/retry', {
+    job_ids: jobIds,
+  })
+}
+
 export function batchDeleteCommentReplies(jobIds: string[]) {
   return http.post<CommentReplyBatchResult>('/api/interaction-center/comment-replies/batch/delete', {
     job_ids: jobIds,
