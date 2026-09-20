@@ -9,6 +9,7 @@ export interface CommentReplyPage {
 }
 
 export interface CommentReplyFilters {
+  job_id?: string
   business_platform?: string
   status?: string
   account_id?: string

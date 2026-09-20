@@ -37,6 +37,7 @@ describe('回复审核筛选', () => {
       status: 'failed',
       createdRange: ['2026-09-01T00:00:00+08:00', '2026-09-08T23:59:59+08:00'],
       keyword: '  customer  ',
+      jobId: ' 132 ',
     }
 
     expect(buildCommentReplyQuery(filters, 3, 50)).toEqual({
@@ -48,6 +49,7 @@ describe('回复审核筛选', () => {
       created_from: '2026-09-01T00:00:00+08:00',
       created_to: '2026-09-08T23:59:59+08:00',
       keyword: 'customer',
+      job_id: '132',
       page: 3,
       page_size: 50,
     })

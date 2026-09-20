@@ -9,6 +9,7 @@ export interface CommentReplyFilterState {
   status: string
   createdRange: string[]
   keyword: string
+  jobId: string
 }
 
 export function createDefaultCommentReplyFilters(): CommentReplyFilterState {
@@ -20,6 +21,7 @@ export function createDefaultCommentReplyFilters(): CommentReplyFilterState {
     status: 'pending_review',
     createdRange: [],
     keyword: '',
+    jobId: '',
   }
 }
 
@@ -38,6 +40,7 @@ export function buildCommentReplyQuery(
     created_from: createdFrom || undefined,
     created_to: createdTo || undefined,
     keyword: filters.keyword.trim() || undefined,
+    job_id: filters.jobId?.trim() || undefined,
     page,
     page_size: pageSize,
   }
@@ -52,4 +55,5 @@ export function hasActiveCommentReplyFilters(filters: CommentReplyFilterState) {
     || Boolean(filters.status)
     || filters.createdRange.length > 0
     || filters.keyword.trim() !== defaults.keyword
+    || Boolean(filters.jobId?.trim())
 }

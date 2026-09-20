@@ -404,6 +404,9 @@ onBeforeUnmount(() => {
                   <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
                 </el-select>
               </el-form-item>
+              <el-form-item label="工单 ID">
+                <el-input v-model="filters.jobId" clearable placeholder="输入完整工单 ID" @keyup.enter="searchRows" />
+              </el-form-item>
               <el-form-item label="发现时间" class="filter-grid__item--wide">
                 <el-date-picker
                   v-model="filters.createdRange"
@@ -454,6 +457,7 @@ onBeforeUnmount(() => {
             @selection-change="handleSelectionChange"
           >
             <el-table-column v-if="canBatchOperate" type="selection" width="46" fixed="left" reserve-selection />
+            <el-table-column prop="id" label="工单 ID" width="95" show-overflow-tooltip />
             <el-table-column label="发帖账号" min-width="150">
               <template #default="{ row }">
                 <div class="account-copy">
