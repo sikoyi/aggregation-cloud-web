@@ -479,13 +479,15 @@ const batchActions = computed<RowActionConfig[]>(() => {
 })
 const selectedCount = computed(() => selectedRows.value.length)
 const isAccountResource = computed(() => ['accounts', 'accountIdentities'].includes(props.config.key))
-const persistentBatchToolbar = computed(() => isAccountResource.value || ['slots', 'proxies', 'contents', 'mediaAssets'].includes(props.config.key))
+const persistentBatchToolbar = computed(() => isAccountResource.value || ['slots', 'proxies', 'contents', 'mediaAssets', 'scripts', 'taskTemplates'].includes(props.config.key))
 const selectedCountUnit = computed(() => {
   if (isAccountResource.value) return '个账号'
   if (props.config.key === 'slots') return '台设备'
   if (props.config.key === 'proxies') return '个代理'
   if (props.config.key === 'contents') return '条内容'
   if (props.config.key === 'mediaAssets') return '个素材'
+  if (props.config.key === 'scripts') return '个脚本'
+  if (props.config.key === 'taskTemplates') return '个模板'
   return '条数据'
 })
 const selectedIdentityScope = computed(() => {

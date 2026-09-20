@@ -5,9 +5,9 @@ import source from './CrudPage.vue?raw'
 const toolbar = source.split('class="batch-toolbar"')[1]?.split('<el-card shadow="never" class="table-card">')[0] || ''
 
 describe('资源列表批量操作栏', () => {
-  it('账号、设备、代理、内容和素材常驻，其他资源仍按选中状态显示，并保留权限过滤', () => {
+  it('账号、设备、代理、内容、素材、脚本和模板常驻，其他资源保留原行为和权限过滤', () => {
     expect(source).toContain("computed(() => ['accounts', 'accountIdentities'].includes(props.config.key))")
-    expect(source).toContain("computed(() => isAccountResource.value || ['slots', 'proxies', 'contents', 'mediaAssets'].includes(props.config.key))")
+    expect(source).toContain("computed(() => isAccountResource.value || ['slots', 'proxies', 'contents', 'mediaAssets', 'scripts', 'taskTemplates'].includes(props.config.key))")
     expect(source).toContain('v-if="batchActions.length && (persistentBatchToolbar || hasSelectedRows)"')
     expect(source).toContain('.filter((action) => canRunAction(action))')
   })
@@ -44,6 +44,8 @@ describe('资源列表批量操作栏', () => {
     expect(source).toContain("if (props.config.key === 'proxies') return '个代理'")
     expect(source).toContain("if (props.config.key === 'contents') return '条内容'")
     expect(source).toContain("if (props.config.key === 'mediaAssets') return '个素材'")
+    expect(source).toContain("if (props.config.key === 'scripts') return '个脚本'")
+    expect(source).toContain("if (props.config.key === 'taskTemplates') return '个模板'")
     expect(toolbar).toContain("'batch-toolbar--persistent': persistentBatchToolbar")
   })
 })
