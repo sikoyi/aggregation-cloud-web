@@ -4,6 +4,7 @@ import { ExternalLink, Heart, MessageCircle, UserRound } from 'lucide-vue-next'
 import ContentPreview from '@/components/ContentPreview.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatDate } from '@/utils/format'
+import { externalAvatarUrl } from '@/utils/externalAvatar'
 import { externalMonitorProgress, externalMonitorStatus, type ExternalCollectionProgress } from '@/utils/externalMonitorProgress'
 import type { AnyRecord } from '@/types/api'
 
@@ -48,7 +49,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
 <template>
   <div class="external-account-detail">
     <header class="external-profile">
-      <el-avatar :size="72" :src="safeUrl(profile.avatar_url)" class="external-profile__avatar"><UserRound :size="28" /></el-avatar>
+      <el-avatar :size="72" :src="externalAvatarUrl(profile.avatar_url)" class="external-profile__avatar"><UserRound :size="28" /></el-avatar>
       <div class="external-profile__identity">
         <h2>{{ profile.display_name || profile.username || detail.monitor.profile_url.split('/').pop() }}</h2>
         <div class="external-profile__handle">{{ profile.username ? '@' + String(profile.username).replace(/^@/, '') : '暂未采集公开用户名' }}</div>
