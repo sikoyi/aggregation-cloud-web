@@ -22,12 +22,26 @@ import { businessPlatformOptions, businessPlatformLabel } from '@/config/options
 import { useAuthStore } from '@/stores/auth'
 import RegistrationResourceRevealDialog from '@/components/RegistrationResourceRevealDialog.vue'
 import RegistrationResourceTemplateEditDialog from '@/components/RegistrationResourceTemplateEditDialog.vue'
+import ActionResultDialog from '@/components/ActionResultDialog.vue'
 
 const auth = useAuthStore()
 const activeTab = ref('batches')
 const loading = ref(false)
 const templates = ref<RegistrationResourceTemplate[]>([])
 const batches = ref<RegistrationResourceBatch[]>([])
+const batchTable = ref<{ clearSelection: () => void } | null>(null)
+const selectedBatches = ref<RegistrationResourceBatch[]>([])
+const batchDeleting = ref(false)
+const batchResultVisible = ref(false)
+const batchResults = ref<Array<{ name: string; status: string; error_message: string }>>([])
+const batchResultTitle = ref('批量删除结果')
+const canDelete = computed(() => auth.can('registration_resources.delete'))
+function clearBatchSelection() {
+  selectedBatches.value = []
+  batchTable.value?.clearSelection()
+}
+watch(activeTab, clearBatchSelection)
+watch(canDelete, allowed => { if (!allowed) clearBatchSelection() })
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -95,6 +109,7 @@ async function loadTemplates() {
 }
 
 async function loadBatches() {
+  clearBatchSelection()
   loading.value = true
   try {
     const data = await listRegistrationResourceBatches({
@@ -242,6 +257,7 @@ function openDetail(rawBatch: unknown) {
 }
 
 async function removeBatch(rawBatch: unknown) {
+  if (batchDeleting.value || !canDelete.value) return
   const batch = rawBatch as RegistrationResourceBatch
   await ElMessageBox.confirm(`确认删除批次“${batch.name}”及其中全部未使用资料吗？`, '删除注册资源', {
     type: 'warning',
@@ -255,6 +271,34 @@ async function removeBatch(rawBatch: unknown) {
   } catch (error) {
     ElNotification.error({ title: '删除失败', message: error instanceof Error ? error.message : '批次删除失败' })
   }
+}
+
+async function removeSelectedBatches() {
+  if (batchDeleting.value || loading.value || !canDelete.value || !selectedBatches.value.length) return
+  const targets = [...selectedBatches.value]
+  batchDeleting.value = true
+  try {
+    try {
+      await ElMessageBox.confirm(`确认删除选中的 ${targets.length} 个资源批次及其中未使用资料？存在已预留或已使用资源的批次不能删除。此操作不可撤销。`, '批量删除注册资源', {
+        type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消',
+      })
+    } catch { return }
+    batchResults.value = []
+    for (const batch of targets) {
+      try {
+        if (!canDelete.value) throw new Error('当前用户无删除权限')
+        await deleteRegistrationResourceBatch(batch.id)
+        batchResults.value.push({ name: batch.name, status: 'success', error_message: '' })
+      } catch (error) {
+        batchResults.value.push({ name: batch.name, status: 'failed', error_message: error instanceof Error ? error.message : '批次删除失败' })
+      }
+    }
+    const succeeded = batchResults.value.filter(item => item.status === 'success').length
+    batchResultTitle.value = `批量删除结果：成功 ${succeeded}，失败 ${targets.length - succeeded}`
+    batchResultVisible.value = true
+    page.value = 1
+    await loadBatches()
+  } finally { batchDeleting.value = false }
 }
 
 function emptyTemplateField(index: number): RegistrationResourceTemplateField {
@@ -375,7 +419,12 @@ onMounted(() => {
           <el-button type="primary" @click="search">查询</el-button>
         </div>
 
-        <el-table v-loading="loading" :data="batches" border>
+        <div v-if="canDelete" class="registration-batch-bar">
+          <span>已选择 <strong>{{ selectedBatches.length }}</strong> 个批次</span>
+          <el-button type="danger" plain :icon="Trash2" :loading="batchDeleting" :disabled="loading || batchDeleting || !selectedBatches.length" @click="removeSelectedBatches">批量删除</el-button>
+        </div>
+        <el-table ref="batchTable" v-loading="loading" :data="batches" row-key="id" border @selection-change="selectedBatches = $event">
+          <el-table-column v-if="canDelete" type="selection" width="48" :selectable="() => !loading && !batchDeleting" />
           <el-table-column prop="name" label="批次名称" min-width="190" />
           <el-table-column label="资源模板" min-width="190">
             <template #default="{ row }">
@@ -405,7 +454,7 @@ onMounted(() => {
             <template #default="{ row }">
               <div class="operation-actions operation-actions--icons">
                 <el-tooltip content="查看资料" placement="top"><el-button text circle :icon="Eye" aria-label="查看资料" @click="openDetail(row)" /></el-tooltip>
-                <el-tooltip v-if="auth.can('registration_resources.delete')" content="删除批次" placement="top"><el-button text circle type="danger" :icon="Trash2" @click="removeBatch(row)" /></el-tooltip>
+                <el-tooltip v-if="canDelete" content="删除批次" placement="top"><el-button text circle type="danger" :icon="Trash2" :disabled="batchDeleting" @click="removeBatch(row)" /></el-tooltip>
               </div>
             </template>
           </el-table-column>
@@ -554,10 +603,13 @@ onMounted(() => {
       </el-form>
       <template #footer><el-button @click="templateVisible = false">取消</el-button><el-button type="primary" :loading="templateSubmitting" @click="submitTemplate">创建版本</el-button></template>
     </el-dialog>
+    <ActionResultDialog v-model="batchResultVisible" :title="batchResultTitle" :value="batchResults" :columns="[{ key: 'name', label: '批次名称' }, { key: 'status', label: '结果', type: 'status' }, { key: 'error_message', label: '失败原因' }]" />
   </section>
 </template>
 
 <style scoped>
+.registration-batch-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; min-height: 52px; padding: 8px 14px; border: 1px solid var(--app-border, #dce5ed); border-bottom: 0; background: var(--app-surface-muted, #f7fafc); color: var(--app-text-muted, #60758a); font-size: 13px; }
+.registration-batch-bar strong { color: var(--app-blue, #1f6f9f); }
 .registration-tabs :deep(.el-tabs__header) { margin: 0; padding: 0 16px; }
 .registration-tabs :deep(.el-tabs__content) { overflow: visible; }
 .filter-field { display: grid; gap: 6px; width: 230px; font-size: 12px; color: var(--app-text-muted, #64748b); }
