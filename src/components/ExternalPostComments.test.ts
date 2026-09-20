@@ -62,9 +62,11 @@ describe('外部评论阅读布局', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0].key).not.toBe(rows[1].key)
   })
-  it('默认展示评论，完整帖文独立切换，时间标签同行', () => {
-    expect(detail).toContain('<el-tabs model-value="comments">')
-    expect(detail).toContain('label="完整帖文"')
+  it('外部帖子展开直接展示完整帖文，不再提供评论入口，时间标签同行', () => {
+    expect(detail).not.toContain('ExternalPostComments')
+    expect(detail).not.toContain('model-value="comments"')
+    expect(detail).not.toContain('label="评论"')
+    expect(detail).toContain('<ContentPreview :record="postPreview(row)" mode="full" />')
     expect(detail).toContain('grid-template-columns: 48px minmax(0, 1fr)')
     expect(source).toContain('平台评论数')
     expect(source).toContain(':page-size="10"')

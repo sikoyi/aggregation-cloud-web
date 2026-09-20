@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import { ExternalLink, Heart, MessageCircle, UserRound } from 'lucide-vue-next'
 import ContentPreview from '@/components/ContentPreview.vue'
-import ExternalPostComments from '@/components/ExternalPostComments.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatDate } from '@/utils/format'
 import { externalMonitorProgress, externalMonitorStatus, type ExternalCollectionProgress } from '@/utils/externalMonitorProgress'
@@ -79,10 +78,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
         <el-table :data="detail.posts" row-key="source_key" border stripe table-layout="fixed" empty-text="暂无已采集帖子">
           <el-table-column type="expand" width="44"><template #default="{ row }">
             <div class="external-post-expanded">
-              <el-tabs model-value="comments">
-                <el-tab-pane label="评论" name="comments"><ExternalPostComments :comments="row.report?.comments" :total="row.report?.metrics?.comment_count" /></el-tab-pane>
-                <el-tab-pane label="完整帖文" name="content"><ContentPreview :record="postPreview(row)" mode="full" /></el-tab-pane>
-              </el-tabs>
+              <ContentPreview :record="postPreview(row)" mode="full" />
             </div>
           </template></el-table-column>
           <el-table-column label="内容信息" min-width="300"><template #default="{ row }">
