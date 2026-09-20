@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest'
 import source from './CommentReplyReviewView.vue?raw'
 
 describe('回复审核筛选区', () => {
+  it('操作列适度收窄，按钮保留文字和紧凑间距', () => {
+    expect(source).toContain('label="操作" width="250" align="center" fixed="right"')
+    expect(source).toContain('class="reply-review__row-actions"')
+    expect(source).toContain('.reply-review__row-actions :deep(.el-button) { margin: 0; padding: 8px 6px; }')
+    for (const label of ['执行详情', '重生成', '重试']) expect(source).toContain(label)
+  })
   it('沿用系统统一的筛选标题、字段标签和操作顺序', () => {
     expect(source).toContain('<div class="filter-title">')
     expect(source).toContain('<span>筛选条件</span>')

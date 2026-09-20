@@ -472,12 +472,14 @@ onBeforeUnmount(() => {
             <el-table-column label="发现时间" width="165" align="center">
               <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="290" align="center" fixed="right">
+            <el-table-column label="操作" width="250" align="center" fixed="right">
               <template #default="{ row }">
+                <div class="reply-review__row-actions">
                 <el-button text type="primary" :icon="Eye" @click="openJob(row)">{{ row.status === 'pending_review' ? '审核' : '查看' }}</el-button>
                 <el-button v-if="canViewTaskDetail(row)" text :icon="ListChecks" @click="openTaskDetail(row)">执行详情</el-button>
                 <el-button v-if="row.status === 'pending_review' && auth.can('operations.review')" text type="primary" :icon="RotateCcw" @click="regenerate(row)">重生成</el-button>
                 <el-button v-if="['failed', 'blocked'].includes(row.status) && auth.can('operations.retry')" text type="danger" :icon="RefreshCw" @click="retry(row)">重试</el-button>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -543,6 +545,8 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.reply-review__row-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; }
+.reply-review__row-actions :deep(.el-button) { margin: 0; padding: 8px 6px; }
 .reply-review__tools { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .reply-review__workspace { border-color: var(--app-border, #d9e2ec); border-radius: 8px; }
 .reply-review__workspace :deep(.el-card__body) { padding: 0; }
