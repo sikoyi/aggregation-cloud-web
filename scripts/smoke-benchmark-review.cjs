@@ -8,6 +8,7 @@ async function main() {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     const errors = []
     const writes = []
+    const listQueries = []
     let job = { id: 'review-1', revision: 'revision-1', status: 'pending_review', source_display_name: 'Source Author', source_username: 'source',
       source_business_platform: 'threads', target_display_name: 'Target Account', target_username: 'target', business_platform: 'x',
       final_content: 'Original post text', created_at: '2026-09-16T09:00:00Z', task_run_id: null,
@@ -17,6 +18,7 @@ async function main() {
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname
       if (!path.startsWith('/api/')) return route.continue()
+      if (path.endsWith('/reviews')) listQueries.push(new URL(route.request().url()).searchParams.toString())
       if (route.request().method() === 'POST') {
         writes.push({ path, body: route.request().postDataJSON() })
         job = { ...job, status: 'queued', final_content: writes.at(-1).body.content, task_run_id: 'task-1' }
@@ -26,6 +28,7 @@ async function main() {
     await page.goto('http://127.0.0.1:5173/__benchmark_review_smoke')
     await page.evaluate(async () => {
       await import('/src/styles.css')
+      await import('/src/theme.css')
       const source = await (await fetch('/src/components/BenchmarkPostReviews.vue')).text()
       const vuePath = source.match(/from "(\/node_modules\/\.vite\/deps\/vue\.js[^"]*)"/)[1]
       const authSource = await (await fetch('/src/stores/auth.ts')).text()
@@ -41,6 +44,28 @@ async function main() {
       app.mount('#app')
     })
     await page.getByText('Original post text', { exact: true }).waitFor()
+    const filters = page.locator('.review-filters')
+    await filters.getByText('筛选条件', { exact: true }).waitFor()
+    assert.equal(await filters.getByRole('button', { name: '清空', exact: true }).isDisabled(), true)
+    await filters.locator('.el-select').click()
+    await Promise.all([
+      page.waitForResponse(response => response.url().includes('/api/benchmark-trackers/reviews?') && response.url().includes('status=failed')),
+      page.getByRole('option', { name: '发布失败', exact: true }).click(),
+    ])
+    await filters.getByRole('button', { name: '清空', exact: true }).click()
+    await filters.getByRole('button', { name: '查询', exact: true }).click()
+    assert.ok(listQueries.some(query => query.includes('status=failed')))
+    assert.ok(!listQueries.at(-1).includes('status='))
+    mkdirSync('logs', { recursive: true })
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 900 })
+      await filters.getByRole('button', { name: '查询', exact: true }).hover()
+      const filterBounds = await filters.boundingBox()
+      const selectBounds = await filters.locator('.el-select').boundingBox()
+      assert.ok(selectBounds.x >= filterBounds.x && selectBounds.x + selectBounds.width <= filterBounds.x + filterBounds.width)
+      await page.screenshot({ path: `logs/post-review-filters-${width}.png` })
+    }
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.locator('.el-table__body-wrapper button').first().click()
     await page.getByRole('dialog').waitFor()
     await page.waitForTimeout(350)

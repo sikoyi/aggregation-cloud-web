@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Eye, ExternalLink, RefreshCw, SkipForward, Trash2 } from 'lucide-vue-next'
+import { Check, Eye, ExternalLink, RefreshCw, RotateCcw, Search, SkipForward, Trash2 } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
@@ -66,6 +66,14 @@ async function load() {
     if (id === request) { rows.value = result.items; total.value = result.total }
   } catch (error) { if (id === request) notifyError(error, '加载对标审核失败') }
   finally { if (id === request) loading.value = false }
+}
+function searchRows() {
+  page.value = 1
+  void load()
+}
+function resetFilters() {
+  status.value = ''
+  searchRows()
 }
 async function open(row: Record<string, unknown>) {
   try {
@@ -173,12 +181,21 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 
 <template>
   <section class="benchmark-reviews">
-    <div class="review-toolbar">
-      <span>工单状态</span>
-      <el-select v-model="status" clearable placeholder="全部" @change="page = 1; load()">
-        <el-option v-for="value in ['pending_review', 'succeeded', 'failed', 'ignored']" :key="value" :label="labels[value]" :value="value" />
-      </el-select>
-      <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle :loading="loading" @click="load" /></el-tooltip>
+    <div class="review-filters">
+      <div class="filter-title"><Search :size="14" /><span>筛选条件</span></div>
+      <el-form inline label-position="right" label-suffix=":" class="compact-filter-form" @submit.prevent="searchRows">
+        <div class="filter-grid">
+          <el-form-item label="工单状态">
+            <el-select v-model="status" clearable placeholder="全部" @change="searchRows">
+              <el-option v-for="value in ['pending_review', 'succeeded', 'failed', 'ignored']" :key="value" :label="labels[value]" :value="value" />
+            </el-select>
+          </el-form-item>
+        </div>
+        <div class="filter-actions">
+          <el-button :icon="RotateCcw" :disabled="!status" @click="resetFilters">清空</el-button>
+          <el-button type="primary" :icon="Search" :loading="loading" @click="searchRows">查询</el-button>
+        </div>
+      </el-form>
     </div>
     <div v-if="canManageReviews" class="review-batch-bar">
       <span>已选择 <strong>{{ selectedRows.length }}</strong> 条工单</span>
@@ -217,9 +234,14 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 </template>
 
 <style scoped>
-.benchmark-reviews { padding: 16px; min-width: 0; }
-.review-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.review-toolbar .el-select { width: 180px; }
+.benchmark-reviews { padding: 14px 16px 16px; min-width: 0; background: var(--app-surface-muted, #f8fafc); }
+.review-filters { margin-bottom: 12px; padding: 12px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); }
+.filter-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 13px; font-weight: 700; }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; }
+.filter-grid :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; }
+.filter-grid :deep(.el-form-item__label) { min-width: 72px; justify-content: flex-end; color: var(--app-text, #52606d); font-size: 12px; font-weight: 600; text-align: right; }
+.filter-grid :deep(.el-select) { width: 100%; }
+.filter-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .review-batch-bar,
 .review-batch-actions { display: flex; align-items: center; }
 .review-batch-bar { min-height: 54px; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid var(--app-border, #e5ebf1); border-bottom: 0; background: var(--app-surface-muted, #f8fafc); }
@@ -236,6 +258,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .review-media { display: flex; flex-wrap: wrap; gap: 8px; }
 .review-media .el-image { width: 140px; height: 120px; border: 1px solid var(--el-border-color); border-radius: 4px; }
 @media (max-width: 768px) {
+  .filter-grid { grid-template-columns: 1fr; }
   .review-batch-actions { width: 100%; justify-content: flex-start; }
 }
 </style>

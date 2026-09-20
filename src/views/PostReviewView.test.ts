@@ -6,6 +6,20 @@ import shell from '@/layouts/AppShell.vue?raw'
 import reviews from '@/components/BenchmarkPostReviews.vue?raw'
 
 describe('运营中心独立帖子审核', () => {
+  it('筛选区与回复审核统一，并保留状态筛选与清空查询', () => {
+    for (const markup of ['筛选条件', 'class="compact-filter-form"', 'class="filter-grid"', 'class="filter-actions"', 'label-position="right"', 'label-suffix=":"']) {
+      expect(reviews).toContain(markup)
+      expect(reply).toContain(markup)
+    }
+    expect(reviews).toContain('label="工单状态"')
+    expect(reviews).toContain('@change="searchRows"')
+    expect(reviews).toContain('@click="resetFilters"')
+    expect(reviews).toContain('@click="searchRows"')
+    expect(reviews).toContain("status.value = ''\n  searchRows()")
+    expect(reviews).toContain('page.value = 1\n  void load()')
+    expect(reviews).not.toContain('review-toolbar')
+  })
+
   it('提供独立懒加载路由，并沿用运营查看权限', () => {
     expect(routes).toContain("const PostReviewView = () => import('@/views/PostReviewView.vue')")
     expect(routes).toContain("{ path: 'post-reviews', component: PostReviewView, meta: { permission: 'operations.view' } }")
