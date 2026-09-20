@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Check, Eye, ExternalLink, RefreshCw, RotateCcw, Search, SkipForward, Trash2 } from 'lucide-vue-next'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import {
@@ -11,6 +11,11 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import RemoteSelect from '@/components/RemoteSelect.vue'
+import { usePersistentFilters } from '@/composables/usePersistentFilters'
+import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
+import { buildPostReviewQuery, createDefaultPostReviewFilters } from '@/config/postReviewFilters'
+import type { RemoteSelectConfig } from '@/types/crud'
 
 interface Review {
   id: string
@@ -29,7 +34,18 @@ interface Review {
 }
 const auth = useAuthStore()
 const rows = ref<Review[]>([])
-const status = ref('')
+const { filters, resetFilters: resetCachedFilters } = usePersistentFilters('list:post-reviews:v1', createDefaultPostReviewFilters())
+const status = toRef(filters, 'status')
+const platformOptions = useScopedBusinessPlatformOptions()
+const hasFilters = computed(() => Object.values(filters).some(value => Array.isArray(value) ? value.length > 0 : Boolean(value)))
+const accountSelectConfig = computed<RemoteSelectConfig>(() => ({
+  endpoint: '/api/accounts', labelKeys: ['login_username', 'username', 'display_name', 'platform_account_id'], valueKey: 'id',
+  detailPath: value => `/api/accounts/${encodeURIComponent(value)}`, searchParam: 'keyword', pageSize: 50,
+  params: { business_platform: filters.businessPlatform || undefined, tag_id: filters.accountTagId || undefined },
+}))
+const accountTagSelectConfig: RemoteSelectConfig = { endpoint: '/api/account-tags', labelKey: 'name', valueKey: 'id',
+  detailPath: value => `/api/account-tags/${encodeURIComponent(value)}`, searchParam: 'keyword', pageSize: 50 }
+watch(() => [filters.businessPlatform, filters.accountTagId], () => { filters.accountId = '' })
 const page = ref(1)
 const total = ref(0)
 const loading = ref(false)
@@ -64,16 +80,18 @@ async function load() {
   const id = ++request
   loading.value = true
   try {
-    const result = await http.get<{ items: Review[]; total: number }>('/api/benchmark-trackers/reviews', { status: status.value || undefined, page: page.value, page_size: 20 })
+    const result = await http.get<{ items: Review[]; total: number }>('/api/benchmark-trackers/reviews', buildPostReviewQuery(filters, page.value))
     if (id === request) { rows.value = result.items; total.value = result.total }
   } catch (error) { if (id === request) notifyError(error, '加载对标审核失败') }
   finally { if (id === request) loading.value = false }
 }
 function searchRows() {
+  clearBatchSelection()
   page.value = 1
   void load()
 }
 function resetFilters() {
+  resetCachedFilters()
   status.value = ''
   searchRows()
 }
@@ -209,14 +227,19 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
       <div class="filter-title"><Search :size="14" /><span>筛选条件</span></div>
       <el-form inline label-position="right" label-suffix=":" class="compact-filter-form" @submit.prevent="searchRows">
         <div class="filter-grid">
+          <el-form-item label="业务平台"><el-select v-model="filters.businessPlatform" clearable placeholder="全部"><el-option v-for="item in platformOptions" :key="String(item.value)" :label="item.label" :value="String(item.value)" /></el-select></el-form-item>
+          <el-form-item label="发布账号"><RemoteSelect v-model="filters.accountId" :config="accountSelectConfig" compact placeholder="全部" /></el-form-item>
+          <el-form-item label="账号标签"><RemoteSelect v-model="filters.accountTagId" :config="accountTagSelectConfig" compact placeholder="全部" /></el-form-item>
           <el-form-item label="工单状态">
             <el-select v-model="status" clearable placeholder="全部" @change="searchRows">
-              <el-option v-for="value in ['pending_review', 'succeeded', 'failed', 'ignored']" :key="value" :label="labels[value]" :value="value" />
+              <el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" />
             </el-select>
           </el-form-item>
+          <el-form-item label="发现时间" class="filter-grid__item--wide"><el-date-picker v-model="filters.createdRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" /></el-form-item>
+          <el-form-item label="关键词"><el-input v-model="filters.keyword" clearable maxlength="200" placeholder="对标账号 / 原帖 / 发布文案" @keyup.enter="searchRows" /></el-form-item>
         </div>
         <div class="filter-actions">
-          <el-button :icon="RotateCcw" :disabled="!status" @click="resetFilters">清空</el-button>
+          <el-button :icon="RotateCcw" :disabled="!hasFilters" @click="resetFilters">清空</el-button>
           <el-button type="primary" :icon="Search" :loading="loading" @click="searchRows">查询</el-button>
         </div>
       </el-form>
@@ -270,7 +293,9 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; }
 .filter-grid :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; }
 .filter-grid :deep(.el-form-item__label) { min-width: 72px; justify-content: flex-end; color: var(--app-text, #52606d); font-size: 12px; font-weight: 600; text-align: right; }
-.filter-grid :deep(.el-select) { width: 100%; }
+.filter-grid :deep(.el-select), .filter-grid :deep(.el-input), .filter-grid :deep(.el-date-editor) { width: 100%; min-width: 0; }
+.filter-grid__item--wide { grid-column: span 2; }
+.filter-grid :deep(.el-form-item__content) { min-width: 0; }
 .filter-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .review-batch-bar,
 .review-batch-actions { display: flex; align-items: center; }
@@ -289,6 +314,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .review-media .el-image { width: 140px; height: 120px; border: 1px solid var(--el-border-color); border-radius: 4px; }
 @media (max-width: 768px) {
   .filter-grid { grid-template-columns: 1fr; }
+  .filter-grid__item--wide { grid-column: span 1; }
   .review-batch-actions { width: 100%; justify-content: flex-start; }
 }
 </style>

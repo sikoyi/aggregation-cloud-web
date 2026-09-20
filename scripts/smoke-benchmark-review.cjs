@@ -19,6 +19,10 @@ async function main() {
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname
       if (!path.startsWith('/api/')) return route.continue()
+      if (path === '/api/accounts' || path === '/api/account-tags') {
+        const option = path === '/api/accounts' ? { id: 'account-1', username: 'Target filter account' } : { id: 'tag-1', name: 'Filter tag' }
+        return route.fulfill({ json: { code: 0, msg: 'ok', data: { items: [option], total: 1 } } })
+      }
       if (path.endsWith('/reviews')) listQueries.push(new URL(route.request().url()).searchParams.toString())
       if (route.request().method() === 'POST') {
         writes.push({ path, body: route.request().postDataJSON() })
@@ -52,7 +56,7 @@ async function main() {
     const filters = page.locator('.review-filters')
     await filters.getByText('筛选条件', { exact: true }).waitFor()
     assert.equal(await filters.getByRole('button', { name: '清空', exact: true }).isDisabled(), true)
-    await filters.locator('.el-select').click()
+    await filters.locator('.el-form-item').filter({ hasText: '工单状态' }).locator('.el-select').click()
     await Promise.all([
       page.waitForResponse(response => response.url().includes('/api/benchmark-trackers/reviews?') && response.url().includes('status=failed')),
       page.getByRole('option', { name: '发布失败', exact: true }).click(),
@@ -61,12 +65,28 @@ async function main() {
     await filters.getByRole('button', { name: '查询', exact: true }).click()
     assert.ok(listQueries.some(query => query.includes('status=failed')))
     assert.ok(!listQueries.at(-1).includes('status='))
+    await filters.locator('.el-form-item').filter({ hasText: '业务平台' }).locator('.el-select').click()
+    await page.getByRole('option', { name: 'X(Twitter)', exact: true }).click()
+    await filters.locator('.el-form-item').filter({ hasText: '账号标签' }).locator('.el-select').click()
+    await page.getByRole('option', { name: 'Filter tag', exact: true }).click()
+    await filters.locator('.el-form-item').filter({ hasText: '发布账号' }).locator('.el-select').click()
+    await page.getByRole('option', { name: 'Target filter account', exact: true }).click()
+    await filters.getByPlaceholder('对标账号 / 原帖 / 发布文案').fill(' needle ')
+    const combinedResponse = page.waitForResponse(response => response.url().includes('keyword=needle'))
+    await filters.getByRole('button', { name: '查询', exact: true }).click()
+    await combinedResponse
+    const combined = new URLSearchParams(listQueries.at(-1))
+    assert.equal(combined.get('business_platform'), 'x')
+    assert.equal(combined.get('account_id'), 'account-1')
+    assert.equal(combined.get('account_tag_id'), 'tag-1')
+    await filters.getByRole('button', { name: '清空', exact: true }).click()
+    await page.waitForFunction(() => document.querySelector('.review-filters input[placeholder="对标账号 / 原帖 / 发布文案"]')?.value === '')
     mkdirSync('logs', { recursive: true })
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
       await filters.getByRole('button', { name: '查询', exact: true }).hover()
       const filterBounds = await filters.boundingBox()
-      const selectBounds = await filters.locator('.el-select').boundingBox()
+      const selectBounds = await filters.locator('.el-select').first().boundingBox()
       assert.ok(selectBounds.x >= filterBounds.x && selectBounds.x + selectBounds.width <= filterBounds.x + filterBounds.width)
       await page.screenshot({ path: `logs/post-review-filters-${width}.png` })
     }
