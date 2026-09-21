@@ -11,10 +11,11 @@ function setup() {
     form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true },
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
+    metricSort: { value: null as { prop: string; order: string } | null },
     loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: {}, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
-    batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn() } },
+    batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), clearSort: vi.fn() } },
     summary: { value: null as unknown }, groups: { value: [] },
     http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockResolvedValue({ items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
@@ -30,6 +31,16 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it.each(['followers_count', 'following_count', 'posts_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
+    const s = setup()
+    s.metricSort.value = { prop, order: 'asc' }
+    Object.assign(s.appliedFilters, { platform: 'x', status: 'active', group_id: 'group' })
+    await s.load()
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { platform: 'x', status: 'active', group_id: 'group', sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
+    s.reset()
+    expect(s.metricSort.value).toBeNull()
+    expect(s.table.value.clearSort).toHaveBeenCalled()
+  })
   it('后台刷新不显示遮罩、不清除选择、未变化的行保持引用', async () => {
     const s = setup()
     s.formVisible.value = false
@@ -112,7 +123,7 @@ describe('外部账号只读监听', () => {
     s.reset()
     expect(s.filters).toMatchObject({ sort_order: 'desc' })
     expect(s.appliedFilters).toMatchObject({ sort_order: 'desc' })
-    expect(source).toContain('v-model="filters.sort_order" @change="search"')
+    expect(source).toContain('v-model="filters.sort_order" @change="sortByCreated"')
   })
   it('详情翻页使用对应页码，较早的响应不能覆盖新页', async () => {
     const s = setup()
