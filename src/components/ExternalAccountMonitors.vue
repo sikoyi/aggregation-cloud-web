@@ -51,6 +51,7 @@ const summaryCards = [
 const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
+const refreshing = ref(false)
 const error = ref('')
 const filters = reactive({ platform: '', status: '', keyword: '', sort_order: 'desc', group_id: '' })
 const appliedFilters = reactive({ ...filters })
@@ -76,24 +77,43 @@ function safeUrl(value: unknown) {
 }
 function number(value: unknown) { return value == null ? '--' : Number(value).toLocaleString() }
 function platformLabel(value: string) { return value === 'x' ? 'X(Twitter)' : 'Threads' }
-async function load() {
-  if (batchBusy.value) return
+function backgroundRefreshBlocked() {
+  return disposed || document.hidden || loading.value || saving.value || !!busy.value || !!deleting.value
+    || batchBusy.value || selected.value.length > 0 || formVisible.value || detailVisible.value
+}
+async function load(background = false) {
+  if (batchBusy.value || (background && (refreshing.value || backgroundRefreshBlocked()))) return
   const id = ++sequence
-  selected.value = []
-  table.value?.clearSelection()
-  loading.value = true
-  error.value = ''
+  if (background) refreshing.value = true
+  else {
+    selected.value = []
+    table.value?.clearSelection()
+    loading.value = true
+    error.value = ''
+  }
   try {
     const [result, counts] = await Promise.all([
       http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, page: page.value, page_size: pageSize.value }),
       http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, keyword: appliedFilters.keyword, group_id: appliedFilters.group_id }),
     ])
     if (disposed || id !== sequence) return
-    rows.value = result.items
+    if (background && backgroundRefreshBlocked()) return
+    if (background) {
+      const previous = new Map(rows.value.map(row => [row.id, row]))
+      const next = result.items.map(row => {
+        const old = previous.get(row.id)
+        return old && JSON.stringify(old) === JSON.stringify(row) ? old : row
+      })
+      if (next.length !== rows.value.length || next.some((row, index) => row !== rows.value[index])) rows.value = next
+    } else rows.value = result.items
     total.value = result.total
-    summary.value = counts
-  } catch (e) { if (!disposed && id === sequence) error.value = message(e) }
-  finally { if (id === sequence) loading.value = false }
+    if (JSON.stringify(summary.value) !== JSON.stringify(counts)) summary.value = counts
+    error.value = ''
+  } catch (e) { if (!background && !disposed && id === sequence) error.value = message(e) }
+  finally {
+    if (background) refreshing.value = false
+    else if (id === sequence) loading.value = false
+  }
 }
 function search() { Object.assign(appliedFilters, filters); if (page.value === 1) void load(); else page.value = 1 }
 function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc', group_id: '' }); search() }
@@ -194,7 +214,7 @@ function openDetail(row: ExternalMonitor) {
 }
 watch([page, pageSize], () => { void load() })
 watch(detailVisible, (visible) => { if (!visible) ++detailSequence })
-onMounted(() => { void load(); void loadGroups(); timer = setInterval(() => { if (!document.hidden && !loading.value && !saving.value && !busy.value && !deleting.value && !batchBusy.value && !selected.value.length) void load() }, 30000) })
+onMounted(() => { void load(); void loadGroups(); timer = setInterval(() => { void load(true) }, 30000) })
 onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInterval(timer) })
 </script>
 
@@ -204,7 +224,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <h2><Activity :size="20" />外部账号监听</h2>
       <div class="external-monitors__actions">
         <ExternalMonitorGroups v-if="canEdit" :groups="groups" @changed="groupsChanged" />
-        <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" :disabled="batchBusy" @click="load" /></el-tooltip>
+        <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" :disabled="batchBusy" @click="load()" /></el-tooltip>
         <el-button v-if="canEdit" type="primary" :icon="Plus" :disabled="!platforms.length" @click="openForm()">添加外部账号</el-button>
       </div>
     </header>

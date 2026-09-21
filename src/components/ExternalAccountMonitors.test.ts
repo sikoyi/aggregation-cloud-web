@@ -9,7 +9,8 @@ function setup() {
   const state = {
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
     form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true },
-    formVisible: { value: true }, rows: { value: [] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
+    formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
+    refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: {}, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
@@ -22,13 +23,71 @@ function setup() {
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
   const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadDetail, search, reset};`)(...Object.values(state)) as {
     search: () => void; reset: () => void
-    save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: () => Promise<void>
+    save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: (background?: boolean) => Promise<void>
     remove: (row: Record<string, unknown>) => Promise<void>; loadDetail: () => Promise<void>
   }
   return { ...state, ...actions }
 }
 
 describe('外部账号只读监听', () => {
+  it('后台刷新不显示遮罩、不清除选择、未变化的行保持引用', async () => {
+    const s = setup()
+    s.formVisible.value = false
+    s.rows.value = [{ id: 'one', version: 1 }]
+    const previous = s.rows.value
+    s.http.get.mockResolvedValueOnce({ items: [{ id: 'one', version: 1 }], total: 1 } as never)
+    const pending = s.load(true)
+    expect(s.loading.value).toBe(false)
+    expect(s.refreshing.value).toBe(true)
+    await pending
+    expect(s.table.value.clearSelection).not.toHaveBeenCalled()
+    expect(s.rows.value).toBe(previous)
+    expect(s.refreshing.value).toBe(false)
+  })
+  it('后台请求不重叠，响应期间开始勾选时不覆盖列表', async () => {
+    const s = setup()
+    s.formVisible.value = false
+    let resolve!: (value: unknown) => void
+    s.http.get.mockReturnValueOnce(new Promise(done => { resolve = done }))
+    const pending = s.load(true)
+    await s.load(true)
+    expect(s.http.get).toHaveBeenCalledTimes(2)
+    s.selected.value = [{ id: 'one' }]
+    resolve({ items: [{ id: 'two' }], total: 1 })
+    await pending
+    expect(s.rows.value).toEqual([])
+    expect(s.selected.value).toEqual([{ id: 'one' }])
+  })
+  it.each(['formVisible', 'detailVisible', 'loading', 'saving', 'batchBusy'] as const)('操作中不自动刷新：%s', async key => {
+    const s = setup()
+    s.formVisible.value = false
+    s[key].value = true
+    await s.load(true)
+    expect(s.http.get).not.toHaveBeenCalled()
+  })
+  it('旧后台响应不能覆盖手动刷新结果', async () => {
+    const s = setup()
+    s.formVisible.value = false
+    let resolve!: (value: unknown) => void
+    s.http.get.mockReturnValueOnce(new Promise(done => { resolve = done }))
+    const pending = s.load(true)
+    s.http.get.mockResolvedValueOnce({ items: [{ id: 'new' }], total: 1 } as never)
+    await s.load()
+    resolve({ items: [{ id: 'old' }], total: 1 })
+    await pending
+    expect(s.rows.value).toEqual([{ id: 'new' }])
+    expect(s.loading.value).toBe(false)
+  })
+  it('后台失败保留现有数据且不弹出遮罩或错误横幅', async () => {
+    const s = setup()
+    s.formVisible.value = false
+    s.rows.value = [{ id: 'one' }]
+    s.http.get.mockRejectedValueOnce(new Error('offline'))
+    await s.load(true)
+    expect(s.rows.value).toEqual([{ id: 'one' }])
+    expect(s.error.value).toBe('')
+    expect(s.refreshing.value).toBe(false)
+  })
   it('统计不受状态和分页限制，刷新清除旧选择', async () => {
     const s = setup()
     Object.assign(s.appliedFilters, { platform: 'x', group_id: 'group', status: 'paused', keyword: 'source' })
