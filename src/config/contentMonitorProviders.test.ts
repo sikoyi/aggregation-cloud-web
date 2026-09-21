@@ -24,8 +24,8 @@ describe('content monitor providers', () => {
 
   it('keeps platform-specific protocol boundaries', () => {
     expect(providerOptionsForPlatform('threads')).toEqual([
-      { label: 'Apify', value: 'apify' },
       { label: 'Threads 内部协议', value: 'threads_protocol' },
+      { label: 'Apify', value: 'apify' },
     ])
     expect(providerOptionsForPlatform('instagram')).toEqual([
       { label: 'Apify', value: 'apify' },

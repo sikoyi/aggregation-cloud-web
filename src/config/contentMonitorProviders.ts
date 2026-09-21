@@ -11,8 +11,8 @@ const APIFY_OPTION: MonitorProviderOption = { label: 'Apify', value: 'apify' }
 export function providerOptionsForPlatform(platform: MonitorBusinessPlatform): MonitorProviderOption[] {
   if (platform === 'threads') {
     return [
-      APIFY_OPTION,
       { label: 'Threads 内部协议', value: 'threads_protocol' },
+      APIFY_OPTION,
     ]
   }
   if (platform === 'x') {
