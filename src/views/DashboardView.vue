@@ -316,7 +316,6 @@ onBeforeUnmount(() => {
 
     <el-alert v-if="error" class="dashboard-alert" type="error" :title="error" :closable="false" show-icon />
 
-    <DashboardServiceStatus v-if="authStore.isSuperAdmin" />
 
     <section class="quick-entry-section" aria-labelledby="quick-entry-title">
       <div class="quick-entry-heading">
@@ -432,6 +431,8 @@ onBeforeUnmount(() => {
         <div class="metric-card__hint">{{ item.hint }}</div>
       </el-card>
     </div>
+
+    <DashboardServiceStatus v-if="authStore.isSuperAdmin" />
 
     <div class="dashboard-grid">
       <el-card shadow="never" class="table-card">
