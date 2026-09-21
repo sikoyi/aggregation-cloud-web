@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock3,
   FileCode2,
+  FileCheck2,
   FileText,
   Image,
   MessageSquareReply,
@@ -75,6 +76,21 @@ let realtimeRefreshTimer: number | undefined
 
 // 系统入口负责提供稳定路由，运营只在当前浏览器调整显示和顺序。
 const defaultQuickEntries = [
+  {
+    id: 'approve-content', label: '审批内容', section: '回复审核 · 待审核',
+    to: { path: '/comment-replies', query: { status: 'pending_review' } },
+    icon: MessageSquareReply, tone: 'blue', permission: 'operations.review',
+  },
+  {
+    id: 'approve-posts', label: '审批帖子', section: '帖子审核 · 待审核',
+    to: { path: '/post-reviews', query: { status: 'pending_review' } },
+    icon: FileCheck2, tone: 'green', permission: 'operations.review',
+  },
+  {
+    id: 'create-warmup', label: '新建养号计划', section: '账号养号',
+    to: { path: '/account-warmup', query: { action: 'create' } },
+    icon: Activity, tone: 'cyan', permission: 'account_warmup.create',
+  },
   {
     id: 'slots',
     label: '设备管理',

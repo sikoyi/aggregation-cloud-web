@@ -11,7 +11,8 @@ import {
   Trash2,
 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import {
   approveCommentReply,
@@ -45,6 +46,7 @@ import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 
 const auth = useAuthStore()
+const route = useRoute()
 const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const statusOptions = [
   { label: '生成中', value: 'generating', type: 'primary' },
@@ -341,7 +343,19 @@ function handleRealtimeEvent(event: Event) {
   refreshTimer = window.setTimeout(loadRows, 350)
 }
 
+function applyReviewShortcut() {
+  if (route.query.status !== 'pending_review') return false
+  Object.assign(filters, createDefaultCommentReplyFilters(), { status: 'pending_review' })
+  page.value = 1
+  return true
+}
+
+watch(() => route.query.status, () => {
+  if (applyReviewShortcut()) void loadRows()
+})
+
 onMounted(() => {
+  applyReviewShortcut()
   void loadRows()
   window.addEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
 })

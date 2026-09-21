@@ -14,6 +14,7 @@ import {
 } from 'lucide-vue-next'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   batchOperateWarmupPlans,
@@ -579,6 +580,17 @@ watch(
 watch(detailTab, (value) => {
   if (value === 'daily') void loadDailyRuns()
 })
+
+const route = useRoute()
+const router = useRouter()
+watch(() => route.query.action, async (action) => {
+  if (action !== 'create') return
+  await nextTick()
+  if (auth.can('account_warmup.create')) openCreate()
+  const query = { ...route.query }
+  delete query.action
+  await router.replace({ path: route.path, query })
+}, { immediate: true, flush: 'post' })
 
 onMounted(() => {
   void Promise.all([loadRows(), loadOptions()])

@@ -2,6 +2,7 @@
 import { Check, Eye, ExternalLink, RefreshCw, RotateCcw, Search, SkipForward, Trash2 } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { http } from '@/api/http'
 import {
   batchApproveBenchmarkPostReviews,
@@ -33,6 +34,7 @@ interface Review {
   snapshot: { content_url?: string; text_content?: string; media_urls?: string[] }
 }
 const auth = useAuthStore()
+const route = useRoute()
 const rows = ref<Review[]>([])
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters('list:post-reviews:v1', createDefaultPostReviewFilters())
 const status = toRef(filters, 'status')
@@ -217,7 +219,14 @@ async function retry(row: { id?: unknown }) {
   } catch (error) { notifyError(error, '重试失败', '帖子暂时无法重新发布') }
   finally { retryingId.value = '' }
 }
-onMounted(() => { void load(); timer = setInterval(() => { if (!loading.value && !visible.value) void load() }, 10000) })
+function applyReviewShortcut() {
+  if (route.query.status !== 'pending_review') return false
+  Object.assign(filters, createDefaultPostReviewFilters(), { status: 'pending_review' })
+  page.value = 1
+  return true
+}
+watch(() => route.query.status, () => { if (applyReviewShortcut()) void load() })
+onMounted(() => { applyReviewShortcut(); void load(); timer = setInterval(() => { if (!loading.value && !visible.value) void load() }, 10000) })
 onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 </script>
 
