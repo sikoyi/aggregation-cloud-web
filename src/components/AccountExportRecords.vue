@@ -31,6 +31,13 @@ const loading = ref(false)
 const error = ref('')
 const selected = ref<ExportRecord | null>(null)
 const previewRows = ref<SnapshotRow[]>([])
+const platformColumns = computed(() => [...new Set(previewRows.value.flatMap(row => Object.keys(row)
+  .filter(key => key.endsWith('_account'))))].sort().map(key => ({
+  account: key, profile: key.replace(/_account$/, '_profile_url'),
+  label: businessPlatformLabel(key.replace(/_account$/, '')),
+})))
+const hasEmail = computed(() => previewRows.value.some(row => row.business_platform?.split(',').includes('shopify')))
+const platformLabels = (value: string) => value.split(',').map(businessPlatformLabel).join('、')
 const previewTotal = ref(0)
 const previewPage = ref(1)
 const previewLoading = ref(false)
@@ -178,14 +185,18 @@ defineExpose({ loadRows })
         <el-table-column prop="account" label="账号" min-width="220" show-overflow-tooltip />
         <el-table-column label="账号平台" width="120" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.business_platform" size="small" effect="plain">{{ businessPlatformLabel(row.business_platform) }}</el-tag>
+            <span v-if="row.business_platform">{{ platformLabels(row.business_platform) }}</span>
             <span v-else>未记录</span>
           </template>
         </el-table-column>
         <el-table-column prop="password" label="密码" min-width="180" show-overflow-tooltip />
         <el-table-column prop="twofa" label="2FA" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="profile_url" label="主页链接" min-width="230" show-overflow-tooltip />
-        <template v-if="selected?.filename.endsWith('.xlsx')">
+        <el-table-column v-if="previewRows.some(row => 'profile_url' in row)" prop="profile_url" label="主页链接" min-width="230" show-overflow-tooltip />
+        <template v-for="column in platformColumns" :key="column.account">
+          <el-table-column :prop="column.account" :label="`${column.label} 账号`" min-width="200" show-overflow-tooltip />
+          <el-table-column :prop="column.profile" :label="`${column.label} 主页`" min-width="230" show-overflow-tooltip />
+        </template>
+        <template v-if="hasEmail">
           <el-table-column prop="email_address" label="邮箱地址" min-width="220" show-overflow-tooltip />
           <el-table-column prop="email_password" label="邮箱密码" min-width="180" show-overflow-tooltip />
           <el-table-column prop="refresh_token" label="邮箱 refresh_token" min-width="260" show-overflow-tooltip />

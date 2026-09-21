@@ -44,8 +44,8 @@ async function preflight() { detailPage.value = 1; await check() }
       <el-alert v-else-if="downloaded" title="导出文件已下载；30 天内可从导出记录再次下载原文件。" type="success" :closable="false" />
       <template v-else-if="!outcomeUnknown">
         <el-form label-position="top" @submit.prevent="preflight">
-          <el-form-item label="本次文件包含的平台">
-            <el-select v-model="platforms" multiple aria-label="本次文件包含的平台" :disabled="busy || !allowed" placeholder="请选择业务平台">
+          <el-form-item label="所选账号的平台">
+            <el-select v-model="platforms" multiple aria-label="所选账号的平台" :disabled="busy || !allowed" placeholder="请选择业务平台">
               <el-option v-for="option in options" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
           </el-form-item>
@@ -90,7 +90,7 @@ async function preflight() { detailPage.value = 1; await check() }
           </div>
           <el-pagination v-if="result.selected_count > 20" v-model:current-page="detailPage" :page-size="20" :total="result.selected_count" layout="total, prev, pager, next" />
           <div class="export-preflight__confirm">
-            <el-checkbox v-model="acknowledgeLock" :disabled="busy || !allowed || !result.can_submit">确认导出将锁定整个登录身份及全部关联平台，不能重复导出或再次上号；正式提交会重新检查。</el-checkbox>
+            <el-checkbox v-model="acknowledgeLock" :disabled="busy || !allowed || !result.can_submit">确认 Instagram / Threads 按完整登录身份导出，包含全部关联平台；导出将锁定整个身份，不能重复导出或再次上号。</el-checkbox>
             <el-checkbox v-if="result.email_check === 'unverified'" v-model="acknowledgeEmail" :disabled="busy || !allowed || !result.can_submit">已知邮箱尚未验证，正式提交仍可能因邮箱资料或验证记录缺失而失败。</el-checkbox>
           </div>
         </template>
