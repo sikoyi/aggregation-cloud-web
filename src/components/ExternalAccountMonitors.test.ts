@@ -31,7 +31,7 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
-  it.each(['followers_count', 'following_count', 'posts_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
+  it.each(['followers_count', 'total_post_views_count', 'total_likes_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
     const s = setup()
     s.metricSort.value = { prop, order: 'asc' }
     Object.assign(s.appliedFilters, { platform: 'x', status: 'active', group_id: 'group' })
