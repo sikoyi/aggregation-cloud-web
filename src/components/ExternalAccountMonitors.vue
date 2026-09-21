@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { Activity, Clock3, Eye, Layers3, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, TriangleAlert, UserRound, Users } from 'lucide-vue-next'
+import { Activity, ArrowDown, ArrowUp, Minus, Clock3, Eye, Layers3, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, TriangleAlert, UserRound, Users } from 'lucide-vue-next'
 import ExternalMonitorGroups from '@/components/ExternalMonitorGroups.vue'
 import ExternalMonitorBatchBar from '@/components/ExternalMonitorBatchBar.vue'
 import ExternalAccountDetail from '@/components/ExternalAccountDetail.vue'
@@ -25,6 +25,7 @@ interface ExternalMonitor {
   activity_status?: string
   collection_progress?: ExternalCollectionProgress
   version: number
+  day_deltas?: Record<string, number | null>
   group_id?: string | null
   profile: { display_name?: string; username?: string; avatar_url?: string; biography?: string; followers_count?: number; following_count?: number; posts_count?: number }
 }
@@ -78,6 +79,12 @@ function safeUrl(value: unknown) {
 }
 function number(value: unknown) { return value == null ? '--' : Number(value).toLocaleString() }
 function platformLabel(value: string) { return value === 'x' ? 'X(Twitter)' : 'Threads' }
+function metricDelta(value: number | null | undefined, key: string) {
+  if (value == null) return { icon: Minus, label: '暂无前日数据', tone: 'flat' }
+  if (key === 'total_post_views_count' && value < 0) return { icon: TriangleAlert, label: '数据待核对', tone: 'flat' }
+  if (!value) return { icon: Minus, label: '较前一日 持平', tone: 'flat' }
+  return { icon: value > 0 ? ArrowUp : ArrowDown, label: `较前一日 ${value > 0 ? '+' : ''}${value.toLocaleString()}`, tone: value > 0 ? 'up' : 'down' }
+}
 function backgroundRefreshBlocked() {
   return disposed || document.hidden || loading.value || saving.value || !!busy.value || !!deleting.value
     || batchBusy.value || selected.value.length > 0 || formVisible.value || detailVisible.value
@@ -260,7 +267,14 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
       <el-table-column label="账号分组" min-width="150" show-overflow-tooltip><template #default="{ row }"><el-tag :type="row.group_id ? 'primary' : 'info'" effect="plain"><span class="external-monitors__group"><Layers3 v-if="row.group_id" :size="13" />{{ groupName(row.group_id) }}</span></el-tag></template></el-table-column>
       <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="metric.key === 'total_post_views_count' ? 156 : 110" align="center" sortable="custom">
-        <template #default="{ row }"><strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong></template>
+        <template #default="{ row }">
+          <div class="external-metric-cell">
+            <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>
+            <span class="external-metric-delta" :class="'is-' + metricDelta(row.day_deltas?.[metric.key], metric.key).tone">
+              <component :is="metricDelta(row.day_deltas?.[metric.key], metric.key).icon" :size="12" />{{ metricDelta(row.day_deltas?.[metric.key], metric.key).label }}
+            </span>
+          </div>
+        </template>
       </el-table-column>
       <el-table-column label="监听状态 / 进度" width="180" align="center"><template #default="{ row }">
         <el-tag :type="(row.activity_status || row.status) === 'active' ? 'success' : (row.activity_status || row.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(row as ExternalMonitor) }}</el-tag>
@@ -302,6 +316,11 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 
 <style scoped>
 .external-metric { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }
+.external-metric-cell { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.external-metric-delta { display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 12px; line-height: 18px; color: var(--app-text-muted, #8291a1); overflow-wrap: anywhere; }
+.external-metric-delta svg { flex-shrink: 0; }
+.external-metric-delta.is-up { color: var(--app-green, #238457); }
+.external-metric-delta.is-down { color: var(--app-red, #cf4f4f); }
 .external-collection-progress { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--app-text-muted, #718096); overflow-wrap: anywhere; }
 .external-monitors { background: var(--app-surface, #fff); padding: 16px; border: 1px solid var(--app-border, #dce5ed); }
 .external-monitors__header, .external-monitors__actions, .external-monitors h2, .external-monitors__filters > strong { display: flex; align-items: center; gap: 10px; }
