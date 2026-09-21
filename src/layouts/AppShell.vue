@@ -460,17 +460,16 @@ watch(
         width="min(620px, 92vw)"
         destroy-on-close
       >
-        <div v-if="activeNotification" class="space-y-5">
+        <div v-if="activeNotification" class="release-notes">
           <div class="flex flex-wrap items-center gap-2">
             <el-tag effect="plain">{{ activeNotification.version }}</el-tag>
             <span class="text-sm text-slate-500">{{ formatNotificationTime(activeNotification.published_at) }}</span>
           </div>
           <div>
-            <div class="mb-3 text-sm font-semibold text-slate-800">本次更新</div>
-            <ul class="space-y-3">
-              <li v-for="(item, index) in activeNotification.items" :key="index" class="flex gap-3 rounded-md bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-600" />
-                <span>{{ item }}</span>
+            <h3 class="release-notes__title">本次更新</h3>
+            <ul class="release-notes__list">
+              <li v-for="(item, index) in activeNotification.items" :key="index">
+                {{ item }}
               </li>
             </ul>
           </div>
@@ -500,3 +499,12 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.release-notes { display: grid; gap: 16px; color: var(--el-text-color-primary); }
+.release-notes__title { margin: 0 0 10px; font-size: 16px; font-weight: 600; line-height: 24px; }
+.release-notes__list { margin: 0; padding-left: 20px; list-style: disc; max-height: 55vh; overflow-y: auto; }
+.release-notes__list li { padding-left: 2px; font-size: 14px; line-height: 24px; overflow-wrap: anywhere; }
+.release-notes__list li + li { margin-top: 4px; }
+.release-notes__list li::marker { color: var(--el-text-color-secondary); }
+</style>
