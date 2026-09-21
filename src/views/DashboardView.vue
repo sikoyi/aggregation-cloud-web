@@ -28,6 +28,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
+import DashboardServiceStatus from '@/components/DashboardServiceStatus.vue'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
@@ -298,6 +299,8 @@ onBeforeUnmount(() => {
     </div>
 
     <el-alert v-if="error" class="dashboard-alert" type="error" :title="error" :closable="false" show-icon />
+
+    <DashboardServiceStatus v-if="authStore.isSuperAdmin" />
 
     <section class="quick-entry-section" aria-labelledby="quick-entry-title">
       <div class="quick-entry-heading">
