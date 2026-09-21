@@ -270,8 +270,8 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <template #default="{ row }">
           <div class="external-metric-cell">
             <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>
-            <span class="external-metric-delta" :class="'is-' + metricDelta(row.day_deltas?.[metric.key], metric.key).tone">
-              <component :is="metricDelta(row.day_deltas?.[metric.key], metric.key).icon" :size="12" />{{ metricDelta(row.day_deltas?.[metric.key], metric.key).label }}
+            <span class="external-metric-delta" :class="'is-' + metricDelta(row.day_deltas?.[metric.key], metric.key).tone" :title="metricDelta(row.day_deltas?.[metric.key], metric.key).label">
+              <component :is="metricDelta(row.day_deltas?.[metric.key], metric.key).icon" :size="12" /><span>{{ metricDelta(row.day_deltas?.[metric.key], metric.key).label }}</span>
             </span>
           </div>
         </template>
@@ -317,7 +317,8 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 <style scoped>
 .external-metric { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }
 .external-metric-cell { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.external-metric-delta { display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 12px; line-height: 18px; color: var(--app-text-muted, #8291a1); overflow-wrap: anywhere; }
+.external-metric-delta { display: flex; align-items: center; justify-content: center; gap: 3px; max-width: 100%; min-width: 0; font-size: 12px; line-height: 18px; color: var(--app-text-muted, #8291a1); white-space: nowrap; }
+.external-metric-delta > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .external-metric-delta svg { flex-shrink: 0; }
 .external-metric-delta.is-up { color: var(--app-green, #238457); }
 .external-metric-delta.is-down { color: var(--app-red, #cf4f4f); }
