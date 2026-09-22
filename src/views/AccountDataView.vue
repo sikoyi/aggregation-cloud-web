@@ -1389,6 +1389,29 @@ onBeforeUnmount(() => {
                   </el-tag>
                   <el-tag v-if="scope.row.benchmark_tracker_id && scope.row.benchmark_enabled === false" size="small" type="info">对标已暂停</el-tag>
                   <el-tag v-else-if="scope.row.benchmark_state === 'abnormal'" size="small" type="danger">对标异常</el-tag>
+                  <el-tooltip
+                    v-if="scope.row.benchmark_profile_sync_status === 'failed'"
+                    placement="top"
+                    :show-after="200"
+                  >
+                    <template #content>
+                      <div class="account-overview__profile-sync-tooltip">
+                        <strong>账号资料同步失败</strong>
+                        <span>{{ scope.row.benchmark_profile_sync_error_message || '脚本执行失败，未返回具体原因' }}</span>
+                        <small>失败时间：{{ formatDate(scope.row.benchmark_profile_sync_finished_at) }}</small>
+                        <small v-if="scope.row.benchmark_profile_sync_task_run_id">任务 ID：{{ scope.row.benchmark_profile_sync_task_run_id }}</small>
+                      </div>
+                    </template>
+                    <el-tag size="small" type="danger" effect="dark">资料异常</el-tag>
+                  </el-tooltip>
+                  <el-tag
+                    v-else-if="['queued', 'running'].includes(scope.row.benchmark_profile_sync_status)"
+                    size="small"
+                    type="warning"
+                    effect="light"
+                  >
+                    资料同步中
+                  </el-tag>
                 </div>
               </template>
             </el-table-column>
@@ -1959,6 +1982,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .account-overview__post-sync { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.account-overview__profile-sync-tooltip {
+  display: grid;
+  max-width: 360px;
+  gap: 4px;
+  line-height: 1.5;
+}
+.account-overview__profile-sync-tooltip span { overflow-wrap: anywhere; }
+.account-overview__profile-sync-tooltip small { opacity: 0.78; }
 .account-data__workspace {
   --content-inset: 16px;
   border-color: var(--app-border, #d9e2ec);

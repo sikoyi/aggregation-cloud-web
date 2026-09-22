@@ -82,6 +82,16 @@ describe('账号数据聚合总览', () => {
       expect(source).toContain(`label: '${label}'`)
     }
   })
+  it('总览独立标识资料同步失败与处理中状态', () => {
+    const overview = source.split('<section v-if="viewMode === \'overview\'"')[1]?.split('</section>')[0] || ''
+    expect(overview).toContain("scope.row.benchmark_profile_sync_status === 'failed'")
+    expect(overview).toContain("['queued', 'running'].includes(scope.row.benchmark_profile_sync_status)")
+    expect(overview).toContain('资料异常')
+    expect(overview).toContain('资料同步中')
+    expect(overview).toContain('benchmark_profile_sync_error_message')
+    expect(overview).toContain('benchmark_profile_sync_finished_at')
+    expect(overview).toContain('benchmark_profile_sync_task_run_id')
+  })
   it('账号身份放大并保留长文本边界', () => {
     expect(source).toContain('font-size: 16px; line-height: 1.5;')
     expect(source).toContain('.account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; line-height: 1.5; }')
