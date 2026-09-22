@@ -117,13 +117,16 @@ export async function getAllPages<T>(
   if (pageCount <= 1) return firstPage.items
 
   // 选择器必须拿到完整候选集，后续页并行请求可避免设备较多时逐页等待。
-  const remainingPages = await Promise.all(
-    Array.from({ length: pageCount - 1 }, (_, index) =>
-      request<PageResult<T>>('GET', path, {
-        params: { ...params, page: index + 2, page_size: effectivePageSize },
-      }),
-    ),
-  )
+  const remainingPages: PageResult<T>[] = new Array(pageCount - 1)
+  let nextPage = 2
+  await Promise.all(Array.from({ length: Math.min(4, pageCount - 1) }, async () => {
+    while (nextPage <= pageCount) {
+      const page = nextPage++
+      remainingPages[page - 2] = await request<PageResult<T>>('GET', path, {
+        params: { ...params, page, page_size: effectivePageSize },
+      })
+    }
+  }))
   return [firstPage, ...remainingPages].flatMap((page) => page.items)
 }
 

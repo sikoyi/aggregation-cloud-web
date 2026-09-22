@@ -375,23 +375,34 @@ async function loadReplyOptions() {
   }
 }
 
-async function loadRows() {
-  loading.value = true
+let rowsRequest = 0
+let rowsDisposed = false
+let rowsInFlight = 0
+async function loadRows(background: unknown = false) {
+  const silent = background === true
+  if (rowsDisposed) return
+  if (silent && (document.hidden || rowsInFlight || monitorVisible.value || batchUpdating.value
+    || batchIntervalVisible.value || selectedAccountIds.value.length)) return
+  const requestId = ++rowsRequest
+  rowsInFlight += 1
+  if (!silent) loading.value = true
   try {
     const data = await http.get<AccountDataPage>('/api/accounts/data-overview', {
       ...filters,
       page: page.value,
       page_size: pageSize.value,
     })
+    if (rowsDisposed || requestId !== rowsRequest) return
     rows.value = data.items
     total.value = data.total
     Object.assign(summary, data.summary)
     const selectedId = String(selectedAccount.value?.account_id || '')
     selectedAccount.value = data.items.find((item) => String(item.account_id) === selectedId) || data.items[0] || null
   } catch (err) {
-    notifyError(err, '加载失败', '加载账号数据失败')
+    if (!rowsDisposed && requestId === rowsRequest && !silent) notifyError(err, '加载失败', '加载账号数据失败')
   } finally {
-    loading.value = false
+    rowsInFlight -= 1
+    if (requestId === rowsRequest) loading.value = false
   }
 }
 
@@ -963,8 +974,21 @@ function accountPanelRecord(account: AnyRecord) {
 function handleRealtimeEvent(event: Event) {
   const payload = (event as CustomEvent<RealtimeEventPayload>).detail
   if (!payload || payload.topic !== 'content_monitor') return
-  if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
-  realtimeRefreshTimer = window.setTimeout(loadRows, 500)
+  scheduleRealtimeRefresh()
+}
+
+function scheduleRealtimeRefresh() {
+  if (rowsDisposed) return
+  if (realtimeRefreshTimer) return
+  realtimeRefreshTimer = window.setTimeout(() => {
+    realtimeRefreshTimer = undefined
+    if (document.hidden || rowsInFlight || monitorVisible.value || batchUpdating.value
+      || batchIntervalVisible.value || selectedAccountIds.value.length) {
+      scheduleRealtimeRefresh()
+      return
+    }
+    void loadRows(true)
+  }, 5000)
 }
 
 watch(() => monitorForm.business_platform, (platform) => {
@@ -1018,6 +1042,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  rowsDisposed = true
+  rowsRequest += 1
   if (elapsedTimer) clearInterval(elapsedTimer)
   window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer)
@@ -1340,6 +1366,7 @@ onBeforeUnmount(() => {
                 <div class="account-overview__metric">
                   <strong>
                     <CompactFollowerCount :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
+                    <small v-if="metric.valueKey === 'total_post_views_count'" :title="formatDate(scope.row.post_views_updated_at)">{{ scope.row.post_views_updated_at ? '定时汇总' : '等待汇总' }}</small>
                   </strong>
                   <span v-if="metric.deltaKey" class="account-overview__delta" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type" :title="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).fullLabel">
                     <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="12" />

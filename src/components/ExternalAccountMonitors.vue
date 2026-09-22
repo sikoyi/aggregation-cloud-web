@@ -280,6 +280,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <template #default="{ row }">
           <div class="external-metric-cell">
             <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>
+            <small v-if="metric.key === 'total_post_views_count'" :title="formatDate(row.profile.post_views_updated_at)">{{ row.profile.post_views_updated_at ? '定时汇总' : '等待汇总' }}</small>
             <span class="external-metric-delta" :class="'is-' + metricDelta(row.day_deltas?.[metric.key], metric.key).tone" :title="metricDelta(row.day_deltas?.[metric.key], metric.key).fullLabel">
               <component :is="metricDelta(row.day_deltas?.[metric.key], metric.key).icon" :size="12" /><span>{{ metricDelta(row.day_deltas?.[metric.key], metric.key).label }}</span>
             </span>

@@ -4,6 +4,27 @@ import { transpile } from 'typescript'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('乱序返回不覆盖新筛选，后台刷新不打开加载遮罩', async () => {
+    const body = source.slice(source.indexOf('let rowsRequest ='), source.indexOf('function searchRows()'))
+    const pending: Array<(value: unknown) => void> = []
+    const http = { get: vi.fn(() => new Promise(resolve => pending.push(resolve))) }
+    const state = { loading: { value: false }, rows: { value: [] }, total: { value: 0 },
+      summary: {}, selectedAccount: { value: null }, filters: {}, page: { value: 1 }, pageSize: { value: 20 },
+      monitorVisible: { value: false }, batchUpdating: { value: false }, batchIntervalVisible: { value: false },
+      selectedAccountIds: { value: [] }, document: { hidden: false }, notifyError: vi.fn(), http }
+    const load = new Function(...Object.keys(state), `${transpile(body)}; return loadRows;`)(...Object.values(state))
+    const old = load()
+    const latest = load()
+    pending[1]({ items: [{ account_id: 'new' }], total: 1, summary: {} })
+    await latest
+    pending[0]({ items: [{ account_id: 'old' }], total: 1, summary: {} })
+    await old
+    expect(state.rows.value).toEqual([{ account_id: 'new' }])
+    const background = load(true)
+    expect(state.loading.value).toBe(false)
+    pending[2]({ items: [{ account_id: 'new' }], total: 1, summary: {} })
+    await background
+  })
   it('账号指标前日增量使用统一简写', () => {
     expect(source).toContain('formatCompactSignedCount(numberValue)')
     expect(source).toContain(':title="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).fullLabel"')

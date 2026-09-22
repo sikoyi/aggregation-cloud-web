@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, http, setUnauthorizedHandler } from '@/api/http'
+import { ApiError, http, getAllPages, setUnauthorizedHandler } from '@/api/http'
 
 
 class MemoryStorage implements Storage {
@@ -33,6 +33,21 @@ class MemoryStorage implements Storage {
 
 
 describe('HTTP 身份过期处理', () => {
+  it('全量分页最多四个请求并发且保持页序', async () => {
+    vi.stubGlobal('localStorage', new MemoryStorage())
+    let active = 0
+    let peak = 0
+    vi.stubGlobal('fetch', vi.fn(async (input: string) => {
+      const page = Number(new URL(input).searchParams.get('page'))
+      active += 1
+      peak = Math.max(peak, active)
+      await new Promise(resolve => setTimeout(resolve, (12 - page) * 2))
+      active -= 1
+      return new Response(JSON.stringify({ code: 0, data: { items: [page], total: 11, page_size: 1 } }))
+    }))
+    expect(await getAllPages('/items', {}, 1)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+    expect(peak).toBe(4)
+  })
   beforeEach(() => {
     vi.stubGlobal('localStorage', new MemoryStorage())
     setUnauthorizedHandler(() => undefined)
