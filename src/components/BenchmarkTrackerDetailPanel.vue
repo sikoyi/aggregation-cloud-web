@@ -40,7 +40,17 @@ const profileSyncAction = computed<AnyRecord>(() => {
   const value = tracker.value?.profile_sync_action
   return value && typeof value === 'object' ? value as AnyRecord : {}
 })
-const profileSyncFailed = computed(() => profileSyncAction.value.status === 'failed')
+const legacyProfileSyncFailed = computed(() => {
+  if (profileSyncAction.value.status || !tracker.value?.last_error_message) return false
+  return /账号资料(?:同步|修改).*失败|资料同步待处理|(?:avatar_url|display_name|biography).*(?:无效|失败|必须)/i
+    .test(String(tracker.value.last_error_message))
+})
+const profileSyncFailed = computed(() => profileSyncAction.value.status === 'failed' || legacyProfileSyncFailed.value)
+const profileSyncErrorMessage = computed(() => (
+  profileSyncAction.value.error_message
+  || tracker.value?.last_error_message
+  || '脚本执行失败，未返回具体原因'
+))
 const profileSyncActive = computed(() => ['queued', 'running'].includes(String(profileSyncAction.value.status || '')))
 const mappingCounts = computed<AnyRecord>(() => {
   const value = tracker.value?.mapping_counts
@@ -245,7 +255,7 @@ watch(tracker, () => {
         <AlertTriangle :size="18" />
         <div class="profile-sync-state__content">
           <strong>账号资料同步失败</strong>
-          <span>{{ profileSyncAction.error_message || '脚本执行失败，未返回具体原因' }}</span>
+          <span>{{ profileSyncErrorMessage }}</span>
           <small>
             失败时间 {{ formatDate(profileSyncAction.finished_at) }}
             <template v-if="profileSyncAction.task_run_id"> · 任务 ID {{ profileSyncAction.task_run_id }}</template>

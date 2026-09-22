@@ -69,6 +69,16 @@ interface AccountDataBatchSettingsResult {
   skipped_account_ids: string[]
 }
 
+interface ProfileSyncBatchRetryResult {
+  requested_count: number
+  processed_count: number
+  skipped_count: number
+  failed_count: number
+  processed_account_ids: string[]
+  skipped_account_ids: string[]
+  failures: Array<{ account_id: string; message: string }>
+}
+
 interface ProfileSyncCapability {
   loading: boolean
   available: boolean
@@ -805,6 +815,45 @@ async function batchEnableMonitors() {
   }
 }
 
+async function batchRetryProfileSync() {
+  const accountIds = selectedAccountIds.value
+  if (!accountIds.length || batchUpdating.value) return
+
+  try {
+    await ElMessageBox.confirm(
+      `将检查 ${accountIds.length} 个所选账号，只重新下发资料同步失败的任务，不会重新采集帖子；其他状态会跳过。`,
+      '确认批量重试资料同步',
+      {
+        confirmButtonText: '确认重试',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
+    return
+  }
+
+  batchUpdating.value = true
+  try {
+    const data = await http.post<ProfileSyncBatchRetryResult>(
+      '/api/benchmark-trackers/profile-sync/retry/batch',
+      { account_ids: accountIds },
+    )
+    const message = `已重试 ${data.processed_count} 个，跳过 ${data.skipped_count} 个，失败 ${data.failed_count} 个`
+    if (data.processed_count > 0) {
+      ElNotification.success({ title: '资料同步批量重试完成', message })
+    } else {
+      ElNotification.warning({ title: '没有可重试的资料同步', message })
+    }
+    clearOverviewSelection()
+    await loadRows()
+  } catch (err) {
+    notifyError(err, '批量重试失败', '账号资料同步未能批量重试')
+  } finally {
+    batchUpdating.value = false
+  }
+}
+
 async function saveBatchMonitorInterval() {
   const accountIds = selectedAccountIds.value
   if (!accountIds.length || batchUpdating.value) return
@@ -1150,6 +1199,15 @@ onBeforeUnmount(() => {
                 @click="openBatchMonitorInterval"
               >
                 批量设置监听间隔
+              </el-button>
+              <el-button
+                v-if="auth.can('operations.retry')"
+                :icon="RefreshCw"
+                :loading="batchUpdating"
+                :disabled="batchActionsDisabled"
+                @click="batchRetryProfileSync"
+              >
+                批量重试资料同步
               </el-button>
               <el-dropdown
                 trigger="click"

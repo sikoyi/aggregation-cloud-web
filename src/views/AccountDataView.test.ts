@@ -26,7 +26,7 @@ describe('账号数据聚合总览', () => {
     expect(source).not.toContain('<div v-if="selectedAccountIds.length" class="account-overview__batch-bar">')
     expect(source).toContain('computed(() => !selectedAccountIds.value.length || batchUpdating.value)')
     const toolbar = source.split('<div class="account-overview__batch-bar">')[1]?.split('<el-table')[0] || ''
-    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(6)
+    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(7)
     expect(toolbar).not.toContain('取消选择')
     expect(source).toContain('<el-table-column type="selection"')
     const openDialog = source.split('function openBatchMonitorInterval() {')[1]?.split('\n}')[0] || ''
@@ -228,5 +228,16 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('未配置的账号会跳过')
     expect(source).toContain('跳过 ${data.skipped_count} 个未配置账号')
     expect(source).toContain('异常或已关闭')
+  })
+
+  it('支持批量重试账号资料同步，非失败账号跳过且单项失败不阻断整批', () => {
+    const overview = source.split('<section v-if="viewMode === \'overview\'"')[1]?.split('</section>')[0] || ''
+    expect(overview).toContain('批量重试资料同步')
+    expect(overview).toContain("auth.can('operations.retry')")
+    expect(overview).toContain('@click="batchRetryProfileSync"')
+    expect(source).toContain('/api/benchmark-trackers/profile-sync/retry/batch')
+    expect(source).toContain('data.processed_count')
+    expect(source).toContain('data.skipped_count')
+    expect(source).toContain('data.failed_count')
   })
 })
