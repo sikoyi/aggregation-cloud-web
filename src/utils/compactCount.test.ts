@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCompactCount } from './compactCount'
+import { formatCompactCount, formatCompactSignedCount } from './compactCount'
 import component from '../components/CompactFollowerCount.vue?raw'
 
 describe('粉丝数紧凑展示', () => {
@@ -15,5 +15,19 @@ describe('粉丝数紧凑展示', () => {
     expect(component).toContain("{ label: '粉丝' }")
     expect(component).toContain('{{ label }}：{{ count.full }}')
     expect(component).toContain('type="button"')
+  })
+
+  it.each([
+    [4341, '+4.3k', '+4,341'],
+    [1471878, '+1.5m', '+1,471,878'],
+    [-34602, '-34.6k', '-34,602'],
+    [88, '+88', '+88'],
+    [0, '0', '0'],
+  ])('带符号增量 %s 显示为 %s，并保留完整值 %s', (value, compact, full) => {
+    expect(formatCompactSignedCount(value)).toEqual({
+      compact,
+      full,
+      expandable: Math.abs(value) >= 1000,
+    })
   })
 })

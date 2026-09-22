@@ -5,6 +5,7 @@ import ExternalMonitorGroups from '@/components/ExternalMonitorGroups.vue'
 import ExternalMonitorBatchBar from '@/components/ExternalMonitorBatchBar.vue'
 import ExternalAccountDetail from '@/components/ExternalAccountDetail.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
+import { formatCompactSignedCount } from '@/utils/compactCount'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
@@ -80,10 +81,19 @@ function safeUrl(value: unknown) {
 function number(value: unknown) { return value == null ? '--' : Number(value).toLocaleString() }
 function platformLabel(value: string) { return value === 'x' ? 'X(Twitter)' : 'Threads' }
 function metricDelta(value: number | null | undefined, key: string) {
-  if (value == null) return { icon: Minus, label: '暂无前日数据', tone: 'flat' }
-  if (key === 'total_post_views_count' && value < 0) return { icon: TriangleAlert, label: '数据待核对', tone: 'flat' }
-  if (!value) return { icon: Minus, label: '较前一日 持平', tone: 'flat' }
-  return { icon: value > 0 ? ArrowUp : ArrowDown, label: `较前一日 ${value > 0 ? '+' : ''}${value.toLocaleString()}`, tone: value > 0 ? 'up' : 'down' }
+  if (value == null) return { icon: Minus, label: '暂无前日数据', fullLabel: '暂无前日数据', tone: 'flat' }
+  if (key === 'total_post_views_count' && value < 0) {
+    return { icon: TriangleAlert, label: '数据待核对', fullLabel: '数据待核对', tone: 'flat' }
+  }
+  if (!value) return { icon: Minus, label: '较前一日 持平', fullLabel: '较前一日 持平', tone: 'flat' }
+
+  const delta = formatCompactSignedCount(value)
+  return {
+    icon: value > 0 ? ArrowUp : ArrowDown,
+    label: `较前一日 ${delta.compact}`,
+    fullLabel: `较前一日 ${delta.full}`,
+    tone: value > 0 ? 'up' : 'down',
+  }
 }
 function backgroundRefreshBlocked() {
   return disposed || document.hidden || loading.value || saving.value || !!busy.value || !!deleting.value
@@ -270,7 +280,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <template #default="{ row }">
           <div class="external-metric-cell">
             <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>
-            <span class="external-metric-delta" :class="'is-' + metricDelta(row.day_deltas?.[metric.key], metric.key).tone" :title="metricDelta(row.day_deltas?.[metric.key], metric.key).label">
+            <span class="external-metric-delta" :class="'is-' + metricDelta(row.day_deltas?.[metric.key], metric.key).tone" :title="metricDelta(row.day_deltas?.[metric.key], metric.key).fullLabel">
               <component :is="metricDelta(row.day_deltas?.[metric.key], metric.key).icon" :size="12" /><span>{{ metricDelta(row.day_deltas?.[metric.key], metric.key).label }}</span>
             </span>
           </div>

@@ -29,6 +29,7 @@ import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
+import { formatCompactSignedCount } from '@/utils/compactCount'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
@@ -314,21 +315,22 @@ function formatNumber(value: unknown) {
 function metricDeltaMeta(value: unknown, mode: unknown = 'previous') {
   const numberValue = Number(value)
   if (value === null || value === undefined || value === '' || !Number.isFinite(numberValue)) {
-    return { icon: Minus, label: '暂无前日数据', type: 'unknown' }
+    return { icon: Minus, label: '暂无前日数据', fullLabel: '暂无前日数据', type: 'unknown' }
   }
+  const delta = formatCompactSignedCount(numberValue)
   if (mode === 'daily') {
     return numberValue > 0
-      ? { icon: ArrowUp, label: `当日新增 +${formatNumber(numberValue)}`, type: 'up' }
-      : { icon: Minus, label: '当日暂无新增', type: 'flat' }
+      ? { icon: ArrowUp, label: `当日新增 ${delta.compact}`, fullLabel: `当日新增 ${delta.full}`, type: 'up' }
+      : { icon: Minus, label: '当日暂无新增', fullLabel: '当日暂无新增', type: 'flat' }
   }
   if (numberValue > 0) {
-    return { icon: ArrowUp, label: `较前一日 +${formatNumber(numberValue)}`, type: 'up' }
+    return { icon: ArrowUp, label: `较前一日 ${delta.compact}`, fullLabel: `较前一日 ${delta.full}`, type: 'up' }
   }
   if (numberValue < 0) {
-    if (mode === 'views') return { icon: AlertTriangle, label: '数据待核对', type: 'unknown' }
-    return { icon: ArrowDown, label: `较前一日 ${formatNumber(numberValue)}`, type: 'down' }
+    if (mode === 'views') return { icon: AlertTriangle, label: '数据待核对', fullLabel: '数据待核对', type: 'unknown' }
+    return { icon: ArrowDown, label: `较前一日 ${delta.compact}`, fullLabel: `较前一日 ${delta.full}`, type: 'down' }
   }
-  return { icon: Minus, label: '较前一日 持平', type: 'flat' }
+  return { icon: Minus, label: '较前一日 持平', fullLabel: '较前一日 持平', type: 'flat' }
 }
 
 function monitorStateLabel(value: unknown) {
@@ -1339,7 +1341,7 @@ onBeforeUnmount(() => {
                   <strong>
                     <CompactFollowerCount :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
                   </strong>
-                  <span v-if="metric.deltaKey" class="account-overview__delta" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type">
+                  <span v-if="metric.deltaKey" class="account-overview__delta" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type" :title="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).fullLabel">
                     <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="12" />
                     {{ metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).label }}
                   </span>
@@ -1557,6 +1559,7 @@ onBeforeUnmount(() => {
                   <span
                     class="account-profile__delta"
                     :class="'is-' + metricDeltaMeta(metric.delta, metric.deltaMode).type"
+                    :title="metricDeltaMeta(metric.delta, metric.deltaMode).fullLabel"
                   >
                     <component :is="metricDeltaMeta(metric.delta, metric.deltaMode).icon" :size="11" />
                     {{ metricDeltaMeta(metric.delta, metric.deltaMode).label }}

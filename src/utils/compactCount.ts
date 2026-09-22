@@ -8,3 +8,16 @@ export function formatCompactCount(value: unknown) {
     expandable: number >= 1000,
   }
 }
+
+export function formatCompactSignedCount(value: unknown) {
+  const number = typeof value === 'number' || (typeof value === 'string' && value.trim()) ? Number(value) : NaN
+  if (!Number.isFinite(number)) return { compact: '--', full: '--', expandable: false }
+
+  const sign = number > 0 ? '+' : number < 0 ? '-' : ''
+  const absolute = formatCompactCount(Math.abs(number))
+  return {
+    compact: `${sign}${absolute.compact}`,
+    full: `${sign}${absolute.full}`,
+    expandable: absolute.expandable,
+  }
+}

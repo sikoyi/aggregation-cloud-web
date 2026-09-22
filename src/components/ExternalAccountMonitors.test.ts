@@ -31,6 +31,11 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('前日指标增量使用简写并保留完整数值提示', () => {
+    expect(source).toContain('formatCompactSignedCount(value)')
+    expect(source).toContain(':title="metricDelta(row.day_deltas?.[metric.key], metric.key).fullLabel"')
+  })
+
   it.each(['followers_count', 'total_post_views_count', 'total_likes_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
     const s = setup()
     s.metricSort.value = { prop, order: 'asc' }

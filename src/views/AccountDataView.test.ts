@@ -4,6 +4,11 @@ import { transpile } from 'typescript'
 import source from './AccountDataView.vue?raw'
 
 describe('账号数据聚合总览', () => {
+  it('账号指标前日增量使用统一简写', () => {
+    expect(source).toContain('formatCompactSignedCount(numberValue)')
+    expect(source).toContain(':title="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).fullLabel"')
+  })
+
   it('账号资料展示绑定设备名称，未绑定有占位，长名称可悬停查看', () => {
     expect(source).toContain('<small>设备名称</small>')
     expect(source).toContain(':title="String(selectedAccount.bound_slot_name || \'未绑定设备\')"')
