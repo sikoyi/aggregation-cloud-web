@@ -1519,6 +1519,7 @@ onBeforeUnmount(() => {
                       <div><small>登录账号</small><strong>{{ selectedAccount.login_username || '-' }}</strong></div>
                       <div><small>公开用户名</small><strong>{{ selectedAccount.username ? '@' + selectedAccount.username : '-' }}</strong></div>
                       <div><small>国家</small><strong>{{ selectedAccount.country || '-' }}</strong></div>
+                      <div><small>设备名称</small><strong :title="String(selectedAccount.bound_slot_name || '未绑定设备')">{{ selectedAccount.bound_slot_name || '未绑定设备' }}</strong></div>
                       <div><small>设备分组</small><strong>{{ selectedAccount.slot_group_name || '未分组' }}</strong></div>
                       <div><small>业务 App</small><strong>{{ optionLabel(businessPlatformOptions, selectedAccount.business_platform) }}</strong></div>
                       <div><small>登录状态</small><StatusBadge :value="selectedAccount.login_status" /></div>
