@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import {
+  AlertTriangle,
   ExternalLink,
   FileText,
   Image as ImageIcon,
   RefreshCw,
   Video,
 } from 'lucide-vue-next'
+import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
@@ -14,6 +16,7 @@ import { benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
 import type { AnyRecord, PageResult } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import { useAuthStore } from '@/stores/auth'
 
 const props = withDefaults(defineProps<{
   account: AnyRecord
@@ -21,16 +24,24 @@ const props = withDefaults(defineProps<{
 }>(), { active: true })
 
 const postLoading = ref(false)
+const profileSyncRetrying = ref(false)
 const posts = ref<AnyRecord[]>([])
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const auth = useAuthStore()
 
 const accountId = computed(() => String(props.account?.id || props.account?.account_id || ''))
 const { tracker, loading: trackerLoading, error: collectionError, refresh: loadTracker } = useBenchmarkCollection(
   () => accountId.value, () => props.active !== false,
 )
 const collectionStatus = computed(() => benchmarkCollectionStatus(tracker.value))
+const profileSyncAction = computed<AnyRecord>(() => {
+  const value = tracker.value?.profile_sync_action
+  return value && typeof value === 'object' ? value as AnyRecord : {}
+})
+const profileSyncFailed = computed(() => profileSyncAction.value.status === 'failed')
+const profileSyncActive = computed(() => ['queued', 'running'].includes(String(profileSyncAction.value.status || '')))
 const mappingCounts = computed<AnyRecord>(() => {
   const value = tracker.value?.mapping_counts
   return value && typeof value === 'object' ? value as AnyRecord : {}
@@ -137,6 +148,30 @@ async function loadPosts() {
 async function refreshAll() {
   await loadTracker()
 }
+
+async function retryProfileSync() {
+  if (!accountId.value || profileSyncRetrying.value) return
+  try {
+    await ElMessageBox.confirm(
+      '系统会复用最近采集到的账号资料重新下发同步任务，不会重新采集帖子。',
+      '重试账号资料同步',
+      { type: 'warning', confirmButtonText: '确认重试', cancelButtonText: '取消' },
+    )
+  } catch (err) {
+    if (err === 'cancel' || err === 'close') return
+    throw err
+  }
+  profileSyncRetrying.value = true
+  try {
+    await http.post(`/api/benchmark-trackers/accounts/${encodeURIComponent(accountId.value)}/profile-sync/retry`)
+    ElNotification({ title: '已重新排队', message: '账号资料同步任务已重新下发', type: 'success' })
+    await loadTracker()
+  } catch (err) {
+    notifyError(err, '重试失败', '账号资料同步未能重新下发')
+  } finally {
+    profileSyncRetrying.value = false
+  }
+}
 function handleSizeChange(size: number) {
   pageSize.value = size
   page.value = 1
@@ -206,9 +241,44 @@ watch(tracker, () => {
     </div>
 
     <template v-if="tracker">
+      <div v-if="profileSyncFailed" class="profile-sync-state is-failed">
+        <AlertTriangle :size="18" />
+        <div class="profile-sync-state__content">
+          <strong>账号资料同步失败</strong>
+          <span>{{ profileSyncAction.error_message || '脚本执行失败，未返回具体原因' }}</span>
+          <small>
+            失败时间 {{ formatDate(profileSyncAction.finished_at) }}
+            <template v-if="profileSyncAction.task_run_id"> · 任务 ID {{ profileSyncAction.task_run_id }}</template>
+          </small>
+        </div>
+        <el-button
+          v-if="auth.can('operations.retry')"
+          type="danger"
+          plain
+          :icon="RefreshCw"
+          :loading="profileSyncRetrying"
+          :disabled="profileSyncRetrying"
+          @click="retryProfileSync"
+        >
+          重试资料同步
+        </el-button>
+      </div>
+      <div v-else-if="profileSyncActive" class="profile-sync-state is-active">
+        <RefreshCw :size="18" />
+        <div class="profile-sync-state__content">
+          <strong>账号资料同步处理中</strong>
+          <span>{{ profileSyncAction.status === 'running' ? '脚本正在执行' : '任务已加入执行队列' }}</span>
+          <small v-if="profileSyncAction.task_run_id">任务 ID {{ profileSyncAction.task_run_id }}</small>
+        </div>
+      </div>
       <el-alert
-        v-if="tracker.collection_run?.error_message || tracker.last_error_message"
-        :title="String(tracker.collection_run?.error_message || tracker.last_error_message)"
+        v-if="tracker.collection_run?.error_message"
+        :title="String(tracker.collection_run.error_message)"
+        type="error" :closable="false" show-icon
+      />
+      <el-alert
+        v-if="!profileSyncFailed && !tracker.collection_run?.error_message && tracker.last_error_message"
+        :title="String(tracker.last_error_message)"
         type="error" :closable="false" show-icon
       />
       <div class="benchmark-summary">
@@ -425,6 +495,53 @@ watch(tracker, () => {
   margin: 14px 0;
 }
 
+.profile-sync-state {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--app-border, #dbe5ef);
+  border-radius: 6px;
+}
+
+.profile-sync-state.is-failed {
+  border-color: var(--el-color-danger-light-7);
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+}
+
+.profile-sync-state.is-active {
+  border-color: var(--el-color-primary-light-7);
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+}
+
+.profile-sync-state__content {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profile-sync-state__content strong,
+.profile-sync-state__content span,
+.profile-sync-state__content small {
+  overflow-wrap: anywhere;
+}
+
+.profile-sync-state__content span {
+  color: var(--app-text, #243b53);
+  font-size: 13px;
+}
+
+.profile-sync-state__content small {
+  color: var(--app-text-muted, #64748b);
+  font-size: 11px;
+}
+
 .benchmark-summary > div {
   border: 1px solid var(--app-border, #e2e8f0);
   border-radius: 6px;
@@ -585,6 +702,15 @@ watch(tracker, () => {
 
   .benchmark-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-sync-state {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .profile-sync-state .el-button {
+    margin-left: 28px;
   }
 }
 </style>
