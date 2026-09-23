@@ -47,6 +47,8 @@ export type ColumnType =
   | 'proxyProfile'
   | 'deviceIdentity'
   | 'deviceGroup'
+  | 'deviceGroupRuntime'
+  | 'deviceGroupProvider'
   | 'devicePlatform'
   | 'deviceState'
   | 'deviceAccount'

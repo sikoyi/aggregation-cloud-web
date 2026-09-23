@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network } from 'lucide-vue-next'
+import { AlertTriangle, Clock3, Cpu, Layers3, LoaderCircle, MonitorSmartphone, Network, Server, Smartphone } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -11,6 +11,8 @@ import { formatDate } from '@/utils/format'
 type DeviceCellKind =
   | 'deviceIdentity'
   | 'deviceGroup'
+  | 'deviceGroupRuntime'
+  | 'deviceGroupProvider'
   | 'devicePlatform'
   | 'deviceState'
   | 'deviceAccount'
@@ -91,6 +93,21 @@ function accountTooltip(session: AnyRecord) {
     </div>
   </div>
 
+  <div v-else-if="kind === 'deviceGroupRuntime'" class="device-cell">
+    <el-tag size="small" effect="plain" :type="row.runtime_platform === 'cloud_phone' ? 'success' : 'primary'" class="device-group-meta-tag">
+      <Smartphone v-if="row.runtime_platform === 'cloud_phone'" />
+      <MonitorSmartphone v-else />
+      <span>{{ runtimePlatform }}</span>
+    </el-tag>
+  </div>
+
+  <div v-else-if="kind === 'deviceGroupProvider'" class="device-cell">
+    <el-tag size="small" effect="plain" :type="row.provider === 'vmos' ? 'warning' : row.provider === 'morelogin' ? 'success' : 'info'" class="device-group-meta-tag">
+      <Server />
+      <span>{{ provider }}</span>
+    </el-tag>
+  </div>
+
   <div v-else-if="kind === 'devicePlatform'" class="device-cell device-platform">
     <div class="device-platform__primary">
       <Cpu />
@@ -158,6 +175,10 @@ function accountTooltip(session: AnyRecord) {
 .device-group-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; }
 .device-group-tag svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .device-group-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-group-meta-tag { display: inline-flex; max-width: 100%; overflow: hidden; }
+.device-group-meta-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
+.device-group-meta-tag svg { width: 12px; height: 12px; flex: 0 0 12px; opacity: .8; }
+.device-group-meta-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .device-group { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 5px; }
 .device-group__sync { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; font-size: 10px; line-height: 1.3; }
 .device-group__sync svg { width: 11px; height: 11px; flex: 0 0 11px; }

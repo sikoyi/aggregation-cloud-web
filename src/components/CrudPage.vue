@@ -1930,8 +1930,8 @@ onBeforeUnmount(() => {
               :shared-credentials="config.key === 'accountIdentities'"
             />
             <DeviceTableCell
-              v-else-if="column.type && ['deviceIdentity', 'deviceGroup', 'devicePlatform', 'deviceState', 'deviceAccount', 'deviceProxy', 'deviceActivity'].includes(column.type)"
-              :kind="column.type as 'deviceIdentity' | 'deviceGroup' | 'devicePlatform' | 'deviceState' | 'deviceAccount' | 'deviceProxy' | 'deviceActivity'"
+              v-else-if="column.type && ['deviceIdentity', 'deviceGroup', 'deviceGroupRuntime', 'deviceGroupProvider', 'devicePlatform', 'deviceState', 'deviceAccount', 'deviceProxy', 'deviceActivity'].includes(column.type)"
+              :kind="column.type as 'deviceIdentity' | 'deviceGroup' | 'deviceGroupRuntime' | 'deviceGroupProvider' | 'devicePlatform' | 'deviceState' | 'deviceAccount' | 'deviceProxy' | 'deviceActivity'"
               :row="row"
               :column="column"
               @binding-conflicts="bindingConflictTarget = { source: 'execution-slots', id: $event }"

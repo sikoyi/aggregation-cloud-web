@@ -2068,8 +2068,8 @@ export const resources: Record<string, ResourceConfig> = {
     columns: [
       { key: "id", label: "ID", type: "id", width: 90 },
       { key: "name", label: "名称", type: "deviceGroup", minWidth: 220 },
-      { key: "runtime_platform", label: "执行平台", options: runtimePlatformOptions },
-      { key: "provider", label: "供应商" },
+      { key: "runtime_platform", label: "执行平台", type: "deviceGroupRuntime" },
+      { key: "provider", label: "供应商", type: "deviceGroupProvider" },
       { key: "member_count", label: "成员数" },
       { key: "updated_at", label: "更新时间", type: "datetime" },
     ],
