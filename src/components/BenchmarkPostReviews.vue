@@ -284,6 +284,9 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
         <dl><dt>来源账号</dt><dd>{{ selected.source_display_name || selected.source_username }} · {{ selected.source_business_platform }}</dd><dt>发布账号</dt><dd>{{ selected.target_display_name || selected.target_username }} · {{ selected.business_platform }}</dd><dt>状态</dt><dd><el-tag :type="statusType(selected.status)">{{ labels[selected.status] || '等待发布' }}</el-tag></dd></dl>
         <a v-if="safeUrl(selected.snapshot.content_url)" :href="safeUrl(selected.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
         <div class="review-media"><a v-for="(url, index) in selected.snapshot.media_urls || []" :key="url" :href="safeUrl(url)" target="_blank" rel="noopener noreferrer"><el-image :src="safeUrl(url)" fit="contain" loading="lazy"><template #error><span>查看媒体 {{ index + 1 }}</span></template></el-image></a></div>
+        <div v-if="selected.snapshot.text_content && selected.final_content !== selected.snapshot.text_content" class="review-original">
+          <strong>原帖正文</strong><p>{{ selected.snapshot.text_content }}</p>
+        </div>
         <label for="benchmark-review-content">发布文案</label>
         <el-input id="benchmark-review-content" v-model="content" type="textarea" :rows="7" maxlength="10000" :readonly="!editable || saving" />
         <span v-if="selected.task_run_id">任务 ID：{{ selected.task_run_id }}</span>
@@ -321,6 +324,8 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .review-body dd { margin: 0; overflow-wrap: anywhere; }
 .review-media { display: flex; flex-wrap: wrap; gap: 8px; }
 .review-media .el-image { width: 140px; height: 120px; border: 1px solid var(--el-border-color); border-radius: 4px; }
+.review-original { padding: 10px 0; border-top: 1px solid var(--el-border-color); }
+.review-original p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 768px) {
   .filter-grid { grid-template-columns: 1fr; }
   .filter-grid__item--wide { grid-column: span 1; }

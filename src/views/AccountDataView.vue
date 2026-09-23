@@ -217,6 +217,7 @@ const monitorForm = reactive({
 })
 const benchmarkForm = reactive({
   post_sync_mode: 'review',
+  post_translation_language: '',
   source_business_platform: 'threads',
   profile_sync_fields: [] as string[],
   source_profile_url: '',
@@ -520,6 +521,7 @@ function openMonitor(account?: AnyRecord) {
   })
   Object.assign(benchmarkForm, {
     post_sync_mode: String(account?.benchmark_post_sync_mode || (account?.benchmark_tracker_id ? 'automatic' : 'review')),
+    post_translation_language: String(account?.benchmark_post_translation_language || ''),
     source_business_platform: String(account?.benchmark_source_business_platform || 'threads'),
     profile_sync_fields: Array.isArray(account?.benchmark_profile_sync_fields)
       ? [...account.benchmark_profile_sync_fields]
@@ -578,6 +580,7 @@ async function saveBenchmarkTracker() {
       source_business_platform: benchmarkForm.source_business_platform,
       profile_sync_fields: [...benchmarkForm.profile_sync_fields],
       post_sync_mode: benchmarkForm.post_sync_mode,
+      post_translation_language: benchmarkForm.post_translation_language || null,
       monitor_mode: benchmarkForm.monitor_mode,
       interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
     })
@@ -1683,6 +1686,7 @@ onBeforeUnmount(() => {
                       </div>
                       <div><small>对标账号</small><strong>{{ selectedAccount.benchmark_source_display_name || selectedAccount.benchmark_source_username || '-' }}</strong></div>
                       <div><small>来源平台</small><strong>{{ selectedAccount.benchmark_source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</strong></div>
+                      <div><small>帖子语言</small><strong>{{ selectedAccount.benchmark_post_translation_language || '原文' }}</strong></div>
                       <div><small>帖子映射</small><strong>{{ formatNumber(selectedAccount.benchmark_mapping_count) }}</strong></div>
                       <div><small>最近成功</small><strong>{{ formatDate(selectedAccount.benchmark_last_success_at) }}</strong></div>
                       <div><small>下次采集</small><strong>{{ formatDate(selectedAccount.benchmark_next_run_at) }}</strong></div>
@@ -1904,6 +1908,27 @@ onBeforeUnmount(() => {
                 <el-option label="不发布" value="disabled" />
                 <el-option label="自动发布" value="automatic" />
                 <el-option label="审核后发布" value="review" />
+              </el-select>
+            </el-form-item>
+            <el-form-item v-if="benchmarkForm.post_sync_mode !== 'disabled'" label="帖子翻译">
+              <el-select v-model="benchmarkForm.post_translation_language" class="w-full" placeholder="原文，不翻译">
+                <el-option label="原文，不翻译" value="" />
+                <el-option label="英语" value="en" />
+                <el-option label="韩语" value="ko" />
+                <el-option label="日语" value="ja" />
+                <el-option label="西班牙语" value="es" />
+                <el-option label="法语" value="fr" />
+                <el-option label="德语" value="de" />
+                <el-option label="葡萄牙语" value="pt" />
+                <el-option label="意大利语" value="it" />
+                <el-option label="印尼语" value="id" />
+                <el-option label="泰语" value="th" />
+                <el-option label="越南语" value="vi" />
+                <el-option label="阿拉伯语" value="ar" />
+                <el-option label="印地语" value="hi" />
+                <el-option label="土耳其语" value="tr" />
+                <el-option label="简体中文" value="zh-CN" />
+                <el-option label="繁体中文" value="zh-TW" />
               </el-select>
             </el-form-item>
             <div v-if="monitorTargetAccount?.benchmark_tracker_id" class="benchmark-source">

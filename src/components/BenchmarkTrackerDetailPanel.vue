@@ -59,6 +59,7 @@ const mappingCounts = computed<AnyRecord>(() => {
 const mappedCount = computed(() => Number(mappingCounts.value.published || 0))
 const failedCount = computed(() => (
   Number(mappingCounts.value.publish_failed || 0)
+  + Number(mappingCounts.value.translation_failed || 0)
   + Number(mappingCounts.value.delete_failed || 0)
 ))
 const pendingCount = computed(() => (
@@ -79,6 +80,7 @@ const mappingStatusOptions: Record<string, { label: string; type: 'success' | 'w
   awaiting_capture: { label: '等待监听同步', type: 'warning' },
   published: { label: '已复刻', type: 'success' },
   publish_failed: { label: '复刻失败', type: 'danger' },
+  translation_failed: { label: '翻译失败', type: 'danger' },
   unsupported: { label: '暂不支持', type: 'info' },
   source_deleted: { label: '源帖已删除', type: 'info' },
   pending_delete: { label: '待同步删除', type: 'warning' },
@@ -347,6 +349,9 @@ watch(tracker, () => {
               </div>
               <div class="source-post__content">
                 <p :title="sourceText(row)">{{ sourceText(row) || '仅包含媒体内容' }}</p>
+                <p v-if="row.translated_content" :title="String(row.translated_content)">
+                  译文（{{ row.translation_language }}）：{{ row.translated_content }}
+                </p>
                 <div>
                   <span>{{ row.source_platform_content_id || '无平台帖子 ID' }}</span>
                   <el-link
