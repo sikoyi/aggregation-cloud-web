@@ -900,6 +900,7 @@ function buildAccountImportPayload(payload: AnyRecord) {
     delete body.dynamic_proxy_id;
   } else if (body.runtime_platform === "cloud_phone") {
     body.provider = "vmos";
+    delete body.target_runtime_instance_id;
     delete body.environment_name_prefix;
     delete body.proxy_group_id;
     delete body.dynamic_proxy_id;
@@ -940,16 +941,17 @@ const accountOnboardingFields: FieldConfig[] = [
       ...onlineFingerprintRuntimeRemoteSelect,
       params: (context?: AnyRecord) => ({
         status: "online", lifecycle_status: "active", task_purpose: "account_onboarding",
-        runtime_platform: context?.runtime_platform || "fingerprint_browser",
-        provider: context?.runtime_platform === "cloud_phone" ? "vmos" : context?.provider || undefined,
+        runtime_platform: "fingerprint_browser",
+        provider: context?.provider || undefined,
       }),
       matchesContext: (runtime: AnyRecord, context?: AnyRecord) => (
         runtime.status === "online" && runtime.lifecycle_status !== "retired"
-        && runtime.runtime_platform === (context?.runtime_platform || "fingerprint_browser")
-        && (context?.runtime_platform === "cloud_phone" ? runtime.provider === "vmos" : !context?.provider || runtime.provider === context.provider)
+        && runtime.runtime_platform === "fingerprint_browser"
+        && (!context?.provider || runtime.provider === context.provider)
       ),
     },
-    required: true,
+    visibleWhen: { key: "runtime_platform", value: "fingerprint_browser" },
+    requiredWhen: { key: "runtime_platform", value: "fingerprint_browser" },
     placeholder: "选择负责创建环境的在线 Runtime",
   },
   {
@@ -974,8 +976,7 @@ const accountOnboardingFields: FieldConfig[] = [
       }),
       loadWhen: (context?: AnyRecord) => Boolean(context?.slot_group_id),
       matchesContext: (slot: AnyRecord, context?: AnyRecord) => (
-        slot.runtime_instance_id === context?.target_runtime_instance_id
-        && slot.group_id === context?.slot_group_id && !slot.bound_account_id
+        slot.group_id === context?.slot_group_id && !slot.bound_account_id
       ),
     },
     visibleWhen: { key: "runtime_platform", value: "cloud_phone" },
@@ -1037,7 +1038,6 @@ function buildAccountOnboardingBody(payload: AnyRecord, records: AnyRecord[]) {
       business_platform: String(records[0]?.business_platform || ""),
       runtime_platform: "cloud_phone",
       provider: "vmos",
-      target_runtime_instance_id: payload.target_runtime_instance_id,
       slot_group_id: payload.slot_group_id,
       slot_ids: payload.slot_ids || [],
     };
@@ -1368,17 +1368,20 @@ export const resources: Record<string, ResourceConfig> = {
           ...onlineFingerprintRuntimeRemoteSelect,
           params: (context?: AnyRecord) => ({
             status: "online", lifecycle_status: "active", task_purpose: "account_onboarding",
-            runtime_platform: context?.runtime_platform || "fingerprint_browser",
-            provider: context?.runtime_platform === "cloud_phone" ? "vmos" : context?.provider || undefined,
+            runtime_platform: "fingerprint_browser",
+            provider: context?.provider || undefined,
           }),
           matchesContext: (runtime: AnyRecord, context?: AnyRecord) => (
             runtime.status === "online" && runtime.lifecycle_status !== "retired"
-            && runtime.runtime_platform === (context?.runtime_platform || "fingerprint_browser")
-            && (context?.runtime_platform === "cloud_phone" ? runtime.provider === "vmos" : !context?.provider || runtime.provider === context.provider)
+            && runtime.runtime_platform === "fingerprint_browser"
+            && (!context?.provider || runtime.provider === context.provider)
           ),
         },
-        visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
-        requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        visibleWhenAll: [
+          { key: "post_import_action", value: "create_environment_and_login" },
+          { key: "runtime_platform", value: "fingerprint_browser" },
+        ],
+        requiredWhen: { key: "runtime_platform", value: "fingerprint_browser" },
         placeholder: "选择负责创建环境的在线 Runtime",
       },
       {
@@ -1403,8 +1406,7 @@ export const resources: Record<string, ResourceConfig> = {
           }),
           loadWhen: (context?: AnyRecord) => Boolean(context?.slot_group_id),
           matchesContext: (slot: AnyRecord, context?: AnyRecord) => (
-            slot.runtime_instance_id === context?.target_runtime_instance_id
-            && slot.group_id === context?.slot_group_id && !slot.bound_account_id
+            slot.group_id === context?.slot_group_id && !slot.bound_account_id
           ),
         },
         visibleWhenAll: [

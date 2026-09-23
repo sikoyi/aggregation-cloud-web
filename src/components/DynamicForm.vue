@@ -50,7 +50,7 @@ function updateValue(key: string, value: unknown) {
   }
   if (
     props.fields.some((field) => field.key === 'slot_group_id')
-    && ['runtime_platform', 'slot_group_id', 'target_runtime_instance_id', 'business_platform'].includes(key)
+    && ['runtime_platform', 'slot_group_id', 'business_platform'].includes(key)
     && value !== props.modelValue[key]
   ) {
     nextValue.slot_ids = []
@@ -94,13 +94,12 @@ function updateValue(key: string, value: unknown) {
 }
 
 watch(
-  () => [props.modelValue.runtime_platform, props.modelValue.target_runtime_instance_id,
-    props.modelValue.slot_group_id, props.modelValue.business_platform,
+  () => [props.modelValue.runtime_platform, props.modelValue.slot_group_id, props.modelValue.business_platform,
     props.context?.selectedRows, props.context?.id] as const,
-  async ([platform, runtimeId, groupId, businessPlatform, rows, accountId]) => {
+  async ([platform, groupId, businessPlatform, rows, accountId]) => {
     const request = ++cloudSlotPreviewSeq
     if (!props.fields.some((field) => field.key === 'slot_group_id')
-      || platform !== 'cloud_phone' || !runtimeId || !groupId) return
+      || platform !== 'cloud_phone' || !groupId) return
     const identityRows = Array.isArray(rows) && rows.some((row) => Array.isArray(row.matched_account_ids))
     const count = identityRows
       ? new Set(rows.flatMap((row) => {
@@ -115,7 +114,7 @@ watch(
     try {
       const devices = await http.get<Array<{ id: string; name: string }>>(
         '/api/accounts/onboarding/cloud-slot-preview',
-        { runtime_instance_id: runtimeId, slot_group_id: groupId, count },
+        { slot_group_id: groupId, count },
       )
       if (request !== cloudSlotPreviewSeq) return
       emit('update:modelValue', { ...props.modelValue, slot_ids: devices.map((device) => device.id) })

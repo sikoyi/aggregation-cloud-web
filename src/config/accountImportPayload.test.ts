@@ -6,7 +6,11 @@ import { buildFormState, buildPayload } from '@/utils/form'
 describe.each([resources.accounts, buildAccountIdentityResource(resources.accounts)])('$key 导入请求', config => {
   const fields = config.createFields || []
   it('上号 Runtime 候选和详情均按业务分工过滤', () => {
-    const remote = fields.find(field => field.key === 'target_runtime_instance_id')?.remote
+    const runtimeField = fields.find(field => field.key === 'target_runtime_instance_id')
+    const remote = runtimeField?.remote
+    expect(runtimeField?.visibleWhenAll || [runtimeField?.visibleWhen]).toContainEqual({
+      key: 'runtime_platform', value: 'fingerprint_browser',
+    })
     expect(typeof remote?.params).toBe('function')
     if (typeof remote?.params === 'function') {
       expect(remote.params({ provider: 'morelogin' })).toMatchObject({
@@ -15,7 +19,9 @@ describe.each([resources.accounts, buildAccountIdentityResource(resources.accoun
     }
     expect(remote?.detailPath?.('runtime-1')).toContain('task_purpose=account_onboarding')
     const batch = config.batchActions?.find(action => action.key === 'batch-account-onboarding')
-    const batchRemote = batch?.fields?.find(field => field.key === 'target_runtime_instance_id')?.remote
+    const batchRuntimeField = batch?.fields?.find(field => field.key === 'target_runtime_instance_id')
+    const batchRemote = batchRuntimeField?.remote
+    expect(batchRuntimeField?.visibleWhen).toEqual({ key: 'runtime_platform', value: 'fingerprint_browser' })
     expect(batchRemote?.endpoint).toBe(remote?.endpoint)
     expect(batchRemote?.detailPath?.('runtime-1')).toBe(remote?.detailPath?.('runtime-1'))
   })
@@ -56,9 +62,10 @@ describe.each([resources.accounts, buildAccountIdentityResource(resources.accoun
     const body = config.createBody!(buildPayload(fields, state, 'create'))
     expect(body).toMatchObject({
       runtime_platform: 'cloud_phone', provider: 'vmos',
-      target_runtime_instance_id: 'runtime-cloud', slot_group_id: 'group-cloud',
+      slot_group_id: 'group-cloud',
       proxy_allocation_mode: 'none',
     })
+    expect(body).not.toHaveProperty('target_runtime_instance_id')
     expect(body).not.toHaveProperty('environment_name_prefix')
     expect(body).not.toHaveProperty('proxy_group_id')
   })
@@ -77,6 +84,7 @@ describe.each([resources.accounts, buildAccountIdentityResource(resources.accoun
       account_ids: ['account-1', 'account-2'], slot_ids: ['slot-1', 'slot-2'],
       provider: 'vmos', runtime_platform: 'cloud_phone',
     })
+    expect(body).not.toHaveProperty('target_runtime_instance_id')
     expect(JSON.stringify(body)).not.toContain('password')
   })
 })
