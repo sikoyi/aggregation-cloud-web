@@ -38,12 +38,27 @@ const scriptScopeLoading = ref(false)
 const scriptScope = ref<AnyRecord | null>(null)
 let templateRequestSeq = 0
 let scriptScopeRequestSeq = 0
-onBeforeUnmount(() => { ++templateRequestSeq; ++scriptScopeRequestSeq })
+let cloudSlotPreviewSeq = 0
+onBeforeUnmount(() => { ++templateRequestSeq; ++scriptScopeRequestSeq; ++cloudSlotPreviewSeq })
 const hasScriptScopeFields = computed(() => props.fields.some((field) => Boolean(field.scriptScopeKey)))
 const scriptScopeDependency = computed(() => String(props.modelValue.script_key || ''))
 
 function updateValue(key: string, value: unknown) {
   const nextValue = { ...props.modelValue, [key]: value }
+  if (key === 'slot_ids' && props.fields.some((field) => field.key === 'slot_group_id')) {
+    ++cloudSlotPreviewSeq
+  }
+  if (
+    props.fields.some((field) => field.key === 'slot_group_id')
+    && ['runtime_platform', 'slot_group_id', 'target_runtime_instance_id', 'business_platform'].includes(key)
+    && value !== props.modelValue[key]
+  ) {
+    nextValue.slot_ids = []
+    if (key === 'runtime_platform') {
+      nextValue.slot_group_id = ''
+      nextValue.target_runtime_instance_id = ''
+    }
+  }
   if (key === 'runtime_platform' && value !== props.modelValue.runtime_platform) {
     ++templateRequestSeq
     templateLoading.value = false
@@ -77,6 +92,38 @@ function updateValue(key: string, value: unknown) {
   }
   emit('update:modelValue', nextValue)
 }
+
+watch(
+  () => [props.modelValue.runtime_platform, props.modelValue.target_runtime_instance_id,
+    props.modelValue.slot_group_id, props.modelValue.business_platform,
+    props.context?.selectedRows, props.context?.id] as const,
+  async ([platform, runtimeId, groupId, businessPlatform, rows, accountId]) => {
+    const request = ++cloudSlotPreviewSeq
+    if (!props.fields.some((field) => field.key === 'slot_group_id')
+      || platform !== 'cloud_phone' || !runtimeId || !groupId) return
+    const identityRows = Array.isArray(rows) && rows.some((row) => Array.isArray(row.matched_account_ids))
+    const count = identityRows
+      ? new Set(rows.flatMap((row) => {
+          const ids = new Set((row.matched_account_ids || []).map(String))
+          return (row.platform_summaries || [])
+            .filter((summary: AnyRecord) => ids.has(String(summary.account_id))
+              && summary.business_platform === businessPlatform)
+            .map((summary: AnyRecord) => String(summary.account_id))
+        })).size
+      : Array.isArray(rows) ? rows.length : accountId ? 1 : 0
+    if (!count) return
+    try {
+      const devices = await http.get<Array<{ id: string; name: string }>>(
+        '/api/accounts/onboarding/cloud-slot-preview',
+        { runtime_instance_id: runtimeId, slot_group_id: groupId, count },
+      )
+      if (request !== cloudSlotPreviewSeq) return
+      emit('update:modelValue', { ...props.modelValue, slot_ids: devices.map((device) => device.id) })
+    } catch (error) {
+      if (request === cloudSlotPreviewSeq) notifyError(error, '无法预选云手机')
+    }
+  },
+)
 
 async function updateTemplateValue(field: FieldConfig, value: string | string[]) {
   const request = ++templateRequestSeq

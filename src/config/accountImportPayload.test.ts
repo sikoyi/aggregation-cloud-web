@@ -15,7 +15,9 @@ describe.each([resources.accounts, buildAccountIdentityResource(resources.accoun
     }
     expect(remote?.detailPath?.('runtime-1')).toContain('task_purpose=account_onboarding')
     const batch = config.batchActions?.find(action => action.key === 'batch-account-onboarding')
-    expect(batch?.fields?.find(field => field.key === 'target_runtime_instance_id')?.remote).toBe(remote)
+    const batchRemote = batch?.fields?.find(field => field.key === 'target_runtime_instance_id')?.remote
+    expect(batchRemote?.endpoint).toBe(remote?.endpoint)
+    expect(batchRemote?.detailPath?.('runtime-1')).toBe(remote?.detailPath?.('runtime-1'))
   })
   for (const action of ['import_only', 'create_environment_and_login']) {
     it.each(['new', 'old', 'unknown'])(`${action} 保留主动选择的类型 %s`, type => {
@@ -41,5 +43,40 @@ describe.each([resources.accounts, buildAccountIdentityResource(resources.accoun
     expect(fields.find(field => field.key === 'account_age_type')?.required).toBe(true)
     const body = config.createBody!(buildPayload(fields, state, 'create'))
     expect(body).toHaveProperty('account_age_type', '')
+  })
+  it('云手机导入只提交已有设备分组，不提交指纹环境参数', () => {
+    const state = {
+      ...buildFormState(fields), business_platform: 'threads', country: '韩国',
+      account_age_type: 'new', raw_text: 'one---password---2fa',
+      post_import_action: 'create_environment_and_login', runtime_platform: 'cloud_phone',
+      provider: 'morelogin', target_runtime_instance_id: 'runtime-cloud',
+      slot_group_id: 'group-cloud', environment_name_prefix: 'old-prefix',
+      proxy_allocation_mode: 'static_group', proxy_group_id: 'old-proxy',
+    }
+    const body = config.createBody!(buildPayload(fields, state, 'create'))
+    expect(body).toMatchObject({
+      runtime_platform: 'cloud_phone', provider: 'vmos',
+      target_runtime_instance_id: 'runtime-cloud', slot_group_id: 'group-cloud',
+      proxy_allocation_mode: 'none',
+    })
+    expect(body).not.toHaveProperty('environment_name_prefix')
+    expect(body).not.toHaveProperty('proxy_group_id')
+  })
+  it('批量上号按账号顺序传递可选设备，凭据不进入任务参数', () => {
+    const action = config.batchActions!.find(item => item.key === 'batch-account-onboarding')!
+    const records = ['account-1', 'account-2'].map(id => config.key === 'accountIdentities'
+      ? { id: `identity-${id}`, matched_account_ids: [id],
+          platform_summaries: [{ account_id: id, business_platform: 'threads' }] }
+      : { id, business_platform: 'threads' })
+    const body = action.batchBody!(
+      { runtime_platform: 'cloud_phone', business_platform: 'threads', target_runtime_instance_id: 'runtime-cloud',
+        slot_group_id: 'group-cloud', slot_ids: ['slot-1', 'slot-2'] },
+      records,
+    )
+    expect(body).toMatchObject({
+      account_ids: ['account-1', 'account-2'], slot_ids: ['slot-1', 'slot-2'],
+      provider: 'vmos', runtime_platform: 'cloud_phone',
+    })
+    expect(JSON.stringify(body)).not.toContain('password')
   })
 })

@@ -879,6 +879,9 @@ function buildAccountImportPayload(payload: AnyRecord) {
     "custom_delimiter",
     "post_import_action",
     "provider",
+    "runtime_platform",
+    "slot_group_id",
+    "slot_ids",
     "target_runtime_instance_id",
     "environment_name_prefix",
     "proxy_allocation_mode",
@@ -887,12 +890,23 @@ function buildAccountImportPayload(payload: AnyRecord) {
   ]);
   if (body.post_import_action !== "create_environment_and_login") {
     delete body.provider;
+    delete body.runtime_platform;
+    delete body.slot_group_id;
+    delete body.slot_ids;
     delete body.target_runtime_instance_id;
     delete body.environment_name_prefix;
     delete body.proxy_allocation_mode;
     delete body.proxy_group_id;
     delete body.dynamic_proxy_id;
+  } else if (body.runtime_platform === "cloud_phone") {
+    body.provider = "vmos";
+    delete body.environment_name_prefix;
+    delete body.proxy_group_id;
+    delete body.dynamic_proxy_id;
+    body.proxy_allocation_mode = "none";
   } else {
+    delete body.slot_group_id;
+    delete body.slot_ids;
     if (body.proxy_allocation_mode !== "static_group") delete body.proxy_group_id;
     if (body.proxy_allocation_mode !== "dynamic_template") delete body.dynamic_proxy_id;
   }
@@ -901,20 +915,71 @@ function buildAccountImportPayload(payload: AnyRecord) {
 
 const accountOnboardingFields: FieldConfig[] = [
   {
+    key: "runtime_platform", label: "执行平台", type: "segmented", required: true,
+    options: [
+      { label: "指纹浏览器", value: "fingerprint_browser" },
+      { label: "已有云手机", value: "cloud_phone" },
+    ],
+    defaultValue: "fingerprint_browser", span: 2,
+  },
+  {
     key: "provider",
     label: "设备供应商",
     type: "select",
     options: providerOptions,
     required: true,
     placeholder: "请选择设备供应商",
+    visibleWhen: { key: "runtime_platform", value: "fingerprint_browser" },
+    requiredWhen: { key: "runtime_platform", value: "fingerprint_browser" },
   },
   {
     key: "target_runtime_instance_id",
     label: "目标 Runtime",
     type: "remoteSelect",
-    remote: onlineFingerprintRuntimeRemoteSelect,
+    remote: {
+      ...onlineFingerprintRuntimeRemoteSelect,
+      params: (context?: AnyRecord) => ({
+        status: "online", lifecycle_status: "active", task_purpose: "account_onboarding",
+        runtime_platform: context?.runtime_platform || "fingerprint_browser",
+        provider: context?.runtime_platform === "cloud_phone" ? "vmos" : context?.provider || undefined,
+      }),
+      matchesContext: (runtime: AnyRecord, context?: AnyRecord) => (
+        runtime.status === "online" && runtime.lifecycle_status !== "retired"
+        && runtime.runtime_platform === (context?.runtime_platform || "fingerprint_browser")
+        && (context?.runtime_platform === "cloud_phone" ? runtime.provider === "vmos" : !context?.provider || runtime.provider === context.provider)
+      ),
+    },
     required: true,
     placeholder: "选择负责创建环境的在线 Runtime",
+  },
+  {
+    key: "slot_group_id", label: "云手机分组", type: "remoteSelect",
+    remote: {
+      ...slotGroupRemoteSelect,
+      params: { runtime_platform: "cloud_phone", provider: "vmos" },
+    },
+    visibleWhen: { key: "runtime_platform", value: "cloud_phone" },
+    requiredWhen: { key: "runtime_platform", value: "cloud_phone" },
+    placeholder: "默认按列表顺序选择组内前 N 台可用设备",
+  },
+  {
+    key: "slot_ids", label: "指定云手机", type: "remoteSelect", span: 2,
+    remote: {
+      endpoint: "/api/execution-slots", labelKeys: ["display_name", "provider_slot_id"],
+      valueKey: "id", multiple: true, pageSize: 100,
+      detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
+      params: (context?: AnyRecord) => ({
+        runtime_platform: "cloud_phone", provider: "vmos", status: "idle",
+        group_id: context?.slot_group_id || undefined,
+      }),
+      loadWhen: (context?: AnyRecord) => Boolean(context?.slot_group_id),
+      matchesContext: (slot: AnyRecord, context?: AnyRecord) => (
+        slot.runtime_instance_id === context?.target_runtime_instance_id
+        && slot.group_id === context?.slot_group_id && !slot.bound_account_id
+      ),
+    },
+    visibleWhen: { key: "runtime_platform", value: "cloud_phone" },
+    placeholder: "留空自动取前 N 台；仅需调整时手动指定",
   },
   {
     key: "environment_name_prefix",
@@ -922,6 +987,8 @@ const accountOnboardingFields: FieldConfig[] = [
     required: true,
     span: 2,
     placeholder: "例如 韩国重试，将生成 韩国重试-001、002……",
+    visibleWhen: { key: "runtime_platform", value: "fingerprint_browser" },
+    requiredWhen: { key: "runtime_platform", value: "fingerprint_browser" },
   },
   {
     key: "proxy_allocation_mode",
@@ -935,6 +1002,7 @@ const accountOnboardingFields: FieldConfig[] = [
     defaultValue: "none",
     span: 2,
     required: true,
+    visibleWhen: { key: "runtime_platform", value: "fingerprint_browser" },
   },
   {
     key: "proxy_group_id",
@@ -942,6 +1010,7 @@ const accountOnboardingFields: FieldConfig[] = [
     type: "remoteSelect",
     remote: proxyGroupRemoteSelect,
     visibleWhen: { key: "proxy_allocation_mode", value: "static_group" },
+    visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
     requiredWhen: { key: "proxy_allocation_mode", value: "static_group" },
     span: 2,
   },
@@ -951,6 +1020,7 @@ const accountOnboardingFields: FieldConfig[] = [
     type: "remoteSelect",
     remote: dynamicProxyRemoteSelect,
     visibleWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
+    visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
     requiredWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
     span: 2,
   },
@@ -960,6 +1030,17 @@ function buildAccountOnboardingBody(payload: AnyRecord, records: AnyRecord[]) {
   const exported = records.filter((record) => Boolean(record.credentials_exported_at));
   if (exported.length) {
     throw new Error(`所选账号中有 ${exported.length} 个已导出，不能再次上号`);
+  }
+  if (payload.runtime_platform === "cloud_phone") {
+    return {
+      account_ids: records.map((record) => String(record.id)),
+      business_platform: String(records[0]?.business_platform || ""),
+      runtime_platform: "cloud_phone",
+      provider: "vmos",
+      target_runtime_instance_id: payload.target_runtime_instance_id,
+      slot_group_id: payload.slot_group_id,
+      slot_ids: payload.slot_ids || [],
+    };
   }
   return {
     account_ids: records.map((record) => String(record.id)),
@@ -1254,11 +1335,20 @@ export const resources: Record<string, ResourceConfig> = {
         type: "segmented",
         options: [
           { label: "仅导入账号", value: "import_only" },
-          { label: "创建环境并上号", value: "create_environment_and_login" },
+          { label: "导入并上号", value: "create_environment_and_login" },
         ],
         defaultValue: "import_only",
         span: 2,
         required: true,
+      },
+      {
+        key: "runtime_platform", label: "执行平台", type: "segmented", span: 2,
+        options: [
+          { label: "指纹浏览器", value: "fingerprint_browser" },
+          { label: "已有云手机", value: "cloud_phone" },
+        ],
+        defaultValue: "fingerprint_browser",
+        visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
       },
       {
         key: "provider",
@@ -1266,23 +1356,69 @@ export const resources: Record<string, ResourceConfig> = {
         type: "select",
         options: providerOptions,
         visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
-        requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
+        requiredWhen: { key: "runtime_platform", value: "fingerprint_browser" },
         placeholder: "请选择设备供应商",
       },
       {
         key: "target_runtime_instance_id",
         label: "目标 Runtime",
         type: "remoteSelect",
-        remote: onlineFingerprintRuntimeRemoteSelect,
+        remote: {
+          ...onlineFingerprintRuntimeRemoteSelect,
+          params: (context?: AnyRecord) => ({
+            status: "online", lifecycle_status: "active", task_purpose: "account_onboarding",
+            runtime_platform: context?.runtime_platform || "fingerprint_browser",
+            provider: context?.runtime_platform === "cloud_phone" ? "vmos" : context?.provider || undefined,
+          }),
+          matchesContext: (runtime: AnyRecord, context?: AnyRecord) => (
+            runtime.status === "online" && runtime.lifecycle_status !== "retired"
+            && runtime.runtime_platform === (context?.runtime_platform || "fingerprint_browser")
+            && (context?.runtime_platform === "cloud_phone" ? runtime.provider === "vmos" : !context?.provider || runtime.provider === context.provider)
+          ),
+        },
         visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
         requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
         placeholder: "选择负责创建环境的在线 Runtime",
       },
       {
+        key: "slot_group_id", label: "云手机分组", type: "remoteSelect",
+        remote: { ...slotGroupRemoteSelect, params: { runtime_platform: "cloud_phone", provider: "vmos" } },
+        visibleWhenAll: [
+          { key: "post_import_action", value: "create_environment_and_login" },
+          { key: "runtime_platform", value: "cloud_phone" },
+        ],
+        requiredWhen: { key: "runtime_platform", value: "cloud_phone" },
+        placeholder: "默认从组内选取与成功导入账号同样数量的设备",
+      },
+      {
+        key: "slot_ids", label: "指定云手机", type: "remoteSelect", span: 2,
+        remote: {
+          endpoint: "/api/execution-slots", labelKeys: ["display_name", "provider_slot_id"],
+          valueKey: "id", multiple: true, pageSize: 100,
+          detailPath: (value: string) => `/api/execution-slots/${encodeURIComponent(value)}`,
+          params: (context?: AnyRecord) => ({
+            runtime_platform: "cloud_phone", provider: "vmos", status: "idle",
+            group_id: context?.slot_group_id || undefined,
+          }),
+          loadWhen: (context?: AnyRecord) => Boolean(context?.slot_group_id),
+          matchesContext: (slot: AnyRecord, context?: AnyRecord) => (
+            slot.runtime_instance_id === context?.target_runtime_instance_id
+            && slot.group_id === context?.slot_group_id && !slot.bound_account_id
+          ),
+        },
+        visibleWhenAll: [
+          { key: "post_import_action", value: "create_environment_and_login" },
+          { key: "runtime_platform", value: "cloud_phone" },
+        ],
+        placeholder: "留空自动选择前 N 台；仅调整时手动指定",
+      },
+      {
         key: "environment_name_prefix",
         label: "环境名称前缀",
         visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
-        requiredWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
+        requiredWhen: { key: "runtime_platform", value: "fingerprint_browser" },
         span: 2,
         placeholder: "例如 韩国7-16-90，将生成 韩国7-16-90-001、002……",
       },
@@ -1297,6 +1433,7 @@ export const resources: Record<string, ResourceConfig> = {
         ],
         defaultValue: "none",
         visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
+        visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
         span: 2,
         required: true,
       },
@@ -1308,6 +1445,7 @@ export const resources: Record<string, ResourceConfig> = {
         visibleWhen: { key: "proxy_allocation_mode", value: "static_group" },
         visibleWhenAll: [
           { key: "post_import_action", value: "create_environment_and_login" },
+          { key: "runtime_platform", value: "fingerprint_browser" },
         ],
         requiredWhen: { key: "proxy_allocation_mode", value: "static_group" },
         span: 2,
@@ -1321,6 +1459,7 @@ export const resources: Record<string, ResourceConfig> = {
         visibleWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
         visibleWhenAll: [
           { key: "post_import_action", value: "create_environment_and_login" },
+          { key: "runtime_platform", value: "fingerprint_browser" },
         ],
         requiredWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
         span: 2,
