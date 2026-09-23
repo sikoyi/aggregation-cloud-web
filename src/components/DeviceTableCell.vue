@@ -175,7 +175,7 @@ function accountTooltip(session: AnyRecord) {
 .device-group-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; }
 .device-group-tag svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .device-group-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.device-group-meta-tag { display: inline-flex; max-width: 100%; overflow: hidden; }
+.device-group-meta-tag { display: inline-flex; max-width: 100%; overflow: hidden; font-size: 13px; }
 .device-group-meta-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
 .device-group-meta-tag svg { width: 12px; height: 12px; flex: 0 0 12px; opacity: .8; }
 .device-group-meta-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
