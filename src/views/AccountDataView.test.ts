@@ -29,6 +29,12 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('formatCompactSignedCount(numberValue)')
     expect(source).toContain(':title="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).fullLabel"')
   })
+  it('浏览量列只展示缓存值和日增量，不暴露汇总状态', () => {
+    expect(source).toContain(':value="scope.row[metric.valueKey]"')
+    expect(source).not.toContain('定时汇总')
+    expect(source).not.toContain('等待汇总')
+    expect(source).not.toContain('post_views_updated_at')
+  })
 
   it('账号资料展示绑定设备名称，未绑定有占位，长名称可悬停查看', () => {
     expect(source).toContain('<small>设备名称</small>')

@@ -276,11 +276,10 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="externalAvatarUrl(row.profile.avatar_url)"><UserRound :size="22" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
       <el-table-column label="账号分组" min-width="150" show-overflow-tooltip><template #default="{ row }"><el-tag :type="row.group_id ? 'primary' : 'info'" effect="plain"><span class="external-monitors__group"><Layers3 v-if="row.group_id" :size="13" />{{ groupName(row.group_id) }}</span></el-tag></template></el-table-column>
-      <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="metric.key === 'total_post_views_count' ? 156 : 132" align="center" sortable="custom">
+      <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" width="132" align="center" sortable="custom">
         <template #default="{ row }">
           <div class="external-metric-cell">
             <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>
-            <small v-if="metric.key === 'total_post_views_count'" :title="formatDate(row.profile.post_views_updated_at)">{{ row.profile.post_views_updated_at ? '定时汇总' : '等待汇总' }}</small>
             <span class="external-metric-delta" :class="'is-' + metricDelta(row.day_deltas?.[metric.key], metric.key).tone" :title="metricDelta(row.day_deltas?.[metric.key], metric.key).fullLabel">
               <component :is="metricDelta(row.day_deltas?.[metric.key], metric.key).icon" :size="12" /><span>{{ metricDelta(row.day_deltas?.[metric.key], metric.key).label }}</span>
             </span>

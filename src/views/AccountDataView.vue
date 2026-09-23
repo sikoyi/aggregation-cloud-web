@@ -117,7 +117,7 @@ const viewModeOptions = [
 ]
 const overviewMetricColumns = [
   { label: '粉丝', valueKey: 'followers_count', deltaKey: 'followers_day_delta' },
-  { label: '帖子总浏览量', valueKey: 'total_post_views_count', deltaKey: 'total_post_views_day_delta', deltaMode: 'views', hint: '汇总已采集帖子的最新浏览量；按北京时间与前一天最后有效采集值比较，缺少完整基线时不计算增量。' },
+  { label: '帖子总浏览量', valueKey: 'total_post_views_count', deltaKey: 'total_post_views_day_delta', deltaMode: 'views', hint: '' },
   { label: '总点赞', valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
 ]
 
@@ -278,7 +278,7 @@ const profileMetricItems = computed(() => {
   if (!account) return []
   return [
     { label: '粉丝', value: account.followers_count, delta: account.followers_day_delta, compact: true },
-    { label: '帖子总浏览量', value: account.total_post_views_count, delta: account.total_post_views_day_delta, deltaMode: 'views', compact: true, hint: '汇总已采集帖子的最新浏览量；按北京时间与前一天最后有效采集值比较，缺少完整基线时不计算增量。' },
+    { label: '帖子总浏览量', value: account.total_post_views_count, delta: account.total_post_views_day_delta, deltaMode: 'views', compact: true, hint: '' },
     { label: '总点赞', value: account.total_likes_count, delta: account.total_likes_day_delta, compact: true },
     { label: '总回复', value: account.total_replies_count, delta: account.total_replies_day_delta },
     {
@@ -1356,7 +1356,7 @@ onBeforeUnmount(() => {
               :prop="metric.valueKey"
               sortable="custom"
               :sort-orders="['descending', 'ascending', null]"
-              :width="metric.valueKey === 'total_post_views_count' ? 156 : 132"
+              width="132"
               align="center"
               header-align="center"
             >
@@ -1369,7 +1369,6 @@ onBeforeUnmount(() => {
                 <div class="account-overview__metric">
                   <strong>
                     <CompactFollowerCount :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
-                    <small v-if="metric.valueKey === 'total_post_views_count'" :title="formatDate(scope.row.post_views_updated_at)">{{ scope.row.post_views_updated_at ? '定时汇总' : '等待汇总' }}</small>
                   </strong>
                   <span v-if="metric.deltaKey" class="account-overview__delta" :class="'is-' + metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).type" :title="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).fullLabel">
                     <component :is="metricDeltaMeta(scope.row[metric.deltaKey], metric.deltaMode).icon" :size="12" />
