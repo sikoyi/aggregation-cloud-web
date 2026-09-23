@@ -28,17 +28,19 @@ describe('content monitor providers', () => {
       { label: 'Apify', value: 'apify' },
     ])
     expect(providerOptionsForPlatform('instagram')).toEqual([
-      { label: 'Apify', value: 'apify' },
+      { label: 'Instagram 内部协议', value: 'instagram_protocol' },
     ])
     expect(isInternalMonitorProvider('threads_protocol')).toBe(true)
     expect(isInternalMonitorProvider('x_protocol')).toBe(true)
+    expect(isInternalMonitorProvider('instagram_protocol')).toBe(true)
     expect(isInternalMonitorProvider('apify')).toBe(false)
   })
 
   it('rejects a provider that belongs to another platform', () => {
     expect(normalizeMonitorProvider('x', 'threads_protocol')).toBe('x_protocol')
     expect(normalizeMonitorProvider('threads', 'x_protocol')).toBe('apify')
-    expect(normalizeMonitorProvider('instagram', 'x_protocol')).toBe('apify')
+    expect(normalizeMonitorProvider('instagram', 'x_protocol')).toBe('instagram_protocol')
+    expect(normalizeMonitorProvider('instagram', 'apify')).toBe('instagram_protocol')
     expect(normalizeMonitorProvider('x', 'apify')).toBe('apify')
   })
 })

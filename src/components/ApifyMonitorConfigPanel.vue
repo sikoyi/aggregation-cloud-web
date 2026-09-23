@@ -114,7 +114,7 @@ const changingToken = ref(false)
 const platformLocked = computed(() => loading.value || usageLoading.value || savingEnabled.value
   || savingProvider.value || testingProtocol.value || submitting.value || !!testingTokenId.value
   || changingToken.value || dialogVisible.value)
-const collectionLabel = computed(() => businessPlatform.value === 'instagram' ? '互动采集' : '账号内容监听')
+const collectionLabel = computed(() => '账号内容监听')
 
 const usageByTokenId = computed(() => {
   const values = new Map<string, TokenUsage>()
@@ -135,13 +135,18 @@ const providerDescription = computed(() => {
   if (provider.value === 'x_protocol') {
     return '服务端调用 X 内部接口采集账号资料、最新帖子和一级回复；采集账号池由内部服务自行维护。'
   }
+  if (provider.value === 'instagram_protocol') {
+    return '服务端调用 Instagram 内部协议采集账号资料和帖子；采集账号池由内部服务自行维护。'
+  }
   return businessPlatform.value === 'x'
     ? '服务端通过 Apify 采集 X 账号资料、背景图、推文和回复；多个 Token 按轮换顺序承接任务。'
     : '服务端固定使用 Apify Actor，多个 Token 按轮换顺序承接新的监听任务。'
 })
-const protocolServiceName = computed(() => provider.value === 'x_protocol' ? 'X 内部接口' : 'Threads 协议服务')
+const protocolServiceName = computed(() => provider.value === 'x_protocol' ? 'X 内部接口' : provider.value === 'instagram_protocol' ? 'Instagram 内部协议' : 'Threads 协议服务')
 const protocolTargetDescription = computed(() => provider.value === 'x_protocol'
   ? '内部服务只接收 X 用户名和帖子 ID；单轮最多采集最新 20 条帖子，回复请求由主系统限制并发。'
+  : provider.value === 'instagram_protocol'
+  ? '内部服务接收 Instagram 用户名或帖子短码；单轮最多采集最新 20 条帖子。'
   : '协议服务只接收目标账号主页和帖子标识；协议端使用的采集账号池由协议服务自行维护。')
 
 function emptyUsage(): UsageSummary {
@@ -427,7 +432,7 @@ onMounted(refreshAll)
     <div class="monitor-header">
       <div>
         <div class="monitor-title"><span class="provider-mark">{{ providerLabel }}</span><h2>{{ collectionLabel }}</h2></div>
-        <p v-if="businessPlatform !== 'instagram'">{{ providerDescription }}</p>
+        <p>{{ providerDescription }}</p>
       </div>
       <div class="platform-switcher-scroll">
         <el-segmented
@@ -456,7 +461,8 @@ onMounted(refreshAll)
           <strong>采集通道</strong>
           <small>按业务 App 独立配置，通道失败时不会自动切换</small>
         </div>
-        <el-segmented v-model="provider" :options="providerOptions" />
+        <el-segmented v-if="providerOptions.length > 1" v-model="provider" :options="providerOptions" />
+        <strong v-else>{{ providerLabel }}</strong>
       </div>
       <div class="provider-actions">
         <el-button

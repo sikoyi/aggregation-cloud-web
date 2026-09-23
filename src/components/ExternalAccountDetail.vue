@@ -55,7 +55,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
         <div class="external-profile__handle">{{ profile.username ? '@' + String(profile.username).replace(/^@/, '') : '暂未采集公开用户名' }}</div>
         <p class="external-profile__bio">{{ profile.biography || '暂未采集到账号简介' }}</p>
         <div class="external-profile__tags">
-          <el-tag effect="plain">{{ detail.monitor.business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</el-tag>
+          <el-tag effect="plain">{{ detail.monitor.business_platform === 'x' ? 'X(Twitter)' : detail.monitor.business_platform === 'instagram' ? 'Instagram' : 'Threads' }}</el-tag>
           <el-tag :type="(detail.monitor.activity_status || detail.monitor.status) === 'active' ? 'success' : (detail.monitor.activity_status || detail.monitor.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(detail.monitor) }}</el-tag>
         </div>
       </div>

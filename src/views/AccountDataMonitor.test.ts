@@ -215,7 +215,7 @@ describe('监听窗口连续设置', () => {
 
   it('平台选项受用户范围与监听能力限制，切换后清除旧账号', () => {
     expect(source).toContain("availableBusinessPlatformOptions.value.filter(")
-    expect(source).toContain("['threads', 'x', 'facebook'].includes(String(option.value))")
+    expect(source).toContain("['threads', 'x', 'instagram', 'facebook'].includes(String(option.value))")
     expect(source).toContain('@change="resetMonitorAccount"')
     expect(source).not.toContain('v-model="monitorForm.business_platform" disabled')
     expect(source).toContain('monitorForm.business_platform === platform')

@@ -33,7 +33,7 @@ interface ExternalMonitor {
 interface ExternalDetail { monitor: ExternalMonitor; posts: AnyRecord[]; total: number; snapshots: AnyRecord[] }
 
 const auth = useAuthStore()
-const platforms = useScopedBusinessPlatformOptions([{ label: 'Threads', value: 'threads' }, { label: 'X(Twitter)', value: 'x' }])
+const platforms = useScopedBusinessPlatformOptions([{ label: 'Threads', value: 'threads' }, { label: 'X(Twitter)', value: 'x' }, { label: 'Instagram', value: 'instagram' }])
 const canEdit = computed(() => auth.can('operations.edit'))
 const labels: Record<string, string> = { pending: '等待采集', collecting: '采集中', active: '监听中', retrying: '等待重试', paused: '已暂停' }
 const rows = ref<ExternalMonitor[]>([])
@@ -79,7 +79,7 @@ function safeUrl(value: unknown) {
   try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '' } catch { return '' }
 }
 function number(value: unknown) { return value == null ? '--' : Number(value).toLocaleString() }
-function platformLabel(value: string) { return value === 'x' ? 'X(Twitter)' : 'Threads' }
+function platformLabel(value: string) { return value === 'x' ? 'X(Twitter)' : value === 'instagram' ? 'Instagram' : 'Threads' }
 function metricDelta(value: number | null | undefined, key: string) {
   if (value == null) return { icon: Minus, label: '暂无前日数据', fullLabel: '暂无前日数据', tone: 'flat' }
   if (key === 'total_post_views_count' && value < 0) {
@@ -308,7 +308,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
     <el-dialog v-model="formVisible" :title="editing ? '外部账号监听设置' : '添加外部账号'" width="min(520px, 96vw)" align-center :close-on-click-modal="false">
       <el-form label-position="top" @submit.prevent="save">
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
-        <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : 'https://www.threads.com/@username'" /></el-form-item>
+        <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>

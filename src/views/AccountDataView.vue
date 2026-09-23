@@ -124,7 +124,7 @@ const overviewMetricColumns = [
 const auth = useAuthStore()
 const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const monitorBusinessPlatformOptions = computed(() => availableBusinessPlatformOptions.value.filter(
-  (option) => ['threads', 'x', 'facebook'].includes(String(option.value)),
+  (option) => ['threads', 'x', 'instagram', 'facebook'].includes(String(option.value)),
 ))
 const loading = ref(false)
 const submitting = ref(false)
@@ -667,7 +667,7 @@ async function saveMonitor() {
       profile_url: monitorForm.profile_url.trim(),
       monitor_mode: monitorForm.monitor_mode,
       interval_minutes: monitorForm.monitor_mode === 'custom' ? monitorForm.interval_minutes : null,
-      comment_reply_mode: monitorForm.comment_reply_mode,
+      comment_reply_mode: monitorForm.business_platform === 'instagram' ? 'disabled' : monitorForm.comment_reply_mode,
       comment_reply_ai_config: {
         provider: monitorForm.ai_provider || 'gemini',
         language: monitorForm.ai_language,
@@ -1809,7 +1809,7 @@ onBeforeUnmount(() => {
               <el-input
                 v-model="monitorForm.profile_url"
                 :disabled="accountProfileLoading"
-                :placeholder="monitorForm.business_platform === 'facebook' ? '例如：https://www.facebook.com/username' : monitorForm.business_platform === 'x' ? '例如：https://x.com/username' : '例如：https://www.threads.com/@username'"
+                :placeholder="monitorForm.business_platform === 'facebook' ? '例如：https://www.facebook.com/username' : monitorForm.business_platform === 'x' ? '例如：https://x.com/username' : monitorForm.business_platform === 'instagram' ? '例如：https://www.instagram.com/username/' : '例如：https://www.threads.com/@username'"
               />
             </el-form-item>
             <div class="monitor-form-row">
@@ -1823,7 +1823,7 @@ onBeforeUnmount(() => {
                 <el-input-number v-model="monitorForm.interval_minutes" :min="1" :max="1440" :disabled="monitorForm.monitor_mode !== 'custom'" controls-position="right" class="w-full" />
               </el-form-item>
             </div>
-            <div class="reply-config">
+            <div v-if="monitorForm.business_platform !== 'instagram'" class="reply-config">
               <div class="dialog-section-title">新评论回复</div>
               <el-form-item label="回复方式">
                 <el-segmented

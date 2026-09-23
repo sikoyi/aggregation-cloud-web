@@ -1,5 +1,5 @@
 export type MonitorBusinessPlatform = 'threads' | 'x' | 'instagram' | 'facebook'
-export type MonitorProvider = 'apify' | 'threads_protocol' | 'x_protocol'
+export type MonitorProvider = 'apify' | 'threads_protocol' | 'x_protocol' | 'instagram_protocol'
 
 export interface MonitorProviderOption {
   label: string
@@ -21,11 +21,12 @@ export function providerOptionsForPlatform(platform: MonitorBusinessPlatform): M
       APIFY_OPTION,
     ]
   }
+  if (platform === 'instagram') return [{ label: 'Instagram 内部协议', value: 'instagram_protocol' }]
   return [APIFY_OPTION]
 }
 
 export function defaultMonitorProviderForPlatform(platform: MonitorBusinessPlatform): MonitorProvider {
-  return platform === 'x' ? 'x_protocol' : 'apify'
+  return platform === 'x' ? 'x_protocol' : platform === 'instagram' ? 'instagram_protocol' : 'apify'
 }
 
 export function normalizeMonitorProvider(
@@ -39,11 +40,12 @@ export function normalizeMonitorProvider(
 }
 
 export function isInternalMonitorProvider(provider: MonitorProvider): boolean {
-  return provider === 'threads_protocol' || provider === 'x_protocol'
+  return provider === 'threads_protocol' || provider === 'x_protocol' || provider === 'instagram_protocol'
 }
 
 export function monitorProviderLabel(provider: MonitorProvider): string {
   if (provider === 'threads_protocol') return 'Threads 内部协议'
   if (provider === 'x_protocol') return 'X 内部接口'
+  if (provider === 'instagram_protocol') return 'Instagram 内部协议'
   return 'Apify'
 }
