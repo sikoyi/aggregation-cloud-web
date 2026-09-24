@@ -413,7 +413,7 @@ function searchRows() {
 }
 
 function handleOverviewSortChange({ prop, order }: { prop: string | null; order: 'ascending' | 'descending' | null }) {
-  if (order && !overviewMetricColumns.some(metric => metric.valueKey === prop)) return
+  if (order && prop !== 'last_post_published_at' && !overviewMetricColumns.some(metric => metric.valueKey === prop)) return
   filters.sort_by = order && prop ? prop : 'monitor_created_at'
   filters.sort_order = order === 'ascending' ? 'asc' : 'desc'
   searchRows()
@@ -1356,9 +1356,10 @@ onBeforeUnmount(() => {
               :prop="metric.valueKey"
               sortable="custom"
               :sort-orders="['descending', 'ascending', null]"
-              width="132"
+              :width="metric.valueKey === 'total_post_views_count' ? 164 : 132"
               align="center"
               header-align="center"
+              header-class-name="account-overview__sortable-header"
             >
               <template #header>
                 <el-tooltip :disabled="!metric.hint" :content="metric.hint" placement="top">
@@ -1378,7 +1379,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="距上次发帖" width="140" align="center" header-align="center">
+            <el-table-column label="距上次发帖" prop="last_post_published_at" sortable="custom" :sort-orders="['descending', 'ascending', null]" width="148" align="center" header-align="center" header-class-name="account-overview__sortable-header">
               <template #default="scope">
                 <el-tooltip v-if="scope.row.last_post_published_at" :content="formatDate(scope.row.last_post_published_at)" placement="top">
                   <span>{{ lastPostElapsed(scope.row.last_post_published_at, elapsedNow) }}</span>
@@ -2272,6 +2273,8 @@ onBeforeUnmount(() => {
 }
 .account-overview__attributes { gap: 5px; color: var(--app-text-muted, #718096); font-size: 11px; }
 .account-overview__metric { gap: 5px; }
+.account-overview :deep(.account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+.account-overview :deep(.account-overview__sortable-header .caret-wrapper) { flex: 0 0 auto; }
 .account-overview__metric strong { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }
 .account-overview__delta {
   display: inline-flex;

@@ -142,9 +142,13 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain(':sort-orders="[\'descending\', \'ascending\', null]"')
     expect(source).toContain('@sort-change="handleOverviewSortChange"')
     expect(source).toContain(':default-sort="overviewDefaultSort"')
+    expect(source).toContain('prop="last_post_published_at" sortable="custom"')
+    expect(source).toContain("metric.valueKey === 'total_post_views_count' ? 164 : 132")
+    expect(source).toContain('header-class-name="account-overview__sortable-header"')
+    expect(source).toContain('white-space: nowrap;')
   })
   it('点击表头升降序和取消排序均保留联合筛选并重新查询', () => {
-    const fields = ['followers_count', 'total_post_views_count', 'total_likes_count']
+    const fields = ['followers_count', 'total_post_views_count', 'total_likes_count', 'last_post_published_at']
     const original = { business_platform: 'threads', slot_group_id: '12', monitor_state: 'monitoring', keyword: 'test' }
     const filters = { ...original, sort_by: 'monitor_created_at', sort_order: 'desc' }
     const searchRows = vi.fn()
@@ -159,9 +163,9 @@ describe('账号数据聚合总览', () => {
     }
     handleSort({ prop: fields[0], order: null })
     expect(filters).toEqual({ ...original, sort_by: 'monitor_created_at', sort_order: 'desc' })
-    expect(searchRows).toHaveBeenCalledTimes(7)
+    expect(searchRows).toHaveBeenCalledTimes(9)
     handleSort({ prop: 'unsupported', order: 'descending' })
-    expect(searchRows).toHaveBeenCalledTimes(7)
+    expect(searchRows).toHaveBeenCalledTimes(9)
   })
   it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
     expect(source).toMatch(/width="min\(92vw, 860px\)"\r?\n\s+align-center/)
