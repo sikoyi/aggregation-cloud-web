@@ -2273,7 +2273,7 @@ onBeforeUnmount(() => {
 }
 .account-overview__attributes { gap: 5px; color: var(--app-text-muted, #718096); font-size: 11px; }
 .account-overview__metric { gap: 5px; }
-.account-overview :deep(.account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+.account-overview :deep(.account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; font-weight: 600; }
 .account-overview :deep(.account-overview__sortable-header .caret-wrapper) { flex: 0 0 auto; }
 .account-overview__metric strong { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }
 .account-overview__delta {
