@@ -146,7 +146,9 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain("metric.valueKey === 'total_post_views_count' ? 164 : 132")
     expect(source).toContain('header-class-name="account-overview__sortable-header"')
     expect(source).toContain('white-space: nowrap;')
-    expect(source).toContain('account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; font-weight: 600; }')
+    expect(source).toContain('account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }')
+    expect(source).toContain('<strong class="account-overview__last-post">{{ lastPostElapsed(scope.row.last_post_published_at, elapsedNow) }}</strong>')
+    expect(source).toContain('.account-overview__metric strong,\n.account-overview__last-post { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }')
   })
   it('点击表头升降序和取消排序均保留联合筛选并重新查询', () => {
     const fields = ['followers_count', 'total_post_views_count', 'total_likes_count', 'last_post_published_at']

@@ -1382,7 +1382,7 @@ onBeforeUnmount(() => {
             <el-table-column label="距上次发帖" prop="last_post_published_at" sortable="custom" :sort-orders="['descending', 'ascending', null]" width="148" align="center" header-align="center" header-class-name="account-overview__sortable-header">
               <template #default="scope">
                 <el-tooltip v-if="scope.row.last_post_published_at" :content="formatDate(scope.row.last_post_published_at)" placement="top">
-                  <span>{{ lastPostElapsed(scope.row.last_post_published_at, elapsedNow) }}</span>
+                  <strong class="account-overview__last-post">{{ lastPostElapsed(scope.row.last_post_published_at, elapsedNow) }}</strong>
                 </el-tooltip>
                 <span v-else class="text-muted">暂无发帖数据</span>
               </template>
@@ -2273,9 +2273,10 @@ onBeforeUnmount(() => {
 }
 .account-overview__attributes { gap: 5px; color: var(--app-text-muted, #718096); font-size: 11px; }
 .account-overview__metric { gap: 5px; }
-.account-overview :deep(.account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; font-weight: 600; }
+.account-overview :deep(.account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }
 .account-overview :deep(.account-overview__sortable-header .caret-wrapper) { flex: 0 0 auto; }
-.account-overview__metric strong { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }
+.account-overview__metric strong,
+.account-overview__last-post { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }
 .account-overview__delta {
   display: inline-flex;
   align-items: center;
