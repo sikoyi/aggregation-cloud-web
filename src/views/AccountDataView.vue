@@ -187,6 +187,32 @@ watch(availableBusinessPlatformOptions, (options) => {
 }, { immediate: true })
 
 const monitorVisible = ref(false)
+const batchBenchmark = ref(false)
+const batchBenchmarkAccounts = ref<AnyRecord[]>([])
+const overwriteBenchmark = ref(false)
+interface BatchBenchmarkResult {
+  processed_count: number
+  skipped_count: number
+  failed_count: number
+  processed_account_ids: string[]
+  skipped_account_ids: string[]
+  failures: { account_id: string; message: string }[]
+}
+const batchBenchmarkResult = ref<BatchBenchmarkResult | null>(null)
+const batchBenchmarkResultRows = computed(() => {
+  const result = batchBenchmarkResult.value
+  if (!result) return []
+  return batchBenchmarkAccounts.value.map(account => {
+    const id = String(account.account_id)
+    const failure = result.failures.find(item => item.account_id === id)
+    return {
+      account_id: id,
+      name: account.account_name || account.login_username || id,
+      message: failure?.message || (result.skipped_account_ids.includes(id) ? '已有对标配置，已跳过' : '配置成功'),
+      failed: Boolean(failure),
+    }
+  })
+})
 const monitorFeature = ref<'account_data' | 'benchmark'>('account_data')
 const monitorAccountLocked = ref(false)
 const monitorTargetAccount = ref<AnyRecord | null>(null)
@@ -290,6 +316,7 @@ const profileMetricItems = computed(() => {
   ]
 })
 const monitorDialogTitle = computed(() => {
+  if (batchBenchmark.value) return `批量对标跟踪（${batchBenchmarkAccounts.value.length} 个账号）`
   if (!monitorAccountLocked.value) return '账号监听'
   return `监听设置：${String(monitorTargetAccount.value?.account_name || monitorTargetAccount.value?.login_username || '-')}`
 })
@@ -495,11 +522,13 @@ async function loadProfileSyncCapability(accountId: string, platform: string) {
 }
 
 function profileSyncFieldDisabled(field: string) {
+  if (batchBenchmark.value) return false
   return profileSyncCapability.loading
     || (!profileSyncCapability.available && !benchmarkForm.profile_sync_fields.includes(field))
 }
 
 function openMonitor(account?: AnyRecord) {
+  batchBenchmark.value = false
   resetMonitorAccount()
   monitorFeature.value = 'account_data'
   monitorAccountLocked.value = Boolean(account)
@@ -533,6 +562,47 @@ function openMonitor(account?: AnyRecord) {
   monitorVisible.value = true
   if (monitorForm.account_id) {
     void loadProfileSyncCapability(monitorForm.account_id, monitorForm.business_platform)
+  }
+}
+
+function openBatchBenchmark() {
+  if (batchActionsDisabled.value) return
+  openMonitor()
+  batchBenchmark.value = true
+  batchBenchmarkAccounts.value = selectedAccounts.value.map(account => ({ ...account }))
+  overwriteBenchmark.value = false
+  batchBenchmarkResult.value = null
+  monitorAccountLocked.value = true
+  monitorForm.business_platform = 'threads'
+  monitorFeature.value = 'benchmark'
+}
+
+async function saveBatchBenchmark() {
+  if (submitting.value || batchBenchmarkResult.value) return
+  if (!benchmarkForm.source_profile_url.trim()) {
+    ElNotification.warning({ title: '请填写对标主页', message: '请输入所选来源平台的已授权账号主页链接' })
+    return
+  }
+  submitting.value = true
+  try {
+    if (overwriteBenchmark.value) {
+      try {
+        await ElMessageBox.confirm('将覆盖所选账号已有的对标来源及跟踪配置，是否继续？', '确认覆盖对标配置', { type: 'warning' })
+      } catch { return }
+    }
+    batchBenchmarkResult.value = await http.post<BatchBenchmarkResult>('/api/benchmark-trackers/batch', {
+      ...benchmarkForm,
+      account_ids: batchBenchmarkAccounts.value.map(account => String(account.account_id)),
+      overwrite_existing: overwriteBenchmark.value,
+      source_profile_url: benchmarkForm.source_profile_url.trim(),
+      post_translation_language: benchmarkForm.post_translation_language || null,
+      interval_minutes: benchmarkForm.monitor_mode === 'custom' ? benchmarkForm.interval_minutes : null,
+    })
+    await loadRows().catch(err => notifyError(err, '列表刷新失败', '批量配置结果已保留，请稍后刷新列表'))
+  } catch (err) {
+    notifyError(err, '批量配置失败', '请刷新账号配置后重试')
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -1213,6 +1283,7 @@ onBeforeUnmount(() => {
               已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
             </span>
             <div class="account-overview__batch-actions">
+              <el-button v-if="auth.can('operations.edit')" :icon="GitCompareArrows" :disabled="batchActionsDisabled" @click="openBatchBenchmark">批量对标跟踪</el-button>
               <el-button
                 type="primary"
                 plain
@@ -1779,13 +1850,16 @@ onBeforeUnmount(() => {
             association-only
           />
         </div>
-        <el-form label-position="top" class="monitor-dialog-form" :disabled="submitting">
+        <el-form label-position="top" class="monitor-dialog-form" :disabled="submitting || (batchBenchmark && Boolean(batchBenchmarkResult))">
+          <el-form-item v-if="batchBenchmark" label="已有对标配置">
+            <el-checkbox v-model="overwriteBenchmark">覆盖已有配置</el-checkbox>
+          </el-form-item>
           <el-form-item v-if="!monitorAccountLocked" label="业务 App">
             <el-select v-model="monitorForm.business_platform" class="w-full" @change="resetMonitorAccount">
               <el-option v-for="option in monitorBusinessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
           </el-form-item>
-          <div class="monitor-type-switch">
+          <div v-if="!batchBenchmark" class="monitor-type-switch">
             <el-segmented
               v-model="monitorFeature"
               :options="monitorFeatureOptions"
@@ -1973,6 +2047,7 @@ onBeforeUnmount(() => {
               </el-form-item>
             </div>
             <el-alert
+              v-if="!batchBenchmark"
               :title="monitorForm.business_platform === 'x' ? '仅同步勾选的资料并跟踪新帖，首次建立基线，历史帖子不补发。X 目标暂不自动删帖。' : benchmarkForm.source_business_platform === 'x' ? '仅同步勾选的资料并跟踪新帖，历史帖子不补发。X 列表缺失不代表源帖已删除，暂不自动删帖。' : '仅同步勾选的资料并跟踪新帖，历史帖子不补发。Threads 源帖经缺失确认后同步删除映射帖子。'"
               type="info"
               :closable="false"
@@ -1989,6 +2064,16 @@ onBeforeUnmount(() => {
           </template>
         </el-form>
       </div>
+      <template v-if="batchBenchmarkResult && batchBenchmark">
+        <p>成功 {{ batchBenchmarkResult.processed_count }} 个，跳过 {{ batchBenchmarkResult.skipped_count }} 个，失败 {{ batchBenchmarkResult.failed_count }} 个</p>
+        <el-table :data="batchBenchmarkResultRows" max-height="240" border>
+          <el-table-column prop="account_id" label="账号 ID" width="100" />
+          <el-table-column prop="name" label="账号" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="message" label="处理结果" min-width="240">
+            <template #default="scope"><span :class="{ 'batch-benchmark-error': scope.row.failed }">{{ scope.row.message }}</span></template>
+          </el-table-column>
+        </el-table>
+      </template>
       <template #footer>
         <div class="monitor-dialog-footer">
           <el-button
@@ -2018,7 +2103,8 @@ onBeforeUnmount(() => {
           </template>
           <div class="monitor-dialog-footer__actions">
             <el-button :disabled="submitting" @click="monitorVisible = false">关闭</el-button>
-            <el-button type="primary" :icon="Play" :loading="submitting" :disabled="accountProfileLoading || !monitorForm.account_id" @click="submitMonitorForm">{{ monitorSubmitLabel }}</el-button>
+            <el-button v-if="batchBenchmark" type="primary" :icon="Play" :loading="submitting" :disabled="Boolean(batchBenchmarkResult)" @click="saveBatchBenchmark">确认批量配置</el-button>
+            <el-button v-else type="primary" :icon="Play" :loading="submitting" :disabled="accountProfileLoading || !monitorForm.account_id" @click="submitMonitorForm">{{ monitorSubmitLabel }}</el-button>
           </div>
         </div>
       </template>
@@ -2033,6 +2119,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.batch-benchmark-error { color: var(--el-color-danger); }
 .account-overview__post-sync { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .account-overview__profile-sync-tooltip {
   display: grid;

@@ -58,7 +58,7 @@ describe('账号数据聚合总览', () => {
     expect(source).not.toContain('<div v-if="selectedAccountIds.length" class="account-overview__batch-bar">')
     expect(source).toContain('computed(() => !selectedAccountIds.value.length || batchUpdating.value)')
     const toolbar = source.split('<div class="account-overview__batch-bar">')[1]?.split('<el-table')[0] || ''
-    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(7)
+    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(8)
     expect(toolbar).not.toContain('取消选择')
     expect(source).toContain('<el-table-column type="selection"')
     const openDialog = source.split('function openBatchMonitorInterval() {')[1]?.split('\n}')[0] || ''
