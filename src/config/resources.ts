@@ -3049,6 +3049,7 @@ export const resources: Record<string, ResourceConfig> = {
           { label: "跟随帖子与对话", value: "auto" },
           { label: "英文", value: "en" },
           { label: "韩文", value: "ko" },
+          { label: "中国台湾（繁体中文）", value: "zh-TW" },
         ],
       },
       {

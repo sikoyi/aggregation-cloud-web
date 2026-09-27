@@ -1935,6 +1935,7 @@ onBeforeUnmount(() => {
                       <el-option label="跟随帖子与评论" value="auto" />
                       <el-option label="英文" value="en" />
                       <el-option label="韩文" value="ko" />
+                      <el-option label="中国台湾（繁体中文）" value="zh-TW" />
                     </el-select>
                   </el-form-item>
                   <el-form-item label="回复语气">
