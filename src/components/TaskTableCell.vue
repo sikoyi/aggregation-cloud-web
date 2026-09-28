@@ -16,6 +16,7 @@ import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from
 import type { AnyRecord } from '@/types/api'
 import type { ColumnConfig } from '@/types/crud'
 import { taskResultCounts } from '@/utils/taskResultCounts'
+import { taskOperator } from '@/utils/taskOperator'
 
 type TaskCellKind = 'taskIdentity' | 'taskScript' | 'taskOperator' | 'taskPlatform' | 'taskResult' | 'taskTimeline'
 
@@ -45,16 +46,9 @@ const taskTitle = computed(() => text(props.row.title))
 const resultCounts = computed(() => taskResultCounts(props.row))
 const taskId = computed(() => text(props.row.id))
 const scriptName = computed(() => text(props.row.script_name || '脚本已删除或不可用'))
-const creatorName = computed(() => text(
-  props.row.creator_display_name || props.row.creator_username || props.row.created_by,
-))
-const creatorSecondary = computed(() => {
-  const username = String(props.row.creator_username || '').trim()
-  const displayName = String(props.row.creator_display_name || '').trim()
-  if (username && username !== displayName) return `@${username}`
-  if (!username && props.row.created_by) return `ID ${props.row.created_by}`
-  return ''
-})
+const operator = computed(() => taskOperator(props.row))
+const creatorName = computed(() => operator.value.name)
+const creatorSecondary = computed(() => operator.value.secondary)
 const businessPlatform = computed(() => optionLabel(businessPlatformOptions, props.row.business_platform))
 const runtimePlatform = computed(() => optionLabel(runtimePlatformOptions, props.row.runtime_platform))
 const provider = computed(() => optionLabel(providerOptions, props.row.provider))
