@@ -4,6 +4,7 @@ import { Activity, ArrowDown, ArrowUp, Minus, Clock3, Eye, Layers3, Pause, Penci
 import ExternalMonitorGroups from '@/components/ExternalMonitorGroups.vue'
 import ExternalMonitorBatchBar from '@/components/ExternalMonitorBatchBar.vue'
 import ExternalAccountDetail from '@/components/ExternalAccountDetail.vue'
+import MonitorErrorStatus from '@/components/MonitorErrorStatus.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatCompactSignedCount } from '@/utils/compactCount'
 import { ElMessageBox, ElNotification } from 'element-plus'
@@ -287,7 +288,8 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         </template>
       </el-table-column>
       <el-table-column label="监听状态 / 进度" width="180" align="center"><template #default="{ row }">
-        <el-tag :type="(row.activity_status || row.status) === 'active' ? 'success' : (row.activity_status || row.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(row as ExternalMonitor) }}</el-tag>
+        <MonitorErrorStatus v-if="['retrying', 'abnormal'].includes(row.activity_status || row.status) || row.last_error" :label="externalMonitorStatus(row as ExternalMonitor)" :data="row" />
+        <el-tag v-else :type="(row.activity_status || row.status) === 'active' ? 'success' : (row.activity_status || row.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(row as ExternalMonitor) }}</el-tag>
         <div v-if="externalMonitorProgress(row.collection_progress)" class="external-collection-progress">{{ externalMonitorProgress(row.collection_progress) }}</div>
         <div v-if="row.collection_progress?.last_progress_at" class="external-collection-progress">进展 {{ formatDate(row.collection_progress.last_progress_at) }}</div>
       </template></el-table-column>

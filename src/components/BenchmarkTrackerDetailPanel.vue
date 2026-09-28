@@ -13,6 +13,7 @@ import { computed, ref, watch } from 'vue'
 import { http, resolveBackendUrl } from '@/api/http'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
 import { benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
+import MonitorErrorStatus from '@/components/MonitorErrorStatus.vue'
 import type { AnyRecord, PageResult } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
@@ -241,7 +242,8 @@ watch(tracker, () => {
         </div>
 
         <div class="benchmark-profile__status">
-          <el-tag :type="collectionStatus.type" effect="light">
+          <MonitorErrorStatus v-if="collectionStatus.type === 'danger'" :label="collectionStatus.label" :data="tracker" :endpoint="`/api/benchmark-trackers/accounts/${encodeURIComponent(accountId)}`" />
+          <el-tag v-else :type="collectionStatus.type" effect="light">
             {{ collectionStatus.label }}
           </el-tag>
           <span v-if="tracker.collection_run?.started_at">本轮开始 {{ formatDate(tracker.collection_run.started_at) }}</span>

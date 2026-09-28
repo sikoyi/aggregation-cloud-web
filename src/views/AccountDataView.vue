@@ -31,6 +31,7 @@ import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSetti
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatCompactSignedCount } from '@/utils/compactCount'
 import StatusBadge from '@/components/StatusBadge.vue'
+import MonitorErrorStatus from '@/components/MonitorErrorStatus.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
 import { benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
@@ -1462,7 +1463,8 @@ onBeforeUnmount(() => {
             <el-table-column label="监听 / 采集" width="170" align="center" header-align="center">
               <template #default="scope">
                 <div class="account-overview__monitor">
-                  <el-tag size="small" :type="monitorStateType(scope.row.monitor_state)" effect="light">
+                  <MonitorErrorStatus v-if="scope.row.monitor_state === 'abnormal'" label="监听异常" :data="scope.row" />
+                  <el-tag v-else size="small" :type="monitorStateType(scope.row.monitor_state)" effect="light">
                     {{ monitorStateLabel(scope.row.monitor_state) }}
                   </el-tag>
                   <small>{{ formatDate(scope.row.metrics_captured_at) }}</small>
@@ -1488,8 +1490,8 @@ onBeforeUnmount(() => {
                   <el-tag size="small" :type="replyModeType(resolvePostSyncMode(scope.row))" effect="light">
                     {{ postSyncLabel(scope.row) }}
                   </el-tag>
-                  <el-tag v-if="scope.row.benchmark_tracker_id && scope.row.benchmark_enabled === false" size="small" type="info">对标已暂停</el-tag>
-                  <el-tag v-else-if="scope.row.benchmark_state === 'abnormal'" size="small" type="danger">对标异常</el-tag>
+                  <MonitorErrorStatus v-if="scope.row.benchmark_state === 'abnormal'" label="对标异常" :data="{ last_error_message: scope.row.benchmark_last_error_message }" :endpoint="`/api/benchmark-trackers/accounts/${encodeURIComponent(scope.row.account_id)}`" />
+                  <el-tag v-else-if="scope.row.benchmark_tracker_id && scope.row.benchmark_enabled === false" size="small" type="info">对标已暂停</el-tag>
                   <el-tooltip
                     v-if="scope.row.benchmark_profile_sync_status === 'failed'"
                     placement="top"
@@ -1503,7 +1505,7 @@ onBeforeUnmount(() => {
                         <small v-if="scope.row.benchmark_profile_sync_task_run_id">任务 ID：{{ scope.row.benchmark_profile_sync_task_run_id }}</small>
                       </div>
                     </template>
-                    <el-tag size="small" type="danger" effect="dark">资料异常</el-tag>
+                    <MonitorErrorStatus label="资料异常" :data="{ last_error_message: scope.row.benchmark_profile_sync_error_message, last_failed_at: scope.row.benchmark_profile_sync_finished_at, task_run_id: scope.row.benchmark_profile_sync_task_run_id, error_phase: '账号资料同步' }" />
                   </el-tooltip>
                   <el-tag
                     v-else-if="['queued', 'running'].includes(scope.row.benchmark_profile_sync_status)"

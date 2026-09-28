@@ -8,6 +8,7 @@ export function isBenchmarkCollecting(tracker: BenchmarkCollectionTracker | null
 
 export function benchmarkCollectionStatus(tracker: BenchmarkCollectionTracker | null): { label: string; type: 'info' | 'primary' | 'success' | 'danger' } {
   if (!tracker) return { label: '读取采集状态', type: 'info' }
+  if (tracker.status === 'abnormal') return { label: '采集失败', type: 'danger' }
   if (!tracker.enabled || tracker.status === 'paused') return { label: '已关闭', type: 'info' }
   const run = tracker.collection_run
   if (run?.status === 'queued') return { label: Number(run.attempt_no) > 1 ? '等待重试' : '排队中', type: 'info' }
