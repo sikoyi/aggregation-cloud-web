@@ -176,11 +176,11 @@ onBeforeUnmount(close)
         <el-descriptions-item v-if="binding.next_retry_at" label="下次重试检查">{{ formatDate(binding.next_retry_at) }}</el-descriptions-item>
       </el-descriptions>
       <el-form v-if="binding?.bound" label-position="left" label-width="180px">
-        <el-form-item label="自动回复成功通知">
-          <el-switch :model-value="binding.notify_auto_success" :disabled="loading || !canBind" aria-label="自动回复成功通知" @change="value => setNotification('notify_auto_success', Boolean(value))" />
+        <el-form-item label="自动回复/发帖成功通知">
+          <el-switch :model-value="binding.notify_auto_success" :disabled="loading || !canBind" aria-label="自动回复/发帖成功通知" @change="value => setNotification('notify_auto_success', Boolean(value))" />
         </el-form-item>
-        <el-form-item label="自动回复失败通知">
-          <el-switch :model-value="binding.notify_auto_failure" :disabled="loading || !canBind" aria-label="自动回复失败通知" @change="value => setNotification('notify_auto_failure', Boolean(value))" />
+        <el-form-item label="自动回复/发帖失败通知">
+          <el-switch :model-value="binding.notify_auto_failure" :disabled="loading || !canBind" aria-label="自动回复/发帖失败通知" @change="value => setNotification('notify_auto_failure', Boolean(value))" />
         </el-form-item>
       </el-form>
       <el-alert v-if="binding?.last_error" :title="binding.last_error" type="warning" :closable="false" />

@@ -23,6 +23,10 @@ function setup() {
 }
 
 describe('TG 私聊绑定', () => {
+  it('自动通知开关明确覆盖回复和发帖', () => {
+    expect(source).toContain('aria-label="自动回复/发帖成功通知"')
+    expect(source).toContain('aria-label="自动回复/发帖失败通知"')
+  })
   it('使用直观的全局文字入口，并只向超级管理员展示只读绑定用户页签', () => {
     expect(source).toContain('<el-button :icon="Link2" @click="open">TG 审核</el-button>')
     expect(source).toContain('<el-tab-pane label="我的绑定" name="mine" />')
