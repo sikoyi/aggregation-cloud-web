@@ -60,7 +60,7 @@ import type { AnyRecord, PageResult } from '@/types/api'
 import type { ColumnConfig, FieldConfig, IconMap, ResourceConfig, RowActionConfig } from '@/types/crud'
 import { buildFormState, buildPayload } from '@/utils/form'
 import { saveDownload } from '@/utils/download'
-import { identitySelectionLabel } from '@/utils/accountIdentitySelection'
+import { identitySelectionLabel, selectedPlatformAccountIds } from '@/utils/accountIdentitySelection'
 import { formatCell, getCellValue, truncateId } from '@/utils/format'
 import { getErrorMessage, notifyError } from '@/utils/notify'
 import {
@@ -77,6 +77,7 @@ const BindingConflictDialog = defineAsyncComponent(() => import('@/components/Bi
 const AccountIdentityPlatformDetails = defineAsyncComponent(() => import('@/components/AccountIdentityPlatformDetails.vue'))
 const AccountIdentityCredentialsDialog = defineAsyncComponent(() => import('@/components/AccountIdentityCredentialsDialog.vue'))
 const AccountExportPreflightDialog = defineAsyncComponent(() => import('@/components/AccountExportPreflightDialog.vue'))
+const AccountBackupDeleteDialog = defineAsyncComponent(() => import('@/components/AccountBackupDeleteDialog.vue'))
 const ActionResultDialog = defineAsyncComponent(() => import('@/components/ActionResultDialog.vue'))
 const BusinessDispatchForm = defineAsyncComponent(() => import('@/components/BusinessDispatchForm.vue'))
 const ContentPreview = defineAsyncComponent(() => import('@/components/ContentPreview.vue'))
@@ -166,6 +167,7 @@ const publishedContentDetailVisible = ref(false)
 const publishedContentDetailId = ref<string | null>(null)
 const identityCredentialsId = ref<string | null>(null)
 const exportSelection = ref<{ source: 'accounts' | 'identities'; records: AnyRecord[] } | null>(null)
+const backupDeleteIds = ref<string[] | null>(null)
 const assetViewerVisible = ref(false)
 const assetViewerTitle = ref('')
 const assetViewerUrl = ref('')
@@ -209,6 +211,7 @@ const hasActiveUserOperation = computed(() => Boolean(
   || identityCredentialsId.value
   || bindingConflictTarget.value
   || exportSelection.value
+  || backupDeleteIds.value
   || assetViewerVisible.value,
 ))
 
@@ -1483,6 +1486,16 @@ async function executeBatchAction(action: RowActionConfig, payload: AnyRecord = 
 }
 
 async function runBatchAction(action: RowActionConfig) {
+  if (action.key === 'delete-account-backups') {
+    if (!auth.can('accounts.delete_backup') || !selectedRows.value.length) return
+    try {
+      const ids = props.config.key === 'accountIdentities' ? selectedPlatformAccountIds(selectedRows.value)
+        : selectedRows.value.map(row => String(row.id))
+      if (!ids.length || ids.length > 100) { ElMessage.warning('请选择 1 至 100 个平台账号'); return }
+      backupDeleteIds.value = [...ids]
+    } catch (err) { notifyError(err, '无法预检', '请刷新列表后重新选择') }
+    return
+  }
   if (action.key === 'export-accounts' && ['accounts', 'accountIdentities'].includes(props.config.key)) {
     if (!auth.can('accounts.export') || !selectedRows.value.length) return
     if (selectedRows.value.length > 1000) {
@@ -1717,6 +1730,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <AccountBackupDeleteDialog v-if="backupDeleteIds" :account-ids="backupDeleteIds" @close="backupDeleteIds = null" @changed="onAccountsExported" />
   <AccountExportPreflightDialog v-if="exportSelection" :source="exportSelection.source" :records="exportSelection.records"
     @close="exportSelection = null" @changed="onAccountsExported" @records="openExportRecords" />
   <section ref="pageRootRef" class="resource-page space-y-4" :class="{ 'resource-page--embedded': props.embedded }">

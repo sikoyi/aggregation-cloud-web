@@ -58,6 +58,7 @@ describe('account identity resource', () => {
       'batch-update-country',
       'batch-update-login-status',
       'batch-set-tags',
+      'delete-account-backups',
       'batch-delete-accounts',
     ])
     expect(config.batchActions?.[0]?.batchBody?.({ business_platforms: ['threads'] }, [{

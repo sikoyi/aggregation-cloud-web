@@ -5,6 +5,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
+import AccountBackupDeleteDialog from '@/components/AccountBackupDeleteDialog.vue'
 import PlatformAccountEditDialog from '@/components/PlatformAccountEditDialog.vue'
 import { businessPlatformLabel } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
@@ -29,11 +30,21 @@ const loading = ref(false)
 const actionLoading = ref('')
 const rows = ref<AnyRecord[]>([])
 const editingAccount = ref<AnyRecord | null>(null)
+const backupDeleteId = ref<string | null>(null)
+const backupChanged = ref(false)
 let requestSequence = 0
 
 async function platformAccountChanged() {
   await loadRows()
   emit('changed')
+}
+
+async function closeBackupDelete() {
+  backupDeleteId.value = null
+  if (backupChanged.value) {
+    backupChanged.value = false
+    await platformAccountChanged()
+  }
 }
 
 async function loadRows() {
@@ -286,8 +297,9 @@ onMounted(loadRows)
           <StatusBadge v-else :value="row.content_monitor_enabled ? row.content_monitor_status : 'disabled'" />
         </template>
       </el-table-column>
-      <el-table-column label="备份数据" width="135" align="center">
+      <el-table-column label="备份数据" width="170" align="center">
         <template #default="{ row }">
+          <div class="backup-cell">
           <div v-if="row.account_package_download_url" class="backup-data">
             <el-tag type="success" effect="plain" round>已备份</el-tag>
             <span class="backup-data__actions">
@@ -314,7 +326,12 @@ onMounted(loadRows)
               </el-tooltip>
             </span>
           </div>
-          <el-tag v-else type="info" effect="plain" round>未备份</el-tag>
+          <el-tag v-else-if="!row.account_package_delete_pending" type="info" effect="plain" round>未备份</el-tag>
+          <el-tag v-if="row.account_package_delete_pending" type="warning" effect="plain">待清理</el-tag>
+          <el-tooltip v-if="auth.can('accounts.delete_backup')" content="删除备份包 / 重试清理" placement="top">
+            <el-button text circle type="danger" :icon="Trash2" aria-label="删除备份包" @click.stop="backupDeleteId = String(row.id)" />
+          </el-tooltip>
+          </div>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="190" align="center">
@@ -370,6 +387,7 @@ onMounted(loadRows)
     <PlatformAccountEditDialog v-if="editingAccount" :key="String(editingAccount.id)"
       :account-id="String(editingAccount.id)" :platform="String(editingAccount.business_platform)"
       @close="editingAccount = null" @changed="platformAccountChanged" />
+    <AccountBackupDeleteDialog v-if="backupDeleteId" :account-ids="[backupDeleteId]" @close="closeBackupDelete" @changed="backupChanged = true" />
   </section>
 </template>
 
@@ -401,6 +419,7 @@ onMounted(loadRows)
 .bound-device__group { color: var(--app-text-muted, #526f86) !important; }
 .bound-device__conflict { align-self: flex-start; }
 .backup-data { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.backup-cell { display: flex; align-items: center; justify-content: center; gap: 3px; flex-wrap: wrap; }
 .backup-data__actions { display: inline-flex; align-items: center; gap: 0; }
 .backup-data__actions :deep(.el-button + .el-button) { margin-left: 0; }
 .backup-data__actions :deep(.el-button) { width: 26px; height: 26px; }

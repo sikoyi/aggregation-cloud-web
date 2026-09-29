@@ -1,5 +1,6 @@
 import { businessPlatformOptions } from '@/config/options'
 import { accountExportAction } from '@/config/accountExport'
+import { accountBackupDeleteAction } from '@/config/accountBackupDelete'
 import type { AnyRecord } from '@/types/api'
 import type { FieldConfig, ResourceConfig, RowActionConfig, SelectOption } from '@/types/crud'
 import { identitySelectionLabel, matchedPlatformSummaries, selectedPlatformAccountIds } from '@/utils/accountIdentitySelection'
@@ -161,6 +162,7 @@ export function buildAccountIdentityResource(accounts: ResourceConfig): Resource
       accountCountryAction,
       accountLoginStatusAction,
       accountTagAction,
+      accountBackupDeleteAction,
       identityPlatformDeleteAction(),
     ].filter((action): action is RowActionConfig => action !== null),
     inlineActionKeys: ['edit-credentials'],
