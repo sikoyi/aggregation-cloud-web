@@ -4,6 +4,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import CrudPage from '@/components/CrudPage.vue'
+import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import { resources } from '@/config/resources'
 import { useAuthStore } from '@/stores/auth'
 
@@ -12,6 +13,25 @@ const taskPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const linkedTaskId = ref<string | null>(null)
+const linkedTaskVisible = ref(false)
+
+watch(
+  () => route.query.task_id,
+  (value) => {
+    linkedTaskId.value = typeof value === 'string' && value.trim() ? value : null
+    linkedTaskVisible.value = Boolean(linkedTaskId.value)
+  },
+  { immediate: true },
+)
+
+function updateLinkedTaskVisible(value: boolean) {
+  linkedTaskVisible.value = value
+  if (value) return
+  const query = { ...route.query }
+  delete query.task_id
+  void router.replace({ path: route.path, query })
+}
 
 function refreshTasks() {
   taskPageRef.value?.loadRows()
@@ -38,6 +58,7 @@ watch(
 
 <template>
   <section class="task-records">
+    <TaskDetailDrawer :model-value="linkedTaskVisible" :task-id="linkedTaskId" @update:model-value="updateLinkedTaskVisible" />
     <el-card shadow="never" class="task-records__workspace">
       <div class="task-records__header">
         <div class="task-records__title">
