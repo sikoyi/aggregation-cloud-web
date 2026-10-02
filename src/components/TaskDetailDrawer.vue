@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RelationCell from '@/components/RelationCell.vue'
@@ -304,19 +304,33 @@ function timelineTitle(event: AnyRecord) {
   return String(event.event_type || '任务事件')
 }
 
+let detailRequestId = 0
+let childRequestId = 0
+
+function invalidateRequests() {
+  detailRequestId += 1
+  childRequestId += 1
+  loading.value = false
+  childLoading.value = false
+}
+
 async function loadChildren(taskId: string) {
+  const requestId = ++childRequestId
   childLoading.value = true
+  children.value = []
+  error.value = ''
   try {
     const childData = await http.get<PageResult<AnyRecord>>(
       '/api/tasks/' + encodeURIComponent(taskId) + '/children',
       { page: childPage.value, page_size: childPageSize.value },
     )
+    if (requestId !== childRequestId) return
     children.value = childData.items || []
     childTotal.value = Number(childData.total || 0)
   } catch (err) {
-    error.value = notifyError(err, '加载失败', '加载设备执行记录失败')
+    if (requestId === childRequestId) error.value = notifyError(err, '加载失败', '加载设备执行记录失败')
   } finally {
-    childLoading.value = false
+    if (requestId === childRequestId) childLoading.value = false
   }
 }
 
@@ -334,8 +348,11 @@ async function changeChildPageSize(pageSize: number) {
 }
 
 async function loadDetail(taskId: string) {
+  invalidateRequests()
+  const requestId = detailRequestId
   loading.value = true
   task.value = null
+  events.value = []
   error.value = ''
   paramRows.value = []
   activeSlotGroups.value = []
@@ -347,14 +364,17 @@ async function loadDetail(taskId: string) {
       http.get<AnyRecord>(`/api/tasks/${encodeURIComponent(taskId)}`),
       http.get<{ items: AnyRecord[] }>(`/api/tasks/${encodeURIComponent(taskId)}/events`),
     ])
+    if (requestId !== detailRequestId) return
     task.value = detail
     events.value = eventData.items || []
     if (isTaskGroup(detail)) await loadChildren(taskId)
-    paramRows.value = await buildParamRows(detail)
+    if (requestId !== detailRequestId) return
+    const rows = await buildParamRows(detail)
+    if (requestId === detailRequestId) paramRows.value = rows
   } catch (err) {
-    error.value = notifyError(err, '加载失败', '加载任务详情失败')
+    if (requestId === detailRequestId) error.value = notifyError(err, '加载失败', '加载任务详情失败')
   } finally {
-    loading.value = false
+    if (requestId === detailRequestId) loading.value = false
   }
 }
 
@@ -366,10 +386,14 @@ watch(
       taskHistory.value = []
       activeTab.value = 'basic'
       loadDetail(taskId)
+    } else {
+      invalidateRequests()
     }
   },
   { immediate: true },
 )
+
+onBeforeUnmount(invalidateRequests)
 </script>
 
 <template>

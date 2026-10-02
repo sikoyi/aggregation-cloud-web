@@ -18,12 +18,18 @@ async function main() {
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
     const errors = [], requests = []
+    let holdSlow
+    const slowRequested = new Promise(resolve => { holdSlow = resolve })
     page.on('pageerror', error => errors.push(error.message))
     await page.route('**/__task_single_smoke', route => route.fulfill({ contentType: 'text/html', body: '<html><body><div id="app"></div></body></html>' }))
     await page.route('**/api/**', route => {
       const url = new URL(route.request().url())
       if (!url.pathname.startsWith('/api/')) return route.continue()
       requests.push(url.pathname)
+      if (url.pathname === '/api/tasks/slow') {
+        holdSlow(route)
+        return
+      }
       let data = { items: [], total: 0 }
       if (url.pathname.endsWith('/events')) data = { items: [{ id: 'event', event_type: 'task.result_reported', status_to: 'failed', message: task.error_message, created_at: task.finished_at }] }
       else if (url.pathname === '/api/tasks/single') data = task
@@ -68,8 +74,18 @@ async function main() {
     const bounds = await dialog.boundingBox()
     assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 391)
     await page.screenshot({ path: path.join(output, 'task-single-mobile.png'), fullPage: true })
+
+    await page.evaluate(() => window.setSmokeTask('slow'))
+    const slowRoute = await slowRequested
+    await page.evaluate(() => window.setSmokeTask('single'))
+    await dialog.getByRole('heading', { name: '任务详情：自动发帖测试' }).waitFor()
+    const slowResponse = page.waitForResponse(response => response.url().endsWith('/api/tasks/slow'))
+    await slowRoute.fulfill({ json: { code: 0, msg: 'ok', data: { ...task, id: 'slow', title: '过期任务' } } })
+    await (await slowResponse).finished()
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+    assert.equal(await dialog.getByRole('heading').innerText(), '任务详情：自动发帖测试')
     assert.deepEqual(errors, [])
-    console.log('PASS: single device, concrete error, own timeline, batch child navigation, mobile dialog')
+    console.log('PASS: single device, concrete error, own timeline, batch child navigation, mobile dialog, late detail response ignored')
   } finally {
     await browser.close()
   }
