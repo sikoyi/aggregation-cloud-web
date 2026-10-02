@@ -7,6 +7,10 @@ const failedStatuses = new Set(['all_failed', 'failed', 'expired', 'lost'])
 
 export type TaskResultAlertType = 'success' | 'warning' | 'info' | 'error'
 
+export function isTaskGroup(row: AnyRecord): boolean {
+  return parentTypes.has(String(row.task_type)) || Number(row.child_total || 0) > 0
+}
+
 export function taskResultAlertType(status: unknown): TaskResultAlertType {
   const value = String(status || '')
   if (failedStatuses.has(value)) return 'error'
@@ -16,7 +20,7 @@ export function taskResultAlertType(status: unknown): TaskResultAlertType {
 }
 
 export function taskResultCounts(row: AnyRecord) {
-  if (parentTypes.has(String(row.task_type)) || Number(row.child_total || 0) > 0) {
+  if (isTaskGroup(row)) {
     return {
       succeeded: Number(row.child_succeeded || 0),
       failed: Number(row.child_failed || 0),

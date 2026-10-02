@@ -9,7 +9,7 @@ import { businessPlatformLabel } from '@/config/options'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate, statusLabel, truncateId } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
-import { taskResultAlertType } from '@/utils/taskResultCounts'
+import { isTaskGroup, taskResultAlertType } from '@/utils/taskResultCounts'
 
 const props = defineProps<{
   modelValue: boolean
@@ -50,17 +50,18 @@ const visible = computed({
 const resultDescription = computed(() => {
   const result = task.value?.result
   if (result && typeof result === 'object' && 'description' in result) {
-    return String((result as AnyRecord).description || '')
+    return String((result as AnyRecord).description || task.value?.error_message || '')
   }
-  return ''
+  return String(task.value?.error_message || '')
 })
 
 const resultType = computed(() => taskResultAlertType(task.value?.status))
 
-const isChildTask = computed(() => Boolean(task.value?.parent_task_run_id))
+const isSingleExecution = computed(() => Boolean(task.value && !isTaskGroup(task.value)))
+const executionRows = computed(() => isSingleExecution.value && task.value ? [task.value] : children.value)
 
 const showChildAccountColumn = computed(() => (
-  children.value.some((item) => Boolean(String(item.account_id || '').trim()))
+  executionRows.value.some((item) => Boolean(String(item.account_id || '').trim()))
 ))
 
 const detailTitle = computed(() => {
@@ -277,6 +278,10 @@ function slotGroupKey(group: TaskParameterSlotGroup, index: number) {
 function openChildDetail(row: AnyRecord) {
   const childId = String(row.id || '')
   if (!childId || !currentTaskId.value) return
+  if (childId === currentTaskId.value) {
+    activeTab.value = 'events'
+    return
+  }
   taskHistory.value.push(currentTaskId.value)
   currentTaskId.value = childId
   activeTab.value = 'basic'
@@ -330,6 +335,7 @@ async function changeChildPageSize(pageSize: number) {
 
 async function loadDetail(taskId: string) {
   loading.value = true
+  task.value = null
   error.value = ''
   paramRows.value = []
   activeSlotGroups.value = []
@@ -343,7 +349,7 @@ async function loadDetail(taskId: string) {
     ])
     task.value = detail
     events.value = eventData.items || []
-    await loadChildren(taskId)
+    if (isTaskGroup(detail)) await loadChildren(taskId)
     paramRows.value = await buildParamRows(detail)
   } catch (err) {
     error.value = notifyError(err, '加载失败', '加载任务详情失败')
@@ -395,16 +401,16 @@ watch(
               <el-descriptions-item label="脚本">
                 <RelationCell :value="task.script_key" :config="scriptRelationConfig" />
               </el-descriptions-item>
-              <el-descriptions-item v-if="isChildTask" label="账号">
+              <el-descriptions-item v-if="isSingleExecution" label="账号">
                 <span class="font-mono text-xs" :title="String(task.account_id || '')">{{ truncateId(task.account_id) }}</span>
               </el-descriptions-item>
-              <el-descriptions-item v-if="isChildTask" label="设备名称">
+              <el-descriptions-item v-if="isSingleExecution" label="设备名称">
                 {{ text(task.slot_name) }}
               </el-descriptions-item>
-              <el-descriptions-item v-if="isChildTask" label="设备 ID">
+              <el-descriptions-item v-if="isSingleExecution" label="设备 ID">
                 <span class="font-mono text-xs">{{ text(task.provider_slot_id) }}</span>
               </el-descriptions-item>
-              <el-descriptions-item v-if="isChildTask" label="错误信息">
+              <el-descriptions-item v-if="isSingleExecution" label="错误信息">
                 {{ text(task.error_message) }}
               </el-descriptions-item>
               <el-descriptions-item label="来源模板">
@@ -485,8 +491,8 @@ watch(
           </el-tab-pane>
 
           <el-tab-pane label="设备执行记录" name="children">
-            <el-table v-loading="childLoading" :data="children" border stripe empty-text="暂无设备执行记录">
-              <el-table-column label="子任务 ID" min-width="130">
+            <el-table v-loading="childLoading" :data="executionRows" border stripe empty-text="暂无设备执行记录">
+              <el-table-column label="任务 ID" min-width="130">
                 <template #default="{ row }">
                   <span class="font-mono text-xs" :title="String(row.id || '')">{{ truncateId(row.id) }}</span>
                 </template>
@@ -521,13 +527,13 @@ watch(
               <el-table-column label="结束时间" min-width="170">
                 <template #default="{ row }">{{ formatDate(row.finished_at) }}</template>
               </el-table-column>
-              <el-table-column label="操作" width="90" align="center" header-align="center">
+              <el-table-column label="操作" :width="isSingleExecution ? 120 : 90" fixed="right" align="center" header-align="center">
                 <template #default="{ row }">
-                  <el-button text type="primary" @click="openChildDetail(row)">查看</el-button>
+                  <el-button text type="primary" @click="openChildDetail(row)">{{ isSingleExecution ? '执行时间线' : '查看' }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
-            <div class="task-child-pagination">
+            <div v-if="!isSingleExecution" class="task-child-pagination">
               <el-pagination
                 v-model:current-page="childPage"
                 v-model:page-size="childPageSize"
