@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import source from './CommentReplyQuietSettingsDialog.vue?raw'
 
-describe('账号数据评论禁回时段', () => {
+describe('账号数据忽略时间段', () => {
   it('在一个弹窗内按支持的平台配置单个北京时间时段', () => {
     for (const platform of ['threads', 'x', 'facebook']) {
       expect(source).toContain(`value: '${platform}'`)
     }
-    expect(source).toContain('评论禁回时段')
+    expect(source).toContain('忽略时间段')
     expect(source).toContain('北京时间（Asia/Shanghai）')
     expect(source).toContain('v-model="form.enabled"')
     expect(source).toContain('v-model="form.start"')
@@ -27,7 +27,7 @@ describe('账号数据评论禁回时段', () => {
   it('保留只读角色查看能力且仅向编辑角色展示保存按钮', () => {
     expect(source).toContain('editable?: boolean')
     expect(source).toContain('v-if="!editable"')
-    expect(source).toContain('当前角色仅可查看评论禁回时段')
+    expect(source).toContain('当前角色仅可查看忽略时间段')
     expect(source).toContain('<el-button v-if="editable"')
   })
 

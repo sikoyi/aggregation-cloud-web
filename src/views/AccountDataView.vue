@@ -28,6 +28,7 @@ import AccountPublishedContentPanel from '@/components/AccountPublishedContentPa
 import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'
+import CommentReplyScheduleDialog from '@/components/CommentReplyScheduleDialog.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatCompactSignedCount } from '@/utils/compactCount'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -137,6 +138,8 @@ const selectedAccounts = ref<AnyRecord[]>([])
 const batchUpdating = ref(false)
 const batchIntervalVisible = ref(false)
 const replyQuietSettingsVisible = ref(false)
+const replyScheduleVisible = ref(false)
+const replyScheduleAccounts = ref<AnyRecord[]>([])
 const batchIntervalForm = reactive({
   monitor_mode: 'system' as AccountMonitorMode,
   interval_minutes: 60,
@@ -1146,8 +1149,9 @@ onBeforeUnmount(() => {
             :icon="Clock"
             @click="replyQuietSettingsVisible = true"
           >
-            评论禁回时段
+            忽略时间段
           </el-button>
+          <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" @click="replyScheduleAccounts = []; replyScheduleVisible = true">App 回复时间</el-button>
           <el-tooltip content="刷新" placement="bottom">
             <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
           </el-tooltip>
@@ -1284,6 +1288,7 @@ onBeforeUnmount(() => {
               已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
             </span>
             <div class="account-overview__batch-actions">
+              <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" :disabled="batchActionsDisabled" @click="replyScheduleAccounts = selectedAccounts.map(account => ({ ...account })); replyScheduleVisible = true">设置回复时间</el-button>
               <el-button v-if="auth.can('operations.edit')" :icon="GitCompareArrows" :disabled="batchActionsDisabled" @click="openBatchBenchmark">批量对标跟踪</el-button>
               <el-button
                 type="primary"
@@ -2113,6 +2118,7 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
+    <CommentReplyScheduleDialog v-model="replyScheduleVisible" :accounts="replyScheduleAccounts" />
     <CommentReplyQuietSettingsDialog
       v-model="replyQuietSettingsVisible"
       :editable="auth.can('system_settings.edit')"

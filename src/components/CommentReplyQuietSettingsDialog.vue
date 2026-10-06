@@ -62,7 +62,7 @@ async function loadPolicy() {
     form.start = String(data.comment_reply_quiet_start || '22:00:00')
     form.end = String(data.comment_reply_quiet_end || '08:00:00')
   } catch (err) {
-    if (revision === requestRevision) notifyError(err, '加载失败', '评论禁回时段加载失败')
+    if (revision === requestRevision) notifyError(err, '加载失败', '忽略时间段加载失败')
   } finally {
     if (revision === requestRevision) loading.value = false
   }
@@ -70,11 +70,11 @@ async function loadPolicy() {
 
 async function savePolicy() {
   if (form.enabled && (!form.start || !form.end)) {
-    ElNotification.warning({ title: '请完善配置', message: '请选择禁回开始和结束时间' })
+    ElNotification.warning({ title: '请完善配置', message: '请选择忽略开始和结束时间' })
     return
   }
   if (form.enabled && form.start === form.end) {
-    ElNotification.warning({ title: '时间无效', message: '禁回开始和结束时间不能相同' })
+    ElNotification.warning({ title: '时间无效', message: '忽略开始和结束时间不能相同' })
     return
   }
   saving.value = true
@@ -89,10 +89,10 @@ async function savePolicy() {
     form.end = String(data.comment_reply_quiet_end || form.end || '08:00:00')
     ElNotification.success({
       title: '保存成功',
-      message: `${activePlatformLabel.value} 评论禁回时段已更新`,
+      message: `${activePlatformLabel.value} 忽略时间段已更新`,
     })
   } catch (err) {
-    notifyError(err, '保存失败', '评论禁回时段保存失败')
+    notifyError(err, '保存失败', '忽略时间段保存失败')
   } finally {
     saving.value = false
   }
@@ -108,7 +108,7 @@ watch(visible, (value) => {
 <template>
   <el-dialog
     v-model="visible"
-    title="评论禁回时段"
+    title="忽略时间段"
     width="min(92vw, 640px)"
     align-center
     destroy-on-close
@@ -172,7 +172,7 @@ watch(visible, (value) => {
         />
         <el-alert
           v-if="!editable"
-          title="当前角色仅可查看评论禁回时段"
+          title="当前角色仅可查看忽略时间段"
           type="info"
           :closable="false"
           show-icon

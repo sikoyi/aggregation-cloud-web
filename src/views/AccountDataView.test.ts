@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { transpile } from 'typescript'
 
-import source from './AccountDataView.vue?raw'
+import rawSource from './AccountDataView.vue?raw'
+const source = rawSource.replace(/\r\n/g, '\n')
 
 describe('账号数据聚合总览', () => {
   it('乱序返回不覆盖新筛选，后台刷新不打开加载遮罩', async () => {
@@ -58,7 +59,7 @@ describe('账号数据聚合总览', () => {
     expect(source).not.toContain('<div v-if="selectedAccountIds.length" class="account-overview__batch-bar">')
     expect(source).toContain('computed(() => !selectedAccountIds.value.length || batchUpdating.value)')
     const toolbar = source.split('<div class="account-overview__batch-bar">')[1]?.split('<el-table')[0] || ''
-    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(8)
+    expect(toolbar.match(/:disabled="batchActionsDisabled"/g)).toHaveLength(9)
     expect(toolbar).not.toContain('取消选择')
     expect(source).toContain('<el-table-column type="selection"')
     const openDialog = source.split('function openBatchMonitorInterval() {')[1]?.split('\n}')[0] || ''
@@ -88,12 +89,12 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain("if (mode === 'views') return { icon: AlertTriangle, label: '数据待核对'")
     expect(source).not.toContain('v-if="!metric.hint"')
   })
-  it('在账号数据页直接提供平台评论禁回时段入口', () => {
+  it('在账号数据页直接提供平台忽略时间段入口', () => {
     expect(source).toContain("import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'")
     expect(source).toContain("auth.canAny(['system_settings.view', 'system_settings.edit'])")
     expect(source).toContain("auth.can('system_settings.edit')")
     expect(source).toContain('@click="replyQuietSettingsVisible = true"')
-    expect(source).toContain('评论禁回时段')
+    expect(source).toContain('忽略时间段')
     expect(source).toContain('v-model="replyQuietSettingsVisible"')
     expect(source).toContain(':editable="auth.can(\'system_settings.edit\')"')
   })

@@ -49,6 +49,7 @@ const auth = useAuthStore()
 const route = useRoute()
 const availableBusinessPlatformOptions = useScopedBusinessPlatformOptions()
 const statusOptions = [
+  { label: '待定时下发', value: 'pending_dispatch', type: 'primary' },
   { label: '生成中', value: 'generating', type: 'primary' },
   { label: '待审核', value: 'pending_review', type: 'warning' },
   { label: '排队中', value: 'queued', type: 'primary' },
@@ -269,7 +270,7 @@ async function approveActive() {
   try {
     await approveCommentReply(String(activeJob.value.id), editedContent.value)
     dialogVisible.value = false
-    ElNotification.success({ title: '已确认下发', message: '回复任务已经进入设备任务队列' })
+    ElNotification.success({ title: '审核通过', message: '工单已进入待定时下发队列' })
     await loadRows()
   } catch (err) {
     notifyError(err, '下发失败', '回复任务未能进入队列')
