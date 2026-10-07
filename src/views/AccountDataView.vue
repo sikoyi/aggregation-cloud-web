@@ -29,6 +29,8 @@ import AccountTreeSelect from '@/components/AccountTreeSelect.vue'
 import BenchmarkTrackerDetailPanel from '@/components/BenchmarkTrackerDetailPanel.vue'
 import CommentReplyQuietSettingsDialog from '@/components/CommentReplyQuietSettingsDialog.vue'
 import CommentReplyScheduleDialog from '@/components/CommentReplyScheduleDialog.vue'
+import CommentReplyTimeSettings from '@/components/CommentReplyTimeSettings.vue'
+import type { CommentReplyScheduleOptions } from '@/api/commentReplySchedule'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatCompactSignedCount } from '@/utils/compactCount'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -140,6 +142,9 @@ const batchIntervalVisible = ref(false)
 const replyQuietSettingsVisible = ref(false)
 const replyScheduleVisible = ref(false)
 const replyScheduleAccounts = ref<AnyRecord[]>([])
+const replyScheduleMode = ref('')
+const monitorReplySchedule = ref<CommentReplyScheduleOptions>({ inherit: true, times: [] })
+const monitorReplyScheduleReady = ref(false)
 const batchIntervalForm = reactive({
   monitor_mode: 'system' as AccountMonitorMode,
   interval_minutes: 60,
@@ -532,6 +537,8 @@ function profileSyncFieldDisabled(field: string) {
 }
 
 function openMonitor(account?: AnyRecord) {
+  monitorReplySchedule.value = { inherit: true, times: [] }
+  monitorReplyScheduleReady.value = false
   batchBenchmark.value = false
   resetMonitorAccount()
   monitorFeature.value = 'account_data'
@@ -735,7 +742,13 @@ async function saveMonitor() {
   }
   submitting.value = true
   try {
+    const repliesEnabled = monitorForm.business_platform !== 'instagram' && monitorForm.comment_reply_mode !== 'disabled'
+    if (repliesEnabled && !monitorReplyScheduleReady.value) {
+      ElNotification.warning({ title: '请设置回复时间', message: '请选择有有效时间的 App 默认配置，或自定义至少一个回复时间' })
+      return
+    }
     const data = await http.post<AnyRecord>('/api/interaction-center/content-monitor/accounts', {
+      ...(repliesEnabled ? { comment_reply_schedule: monitorReplySchedule.value } : {}),
       business_platform: monitorForm.business_platform,
       account_id: monitorForm.account_id,
       profile_url: monitorForm.profile_url.trim(),
@@ -1028,7 +1041,24 @@ async function updateSelectedAccountSetting(
 }
 
 function batchUpdateCommentReplyMode(command: string | number | object) {
+  const mode = String(command)
+  if (mode === 'automatic' || mode === 'review') {
+    if (batchActionsDisabled.value) return
+    replyScheduleMode.value = mode
+    replyScheduleAccounts.value = selectedAccounts.value.map(account => ({ ...account }))
+    if (!replyScheduleAccounts.value.some(account => account.monitor_setting_id)) {
+      ElNotification.warning({ title: '没有可更新的账号', message: '所选账号尚未配置监听' })
+      return
+    }
+    replyScheduleVisible.value = true
+    return
+  }
   return updateSelectedAccountSetting('comment_reply_mode', String(command) as AccountDataConfigMode)
+}
+
+async function finishBatchReplySettings() {
+  clearOverviewSelection()
+  await loadRows().catch(err => notifyError(err, '列表刷新失败', '回复设置已保存，请稍后刷新列表'))
 }
 
 function batchUpdatePostSyncMode(command: string | number | object) {
@@ -1151,7 +1181,7 @@ onBeforeUnmount(() => {
           >
             忽略时间段
           </el-button>
-          <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" @click="replyScheduleAccounts = []; replyScheduleVisible = true">App 回复时间</el-button>
+          <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" @click="replyScheduleMode = ''; replyScheduleAccounts = []; replyScheduleVisible = true">App 回复时间</el-button>
           <el-tooltip content="刷新" placement="bottom">
             <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
           </el-tooltip>
@@ -1288,7 +1318,7 @@ onBeforeUnmount(() => {
               已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
             </span>
             <div class="account-overview__batch-actions">
-              <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" :disabled="batchActionsDisabled" @click="replyScheduleAccounts = selectedAccounts.map(account => ({ ...account })); replyScheduleVisible = true">设置回复时间</el-button>
+              <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" :disabled="batchActionsDisabled" @click="replyScheduleMode = ''; replyScheduleAccounts = selectedAccounts.map(account => ({ ...account })); replyScheduleVisible = true">设置回复时间</el-button>
               <el-button v-if="auth.can('operations.edit')" :icon="GitCompareArrows" :disabled="batchActionsDisabled" @click="openBatchBenchmark">批量对标跟踪</el-button>
               <el-button
                 type="primary"
@@ -1838,6 +1868,7 @@ onBeforeUnmount(() => {
 
     <el-dialog
       v-model="monitorVisible"
+      class="account-monitor-dialog"
       :title="monitorDialogTitle"
       width="min(92vw, 860px)"
       align-center
@@ -1917,11 +1948,19 @@ onBeforeUnmount(() => {
                   class="w-full"
                 />
               </el-form-item>
+              <CommentReplyTimeSettings
+                v-show="monitorForm.comment_reply_mode !== 'disabled'"
+                v-model="monitorReplySchedule"
+                :active="monitorVisible && monitorFeature === 'account_data'"
+                :business-platform="monitorForm.business_platform"
+                :account-id="monitorForm.account_id"
+                @ready="monitorReplyScheduleReady = $event"
+              />
               <template v-if="monitorForm.comment_reply_mode !== 'disabled'">
                 <el-alert
                   :title="monitorForm.comment_reply_mode === 'automatic'
-                    ? '仅对监听开启后发现的新一级评论生成文案并自动下发。'
-                    : '仅对监听开启后发现的新一级评论生成文案，运营确认或修改后再下发。'"
+                    ? '新一级评论生成文案后，按回复时间集中下发。'
+                    : '新一级评论经运营审核后，按回复时间集中下发。'"
                   type="info"
                   :closable="false"
                   show-icon
@@ -2118,7 +2157,7 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
-    <CommentReplyScheduleDialog v-model="replyScheduleVisible" :accounts="replyScheduleAccounts" />
+    <CommentReplyScheduleDialog v-model="replyScheduleVisible" :accounts="replyScheduleAccounts" :reply-mode="replyScheduleMode" @saved="finishBatchReplySettings" />
     <CommentReplyQuietSettingsDialog
       v-model="replyQuietSettingsVisible"
       :editable="auth.can('system_settings.edit')"
@@ -2648,6 +2687,10 @@ onBeforeUnmount(() => {
 .monitor-target-account__content strong { overflow: hidden; color: var(--app-text, #203346); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .monitor-target-account__content small { overflow: hidden; color: var(--app-text-muted, #718096); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .monitor-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+:global(.account-monitor-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+:global(.account-monitor-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
+:global(.account-monitor-dialog .el-dialog__header),
+:global(.account-monitor-dialog .el-dialog__footer) { flex-shrink: 0; }
 .reply-config { margin: 2px 0 14px; padding-top: 12px; border-top: 1px solid var(--app-border, #dbe4ed); }
 .reply-config__fields { margin-top: 12px; }
 .reply-config :deep(.el-segmented) { min-height: 34px; }

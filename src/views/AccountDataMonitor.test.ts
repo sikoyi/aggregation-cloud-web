@@ -18,6 +18,8 @@ function setup(locked = false) {
     monitorVisible: { value: true },
     submitting: { value: false },
     accountProfileLoading: { value: false },
+    monitorReplyScheduleReady: { value: true },
+    monitorReplySchedule: { value: { inherit: false, times: ['09:00', '18:30'] } },
     profileSyncCapability: {
       loading: false, available: true, reason: '', script_key: 'sync_profile',
       business_platform: 'x', runtime_platform: 'fingerprint_browser', provider: 'morelogin',
@@ -56,6 +58,29 @@ function setup(locked = false) {
 }
 
 describe('监听窗口连续设置', () => {
+  it('自动回复与时间一次保存，关闭回复不改已有时间', async () => {
+    const s = setup(true)
+    s.monitorForm.comment_reply_mode = 'automatic'
+    await s.saveMonitor()
+    expect(s.http.post).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      comment_reply_mode: 'automatic', comment_reply_schedule: { inherit: false, times: ['09:00', '18:30'] },
+    }))
+    const disabled = setup(true)
+    await disabled.saveMonitor()
+    expect(disabled.http.post.mock.calls[0]![1]).not.toHaveProperty('comment_reply_schedule')
+  })
+
+  it('时间未加载或没有有效时间时不能只开启回复', async () => {
+    const s = setup()
+    s.monitorForm.comment_reply_mode = 'automatic'
+    s.monitorReplyScheduleReady.value = false
+    await s.saveMonitor()
+    expect(s.http.post).not.toHaveBeenCalled()
+    expect(s.ElNotification.warning).toHaveBeenCalledWith(expect.objectContaining({ title: '请设置回复时间' }))
+    expect(s.submitting.value).toBe(false)
+    expect(s.monitorVisible.value).toBe(true)
+  })
+
   it('保存后保留窗口及共用规则，清空账号和独立主页', async () => {
     const s = setup()
     await s.saveMonitor()
