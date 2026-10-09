@@ -7,9 +7,16 @@ import source from '@/views/CommentReplyReviewView.vue?raw'
 
 vi.mock('element-plus/es/components/link/style/css', () => ({}))
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
+vi.mock('element-plus/es/components/avatar/style/css', () => ({}))
 const render = (job: Record<string, unknown>) => renderToString(createSSRApp(ReplyJobAccount, { job }))
 
 describe('回复工单账号与原帖', () => {
+  it('展示发帖账号头像，缺失时保留缺省图标', async () => {
+    const html = await render({ operator_account_name: '发帖账号', operator_account_avatar_url: 'https://example.com/avatar.jpg' })
+    expect(html).toContain('https://example.com/avatar.jpg')
+    expect(html).toContain('el-avatar')
+    expect(await render({ operator_account_name: '无头像账号' })).toContain('lucide-user-round')
+  })
   it('列表与弹窗复用昵称、公开用户名和原帖链接', async () => {
     const html = await render({ operator_account_name: '监听昵称', operator_account_username: '@public_name', content_url: 'https://x.com/public_name/status/123' })
     expect(html).toContain('监听昵称')
