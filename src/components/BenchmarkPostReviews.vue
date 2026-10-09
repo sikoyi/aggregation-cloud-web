@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Eye, ExternalLink, ImagePlus, RefreshCw, RotateCcw, Search, SkipForward, Trash2, X } from 'lucide-vue-next'
+import { Check, Eye, ExternalLink, ImagePlus, RefreshCw, RotateCcw, Search, SkipForward, Trash2, UserRound, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -19,6 +19,7 @@ import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusines
 import { buildPostReviewQuery, createDefaultPostReviewFilters } from '@/config/postReviewFilters'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { postProcessingLabels, type PostProcessing } from '@/utils/benchmarkPostProcessing'
+import { externalAvatarUrl } from '@/utils/externalAvatar'
 
 interface Review {
   id: string
@@ -26,9 +27,11 @@ interface Review {
   status: string
   source_display_name: string | null
   source_username: string | null
+  source_avatar_url?: string | null
   source_business_platform: string
   target_display_name: string | null
   target_username: string | null
+  target_avatar_url?: string | null
   business_platform: string
   final_content: string
   final_media_urls: string[]
@@ -352,8 +355,26 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
     </div>
     <el-table ref="tableRef" v-loading="loading" :data="rows" row-key="id" border empty-text="暂无对标帖子工单" @selection-change="handleSelectionChange">
       <el-table-column v-if="canManageReviews" type="selection" width="46" fixed="left" reserve-selection />
-      <el-table-column label="来源账号" min-width="160"><template #default="{ row }"><strong>{{ row.source_display_name || row.source_username }}</strong><div>{{ row.source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</div></template></el-table-column>
-      <el-table-column label="发布账号" min-width="160"><template #default="{ row }"><strong>{{ row.target_display_name || row.target_username }}</strong><div>{{ row.business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</div></template></el-table-column>
+      <el-table-column label="来源账号" min-width="220"><template #default="{ row }">
+        <div class="review-account">
+          <el-avatar :size="40" :src="externalAvatarUrl(row.source_avatar_url)"><UserRound :size="20" /></el-avatar>
+          <div class="review-account__text">
+            <strong :title="row.source_display_name || row.source_username">{{ row.source_display_name || row.source_username || '未知账号' }}</strong>
+            <span v-if="row.source_username" :title="row.source_username">@{{ row.source_username.replace(/^@/, '') }}</span>
+            <span>{{ row.source_business_platform === 'x' ? 'X(Twitter)' : row.source_business_platform === 'instagram' ? 'Instagram' : row.source_business_platform === 'threads' ? 'Threads' : row.source_business_platform }}</span>
+          </div>
+        </div>
+      </template></el-table-column>
+      <el-table-column label="发布账号" min-width="220"><template #default="{ row }">
+        <div class="review-account">
+          <el-avatar :size="40" :src="externalAvatarUrl(row.target_avatar_url)"><UserRound :size="20" /></el-avatar>
+          <div class="review-account__text">
+            <strong :title="row.target_display_name || row.target_username">{{ row.target_display_name || row.target_username || '未知账号' }}</strong>
+            <span v-if="row.target_username" :title="row.target_username">@{{ row.target_username.replace(/^@/, '') }}</span>
+            <span>{{ row.business_platform === 'x' ? 'X(Twitter)' : row.business_platform === 'instagram' ? 'Instagram' : row.business_platform === 'threads' ? 'Threads' : row.business_platform }}</span>
+          </div>
+        </div>
+      </template></el-table-column>
       <el-table-column label="帖子内容" min-width="300"><template #default="{ row }">
         <div v-if="processingFor(row).length" class="review-processing"><el-tag v-for="item in processingFor(row)" :key="item.label" :type="item.type" size="small">{{ item.label }}</el-tag></div>
         <p class="post-summary">{{ row.final_content || '媒体帖子' }}</p>
@@ -416,6 +437,11 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 </template>
 
 <style scoped>
+.review-account { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.review-account :deep(.el-avatar) { flex-shrink: 0; background: var(--app-surface-muted, #eaf4fb); color: var(--app-blue, #316589); }
+.review-account__text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.review-account__text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-account__text > span { font-size: 12px; color: var(--app-text-muted, #66788a); }
 .review-row-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .review-row-actions :deep(.el-button) { margin: 0; flex-shrink: 0; }
 .benchmark-reviews { padding: 14px 16px 16px; min-width: 0; background: var(--app-surface-muted, #f8fafc); }
