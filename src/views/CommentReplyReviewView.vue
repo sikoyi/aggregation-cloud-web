@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
                 />
               </el-form-item>
               <el-form-item label="关键词">
-                <el-input v-model="filters.keyword" clearable placeholder="评论作者 / 内容 / 回复文案" @keyup.enter="searchRows" />
+                <el-input v-model="filters.keyword" clearable placeholder="工单 ID / 评论作者 / 内容 / 回复文案" @keyup.enter="searchRows" />
               </el-form-item>
             </div>
             <div class="filter-actions">

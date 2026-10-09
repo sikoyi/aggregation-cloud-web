@@ -337,7 +337,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
             </el-select>
           </el-form-item>
           <el-form-item label="发现时间" class="filter-grid__item--wide"><el-date-picker v-model="filters.createdRange" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" /></el-form-item>
-          <el-form-item label="关键词"><el-input v-model="filters.keyword" clearable maxlength="200" placeholder="对标账号 / 原帖 / 发布文案" @keyup.enter="searchRows" /></el-form-item>
+          <el-form-item label="关键词"><el-input v-model="filters.keyword" clearable maxlength="200" placeholder="工单 ID / 对标账号 / 原帖 / 发布文案" @keyup.enter="searchRows" /></el-form-item>
         </div>
         <div class="filter-actions">
           <el-button :icon="RotateCcw" :disabled="!hasFilters" @click="resetFilters">清空</el-button>
