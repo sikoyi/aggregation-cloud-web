@@ -18,6 +18,7 @@ import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { buildPostReviewQuery, createDefaultPostReviewFilters } from '@/config/postReviewFilters'
 import type { RemoteSelectConfig } from '@/types/crud'
+import { postProcessingLabels, type PostProcessing } from '@/utils/benchmarkPostProcessing'
 
 interface Review {
   id: string
@@ -32,6 +33,8 @@ interface Review {
   final_content: string
   final_media_urls: string[]
   review_reason?: string | null
+  system_processing?: PostProcessing
+  operator_modified?: boolean
   task_run_id: string | null
   created_at: string
   snapshot: { content_url?: string; text_content?: string; media_urls?: string[] }
@@ -71,8 +74,7 @@ const draftDirty = computed(() => Boolean(selected.value) && (
   content.value !== selected.value?.final_content
   || JSON.stringify(mediaUrls.value) !== JSON.stringify(selected.value?.final_media_urls || [])
 ))
-const originalMediaChanged = computed(() => JSON.stringify(mediaUrls.value)
-  !== JSON.stringify(selected.value?.snapshot.media_urls || []))
+const processingLabels = computed(() => selected.value ? postProcessingLabels(selected.value) : [])
 const labels: Record<string, string> = {
   pending_review: '待审核', succeeded: '发布成功', failed: '发布失败', ignored: '已忽略',
   queued: '等待发布', waiting_slot: '等待设备', waiting_runtime: '等待执行端', running: '发布中',
@@ -91,6 +93,9 @@ function safeUrl(value?: string) {
 }
 function statusType(value: string) {
   return value === 'succeeded' ? 'success' : ['failed', 'expired', 'lost'].includes(value) ? 'danger' : value === 'pending_review' ? 'warning' : 'info'
+}
+function processingFor(row: unknown) {
+  return postProcessingLabels(row as Review)
 }
 async function load() {
   const id = ++request
@@ -350,6 +355,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
       <el-table-column label="来源账号" min-width="160"><template #default="{ row }"><strong>{{ row.source_display_name || row.source_username }}</strong><div>{{ row.source_business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</div></template></el-table-column>
       <el-table-column label="发布账号" min-width="160"><template #default="{ row }"><strong>{{ row.target_display_name || row.target_username }}</strong><div>{{ row.business_platform === 'x' ? 'X(Twitter)' : 'Threads' }}</div></template></el-table-column>
       <el-table-column label="帖子内容" min-width="300"><template #default="{ row }">
+        <div v-if="processingFor(row).length" class="review-processing"><el-tag v-for="item in processingFor(row)" :key="item.label" :type="item.type" size="small">{{ item.label }}</el-tag></div>
         <p class="post-summary">{{ row.final_content || '媒体帖子' }}</p>
         <a v-if="safeUrl(row.snapshot.content_url)" :href="safeUrl(row.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
         <span v-if="row.final_media_urls?.length"> · {{ row.final_media_urls.length }} 项媒体</span>
@@ -364,38 +370,44 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
       </div></template></el-table-column>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
-    <el-dialog v-model="visible" title="对标帖子审核" top="5vh" width="min(92vw, 760px)" destroy-on-close :close-on-click-modal="false" :before-close="confirmClose">
+    <el-dialog v-model="visible" title="对标帖子审核" class="benchmark-review-dialog" width="min(92vw, 1120px)" align-center destroy-on-close :close-on-click-modal="false" :before-close="confirmClose">
       <div v-if="selected" class="review-body">
         <dl><dt>来源账号</dt><dd>{{ selected.source_display_name || selected.source_username }} · {{ selected.source_business_platform }}</dd><dt>发布账号</dt><dd>{{ selected.target_display_name || selected.target_username }} · {{ selected.business_platform }}</dd><dt>状态</dt><dd><el-tag :type="statusType(selected.status)">{{ labels[selected.status] || '等待发布' }}</el-tag></dd></dl>
         <a v-if="safeUrl(selected.snapshot.content_url)" :href="safeUrl(selected.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
         <el-alert v-if="selected.status === 'pending_review' && selected.review_reason" :title="selected.review_reason" type="warning" show-icon :closable="false" />
-        <div class="review-media-heading"><strong>发布媒体</strong><span>{{ mediaUrls.length }} 项</span></div>
-        <div class="review-media">
-          <div v-for="(url, index) in mediaUrls" :key="`${url}-${index}`" class="review-media-item">
-            <a :href="safeUrl(url)" target="_blank" rel="noopener noreferrer"><el-image :src="safeUrl(url)" fit="contain" loading="lazy"><template #error><span>查看媒体 {{ index + 1 }}</span></template></el-image></a>
-            <el-tooltip v-if="editable" content="移除这项媒体"><el-button :icon="X" circle size="small" type="danger" class="review-media-remove" aria-label="移除媒体" :disabled="saving || uploading" @click="mediaUrls.splice(index, 1)" /></el-tooltip>
-          </div>
-        </div>
-        <div v-if="editable" class="review-media-tools">
-          <input ref="fileInput" type="file" accept="image/*" multiple class="review-file-input" @change="uploadImages" />
-          <el-button :icon="ImagePlus" :loading="uploading" :disabled="saving || mediaUrls.length >= 50" @click="fileInput?.click()">上传图片</el-button>
-          <el-input v-model="imageUrlInput" placeholder="粘贴图片链接" :disabled="saving || uploading" @keyup.enter="addImageUrl" />
-          <el-button :disabled="!imageUrlInput.trim() || saving || uploading || mediaUrls.length >= 50" @click="addImageUrl">添加链接</el-button>
-        </div>
-        <div v-if="editable && originalMediaChanged && selected.snapshot.media_urls?.length" class="review-original-media">
-          <strong>原帖媒体</strong>
-          <div class="review-original-media-list">
-            <div v-for="(url, index) in selected.snapshot.media_urls" :key="`${url}-${index}`" class="review-original-media-item">
-              <el-image :src="safeUrl(url)" fit="contain" loading="lazy"><template #error><a :href="safeUrl(url)" target="_blank" rel="noopener noreferrer">媒体 {{ index + 1 }}</a></template></el-image>
-              <el-button v-if="!mediaUrls.includes(url)" size="small" :disabled="saving || uploading || mediaUrls.length >= 50" @click="mediaUrls.push(url)">加回</el-button>
+        <div v-if="processingLabels.length" class="review-processing"><el-tag v-for="item in processingLabels" :key="item.label" :type="item.type">{{ item.label }}</el-tag></div>
+        <div class="review-comparison">
+          <section class="review-comparison__original" aria-label="原帖内容">
+            <h3>原帖内容</h3>
+            <label for="benchmark-original-content">原帖正文</label>
+            <el-input id="benchmark-original-content" :model-value="selected.snapshot.text_content || ''" type="textarea" :rows="7" readonly placeholder="无正文，仅媒体" />
+            <div class="review-media-heading"><strong>原帖媒体</strong><span>{{ selected.snapshot.media_urls?.length || 0 }} 项</span></div>
+            <div class="review-original-media-list">
+              <div v-for="(url, index) in selected.snapshot.media_urls" :key="`${url}-${index}`" class="review-original-media-item">
+                <a :href="safeUrl(url)" target="_blank" rel="noopener noreferrer"><el-image :src="safeUrl(url)" fit="contain" loading="lazy"><template #error><span>媒体 {{ index + 1 }}</span></template></el-image></a>
+                <el-button v-if="editable && !mediaUrls.includes(url)" size="small" :disabled="saving || uploading || mediaUrls.length >= 50" @click="mediaUrls.push(url)">加回</el-button>
+              </div>
             </div>
-          </div>
+          </section>
+          <section class="review-comparison__draft" aria-label="发布稿">
+            <h3>发布稿</h3>
+            <label for="benchmark-review-content">发布文案</label>
+            <el-input id="benchmark-review-content" v-model="content" type="textarea" :rows="7" maxlength="10000" :readonly="!editable || saving" />
+            <div class="review-media-heading"><strong>发布媒体</strong><span>{{ mediaUrls.length }} 项</span></div>
+            <div class="review-media">
+              <div v-for="(url, index) in mediaUrls" :key="`${url}-${index}`" class="review-media-item">
+                <a :href="safeUrl(url)" target="_blank" rel="noopener noreferrer"><el-image :src="safeUrl(url)" fit="contain" loading="lazy"><template #error><span>查看媒体 {{ index + 1 }}</span></template></el-image></a>
+                <el-tooltip v-if="editable" content="移除这项媒体"><el-button :icon="X" circle size="small" type="danger" class="review-media-remove" aria-label="移除媒体" :disabled="saving || uploading" @click="mediaUrls.splice(index, 1)" /></el-tooltip>
+              </div>
+            </div>
+            <div v-if="editable" class="review-media-tools">
+              <input ref="fileInput" type="file" accept="image/*" multiple class="review-file-input" @change="uploadImages" />
+              <el-button :icon="ImagePlus" :loading="uploading" :disabled="saving || mediaUrls.length >= 50" @click="fileInput?.click()">上传图片</el-button>
+              <el-input v-model="imageUrlInput" placeholder="粘贴图片链接" :disabled="saving || uploading" @keyup.enter="addImageUrl" />
+              <el-button :disabled="!imageUrlInput.trim() || saving || uploading || mediaUrls.length >= 50" @click="addImageUrl">添加链接</el-button>
+            </div>
+          </section>
         </div>
-        <div v-if="selected.snapshot.text_content && selected.final_content !== selected.snapshot.text_content" class="review-original">
-          <strong>原帖正文</strong><p>{{ selected.snapshot.text_content }}</p>
-        </div>
-        <label for="benchmark-review-content">发布文案</label>
-        <el-input id="benchmark-review-content" v-model="content" type="textarea" :rows="7" maxlength="10000" :readonly="!editable || saving" />
         <span v-if="selected.task_run_id">任务 ID：{{ selected.task_run_id }}</span>
       </div>
       <template #footer><el-button :disabled="saving || uploading || Boolean(retryingId)" @click="closeDialog">关闭</el-button><el-button v-if="editable" :disabled="!draftDirty || saving || uploading" :loading="saving" @click="saveDraft">保存修改</el-button><el-button v-if="selected?.status === 'pending_review' && editable" :icon="SkipForward" :disabled="saving || uploading" @click="decide('ignore')">忽略</el-button><el-button v-if="selected?.status === 'pending_review' && editable" type="primary" :icon="Check" :loading="saving" :disabled="uploading" @click="decide('approve')">批准发布</el-button><el-button v-if="retryable && selected" type="primary" :icon="RefreshCw" :loading="retryingId === selected.id" :disabled="Boolean(retryingId) && retryingId !== selected.id" @click="retry(selected)">重新发布</el-button></template>
@@ -427,7 +439,15 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .post-link { display: inline-flex; align-items: center; gap: 5px; color: var(--el-color-primary); }
 .review-reason { margin-top: 6px; color: var(--el-color-warning); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .el-pagination { margin-top: 16px; justify-content: flex-end; }
-.review-body { display: flex; flex-direction: column; gap: 12px; max-height: calc(85dvh - 120px); overflow-y: auto; }
+.review-body { display: flex; flex-direction: column; gap: 12px; }
+:global(.benchmark-review-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+:global(.benchmark-review-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
+:global(.benchmark-review-dialog .el-dialog__header), :global(.benchmark-review-dialog .el-dialog__footer) { flex-shrink: 0; }
+.review-processing { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.review-comparison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.review-comparison > section { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.review-comparison h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.review-comparison__draft { border-left: 1px solid var(--el-border-color); padding-left: 24px; }
 .review-body dl { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 8px; margin: 0; }
 .review-body dd { margin: 0; overflow-wrap: anywhere; }
 .review-body :deep(.el-alert__title) { overflow-wrap: anywhere; }
@@ -439,14 +459,13 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .review-media-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .review-media-tools .el-input { flex: 1 1 220px; }
 .review-file-input { display: none; }
-.review-original-media { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--el-border-color); }
 .review-original-media-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .review-original-media-item { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 86px; }
 .review-original-media-item .el-image { width: 86px; height: 72px; border: 1px solid var(--el-border-color); border-radius: 4px; }
 .review-media .el-image { width: 140px; height: 120px; border: 1px solid var(--el-border-color); border-radius: 4px; }
-.review-original { padding: 10px 0; border-top: 1px solid var(--el-border-color); }
-.review-original p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 768px) {
+  .review-comparison { grid-template-columns: minmax(0, 1fr); }
+  .review-comparison__draft { border-left: 0; border-top: 1px solid var(--el-border-color); padding: 16px 0 0; }
   .filter-grid { grid-template-columns: 1fr; }
   .filter-grid__item--wide { grid-column: span 1; }
   .review-batch-actions { width: 100%; justify-content: flex-start; }

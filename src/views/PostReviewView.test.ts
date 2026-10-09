@@ -6,6 +6,15 @@ import shell from '@/layouts/AppShell.vue?raw'
 import reviews from '@/components/BenchmarkPostReviews.vue?raw'
 
 describe('运营中心独立帖子审核', () => {
+  it('固定对照原帖与发布稿，只读查看也保留原帖图片', () => {
+    expect(reviews).toContain('class="review-comparison"')
+    expect(reviews).toContain('aria-label="原帖内容"')
+    expect(reviews).toContain('aria-label="发布稿"')
+    expect(reviews).toContain('id="benchmark-original-content"')
+    expect(reviews).not.toContain('editable && originalMediaChanged')
+    expect(reviews).toContain('processingFor(row)')
+    expect(reviews).toContain('grid-template-columns: minmax(0, 1fr);')
+  })
   it('待审核列表和详情显示 X 缩写失败原因，不把原因混入发布正文', () => {
     expect(reviews).toContain("row.status === 'pending_review' && row.review_reason")
     expect(reviews).toContain('selected.review_reason')
