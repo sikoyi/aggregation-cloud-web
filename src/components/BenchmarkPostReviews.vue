@@ -63,6 +63,8 @@ const loading = ref(false)
 const saving = ref(false)
 const regenerating = ref(false)
 const regenerationError = ref('')
+const regenerationElapsed = ref(0)
+let regenerationTimer: ReturnType<typeof setInterval> | undefined
 const batchLoading = ref(false)
 const retryingId = ref('')
 const deletingId = ref('')
@@ -210,6 +212,9 @@ async function regenerateContent() {
     } catch { return }
     saving.value = true
     regenerationError.value = ''
+    regenerationElapsed.value = 0
+    const startedAt = Date.now()
+    regenerationTimer = setInterval(() => { regenerationElapsed.value = Math.floor((Date.now() - startedAt) / 1000) }, 1000)
     const result = await http.post<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(job.id)}/regenerate`, { revision: job.revision })
     if (selected.value?.id !== job.id) return
     selected.value = result
@@ -221,6 +226,8 @@ async function regenerateContent() {
     if (selected.value?.id === job.id) regenerationError.value = error instanceof Error ? error.message : '重新缩写失败，原稿未变更'
     notifyError(error, '重新缩写失败，原稿未变更')
   } finally {
+    if (regenerationTimer) clearInterval(regenerationTimer)
+    regenerationTimer = undefined
     saving.value = false
     regenerating.value = false
   }
@@ -351,7 +358,7 @@ function applyReviewShortcut() {
 }
 watch(() => route.query.status, () => { if (applyReviewShortcut()) void load() })
 onMounted(() => { applyReviewShortcut(); void load(); timer = setInterval(() => { if (!loading.value && !visible.value) void load() }, 10000) })
-onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
+onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenerationTimer) clearInterval(regenerationTimer) })
 </script>
 
 <template>
@@ -448,6 +455,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
               <el-button v-if="canRegenerate" class="review-regenerate-button" type="primary" plain size="default" :icon="Sparkles" :loading="regenerating" :disabled="saving || uploading || regenerating" @click="regenerateContent">AI 重新缩写</el-button>
             </div>
             <el-alert v-if="regenerationError" :title="regenerationError" type="error" show-icon :closable="false" />
+            <p v-if="regenerating && saving" role="status" aria-live="polite">AI 处理中 · 已等待 {{ regenerationElapsed }} 秒</p>
             <label for="benchmark-review-content">发布文案</label>
             <el-input id="benchmark-review-content" v-model="content" type="textarea" :rows="7" maxlength="10000" :readonly="!editable || saving" />
             <div class="review-media-heading"><strong>发布媒体</strong><span>{{ mediaUrls.length }} 项</span></div>

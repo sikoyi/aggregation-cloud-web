@@ -6,6 +6,12 @@ import shell from '@/layouts/AppShell.vue?raw'
 import reviews from '@/components/BenchmarkPostReviews.vue?raw'
 
 describe('运营中心独立帖子审核', () => {
+  it('重新缩写显示实际等待时间并清理计时器，不模拟处理阶段', () => {
+    expect(reviews).toContain('Date.now() - startedAt')
+    expect(reviews).toContain('AI 处理中 · 已等待 {{ regenerationElapsed }} 秒')
+    expect(reviews).toContain('if (regenerationTimer) clearInterval(regenerationTimer)')
+    expect(reviews).toContain('regenerationTimer = undefined')
+  })
   it('重新缩写使用标准尺寸浅色主按钮，与批准发布区分', () => {
     expect(reviews).toContain('class="review-regenerate-button" type="primary" plain size="default" :icon="Sparkles"')
     expect(reviews).toContain('.review-regenerate-button { font-weight: 600; }')
