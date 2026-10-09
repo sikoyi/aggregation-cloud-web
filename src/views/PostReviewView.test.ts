@@ -13,13 +13,25 @@ describe('运营中心独立帖子审核', () => {
   it('重新缩写从原帖生成并仅替换正文，保留图片选择', () => {
     expect(reviews).toContain('AI 重新缩写')
     expect(reviews).toContain("selected.value?.business_platform === 'x'")
-    expect(reviews).toContain('Boolean(selected.value.system_processing?.ai_shortening)')
+    expect(reviews).not.toContain('Boolean(selected.value.system_processing?.ai_shortening)')
     const implementation = reviews.split('async function regenerateContent()')[1]!.split('function handleSelectionChange')[0]!
     expect(implementation).toContain('/regenerate`')
     expect(implementation).toContain('revision: job.revision')
     expect(implementation).toContain('content.value = result.final_content')
     expect(implementation).not.toContain('mediaUrls.value =')
     expect(implementation).not.toContain('/approve')
+  })
+  it('历史工单无需缩写标记即可重试，保留编辑权限、平台及原文限制', () => {
+    const expression = reviews.split('const canRegenerate = computed(() => ')[1]!.split('\nconst canManageReviews')[0]!.trim().slice(0, -1)
+    const canRegenerate = new Function('editable', 'selected', `return ${expression}`)
+    const legacyJob = { business_platform: 'x', snapshot: { text_content: 'original text' } }
+    expect(canRegenerate({ value: true }, { value: legacyJob })).toBe(true)
+    expect(canRegenerate({ value: true }, { value: { ...legacyJob, system_processing: { ai_shortening: 'failed' } } })).toBe(true)
+    expect(canRegenerate({ value: true }, { value: { ...legacyJob, system_processing: { ai_shortening: 'succeeded' } } })).toBe(true)
+    expect(canRegenerate({ value: false }, { value: legacyJob })).toBe(false)
+    expect(canRegenerate({ value: true }, { value: { ...legacyJob, business_platform: 'threads' } })).toBe(false)
+    expect(canRegenerate({ value: true }, { value: { ...legacyJob, snapshot: { text_content: '  ' } } })).toBe(false)
+    expect(canRegenerate({ value: false }, { value: null })).toBe(false)
   })
   it('固定对照原帖与发布稿，只读查看也保留原帖图片', () => {
     expect(reviews).toContain('class="review-comparison"')

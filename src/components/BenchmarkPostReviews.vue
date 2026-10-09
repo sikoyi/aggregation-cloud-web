@@ -89,7 +89,7 @@ const editable = computed(() => (selected.value?.status === 'pending_review' && 
   || (selected.value?.status === 'failed' && auth.can('operations.retry')))
 const retryable = computed(() => selected.value?.status === 'failed' && auth.can('operations.retry'))
 const canRegenerate = computed(() => editable.value && selected.value?.business_platform === 'x'
-  && Boolean(selected.value.system_processing?.ai_shortening) && Boolean(selected.value.snapshot.text_content?.trim()))
+  && Boolean(selected.value.snapshot.text_content?.trim()))
 const canManageReviews = computed(() => auth.can('operations.review'))
 const batchActionsDisabled = computed(() => batchLoading.value || Boolean(deletingId.value) || selectedRows.value.length === 0)
 const deletableStatuses = new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])
