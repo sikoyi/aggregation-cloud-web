@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Eye, ExternalLink, ImagePlus, RefreshCw, RotateCcw, Search, SkipForward, Sparkles, Trash2, UserRound, X } from 'lucide-vue-next'
+import { Check, Copy, Eye, ExternalLink, ImagePlus, RefreshCw, RotateCcw, Search, SkipForward, Sparkles, Trash2, UserRound, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 import RemoteSelect from '@/components/RemoteSelect.vue'
+import ReviewMediaPreview from '@/components/ReviewMediaPreview.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { buildPostReviewQuery, createDefaultPostReviewFilters } from '@/config/postReviewFilters'
@@ -102,6 +103,14 @@ function safeUrl(value?: string) {
 }
 function statusType(value: string) {
   return value === 'succeeded' ? 'success' : ['failed', 'expired', 'lost'].includes(value) ? 'danger' : value === 'pending_review' ? 'warning' : 'info'
+}
+async function copyReviewId() {
+  if (!selected.value) return
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error('浏览器不支持复制，请手动选择工单 ID')
+    await navigator.clipboard.writeText(selected.value.id)
+    ElNotification.success({ title: '已复制工单 ID', message: selected.value.id })
+  } catch (error) { notifyError(error, '复制失败，请手动选择工单 ID') }
 }
 function processingFor(row: unknown) {
   return postProcessingLabels(row as Review)
@@ -432,6 +441,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenera
     <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
     <el-dialog v-model="visible" title="对标帖子审核" class="benchmark-review-dialog" width="min(92vw, 1120px)" align-center destroy-on-close :close-on-click-modal="false" :before-close="confirmClose">
       <div v-if="selected" class="review-body">
+        <div class="review-id"><strong>工单 ID</strong><code>{{ selected.id }}</code><el-tooltip content="复制工单 ID"><el-button :icon="Copy" text circle aria-label="复制工单 ID" @click="copyReviewId" /></el-tooltip></div>
         <dl><dt>来源账号</dt><dd>{{ selected.source_display_name || selected.source_username }} · {{ selected.source_business_platform }}</dd><dt>发布账号</dt><dd>{{ selected.target_display_name || selected.target_username }} · {{ selected.business_platform }}</dd><dt>状态</dt><dd><el-tag :type="statusType(selected.status)">{{ labels[selected.status] || '等待发布' }}</el-tag></dd></dl>
         <a v-if="safeUrl(selected.snapshot.content_url)" :href="safeUrl(selected.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
         <el-alert v-if="selected.status === 'pending_review' && selected.review_reason" :title="selected.review_reason" type="warning" show-icon :closable="false" />
@@ -444,7 +454,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenera
             <div class="review-media-heading"><strong>原帖媒体</strong><span>{{ selected.snapshot.media_urls?.length || 0 }} 项</span></div>
             <div class="review-original-media-list">
               <div v-for="(url, index) in selected.snapshot.media_urls" :key="`${url}-${index}`" class="review-original-media-item">
-                <a :href="safeUrl(url)" target="_blank" rel="noopener noreferrer"><el-image :src="safeUrl(url)" fit="contain" loading="lazy"><template #error><span>媒体 {{ index + 1 }}</span></template></el-image></a>
+                <ReviewMediaPreview :url="url" class="review-original-preview" />
                 <el-button v-if="editable && !mediaUrls.includes(url)" size="small" :disabled="saving || uploading || mediaUrls.length >= 50" @click="mediaUrls.push(url)">加回</el-button>
               </div>
             </div>
@@ -461,7 +471,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenera
             <div class="review-media-heading"><strong>发布媒体</strong><span>{{ mediaUrls.length }} 项</span></div>
             <div class="review-media">
               <div v-for="(url, index) in mediaUrls" :key="`${url}-${index}`" class="review-media-item">
-                <a :href="safeUrl(url)" target="_blank" rel="noopener noreferrer"><el-image :src="safeUrl(url)" fit="contain" loading="lazy"><template #error><span>查看媒体 {{ index + 1 }}</span></template></el-image></a>
+                <ReviewMediaPreview :url="url" />
                 <el-tooltip v-if="editable" content="移除这项媒体"><el-button :icon="X" circle size="small" type="danger" class="review-media-remove" aria-label="移除媒体" :disabled="saving || uploading" @click="mediaUrls.splice(index, 1)" /></el-tooltip>
               </div>
             </div>
@@ -481,6 +491,10 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenera
 </template>
 
 <style scoped>
+.review-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.review-id code { overflow-wrap: anywhere; user-select: all; min-width: 0; }
+.review-id strong, .review-id .el-button { flex-shrink: 0; }
+.review-original-preview { height: 100px; }
 .review-draft-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 32px; }
 .review-regenerate-button { font-weight: 600; }
 .review-account { display: flex; align-items: center; gap: 10px; min-width: 0; }

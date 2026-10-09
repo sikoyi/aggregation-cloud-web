@@ -4,8 +4,24 @@ import reply from './CommentReplyReviewView.vue?raw'
 import routes from '@/router/index.ts?raw'
 import shell from '@/layouts/AppShell.vue?raw'
 import reviews from '@/components/BenchmarkPostReviews.vue?raw'
+import mediaPreview from '@/components/ReviewMediaPreview.vue?raw'
 
 describe('运营中心独立帖子审核', () => {
+  it('详情显示真实工单编号并提供复制及失败提示', () => {
+    expect(reviews).toContain('<code>{{ selected.id }}</code>')
+    expect(reviews).toContain('navigator.clipboard.writeText(selected.value.id)')
+    expect(reviews).toContain('复制失败，请手动选择工单 ID')
+  })
+  it('原帖与发布稿共享图片视频预览，失败保留安全链接', () => {
+    expect(reviews.match(/<ReviewMediaPreview /g)).toHaveLength(2)
+    expect(mediaPreview).toContain('new URL(safeUrl.value).pathname')
+    expect(mediaPreview).toContain('controls playsinline preload="metadata"')
+    expect(mediaPreview).toContain(':preview-src-list="[safeUrl]"')
+    expect(mediaPreview).toContain('媒体加载失败')
+    expect(mediaPreview).toContain('!url.username && !url.password')
+    expect(mediaPreview).toContain('rel="noopener noreferrer"')
+    expect(mediaPreview).toContain('failed.value = false')
+  })
   it('重新缩写显示实际等待时间并清理计时器，不模拟处理阶段', () => {
     expect(reviews).toContain('Date.now() - startedAt')
     expect(reviews).toContain('AI 处理中 · 已等待 {{ regenerationElapsed }} 秒')
