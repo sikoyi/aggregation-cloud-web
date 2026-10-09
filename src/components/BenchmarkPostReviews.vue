@@ -31,6 +31,7 @@ interface Review {
   business_platform: string
   final_content: string
   final_media_urls: string[]
+  review_reason?: string | null
   task_run_id: string | null
   created_at: string
   snapshot: { content_url?: string; text_content?: string; media_urls?: string[] }
@@ -352,6 +353,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
         <p class="post-summary">{{ row.final_content || '媒体帖子' }}</p>
         <a v-if="safeUrl(row.snapshot.content_url)" :href="safeUrl(row.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
         <span v-if="row.final_media_urls?.length"> · {{ row.final_media_urls.length }} 项媒体</span>
+        <el-tooltip v-if="row.status === 'pending_review' && row.review_reason" :content="row.review_reason"><div class="review-reason">{{ row.review_reason }}</div></el-tooltip>
       </template></el-table-column>
       <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="statusType(row.status)">{{ labels[row.status] || '等待发布' }}</el-tag></template></el-table-column>
       <el-table-column label="创建时间" width="175"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
@@ -366,6 +368,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
       <div v-if="selected" class="review-body">
         <dl><dt>来源账号</dt><dd>{{ selected.source_display_name || selected.source_username }} · {{ selected.source_business_platform }}</dd><dt>发布账号</dt><dd>{{ selected.target_display_name || selected.target_username }} · {{ selected.business_platform }}</dd><dt>状态</dt><dd><el-tag :type="statusType(selected.status)">{{ labels[selected.status] || '等待发布' }}</el-tag></dd></dl>
         <a v-if="safeUrl(selected.snapshot.content_url)" :href="safeUrl(selected.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
+        <el-alert v-if="selected.status === 'pending_review' && selected.review_reason" :title="selected.review_reason" type="warning" show-icon :closable="false" />
         <div class="review-media-heading"><strong>发布媒体</strong><span>{{ mediaUrls.length }} 项</span></div>
         <div class="review-media">
           <div v-for="(url, index) in mediaUrls" :key="`${url}-${index}`" class="review-media-item">
@@ -422,10 +425,12 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 .review-batch-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .post-summary { margin: 0 0 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
 .post-link { display: inline-flex; align-items: center; gap: 5px; color: var(--el-color-primary); }
+.review-reason { margin-top: 6px; color: var(--el-color-warning); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .el-pagination { margin-top: 16px; justify-content: flex-end; }
 .review-body { display: flex; flex-direction: column; gap: 12px; max-height: calc(85dvh - 120px); overflow-y: auto; }
 .review-body dl { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 8px; margin: 0; }
 .review-body dd { margin: 0; overflow-wrap: anywhere; }
+.review-body :deep(.el-alert__title) { overflow-wrap: anywhere; }
 .review-media { display: flex; flex-wrap: wrap; gap: 8px; }
 .review-media-heading { display: flex; gap: 8px; align-items: center; }
 .review-media-heading span { color: var(--app-text-muted, #66788a); font-size: 12px; }

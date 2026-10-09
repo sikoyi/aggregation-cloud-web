@@ -6,6 +6,12 @@ import shell from '@/layouts/AppShell.vue?raw'
 import reviews from '@/components/BenchmarkPostReviews.vue?raw'
 
 describe('运营中心独立帖子审核', () => {
+  it('待审核列表和详情显示 X 缩写失败原因，不把原因混入发布正文', () => {
+    expect(reviews).toContain("row.status === 'pending_review' && row.review_reason")
+    expect(reviews).toContain('selected.review_reason')
+    expect(reviews).toContain(':title="selected.review_reason"')
+    expect(reviews).toContain('class="review-reason"')
+  })
   it('保留单条终态工单删除，复用软删除权限和接口', () => {
     expect(reviews).toContain("new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])")
     expect(reviews).toContain('v-if="canManageReviews && deletableStatuses.has(row.status)"')
