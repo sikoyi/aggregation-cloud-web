@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RelationCell from '@/components/RelationCell.vue'
@@ -21,6 +21,11 @@ const emit = defineEmits<{
 }>()
 
 const loading = ref(false)
+const compact = ref(false)
+const detailMedia = window.matchMedia('(max-width: 600px)')
+function updateCompact() { compact.value = detailMedia.matches }
+onMounted(() => { updateCompact(); detailMedia.addEventListener('change', updateCompact) })
+onBeforeUnmount(() => { detailMedia.removeEventListener('change', updateCompact) })
 const error = ref('')
 const task = ref<AnyRecord | null>(null)
 const events = ref<AnyRecord[]>([])
@@ -413,7 +418,7 @@ onBeforeUnmount(invalidateRequests)
         </div>
         <el-tabs v-model="activeTab" class="task-detail-tabs">
           <el-tab-pane label="基础信息" name="basic">
-            <el-descriptions :column="2" border>
+            <el-descriptions class="task-basic-info" :column="compact ? 1 : 2" :label-width="compact ? 90 : 110" border>
               <el-descriptions-item label="任务 ID">
                 <span class="font-mono text-xs" :title="String(task.id || '')">{{ truncateId(task.id) }}</span>
               </el-descriptions-item>
@@ -434,8 +439,8 @@ onBeforeUnmount(invalidateRequests)
               <el-descriptions-item v-if="isSingleExecution" label="设备 ID">
                 <span class="font-mono text-xs">{{ text(task.provider_slot_id) }}</span>
               </el-descriptions-item>
-              <el-descriptions-item v-if="isSingleExecution" label="错误信息">
-                {{ text(task.error_message) }}
+              <el-descriptions-item v-if="isSingleExecution" label="错误信息" :span="compact ? 1 : 2">
+                <div class="task-error-detail" tabindex="0" aria-label="任务错误详情">{{ text(task.error_message) }}</div>
               </el-descriptions-item>
               <el-descriptions-item label="来源模板">
                 <span :title="task.template_name ? '' : String(task.template_id || '')">
@@ -598,6 +603,10 @@ onBeforeUnmount(invalidateRequests)
 </template>
 
 <style scoped>
+.task-basic-info :deep(.el-descriptions__table) { table-layout: fixed; width: 100%; }
+.task-basic-info :deep(.el-descriptions__label) { white-space: nowrap; }
+.task-basic-info :deep(.el-descriptions__content) { overflow-wrap: anywhere; word-break: break-word; }
+.task-error-detail { max-height: 240px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
 .task-detail-body {
   min-height: 280px;
   max-height: 68vh;

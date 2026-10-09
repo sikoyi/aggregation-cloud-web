@@ -21,19 +21,21 @@ function harness() {
   const notifyError = vi.fn(() => 'error')
   const buildParamRows = vi.fn(async (task: any) => [{ key: task.id }])
   let changed!: (value: [boolean, string | null]) => void
-  let unmount = () => {}
+  const unmounts: Array<() => void> = []
   const script = source.slice(source.indexOf('const loading ='), source.indexOf('const scriptRelationConfig'))
     + source.slice(source.indexOf('function timelineTitle'), source.indexOf('</script>'))
-  const state = new Function('ref', 'http', 'notifyError', 'buildParamRows', 'isTaskGroup', 'watch', 'onBeforeUnmount',
+  const state = new Function('ref', 'http', 'notifyError', 'buildParamRows', 'isTaskGroup', 'watch', 'onBeforeUnmount', 'onMounted', 'window',
     `${transpile(script, { target: ScriptTarget.ES2022 })};
     return { loading, task, events, error, children, childTotal, childPage, childLoading, paramRows,
       currentTaskId, loadDetail, loadChildren, changeChildPage, changeChildPageSize };`)(
     ref, http, notifyError, buildParamRows, isTaskGroup,
     (_getter: any, callback: typeof changed) => { changed = callback },
-    (callback: () => void) => { unmount = callback },
+    (callback: () => void) => { unmounts.push(callback) },
+    (callback: () => void) => callback(),
+    { matchMedia: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) },
   )
   return { ...state, requests, notifyError, buildParamRows,
-    close: () => changed([false, null]), unmount: () => unmount() }
+    close: () => changed([false, null]), unmount: () => unmounts.forEach(callback => callback()) }
 }
 
 function finishDetail(h: ReturnType<typeof harness>, offset: number, id: string) {
