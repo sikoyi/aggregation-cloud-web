@@ -1,6 +1,6 @@
 import { http } from '@/api/http'
 
-export type PreparationAction = 'shorten' | 'images'
+export type PreparationAction = 'shorten' | 'images' | 'translate'
 export interface PreparationResult {
   id: string
   status: 'processed' | 'skipped' | 'failed'

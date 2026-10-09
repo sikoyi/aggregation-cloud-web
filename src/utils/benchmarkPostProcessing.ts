@@ -1,5 +1,6 @@
 export interface PostProcessing {
   translation_language?: string
+  translation_regenerated?: boolean
   translation_check?: 'succeeded' | 'failed'
   hashtag_localization?: boolean
   ai_shortening?: 'succeeded' | 'failed'
@@ -20,6 +21,7 @@ export function postProcessingLabels(row: {
   const result: { label: string; type: 'info' | 'warning' | 'danger' }[] = []
   const processing = row.system_processing || {}
   if (processing.translation_language) result.push({ label: `已翻译 · ${languages[processing.translation_language] || processing.translation_language}`, type: 'info' })
+  if (processing.translation_regenerated) result.push({ label: 'AI 已重新翻译', type: 'info' })
   if (processing.hashtag_localization) result.push({ label: '话题已本地化', type: 'info' })
   if (processing.translation_check === 'failed') result.push({ label: '翻译或话题检查失败', type: 'danger' })
   if (processing.ai_shortening) result.push({ label: processing.ai_shortening === 'succeeded' ? (processing.ai_regenerated ? 'AI 已重新缩写' : 'AI 已缩写') : 'AI 缩写失败', type: processing.ai_shortening === 'succeeded' ? 'warning' : 'danger' })

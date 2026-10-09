@@ -5,6 +5,14 @@ import { prepareSelectedReviews } from './benchmarkReviewPreparation'
 vi.mock('@/api/http', () => ({ http: { post: vi.fn() } }))
 beforeEach(() => vi.clearAllMocks())
 
+it('uses the retranslation action for selected reviews', async () => {
+  vi.mocked(http.post).mockResolvedValue({ status: 'processed', message: '已重新翻译' })
+  const report = vi.fn()
+  await prepareSelectedReviews([{ id: 'a', revision: 'v1' }], 'translate', report)
+  expect(http.post).toHaveBeenCalledWith('/api/benchmark-trackers/reviews/a/prepare/translate', { revision: 'v1' })
+  expect(report).toHaveBeenCalledWith({ id: 'a', status: 'processed', message: '已重新翻译' })
+})
+
 it('reports each result, continues after failures and preserves revisions', async () => {
   vi.mocked(http.post).mockResolvedValueOnce({ status: 'skipped', message: '长度符合要求' })
     .mockRejectedValueOnce(new Error('模型超时'))

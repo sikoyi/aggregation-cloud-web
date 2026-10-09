@@ -103,6 +103,8 @@ const retryable = computed(() => selected.value?.status === 'failed' && auth.can
 const canRegenerate = computed(() => editable.value && selected.value?.business_platform === 'x'
   && Boolean(selected.value.snapshot.text_content?.trim()))
 const canManageReviews = computed(() => auth.can('operations.review'))
+const canRetranslate = computed(() => canManageReviews.value && selected.value?.status === 'pending_review'
+  && Boolean(selected.value.snapshot.text_content?.trim()) && Boolean(selected.value.system_processing?.translation_language))
 const batchActionsDisabled = computed(() => batchLoading.value || Boolean(deletingId.value) || selectedRows.value.length === 0)
 const deletableStatuses = new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])
 let request = 0
@@ -219,13 +221,16 @@ async function saveDraft() {
   } catch (error) { notifyError(error, '保存工单修改失败'); return false }
   finally { saving.value = false }
 }
-async function regenerateContent() {
-  if (!selected.value || !canRegenerate.value || saving.value || uploading.value || regenerating.value) return
+async function regenerateContent(mode: 'shorten' | 'translate' = 'shorten') {
+  if (!selected.value || !(mode === 'translate' ? canRetranslate.value : canRegenerate.value) || saving.value || uploading.value || regenerating.value) return
   const job = selected.value
+  const label = mode === 'translate' ? '重新翻译' : '重新缩写'
   regenerating.value = true
   try {
     try {
-      await ElMessageBox.confirm('按原始完整正文重新生成并保存发布文案，替换当前文案。图片选择保持不变，不会自动批准或发布。', 'AI 重新缩写', {
+      await ElMessageBox.confirm(mode === 'translate'
+        ? '按原始完整正文及工单目标语言重新翻译并优化话题，X 正文超长时继续缩写。全部成功后替换发布文案，图片不变，仍待审核。'
+        : '按原始完整正文重新生成并保存发布文案，替换当前文案。图片选择保持不变，不会自动批准或发布。', `AI ${label}`, {
         type: 'warning', confirmButtonText: '重新生成', cancelButtonText: '取消',
       })
     } catch { return }
@@ -234,16 +239,16 @@ async function regenerateContent() {
     regenerationElapsed.value = 0
     const startedAt = Date.now()
     regenerationTimer = setInterval(() => { regenerationElapsed.value = Math.floor((Date.now() - startedAt) / 1000) }, 1000)
-    const result = await http.post<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(job.id)}/regenerate`, { revision: job.revision })
+    const result = await http.post<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(job.id)}/${mode === 'translate' ? 'retranslate' : 'regenerate'}`, { revision: job.revision })
     if (selected.value?.id !== job.id) return
     selected.value = result
     content.value = result.final_content
     // Keep unsaved operator image selections; regeneration only changes the text.
-    ElNotification.success({ title: '已重新缩写', message: '发布文案已保存，尚未发布' })
+    ElNotification.success({ title: `已${label}`, message: '发布文案已保存，尚未发布' })
     await load()
   } catch (error) {
-    if (selected.value?.id === job.id) regenerationError.value = error instanceof Error ? error.message : '重新缩写失败，原稿未变更'
-    notifyError(error, '重新缩写失败，原稿未变更')
+    if (selected.value?.id === job.id) regenerationError.value = error instanceof Error ? error.message : `${label}失败，原稿未变更`
+    notifyError(error, `${label}失败，原稿未变更`)
   } finally {
     if (regenerationTimer) clearInterval(regenerationTimer)
     regenerationTimer = undefined
@@ -262,11 +267,13 @@ type BatchAction = 'approve' | 'ignore' | 'delete'
 async function runPreparation(action: PreparationAction) {
   if (batchActionsDisabled.value || !canManageReviews.value) return
   const jobs = selectedRows.value.map(({ id, revision }) => ({ id, revision }))
-  const title = action === 'shorten' ? '批量 AI 缩写' : '批量精简图片'
+  const title = { shorten: '批量 AI 缩写', images: '批量精简图片', translate: '批量 AI 重新翻译' }[action]
   batchLoading.value = true
   try {
     try {
-      await ElMessageBox.confirm(action === 'shorten'
+      await ElMessageBox.confirm(action === 'translate'
+        ? `按原帖重新翻译所选 ${jobs.length} 条待审核工单，优化话题，X 正文超长时继续缩写。未配置翻译语言的跳过；图片不变，不自动发布。`
+        : action === 'shorten'
         ? `处理所选 ${jobs.length} 条工单：超长正文按原始完整正文重新缩写，符合长度的跳过。成功后保存文案，仍待审核，不自动发布。`
         : `处理所选 ${jobs.length} 条工单：X 发布图片超过 4 张时保留前 2 张，其余跳过。不改正文和原始媒体，仍待审核。`, title,
       { type: 'warning', confirmButtonText: '开始处理', cancelButtonText: '取消' })
@@ -429,6 +436,7 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
       <span>已选择 <strong>{{ selectedRows.length }}</strong> 条工单</span>
       <div class="review-batch-actions">
         <el-button type="primary" plain :icon="Sparkles" :disabled="batchActionsDisabled" @click="runPreparation('shorten')">批量 AI 缩写</el-button>
+        <el-button type="primary" plain :icon="RefreshCw" :disabled="batchActionsDisabled" @click="runPreparation('translate')">批量 AI 重新翻译</el-button>
         <el-button :icon="ImagePlus" :disabled="batchActionsDisabled" @click="runPreparation('images')">批量精简图片</el-button>
         <el-button :icon="Check" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('approve')">批量批准发布</el-button>
         <el-button :icon="SkipForward" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('ignore')">批量忽略</el-button>
@@ -496,7 +504,10 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
           <section class="review-comparison__draft" aria-label="发布稿">
             <div class="review-draft-heading">
               <h3>发布稿</h3>
-              <el-button v-if="canRegenerate" class="review-regenerate-button" type="primary" plain size="default" :icon="Sparkles" :loading="regenerating" :disabled="saving || uploading || regenerating" @click="regenerateContent">AI 重新缩写</el-button>
+              <div class="review-draft-actions">
+                <el-button v-if="canRetranslate" type="primary" plain :icon="RefreshCw" :loading="regenerating" :disabled="saving || uploading || regenerating" @click="regenerateContent('translate')">AI 重新翻译</el-button>
+                <el-button v-if="canRegenerate" class="review-regenerate-button" type="primary" plain size="default" :icon="Sparkles" :loading="regenerating" :disabled="saving || uploading || regenerating" @click="regenerateContent('shorten')">AI 重新缩写</el-button>
+              </div>
             </div>
             <el-alert v-if="regenerationError" :title="regenerationError" type="error" show-icon :closable="false" />
             <p v-if="regenerating && saving" role="status" aria-live="polite">AI 处理中 · 已等待 {{ regenerationElapsed }} 秒</p>
@@ -540,6 +551,8 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
 .review-id strong, .review-id .el-button { flex-shrink: 0; }
 .review-original-preview { height: 180px; }
 .review-draft-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 32px; }
+.review-draft-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.review-draft-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .review-regenerate-button { font-weight: 600; }
 .review-account { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .review-account :deep(.el-avatar) { flex-shrink: 0; background: var(--app-surface-muted, #eaf4fb); color: var(--app-blue, #316589); }
