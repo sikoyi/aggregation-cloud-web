@@ -445,7 +445,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
           <section class="review-comparison__draft" aria-label="发布稿">
             <div class="review-draft-heading">
               <h3>发布稿</h3>
-              <el-button v-if="canRegenerate" :icon="Sparkles" size="small" :loading="regenerating" :disabled="saving || uploading || regenerating" @click="regenerateContent">AI 重新缩写</el-button>
+              <el-button v-if="canRegenerate" class="review-regenerate-button" type="primary" plain size="default" :icon="Sparkles" :loading="regenerating" :disabled="saving || uploading || regenerating" @click="regenerateContent">AI 重新缩写</el-button>
             </div>
             <el-alert v-if="regenerationError" :title="regenerationError" type="error" show-icon :closable="false" />
             <label for="benchmark-review-content">发布文案</label>
@@ -474,6 +474,7 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
 
 <style scoped>
 .review-draft-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 32px; }
+.review-regenerate-button { font-weight: 600; }
 .review-account { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .review-account :deep(.el-avatar) { flex-shrink: 0; background: var(--app-surface-muted, #eaf4fb); color: var(--app-blue, #316589); }
 .review-account__text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }

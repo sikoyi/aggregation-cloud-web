@@ -6,6 +6,10 @@ import shell from '@/layouts/AppShell.vue?raw'
 import reviews from '@/components/BenchmarkPostReviews.vue?raw'
 
 describe('运营中心独立帖子审核', () => {
+  it('重新缩写使用标准尺寸浅色主按钮，与批准发布区分', () => {
+    expect(reviews).toContain('class="review-regenerate-button" type="primary" plain size="default" :icon="Sparkles"')
+    expect(reviews).toContain('.review-regenerate-button { font-weight: 600; }')
+  })
   it('重新缩写从原帖生成并仅替换正文，保留图片选择', () => {
     expect(reviews).toContain('AI 重新缩写')
     expect(reviews).toContain("selected.value?.business_platform === 'x'")
