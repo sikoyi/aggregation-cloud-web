@@ -551,9 +551,9 @@ onBeforeUnmount(invalidateRequests)
               <el-table-column label="结束时间" min-width="170">
                 <template #default="{ row }">{{ formatDate(row.finished_at) }}</template>
               </el-table-column>
-              <el-table-column label="操作" :width="isSingleExecution ? 120 : 90" fixed="right" align="center" header-align="center">
+              <el-table-column v-if="!isSingleExecution" label="操作" :width="90" fixed="right" align="center" header-align="center">
                 <template #default="{ row }">
-                  <el-button text type="primary" @click="openChildDetail(row)">{{ isSingleExecution ? '执行时间线' : '查看' }}</el-button>
+                  <el-button text type="primary" @click="openChildDetail(row)">查看</el-button>
                 </template>
               </el-table-column>
             </el-table>

@@ -16,6 +16,12 @@ function detailState() {
 }
 
 describe('任务详情执行结果', () => {
+  it('单条任务不显示重复操作列，批量任务保留查看子任务入口', () => {
+    expect(source).toContain('<el-table-column v-if="!isSingleExecution" label="操作"')
+    expect(source).toContain('@click="openChildDetail(row)">查看</el-button>')
+    expect(source).not.toContain("isSingleExecution ? '执行时间线' : '查看'")
+    expect(source).toContain('<el-tab-pane label="执行时间线" name="events">')
+  })
   it('执行结果提示由任务状态决定，不固定显示成功', () => {
     expect(source).toContain('const resultType = computed(() => taskResultAlertType(task.value?.status))')
     expect(source).toContain(':type="resultType"')
