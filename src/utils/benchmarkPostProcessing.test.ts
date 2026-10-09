@@ -4,6 +4,9 @@ import { postProcessingLabels } from './benchmarkPostProcessing'
 const base = { final_content: 'Original', final_media_urls: ['a'], snapshot: { text_content: 'Original', media_urls: ['a'] } }
 
 describe('帖子审核处理标注', () => {
+  it('重新缩写与首次缩写区分标注', () => {
+    expect(postProcessingLabels({ ...base, system_processing: { ai_shortening: 'succeeded', ai_regenerated: true } })).toEqual([{ label: 'AI 已重新缩写', type: 'warning' }])
+  })
   it('区分话题本地化成功与翻译检查失败', () => {
     expect(postProcessingLabels({ ...base, system_processing: { hashtag_localization: true, translation_check: 'succeeded' } }).map(item => item.label)).toEqual(['话题已本地化'])
     expect(postProcessingLabels({ ...base, system_processing: { translation_check: 'failed' } })).toEqual([{ label: '翻译或话题检查失败', type: 'danger' }])

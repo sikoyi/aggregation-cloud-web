@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Eye, ExternalLink, ImagePlus, RefreshCw, RotateCcw, Search, SkipForward, Trash2, UserRound, X } from 'lucide-vue-next'
+import { Check, Eye, ExternalLink, ImagePlus, RefreshCw, RotateCcw, Search, SkipForward, Sparkles, Trash2, UserRound, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -61,6 +61,8 @@ const page = ref(1)
 const total = ref(0)
 const loading = ref(false)
 const saving = ref(false)
+const regenerating = ref(false)
+const regenerationError = ref('')
 const batchLoading = ref(false)
 const retryingId = ref('')
 const deletingId = ref('')
@@ -86,6 +88,8 @@ const labels: Record<string, string> = {
 const editable = computed(() => (selected.value?.status === 'pending_review' && auth.can('operations.review'))
   || (selected.value?.status === 'failed' && auth.can('operations.retry')))
 const retryable = computed(() => selected.value?.status === 'failed' && auth.can('operations.retry'))
+const canRegenerate = computed(() => editable.value && selected.value?.business_platform === 'x'
+  && Boolean(selected.value.system_processing?.ai_shortening) && Boolean(selected.value.snapshot.text_content?.trim()))
 const canManageReviews = computed(() => auth.can('operations.review'))
 const batchActionsDisabled = computed(() => batchLoading.value || Boolean(deletingId.value) || selectedRows.value.length === 0)
 const deletableStatuses = new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])
@@ -125,6 +129,7 @@ async function open(row: Record<string, unknown>) {
     content.value = selected.value.final_content
     mediaUrls.value = [...(selected.value.final_media_urls || [])]
     imageUrlInput.value = ''
+    regenerationError.value = ''
     visible.value = true
   } catch (error) { notifyError(error, '加载工单失败') }
 }
@@ -138,7 +143,7 @@ function addImageUrl() {
   imageUrlInput.value = ''
 }
 async function confirmClose(done: () => void) {
-  if (saving.value || uploading.value) return
+  if (saving.value || uploading.value || regenerating.value) return
   if (draftDirty.value) {
     try {
       await ElMessageBox.confirm('当前修改尚未保存，确认关闭？', '未保存的修改', {
@@ -192,6 +197,33 @@ async function saveDraft() {
     return true
   } catch (error) { notifyError(error, '保存工单修改失败'); return false }
   finally { saving.value = false }
+}
+async function regenerateContent() {
+  if (!selected.value || !canRegenerate.value || saving.value || uploading.value || regenerating.value) return
+  const job = selected.value
+  regenerating.value = true
+  try {
+    try {
+      await ElMessageBox.confirm('按原始完整正文重新生成并保存发布文案，替换当前文案。图片选择保持不变，不会自动批准或发布。', 'AI 重新缩写', {
+        type: 'warning', confirmButtonText: '重新生成', cancelButtonText: '取消',
+      })
+    } catch { return }
+    saving.value = true
+    regenerationError.value = ''
+    const result = await http.post<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(job.id)}/regenerate`, { revision: job.revision })
+    if (selected.value?.id !== job.id) return
+    selected.value = result
+    content.value = result.final_content
+    // Keep unsaved operator image selections; regeneration only changes the text.
+    ElNotification.success({ title: '已重新缩写', message: '发布文案已保存，尚未发布' })
+    await load()
+  } catch (error) {
+    if (selected.value?.id === job.id) regenerationError.value = error instanceof Error ? error.message : '重新缩写失败，原稿未变更'
+    notifyError(error, '重新缩写失败，原稿未变更')
+  } finally {
+    saving.value = false
+    regenerating.value = false
+  }
 }
 function handleSelectionChange(selection: Review[]) {
   selectedRows.value = selection
@@ -411,7 +443,11 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
             </div>
           </section>
           <section class="review-comparison__draft" aria-label="发布稿">
-            <h3>发布稿</h3>
+            <div class="review-draft-heading">
+              <h3>发布稿</h3>
+              <el-button v-if="canRegenerate" :icon="Sparkles" size="small" :loading="regenerating" :disabled="saving || uploading || regenerating" @click="regenerateContent">AI 重新缩写</el-button>
+            </div>
+            <el-alert v-if="regenerationError" :title="regenerationError" type="error" show-icon :closable="false" />
             <label for="benchmark-review-content">发布文案</label>
             <el-input id="benchmark-review-content" v-model="content" type="textarea" :rows="7" maxlength="10000" :readonly="!editable || saving" />
             <div class="review-media-heading"><strong>发布媒体</strong><span>{{ mediaUrls.length }} 项</span></div>
@@ -431,12 +467,13 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer) })
         </div>
         <span v-if="selected.task_run_id">任务 ID：{{ selected.task_run_id }}</span>
       </div>
-      <template #footer><el-button :disabled="saving || uploading || Boolean(retryingId)" @click="closeDialog">关闭</el-button><el-button v-if="editable" :disabled="!draftDirty || saving || uploading" :loading="saving" @click="saveDraft">保存修改</el-button><el-button v-if="selected?.status === 'pending_review' && editable" :icon="SkipForward" :disabled="saving || uploading" @click="decide('ignore')">忽略</el-button><el-button v-if="selected?.status === 'pending_review' && editable" type="primary" :icon="Check" :loading="saving" :disabled="uploading" @click="decide('approve')">批准发布</el-button><el-button v-if="retryable && selected" type="primary" :icon="RefreshCw" :loading="retryingId === selected.id" :disabled="Boolean(retryingId) && retryingId !== selected.id" @click="retry(selected)">重新发布</el-button></template>
+      <template #footer><el-button :disabled="saving || uploading || regenerating || Boolean(retryingId)" @click="closeDialog">关闭</el-button><el-button v-if="editable" :disabled="!draftDirty || saving || uploading || regenerating" :loading="saving && !regenerating" @click="saveDraft">保存修改</el-button><el-button v-if="selected?.status === 'pending_review' && editable" :icon="SkipForward" :disabled="saving || uploading || regenerating" @click="decide('ignore')">忽略</el-button><el-button v-if="selected?.status === 'pending_review' && editable" type="primary" :icon="Check" :loading="saving && !regenerating" :disabled="saving || uploading || regenerating" @click="decide('approve')">批准发布</el-button><el-button v-if="retryable && selected" type="primary" :icon="RefreshCw" :loading="retryingId === selected.id" :disabled="saving || uploading || regenerating || (Boolean(retryingId) && retryingId !== selected.id)" @click="retry(selected)">重新发布</el-button></template>
     </el-dialog>
   </section>
 </template>
 
 <style scoped>
+.review-draft-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 32px; }
 .review-account { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .review-account :deep(.el-avatar) { flex-shrink: 0; background: var(--app-surface-muted, #eaf4fb); color: var(--app-blue, #316589); }
 .review-account__text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
