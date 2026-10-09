@@ -44,6 +44,7 @@ import type { AnyRecord } from '@/types/api'
 import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import { commentReplyStatusOptions, operatorReplyStatus, operatorReplyStatusMeta } from '@/config/commentReplyStatus'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -84,6 +85,7 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
   'list:comment-replies:v2',
   createDefaultCommentReplyFilters(),
 )
+filters.status = operatorReplyStatus(filters.status)
 let refreshTimer: number | undefined
 
 const hasFilters = computed(() => hasActiveCommentReplyFilters(filters))
@@ -416,7 +418,7 @@ onBeforeUnmount(() => {
               </el-form-item>
               <el-form-item label="工单状态">
                 <el-select v-model="filters.status" clearable placeholder="全部">
-                  <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
+                  <el-option v-for="item in commentReplyStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
                 </el-select>
               </el-form-item>
               <el-form-item label="工单 ID">
@@ -502,7 +504,7 @@ onBeforeUnmount(() => {
               <template #default="{ row }"><el-tag effect="plain">{{ replyModeLabel(row.reply_mode) }}</el-tag></template>
             </el-table-column>
             <el-table-column label="状态" width="105" align="center">
-              <template #default="{ row }"><el-tag :type="statusMeta(row.status).type">{{ statusMeta(row.status).label }}</el-tag></template>
+              <template #default="{ row }"><el-tag :type="operatorReplyStatusMeta(row.status).type">{{ operatorReplyStatusMeta(row.status).label }}</el-tag></template>
             </el-table-column>
             <el-table-column label="发现时间" width="165" align="center">
               <template #default="{ row }">{{ formatDate(row.created_at) }}</template>

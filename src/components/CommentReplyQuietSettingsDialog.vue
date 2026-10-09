@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Clock3, Save } from 'lucide-vue-next'
+import { Clock3, Plus, Save, Trash2 } from 'lucide-vue-next'
 import { ElNotification } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 
@@ -29,6 +29,10 @@ const visible = computed({
 const activePlatform = ref('threads')
 const loading = ref(false)
 const saving = ref(false)
+const loaded = ref(false)
+const activeTab = ref('schedule')
+const times = ref<string[]>([])
+const scheduleEndpoint = '/api/interaction-center/comment-reply-schedules'
 const form = reactive({
   enabled: false,
   start: '22:00:00',
@@ -55,20 +59,38 @@ async function loadPolicy() {
   const revision = ++requestRevision
   resetForm()
   loading.value = true
+  loaded.value = false
   try {
-    const data = await http.get<AnyRecord>(endpoint())
+    const data = activeTab.value === 'schedule'
+      ? await http.get<AnyRecord>(scheduleEndpoint, { business_platform: activePlatform.value })
+      : await http.get<AnyRecord>(endpoint())
     if (revision !== requestRevision) return
+    times.value = Array.isArray(data.times) ? data.times.map(String) : []
     form.enabled = data.comment_reply_quiet_enabled === true
     form.start = String(data.comment_reply_quiet_start || '22:00:00')
     form.end = String(data.comment_reply_quiet_end || '08:00:00')
+    loaded.value = true
   } catch (err) {
-    if (revision === requestRevision) notifyError(err, '加载失败', '忽略时间段加载失败')
+    if (revision === requestRevision) notifyError(err, '加载失败', '评论回复设置加载失败')
   } finally {
     if (revision === requestRevision) loading.value = false
   }
 }
 
 async function savePolicy() {
+  if (!props.editable || loading.value || saving.value || !loaded.value) return
+  if (activeTab.value === 'schedule') {
+    saving.value = true
+    try {
+      await http.put(scheduleEndpoint, {
+        business_platform: activePlatform.value, account_ids: [], inherit: false, times: times.value,
+      })
+      ElNotification.success({ title: '保存成功', message: `${activePlatformLabel.value} 评论回复时间已更新` })
+    } catch (err) {
+      notifyError(err, '保存失败', '评论回复时间保存失败')
+    } finally { saving.value = false }
+    return
+  }
   if (form.enabled && (!form.start || !form.end)) {
     ElNotification.warning({ title: '请完善配置', message: '请选择忽略开始和结束时间' })
     return
@@ -99,7 +121,8 @@ async function savePolicy() {
 }
 
 watch(visible, (value) => {
-  if (!value) return
+  if (!value) { requestRevision++; return }
+  activeTab.value = 'schedule'
   activePlatform.value = 'threads'
   void loadPolicy()
 })
@@ -108,7 +131,7 @@ watch(visible, (value) => {
 <template>
   <el-dialog
     v-model="visible"
-    title="忽略时间段"
+    title="评论回复设置"
     width="min(92vw, 640px)"
     align-center
     destroy-on-close
@@ -127,7 +150,20 @@ watch(visible, (value) => {
         />
       </div>
 
-      <section v-loading="loading" class="reply-quiet-dialog__policy">
+      <el-tabs v-model="activeTab" @tab-change="loadPolicy">
+        <el-tab-pane label="评论回复时间" name="schedule" :disabled="platformLocked" />
+        <el-tab-pane label="评论忽略时间段" name="quiet" :disabled="platformLocked" />
+      </el-tabs>
+      <section v-if="activeTab === 'schedule'" v-loading="loading" class="reply-schedule-policy">
+        <div class="reply-quiet-dialog__copy"><strong>{{ activePlatformLabel }} 默认评论回复时间</strong><small>北京时间（Asia/Shanghai）</small></div>
+        <div v-for="(_, index) in times" :key="index" class="reply-schedule-time">
+          <el-time-picker v-model="times[index]" format="HH:mm" value-format="HH:mm" :clearable="false" :disabled="platformLocked || !editable || !loaded" />
+          <el-tooltip content="删除时间"><el-button v-if="editable" :icon="Trash2" aria-label="删除时间" :disabled="platformLocked || !loaded" @click="times.splice(index, 1)" /></el-tooltip>
+        </div>
+        <el-empty v-if="!loading && loaded && !times.length" description="未设置评论回复时间" :image-size="48" />
+        <el-button v-if="editable" :icon="Plus" :disabled="platformLocked || !loaded || times.length >= 24" @click="times.push('09:00')">添加时间</el-button>
+      </section>
+      <section v-else v-loading="loading" class="reply-quiet-dialog__policy">
         <div class="reply-quiet-dialog__heading">
           <span class="reply-quiet-dialog__icon"><Clock3 :size="18" /></span>
           <div class="reply-quiet-dialog__copy">
@@ -136,7 +172,7 @@ watch(visible, (value) => {
           </div>
           <el-switch
             v-model="form.enabled"
-            :disabled="loading || !editable"
+            :disabled="platformLocked || !loaded || !editable"
             class="reply-quiet-dialog__switch"
           />
         </div>
@@ -148,7 +184,7 @@ watch(visible, (value) => {
               v-model="form.start"
               format="HH:mm"
               value-format="HH:mm:ss"
-              :disabled="!form.enabled || loading || !editable"
+              :disabled="!form.enabled || platformLocked || !loaded || !editable"
               placeholder="选择开始时间"
             />
           </label>
@@ -158,7 +194,7 @@ watch(visible, (value) => {
               v-model="form.end"
               format="HH:mm"
               value-format="HH:mm:ss"
-              :disabled="!form.enabled || loading || !editable"
+              :disabled="!form.enabled || platformLocked || !loaded || !editable"
               placeholder="选择结束时间"
             />
           </label>
@@ -183,8 +219,8 @@ watch(visible, (value) => {
 
     <template #footer>
       <el-button :disabled="saving" @click="visible = false">关闭</el-button>
-      <el-button v-if="editable" type="primary" :icon="Save" :loading="saving" :disabled="loading" @click="savePolicy">
-        保存当前平台
+      <el-button v-if="editable" type="primary" :icon="Save" :loading="saving" :disabled="loading || !loaded" @click="savePolicy">
+        {{ activeTab === 'schedule' ? '保存评论回复时间' : '保存评论忽略时间段' }}
       </el-button>
     </template>
   </el-dialog>
@@ -192,6 +228,9 @@ watch(visible, (value) => {
 
 <style scoped>
 .reply-quiet-dialog { display: grid; gap: 16px; }
+.reply-schedule-policy { display: grid; gap: 14px; max-height: 50dvh; overflow-y: auto; }
+.reply-schedule-time { display: flex; align-items: center; gap: 8px; }
+.reply-schedule-time :deep(.el-date-editor) { flex: 1; min-width: 0; }
 .reply-quiet-dialog__platforms {
   display: flex;
   align-items: center;

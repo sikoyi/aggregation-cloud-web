@@ -1179,9 +1179,8 @@ onBeforeUnmount(() => {
             :icon="Clock"
             @click="replyQuietSettingsVisible = true"
           >
-            忽略时间段
+            评论回复设置
           </el-button>
-          <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" @click="replyScheduleMode = ''; replyScheduleAccounts = []; replyScheduleVisible = true">App 回复时间</el-button>
           <el-tooltip content="刷新" placement="bottom">
             <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
           </el-tooltip>
