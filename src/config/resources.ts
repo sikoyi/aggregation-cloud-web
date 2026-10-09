@@ -3373,7 +3373,7 @@ export const resources: Record<string, ResourceConfig> = {
     endpoint: "/api/scripts",
     createLabel: "新增脚本",
     columns: [
-      { key: "id", label: "脚本 ID", type: "id", width: 60, align: "center" },
+      { key: "id", label: "ID", type: "id", width: 60, align: "center" },
       { key: "name", label: "脚本信息", type: "scriptIdentity", minWidth: 180 },
       { key: "purpose", label: "适配范围", type: "scriptScope", minWidth: 255 },
       { key: "max_timeout_seconds", label: "运行限制", type: "scriptTimeout", width: 90, align: "center" },
@@ -3592,7 +3592,7 @@ export const resources: Record<string, ResourceConfig> = {
     createBody: (payload) => buildTaskTemplateBody(payload),
     updateBody: (payload) => buildTaskTemplateBody(payload),
     columns: [
-      { key: "id", label: "模板 ID", type: "id", width: 55, align: "center" },
+      { key: "id", label: "ID", type: "id", width: 55, align: "center" },
       { key: "name", label: "模板信息", type: "templateIdentity", minWidth: 145 },
       {
         key: "script_key",
