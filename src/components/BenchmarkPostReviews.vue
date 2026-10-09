@@ -5,6 +5,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { http, resolveBackendUrl } from '@/api/http'
 import { uploadMediaAssets } from '@/api/mediaAssets'
+import { prepareSelectedReviews, type PreparationAction, type PreparationResult } from '@/api/benchmarkReviewPreparation'
 import {
   batchApproveBenchmarkPostReviews,
   batchDeleteBenchmarkPostReviews,
@@ -67,6 +68,14 @@ const regenerationError = ref('')
 const regenerationElapsed = ref(0)
 let regenerationTimer: ReturnType<typeof setInterval> | undefined
 const batchLoading = ref(false)
+const preparationVisible = ref(false)
+const preparationResults = ref<PreparationResult[]>([])
+const preparationTotal = ref(0)
+const preparationTitle = ref('')
+const preparationLabels = { processed: '成功', skipped: '跳过', failed: '失败' }
+const preparationSummary = computed(() => ['processed', 'skipped', 'failed'].map(status =>
+  `${preparationLabels[status as keyof typeof preparationLabels]} ${preparationResults.value.filter(item => item.status === status).length}`,
+).join(' · '))
 const retryingId = ref('')
 const deletingId = ref('')
 const selectedRows = ref<Review[]>([])
@@ -97,6 +106,7 @@ const canManageReviews = computed(() => auth.can('operations.review'))
 const batchActionsDisabled = computed(() => batchLoading.value || Boolean(deletingId.value) || selectedRows.value.length === 0)
 const deletableStatuses = new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])
 let request = 0
+let disposed = false
 let timer: ReturnType<typeof setInterval> | undefined
 function safeUrl(value?: string) {
   try { const url = new URL(value || ''); return ['https:', 'http:'].includes(url.protocol) ? url.href : '' } catch { return '' }
@@ -249,6 +259,28 @@ function clearBatchSelection() {
   selectedRows.value = []
 }
 type BatchAction = 'approve' | 'ignore' | 'delete'
+async function runPreparation(action: PreparationAction) {
+  if (batchActionsDisabled.value || !canManageReviews.value) return
+  const jobs = selectedRows.value.map(({ id, revision }) => ({ id, revision }))
+  const title = action === 'shorten' ? '批量 AI 缩写' : '批量精简图片'
+  batchLoading.value = true
+  try {
+    try {
+      await ElMessageBox.confirm(action === 'shorten'
+        ? `处理所选 ${jobs.length} 条工单：超长正文按原始完整正文重新缩写，符合长度的跳过。成功后保存文案，仍待审核，不自动发布。`
+        : `处理所选 ${jobs.length} 条工单：X 发布图片超过 4 张时保留前 2 张，其余跳过。不改正文和原始媒体，仍待审核。`, title,
+      { type: 'warning', confirmButtonText: '开始处理', cancelButtonText: '取消' })
+    } catch { return }
+    preparationTitle.value = title
+    preparationResults.value = []
+    preparationTotal.value = jobs.length
+    preparationVisible.value = true
+    await prepareSelectedReviews(jobs, action, result => { preparationResults.value.push(result) }, () => !disposed)
+    if (disposed) return
+    clearBatchSelection()
+    await load()
+  } finally { batchLoading.value = false }
+}
 async function removeReview(raw: unknown) {
   const row = raw as Review
   if (!canManageReviews.value || !deletableStatuses.has(row.status) || deletingId.value || batchLoading.value || retryingId.value) return
@@ -366,8 +398,8 @@ function applyReviewShortcut() {
   return true
 }
 watch(() => route.query.status, () => { if (applyReviewShortcut()) void load() })
-onMounted(() => { applyReviewShortcut(); void load(); timer = setInterval(() => { if (!loading.value && !visible.value) void load() }, 10000) })
-onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenerationTimer) clearInterval(regenerationTimer) })
+onMounted(() => { applyReviewShortcut(); void load(); timer = setInterval(() => { if (!loading.value && !visible.value && !batchLoading.value) void load() }, 10000) })
+onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(timer); if (regenerationTimer) clearInterval(regenerationTimer) })
 </script>
 
 <template>
@@ -396,6 +428,8 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenera
     <div v-if="canManageReviews" class="review-batch-bar">
       <span>已选择 <strong>{{ selectedRows.length }}</strong> 条工单</span>
       <div class="review-batch-actions">
+        <el-button type="primary" plain :icon="Sparkles" :disabled="batchActionsDisabled" @click="runPreparation('shorten')">批量 AI 缩写</el-button>
+        <el-button :icon="ImagePlus" :disabled="batchActionsDisabled" @click="runPreparation('images')">批量精简图片</el-button>
         <el-button :icon="Check" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('approve')">批量批准发布</el-button>
         <el-button :icon="SkipForward" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('ignore')">批量忽略</el-button>
         <el-button type="danger" plain :icon="Trash2" :loading="batchLoading" :disabled="batchActionsDisabled" @click="runBatchAction('delete')">批量删除记录</el-button>
@@ -488,6 +522,16 @@ onBeforeUnmount(() => { request++; if (timer) clearInterval(timer); if (regenera
       <template #footer><el-button :disabled="saving || uploading || regenerating || Boolean(retryingId)" @click="closeDialog">关闭</el-button><el-button v-if="editable" :disabled="!draftDirty || saving || uploading || regenerating" :loading="saving && !regenerating" @click="saveDraft">保存修改</el-button><el-button v-if="selected?.status === 'pending_review' && editable" :icon="SkipForward" :disabled="saving || uploading || regenerating" @click="decide('ignore')">忽略</el-button><el-button v-if="selected?.status === 'pending_review' && editable" type="primary" :icon="Check" :loading="saving && !regenerating" :disabled="saving || uploading || regenerating" @click="decide('approve')">批准发布</el-button><el-button v-if="retryable && selected" type="primary" :icon="RefreshCw" :loading="retryingId === selected.id" :disabled="saving || uploading || regenerating || (Boolean(retryingId) && retryingId !== selected.id)" @click="retry(selected)">重新发布</el-button></template>
     </el-dialog>
   </section>
+  <el-dialog v-model="preparationVisible" :title="preparationTitle" width="min(720px, 94vw)" :close-on-click-modal="false" :close-on-press-escape="!batchLoading" :show-close="!batchLoading">
+    <p>{{ preparationResults.length }} / {{ preparationTotal }} · {{ preparationSummary }}</p>
+    <el-progress :percentage="preparationTotal ? Math.round(preparationResults.length / preparationTotal * 100) : 0" />
+    <el-table :data="preparationResults" max-height="420">
+      <el-table-column prop="id" label="工单 ID" min-width="160" />
+      <el-table-column label="结果" width="80"><template #default="{ row }"><el-tag :type="row.status === 'processed' ? 'success' : row.status === 'failed' ? 'danger' : 'info'">{{ preparationLabels[row.status as keyof typeof preparationLabels] }}</el-tag></template></el-table-column>
+      <el-table-column prop="message" label="详情" min-width="260" />
+    </el-table>
+    <template #footer><el-button :disabled="batchLoading" @click="preparationVisible = false">关闭</el-button></template>
+  </el-dialog>
 </template>
 
 <style scoped>
