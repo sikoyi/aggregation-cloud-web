@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { transpile, ScriptTarget } from 'typescript'
 import { isTaskGroup } from '../utils/taskResultCounts'
@@ -24,7 +24,7 @@ function harness() {
   const unmounts: Array<() => void> = []
   const script = source.slice(source.indexOf('const loading ='), source.indexOf('const scriptRelationConfig'))
     + source.slice(source.indexOf('function timelineTitle'), source.indexOf('</script>'))
-  const state = new Function('ref', 'http', 'notifyError', 'buildParamRows', 'isTaskGroup', 'watch', 'onBeforeUnmount', 'onMounted', 'window',
+  const state = new Function('ref', 'http', 'notifyError', 'buildParamRows', 'isTaskGroup', 'watch', 'onBeforeUnmount', 'onMounted', 'window', 'computed',
     `${transpile(script, { target: ScriptTarget.ES2022 })};
     return { loading, task, events, error, children, childTotal, childPage, childLoading, paramRows,
       currentTaskId, loadDetail, loadChildren, changeChildPage, changeChildPageSize };`)(
@@ -33,6 +33,7 @@ function harness() {
     (callback: () => void) => { unmounts.push(callback) },
     (callback: () => void) => callback(),
     { matchMedia: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) },
+    computed,
   )
   return { ...state, requests, notifyError, buildParamRows,
     close: () => changed([false, null]), unmount: () => unmounts.forEach(callback => callback()) }

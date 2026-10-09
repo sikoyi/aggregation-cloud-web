@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Copy, Maximize2 } from 'lucide-vue-next'
+import { ElNotification } from 'element-plus'
+import TaskParameterValue from '@/components/TaskParameterValue.vue'
+import { parseParameterDisplay } from '@/utils/taskParameterDisplay'
 
 import { http } from '@/api/http'
 import RelationCell from '@/components/RelationCell.vue'
@@ -39,6 +43,20 @@ const activeTab = ref('basic')
 const currentTaskId = ref<string | null>(null)
 const taskHistory = ref<string[]>([])
 const activeSlotGroups = ref<string[]>([])
+const snapshotVisible = ref(false)
+const snapshotText = computed(() => JSON.stringify({
+  parameters: paramRows.value.map(row => ({ key: row.key, name: row.label, value: parseParameterDisplay(row.value) })),
+  device_groups: parameterSlotGroups.value.map(group => ({ name: group.group_name, count: group.slot_count,
+    devices: group.slots.map(slot => ({ name: slot.slot_name, device_id: slot.provider_slot_id })),
+  })),
+}, null, 2))
+watch(() => [props.taskId, props.modelValue], () => { snapshotVisible.value = false })
+async function copySnapshot() {
+  try {
+    await navigator.clipboard.writeText(snapshotText.value)
+    ElNotification.success({ title: '已复制参数快照', message: '仅包含当前可见参数' })
+  } catch (error) { notifyError(error, '复制失败') }
+}
 
 const scriptRelationConfig: RemoteSelectConfig = {
   endpoint: '/api/task-script-options',
@@ -473,7 +491,7 @@ onBeforeUnmount(invalidateRequests)
             </div>
 
             <div class="detail-section">
-              <div class="detail-section__title">脚本参数快照</div>
+              <div class="parameter-heading"><div class="detail-section__title">脚本参数快照</div><el-button :icon="Maximize2" @click="snapshotVisible = true">查看完整快照</el-button></div>
               <div v-if="parameterSlotGroups.length" class="task-slot-snapshot">
                 <div class="task-slot-snapshot__header">
                   <span>设备列表</span>
@@ -513,8 +531,8 @@ onBeforeUnmount(invalidateRequests)
                 :image-size="56"
               />
               <el-table v-if="paramRows.length" :data="paramRows" border stripe class="task-param-table">
-                <el-table-column prop="label" label="参数" width="180" />
-                <el-table-column prop="value" label="值" show-overflow-tooltip />
+                <el-table-column prop="label" label="参数" :width="compact ? 90 : 180" />
+                <el-table-column label="值" min-width="200"><template #default="{ row }"><TaskParameterValue :key="`${currentTaskId}-${row.key}`" :value="parseParameterDisplay(row.value)" /></template></el-table-column>
               </el-table>
             </div>
           </el-tab-pane>
@@ -600,9 +618,15 @@ onBeforeUnmount(invalidateRequests)
       </template>
     </div>
   </el-dialog>
+  <el-dialog v-model="snapshotVisible" title="完整参数快照" width="min(900px, 94vw)" append-to-body>
+    <pre class="parameter-snapshot">{{ snapshotText }}</pre>
+    <template #footer><el-button @click="snapshotVisible = false">关闭</el-button><el-button :icon="Copy" @click="copySnapshot">复制快照</el-button></template>
+  </el-dialog>
 </template>
 
 <style scoped>
+.parameter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.parameter-snapshot { max-height: 65dvh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
 .task-basic-info :deep(.el-descriptions__table) { table-layout: fixed; width: 100%; }
 .task-basic-info :deep(.el-descriptions__label) { white-space: nowrap; }
 .task-basic-info :deep(.el-descriptions__content) { overflow-wrap: anywhere; word-break: break-word; }
