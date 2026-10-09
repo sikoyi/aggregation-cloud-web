@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest'
 import source from './CommentReplyReviewView.vue?raw'
 
 describe('回复审核筛选区', () => {
+  it('列表隐藏处理方式，保留回复模式筛选和详情', () => {
+    expect(source).not.toContain('<el-table-column label="处理方式"')
+    expect(source).toContain('<el-form-item label="回复模式">')
+    expect(source).toContain('<small>处理方式</small>')
+    expect(source).toContain('replyModeLabel(activeJob.reply_mode)')
+  })
   it('操作列适度收窄，按钮保留文字和紧凑间距', () => {
     expect(source).toContain('label="操作" width="250" align="center" fixed="right"')
     expect(source).toContain('class="reply-review__row-actions"')

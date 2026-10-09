@@ -500,9 +500,6 @@ onBeforeUnmount(() => {
                 <span v-else class="text-muted">文案尚未生成</span>
               </template>
             </el-table-column>
-            <el-table-column label="处理方式" width="110" align="center">
-              <template #default="{ row }"><el-tag effect="plain">{{ replyModeLabel(row.reply_mode) }}</el-tag></template>
-            </el-table-column>
             <el-table-column label="状态" width="105" align="center">
               <template #default="{ row }"><el-tag :type="operatorReplyStatusMeta(row.status).type">{{ operatorReplyStatusMeta(row.status).label }}</el-tag></template>
             </el-table-column>
