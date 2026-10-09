@@ -903,9 +903,8 @@ function buildAccountImportPayload(payload: AnyRecord) {
     body.provider = "vmos";
     delete body.target_runtime_instance_id;
     delete body.environment_name_prefix;
-    delete body.proxy_group_id;
-    delete body.dynamic_proxy_id;
-    body.proxy_allocation_mode = "none";
+    if (body.proxy_allocation_mode !== "static_group") delete body.proxy_group_id;
+    if (body.proxy_allocation_mode !== "dynamic_template") delete body.dynamic_proxy_id;
   } else {
     delete body.slot_group_id;
     delete body.slot_ids;
@@ -997,14 +996,13 @@ const accountOnboardingFields: FieldConfig[] = [
     label: "上号代理方式",
     type: "segmented",
     options: [
-      { label: "不使用代理", value: "none" },
+      { label: "不分配新代理", value: "none" },
       { label: "静态代理池", value: "static_group" },
       { label: "动态代理模板", value: "dynamic_template" },
     ],
     defaultValue: "none",
     span: 2,
     required: true,
-    visibleWhen: { key: "runtime_platform", value: "fingerprint_browser" },
   },
   {
     key: "proxy_group_id",
@@ -1012,7 +1010,6 @@ const accountOnboardingFields: FieldConfig[] = [
     type: "remoteSelect",
     remote: proxyGroupRemoteSelect,
     visibleWhen: { key: "proxy_allocation_mode", value: "static_group" },
-    visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
     requiredWhen: { key: "proxy_allocation_mode", value: "static_group" },
     span: 2,
   },
@@ -1022,7 +1019,6 @@ const accountOnboardingFields: FieldConfig[] = [
     type: "remoteSelect",
     remote: dynamicProxyRemoteSelect,
     visibleWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
-    visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
     requiredWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
     span: 2,
   },
@@ -1041,6 +1037,9 @@ function buildAccountOnboardingBody(payload: AnyRecord, records: AnyRecord[]) {
       provider: "vmos",
       slot_group_id: payload.slot_group_id,
       slot_ids: payload.slot_ids || [],
+      proxy_allocation_mode: payload.proxy_allocation_mode || "none",
+      proxy_group_id: payload.proxy_allocation_mode === "static_group" ? payload.proxy_group_id : undefined,
+      dynamic_proxy_id: payload.proxy_allocation_mode === "dynamic_template" ? payload.dynamic_proxy_id : undefined,
     };
   }
   return {
@@ -1430,13 +1429,12 @@ export const resources: Record<string, ResourceConfig> = {
         label: "上号代理方式",
         type: "segmented",
         options: [
-          { label: "不使用代理", value: "none" },
+          { label: "不分配新代理", value: "none" },
           { label: "静态代理池", value: "static_group" },
           { label: "动态代理模板", value: "dynamic_template" },
         ],
         defaultValue: "none",
         visibleWhen: { key: "post_import_action", value: "create_environment_and_login" },
-        visibleWhenAll: [{ key: "runtime_platform", value: "fingerprint_browser" }],
         span: 2,
         required: true,
       },
@@ -1448,7 +1446,6 @@ export const resources: Record<string, ResourceConfig> = {
         visibleWhen: { key: "proxy_allocation_mode", value: "static_group" },
         visibleWhenAll: [
           { key: "post_import_action", value: "create_environment_and_login" },
-          { key: "runtime_platform", value: "fingerprint_browser" },
         ],
         requiredWhen: { key: "proxy_allocation_mode", value: "static_group" },
         span: 2,
@@ -1462,7 +1459,6 @@ export const resources: Record<string, ResourceConfig> = {
         visibleWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
         visibleWhenAll: [
           { key: "post_import_action", value: "create_environment_and_login" },
-          { key: "runtime_platform", value: "fingerprint_browser" },
         ],
         requiredWhen: { key: "proxy_allocation_mode", value: "dynamic_template" },
         span: 2,

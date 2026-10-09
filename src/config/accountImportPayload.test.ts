@@ -63,11 +63,29 @@ describe.each([resources.accounts, buildAccountIdentityResource(resources.accoun
     expect(body).toMatchObject({
       runtime_platform: 'cloud_phone', provider: 'vmos',
       slot_group_id: 'group-cloud',
-      proxy_allocation_mode: 'none',
+      proxy_allocation_mode: 'static_group', proxy_group_id: 'old-proxy',
     })
     expect(body).not.toHaveProperty('target_runtime_instance_id')
     expect(body).not.toHaveProperty('environment_name_prefix')
-    expect(body).not.toHaveProperty('proxy_group_id')
+    expect(body).not.toHaveProperty('dynamic_proxy_id')
+  })
+  it.each(['none', 'static_group', 'dynamic_template'])('云手机上号传递代理方式 %s', mode => {
+    const action = config.batchActions!.find(item => item.key === 'batch-account-onboarding')!
+    const state = { ...buildFormState(action.fields || []), runtime_platform: 'cloud_phone',
+      business_platform: 'threads', slot_group_id: 'group-cloud', proxy_allocation_mode: mode,
+      proxy_group_id: 'proxy-group', dynamic_proxy_id: 'dynamic-proxy' }
+    const records = config.key === 'accountIdentities'
+      ? [{ id: 'identity-1', matched_account_ids: ['account-1'],
+          platform_summaries: [{ account_id: 'account-1', business_platform: 'threads' }] }]
+      : [{ id: 'account-1', business_platform: 'threads' }]
+    const body = action.batchBody!(buildPayload(action.fields || [], state, 'create'), records)
+    expect(body).toMatchObject({ proxy_allocation_mode: mode,
+      proxy_group_id: mode === 'static_group' ? 'proxy-group' : undefined,
+      dynamic_proxy_id: mode === 'dynamic_template' ? 'dynamic-proxy' : undefined })
+    for (const key of ['proxy_allocation_mode', 'proxy_group_id', 'dynamic_proxy_id']) {
+      const field = action.fields!.find(item => item.key === key)!
+      expect(field.visibleWhenAll || []).not.toContainEqual({ key: 'runtime_platform', value: 'fingerprint_browser' })
+    }
   })
   it('批量上号按账号顺序传递可选设备，凭据不进入任务参数', () => {
     const action = config.batchActions!.find(item => item.key === 'batch-account-onboarding')!
