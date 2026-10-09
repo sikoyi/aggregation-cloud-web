@@ -4,6 +4,10 @@ import { postProcessingLabels } from './benchmarkPostProcessing'
 const base = { final_content: 'Original', final_media_urls: ['a'], snapshot: { text_content: 'Original', media_urls: ['a'] } }
 
 describe('帖子审核处理标注', () => {
+  it('区分话题本地化成功与翻译检查失败', () => {
+    expect(postProcessingLabels({ ...base, system_processing: { hashtag_localization: true, translation_check: 'succeeded' } }).map(item => item.label)).toEqual(['话题已本地化'])
+    expect(postProcessingLabels({ ...base, system_processing: { translation_check: 'failed' } })).toEqual([{ label: '翻译或话题检查失败', type: 'danger' }])
+  })
   it('未修改的原帖不显示修改标记', () => expect(postProcessingLabels(base)).toEqual([]))
   it('系统处理和运营修改分别标记', () => {
     const result = postProcessingLabels({ ...base, operator_modified: true, system_processing: {
