@@ -538,7 +538,7 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
 .review-id { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .review-id code { overflow-wrap: anywhere; user-select: all; min-width: 0; }
 .review-id strong, .review-id .el-button { flex-shrink: 0; }
-.review-original-preview { height: 100px; }
+.review-original-preview { height: 180px; }
 .review-draft-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; min-height: 32px; }
 .review-regenerate-button { font-weight: 600; }
 .review-account { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -584,15 +584,16 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
 .review-media { display: flex; flex-wrap: wrap; gap: 8px; }
 .review-media-heading { display: flex; gap: 8px; align-items: center; }
 .review-media-heading span { color: var(--app-text-muted, #66788a); font-size: 12px; }
-.review-media-item { position: relative; width: 140px; height: 120px; }
+.review-media-item { position: relative; width: min(180px, 100%); height: 180px; }
 .review-media-remove { position: absolute; top: 4px; right: 4px; }
 .review-media-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .review-media-tools .el-input { flex: 1 1 220px; }
 .review-file-input { display: none; }
 .review-original-media-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.review-original-media-item { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 86px; }
-.review-original-media-item .el-image { width: 86px; height: 72px; border: 1px solid var(--el-border-color); border-radius: 4px; }
-.review-media .el-image { width: 140px; height: 120px; border: 1px solid var(--el-border-color); border-radius: 4px; }
+.review-original-media-item { display: flex; flex-direction: column; align-items: center; gap: 5px; width: min(180px, 100%); }
+.review-original-media-item:has(.is-video), .review-media-item:has(.is-video) { width: 100%; }
+.review-original-media-item:has(.is-video) .review-original-preview,
+.review-media-item:has(.is-video) { height: clamp(240px, 42dvh, 380px); }
 @media (max-width: 768px) {
   .review-comparison { grid-template-columns: minmax(0, 1fr); }
   .review-comparison__draft { border-left: 0; border-top: 1px solid var(--el-border-color); padding: 16px 0 0; }

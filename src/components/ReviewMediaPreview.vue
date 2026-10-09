@@ -15,7 +15,7 @@ watch(() => props.url, () => { failed.value = false })
 </script>
 
 <template>
-  <div class="review-media-preview">
+  <div class="review-media-preview" :class="{ 'is-video': video }">
     <div v-if="!safeUrl || failed" class="media-error" role="status">{{ safeUrl ? '媒体加载失败' : '媒体链接无效' }}</div>
     <video v-else-if="video" :src="safeUrl" controls playsinline preload="metadata" aria-label="视频预览" @error="failed = true" />
     <el-image v-else :src="safeUrl" fit="contain" loading="lazy" :preview-src-list="[safeUrl]" preview-teleported @error="failed = true" />
@@ -27,5 +27,6 @@ watch(() => props.url, () => { failed.value = false })
 .review-media-preview { width: 100%; height: 100%; display: flex; flex-direction: column; gap: 4px; }
 .review-media-preview video, .review-media-preview .el-image, .media-error { width: 100%; flex: 1; min-height: 0; border: 1px solid var(--el-border-color); border-radius: 4px; object-fit: contain; }
 .media-error { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 12px; color: var(--el-text-color-secondary); }
+.review-media-preview.is-video video { background: #111; }
 .media-link { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; color: var(--el-color-primary); white-space: nowrap; }
 </style>
