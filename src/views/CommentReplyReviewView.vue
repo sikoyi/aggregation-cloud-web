@@ -475,7 +475,7 @@ onBeforeUnmount(() => {
           >
             <el-table-column v-if="canBatchOperate" type="selection" width="46" fixed="left" reserve-selection />
             <el-table-column prop="id" label="工单 ID" width="95" show-overflow-tooltip />
-            <el-table-column label="发帖账号" min-width="150">
+            <el-table-column label="发帖账号" min-width="240">
               <template #default="{ row }">
                 <div class="account-copy">
                   <ReplyJobAccount :job="row" />

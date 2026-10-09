@@ -36,6 +36,7 @@ describe('回复工单账号与原帖', () => {
     expect(post).not.toContain('https://t.co/title-media')
     expect(post).not.toContain('https://t.co/post-media')
     expect(source).toContain('<ReplyJobAccount :job="row" />')
+    expect(source).toContain('<el-table-column label="发帖账号" min-width="240">')
     expect(source).toContain('<ReplyJobAccount :job="activeJob" />')
     expect(source).toContain('<ReplyJobPost :job="row" />')
     expect(source).toContain('<ReplyJobPost :job="activeJob" />')
