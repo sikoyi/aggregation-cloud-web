@@ -1994,7 +1994,7 @@ onBeforeUnmount(() => {
                       <el-option label="韩国财经互动（固定韩文）" value="korean_finance" />
                     </el-select>
                   </el-form-item>
-                  <el-form-item label="最大长度">
+                  <el-form-item label="最大长度（字符）">
                     <el-input-number v-model="monitorForm.ai_max_length" :min="20" :max="500" controls-position="right" class="w-full" />
                   </el-form-item>
                 </div>
