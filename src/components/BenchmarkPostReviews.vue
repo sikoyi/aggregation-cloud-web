@@ -62,6 +62,7 @@ watch(() => [filters.businessPlatform, filters.accountTagId], () => { filters.ac
 const page = ref(1)
 const total = ref(0)
 const loading = ref(false)
+const refreshing = ref(false)
 const saving = ref(false)
 const regenerating = ref(false)
 const regenerationError = ref('')
@@ -127,14 +128,24 @@ async function copyReviewId() {
 function processingFor(row: unknown) {
   return postProcessingLabels(row as Review)
 }
-async function load() {
+function pollingPaused() {
+  return disposed || document.hidden || visible.value || preparationVisible.value || batchLoading.value
+    || saving.value || uploading.value || regenerating.value || Boolean(deletingId.value)
+    || Boolean(retryingId.value) || selectedRows.value.length > 0
+}
+async function load(quiet = false) {
+  if (quiet && (refreshing.value || pollingPaused())) return
   const id = ++request
-  loading.value = true
+  refreshing.value = true
+  if (!quiet) loading.value = true
   try {
     const result = await http.get<{ items: Review[]; total: number }>('/api/benchmark-trackers/reviews', buildPostReviewQuery(filters, page.value))
-    if (id === request) { rows.value = result.items; total.value = result.total }
-  } catch (error) { if (id === request) notifyError(error, '加载对标审核失败') }
-  finally { if (id === request) loading.value = false }
+    if (id === request && (!quiet || !pollingPaused())) {
+      if (JSON.stringify(rows.value) !== JSON.stringify(result.items)) rows.value = result.items
+      total.value = result.total
+    }
+  } catch (error) { if (id === request && !quiet) notifyError(error, '加载对标审核失败') }
+  finally { if (id === request) { loading.value = false; refreshing.value = false } }
 }
 function searchRows() {
   clearBatchSelection()
@@ -405,7 +416,7 @@ function applyReviewShortcut() {
   return true
 }
 watch(() => route.query.status, () => { if (applyReviewShortcut()) void load() })
-onMounted(() => { applyReviewShortcut(); void load(); timer = setInterval(() => { if (!loading.value && !visible.value && !batchLoading.value) void load() }, 10000) })
+onMounted(() => { applyReviewShortcut(); void load(); timer = setInterval(() => { void load(true) }, 10000) })
 onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(timer); if (regenerationTimer) clearInterval(regenerationTimer) })
 </script>
 
@@ -480,7 +491,7 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
         <el-tooltip v-if="canManageReviews && deletableStatuses.has(row.status)" content="删除记录"><el-button :icon="Trash2" circle text type="danger" aria-label="删除记录" :loading="deletingId === row.id" :disabled="Boolean(deletingId) || batchLoading || Boolean(retryingId)" @click="removeReview(row)" /></el-tooltip>
       </div></template></el-table-column>
     </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load" />
+    <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="load()" />
     <el-dialog v-model="visible" title="对标帖子审核" class="benchmark-review-dialog" width="min(92vw, 1120px)" align-center destroy-on-close :close-on-click-modal="false" :before-close="confirmClose">
       <div v-if="selected" class="review-body">
         <div class="review-id"><strong>工单 ID</strong><code>{{ selected.id }}</code><el-tooltip content="复制工单 ID"><el-button :icon="Copy" text circle aria-label="复制工单 ID" @click="copyReviewId" /></el-tooltip></div>
