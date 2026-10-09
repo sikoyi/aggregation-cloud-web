@@ -34,6 +34,7 @@ interface Review {
   target_display_name: string | null
   target_username: string | null
   target_avatar_url?: string | null
+  target_profile_url?: string | null
   business_platform: string
   final_content: string
   final_media_urls: string[]
@@ -111,7 +112,7 @@ const deletableStatuses = new Set(['succeeded', 'failed', 'canceled', 'expired',
 let request = 0
 let disposed = false
 let timer: ReturnType<typeof setInterval> | undefined
-function safeUrl(value?: string) {
+function safeUrl(value?: string | null) {
   try { const url = new URL(value || ''); return ['https:', 'http:'].includes(url.protocol) ? url.href : '' } catch { return '' }
 }
 function statusType(value: string) {
@@ -467,14 +468,16 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
         </div>
       </template></el-table-column>
       <el-table-column label="发布账号" min-width="220"><template #default="{ row }">
-        <div class="review-account">
+        <component :is="safeUrl(row.target_profile_url) ? 'a' : 'div'" class="review-account review-account--target"
+          :href="safeUrl(row.target_profile_url) || undefined" :target="safeUrl(row.target_profile_url) ? '_blank' : undefined" rel="noopener noreferrer"
+          :title="safeUrl(row.target_profile_url) ? '打开发布账号主页' : undefined">
           <el-avatar :size="40" :src="externalAvatarUrl(row.target_avatar_url)"><UserRound :size="20" /></el-avatar>
           <div class="review-account__text">
             <strong :title="row.target_display_name || row.target_username">{{ row.target_display_name || row.target_username || '未知账号' }}</strong>
             <span v-if="row.target_username" :title="row.target_username">@{{ row.target_username.replace(/^@/, '') }}</span>
             <span>{{ row.business_platform === 'x' ? 'X(Twitter)' : row.business_platform === 'instagram' ? 'Instagram' : row.business_platform === 'threads' ? 'Threads' : row.business_platform }}</span>
           </div>
-        </div>
+        </component>
       </template></el-table-column>
       <el-table-column label="帖子内容" min-width="300"><template #default="{ row }">
         <div v-if="processingFor(row).length" class="review-processing"><el-tag v-for="item in processingFor(row)" :key="item.label" :type="item.type" size="small">{{ item.label }}</el-tag></div>
@@ -495,7 +498,11 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
     <el-dialog v-model="visible" title="对标帖子审核" class="benchmark-review-dialog" width="min(92vw, 1120px)" align-center destroy-on-close :close-on-click-modal="false" :before-close="confirmClose">
       <div v-if="selected" class="review-body">
         <div class="review-id"><strong>工单 ID</strong><code>{{ selected.id }}</code><el-tooltip content="复制工单 ID"><el-button :icon="Copy" text circle aria-label="复制工单 ID" @click="copyReviewId" /></el-tooltip></div>
-        <dl><dt>来源账号</dt><dd>{{ selected.source_display_name || selected.source_username }} · {{ selected.source_business_platform }}</dd><dt>发布账号</dt><dd>{{ selected.target_display_name || selected.target_username }} · {{ selected.business_platform }}</dd><dt>状态</dt><dd><el-tag :type="statusType(selected.status)">{{ labels[selected.status] || '等待发布' }}</el-tag></dd></dl>
+        <dl><dt>来源账号</dt><dd>{{ selected.source_display_name || selected.source_username }} · {{ selected.source_business_platform }}</dd><dt>发布账号</dt><dd>
+          <component :is="safeUrl(selected.target_profile_url) ? 'a' : 'span'" :href="safeUrl(selected.target_profile_url) || undefined" target="_blank" rel="noopener noreferrer" class="review-target-link">
+            {{ selected.target_display_name || selected.target_username }} · {{ selected.business_platform }}<ExternalLink v-if="safeUrl(selected.target_profile_url)" :size="14" />
+          </component>
+        </dd><dt>状态</dt><dd><el-tag :type="statusType(selected.status)">{{ labels[selected.status] || '等待发布' }}</el-tag></dd></dl>
         <a v-if="safeUrl(selected.snapshot.content_url)" :href="safeUrl(selected.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
         <el-alert v-if="selected.status === 'pending_review' && selected.review_reason" :title="selected.review_reason" type="warning" show-icon :closable="false" />
         <div v-if="processingLabels.length" class="review-processing"><el-tag v-for="item in processingLabels" :key="item.label" :type="item.type">{{ item.label }}</el-tag></div>
@@ -567,6 +574,10 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
 .review-regenerate-button { font-weight: 600; }
 .review-account { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .review-account :deep(.el-avatar) { flex-shrink: 0; background: var(--app-surface-muted, #eaf4fb); color: var(--app-blue, #316589); }
+.review-account--target { color: inherit; text-decoration: none; }
+a.review-account--target:hover strong { color: var(--el-color-primary); text-decoration: underline; }
+.review-target-link { display: inline-flex; align-items: center; gap: 6px; color: inherit; }
+a.review-target-link { color: var(--el-color-primary); }
 .review-account__text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 .review-account__text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .review-account__text > span { font-size: 12px; color: var(--app-text-muted, #66788a); }
