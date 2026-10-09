@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { transpile, ScriptTarget } from 'typescript'
 import source from './BenchmarkPostReviews.vue?raw'
 
-function setup() {
+function setup(): Record<string, any> & { load: (quiet?: boolean) => Promise<void> } {
   const state: Record<string, any> = { disposed: false, document: { hidden: false }, request: 0,
     filters: {}, http: { get: vi.fn() }, notifyError: vi.fn(), buildPostReviewQuery: vi.fn() }
   for (const key of ['visible', 'preparationVisible', 'batchLoading', 'saving', 'uploading', 'regenerating', 'deletingId', 'retryingId', 'loading', 'refreshing']) state[key] = { value: false }
