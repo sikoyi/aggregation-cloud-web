@@ -9,6 +9,7 @@ import { getSystemDefaults } from '@/api/systemSettings'
 import type { AnyRecord } from '@/types/api'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
+import { modelPrice, useAiModelCatalog } from '@/composables/useAiModelCatalog'
 
 type AiProvider = 'gemini' | 'openai' | 'claude'
 type AiSource = 'official' | 'relay'
@@ -106,7 +107,6 @@ const endpoint = computed(() => `/api/interaction-center/ai/provider-config/${pr
 const activeEndpoint = computed(() => `${endpoint.value}/${source.value}`)
 const loading = ref(false)
 const saving = ref(false)
-const testingModel = ref('')
 const usageLoading = ref(false)
 const initialized = ref(false)
 const configs = ref<ProviderConfig[]>([])
@@ -123,6 +123,22 @@ const form = reactive({
   enabled: false,
   is_default: false,
 })
+
+const { models, loading: modelsLoading, error: modelsError, testing: testingModel,
+  tests: modelTests, testErrors: modelTestErrors, fetchModels, testModel: testConnection } = useAiModelCatalog(() => ({
+  endpoint: activeEndpoint.value, api_key: form.api_key, base_url: form.base_url,
+}))
+const modelOptions = computed(() => {
+  const available = models.value === null
+    ? providerSpec.value.models.map((item) => ({ label: item.label, value: item.value as string }))
+    : models.value.map((item) => ({ label: item.id, value: item.id }))
+  for (const value of [form.primary_model, form.fallback_model]) {
+    if (value && !available.some((item) => item.value === value)) available.push({ label: value, value })
+  }
+  return available
+})
+const unlistedModels = computed(() => models.value === null ? [] : [...new Set([form.primary_model, form.fallback_model])]
+  .filter(value => value && !models.value!.some(item => item.id === value)))
 
 const sourceLabel = computed(() => source.value === 'official' ? '官方 API' : '中转站')
 const apiKeyLabel = computed(() => source.value === 'relay' ? '中转站 API Key' : providerSpec.value.apiKeyLabel)
@@ -232,26 +248,6 @@ async function loadUsage() {
     notifyError(err, '用量查询失败', `${sourceLabel.value} 暂时无法获取用量`)
   } finally {
     usageLoading.value = false
-  }
-}
-
-async function testConnection(model: string) {
-  testingModel.value = model
-  try {
-    const data = await http.post<AnyRecord>(`${activeEndpoint.value}/test`, {
-      api_key: form.api_key.trim() || null,
-      base_url: form.base_url.trim() || null,
-      model,
-    })
-    ElNotification.success({
-      title: `${model} 连接成功`,
-      message: String(data.sample_content || '模型可正常生成文案'),
-      duration: 5000,
-    })
-  } catch (err) {
-    notifyError(err, '连接失败', `${model} 暂时不可用`)
-  } finally {
-    testingModel.value = ''
   }
 }
 
@@ -420,23 +416,47 @@ watch(source, () => {
           title="Gemini 官方 API Key 暂无余额查询接口，本页会统计系统实际调用次数与令牌用量。"
         />
 
+        <div class="config-grid__full model-toolbar">
+          <el-button :icon="RefreshCw" :loading="modelsLoading" :disabled="loading || saving" @click="fetchModels">获取可用模型</el-button>
+          <span v-if="models !== null">已获取 {{ models.length }} 个模型</span>
+        </div>
+        <el-alert v-if="modelsError" class="config-grid__full" type="error" :closable="false" :title="modelsError" show-icon />
+        <el-alert v-else-if="models?.length === 0" class="config-grid__full" type="warning" :closable="false" title="未返回可用模型，原配置未变更" show-icon />
+        <el-alert v-else-if="unlistedModels.length" class="config-grid__full" type="warning" :closable="false" :title="`当前配置未在返回列表中：${unlistedModels.join('、')}`" show-icon />
+
         <el-form-item label="主模型">
-          <el-select v-model="form.primary_model" class="w-full">
-            <el-option v-for="item in providerSpec.models" :key="item.value" :label="item.label" :value="item.value" />
+          <el-select v-model="form.primary_model" filterable allow-create default-first-option class="w-full">
+            <el-option v-for="item in modelOptions" :key="item.value" :label="item.label" :value="item.value" :title="`${item.value} · ${modelPrice(models?.find(model => model.id === item.value))}`">
+              <span>{{ item.label }}</span>
+              <small class="model-option-price">{{ modelPrice(models?.find(model => model.id === item.value)) }}</small>
+            </el-option>
           </el-select>
-          <el-button text type="primary" :icon="PlugZap" :loading="testingModel === form.primary_model" @click="testConnection(form.primary_model)">
-            测试主模型
+          <div class="model-price">{{ modelPrice(models?.find(item => item.id === form.primary_model)) }}</div>
+          <el-button text type="primary" :icon="PlugZap" :disabled="Boolean(testingModel) || loading" :loading="testingModel === form.primary_model" @click="testConnection(form.primary_model)">
+            最小测试主模型
           </el-button>
         </el-form-item>
 
         <el-form-item label="兜底模型">
-          <el-select v-model="form.fallback_model" class="w-full">
-            <el-option v-for="item in providerSpec.models" :key="item.value" :label="item.label" :value="item.value" />
+          <el-select v-model="form.fallback_model" filterable allow-create default-first-option class="w-full">
+            <el-option v-for="item in modelOptions" :key="item.value" :label="item.label" :value="item.value" :title="`${item.value} · ${modelPrice(models?.find(model => model.id === item.value))}`">
+              <span>{{ item.label }}</span>
+              <small class="model-option-price">{{ modelPrice(models?.find(model => model.id === item.value)) }}</small>
+            </el-option>
           </el-select>
-          <el-button text type="primary" :icon="PlugZap" :loading="testingModel === form.fallback_model" @click="testConnection(form.fallback_model)">
-            测试兜底模型
+          <div class="model-price">{{ modelPrice(models?.find(item => item.id === form.fallback_model)) }}</div>
+          <el-button text type="primary" :icon="PlugZap" :disabled="Boolean(testingModel) || loading" :loading="testingModel === form.fallback_model" @click="testConnection(form.fallback_model)">
+            最小测试兜底模型
           </el-button>
         </el-form-item>
+        <div v-for="model in [...new Set([form.primary_model, form.fallback_model])]" :key="model" class="config-grid__full model-result">
+          <el-alert v-if="modelTestErrors[model]" type="error" :closable="false" :title="`${model}：${modelTestErrors[model]}`" show-icon />
+          <template v-else-if="modelTests[model]">
+            <strong>{{ model }} · 测试成功</strong>
+            <span>输入 {{ modelTests[model].input_tokens ?? '未返回' }} / 输出 {{ modelTests[model].output_tokens ?? '未返回' }} / 合计 {{ modelTests[model].total_tokens ?? '未返回' }} Token</span>
+            <span>本次费用：{{ modelTests[model].cost != null && modelTests[model].currency ? `${modelTests[model].currency} ${modelTests[model].cost}` : '未返回' }}</span>
+          </template>
+        </div>
       </div>
     </el-form>
 
@@ -507,6 +527,12 @@ watch(source, () => {
 .config-form { max-width: 920px; }
 .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; }
 .config-grid__full { grid-column: 1 / -1; }
+.model-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 4px 0 16px; }
+.model-toolbar span, .model-price, .model-result { color: var(--app-text-muted, #718096); font-size: 12px; }
+.model-price { width: 100%; overflow-wrap: anywhere; line-height: 1.6; margin-top: 6px; }
+.model-option-price { margin-left: 12px; color: var(--app-text-muted, #718096); font-weight: 400; }
+.model-result { display: flex; flex-wrap: wrap; gap: 8px 16px; overflow-wrap: anywhere; }
+.model-result:has(strong) { padding: 8px 0; }
 .secret-label { width: 100%; gap: 8px; }
 .optional-text { color: var(--app-text-muted, #8b98a7); font-size: 12px; font-weight: 400; }
 .configured-tag { flex: 0 0 auto; white-space: nowrap; }
