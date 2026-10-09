@@ -395,6 +395,9 @@ onBeforeUnmount(() => {
           </div>
           <el-form inline label-position="right" label-suffix=":" class="compact-filter-form">
             <div class="filter-grid">
+              <el-form-item label="工单 ID">
+                <el-input v-model="filters.jobId" clearable placeholder="输入完整工单 ID" @keyup.enter="searchRows" />
+              </el-form-item>
               <el-form-item label="业务平台">
                 <el-select v-model="filters.businessPlatform" clearable placeholder="全部">
                   <el-option
@@ -420,9 +423,6 @@ onBeforeUnmount(() => {
                 <el-select v-model="filters.status" clearable placeholder="全部">
                   <el-option v-for="item in commentReplyStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
                 </el-select>
-              </el-form-item>
-              <el-form-item label="工单 ID">
-                <el-input v-model="filters.jobId" clearable placeholder="输入完整工单 ID" @keyup.enter="searchRows" />
               </el-form-item>
               <el-form-item label="发现时间" class="filter-grid__item--wide">
                 <el-date-picker
