@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { Clock3, Plus, Save, Trash2 } from 'lucide-vue-next'
+import { Clock3, Save } from 'lucide-vue-next'
 import { ElNotification } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import type { AnyRecord } from '@/types/api'
 import { notifyError } from '@/utils/notify'
+import CommentReplyWindowEditor from '@/components/CommentReplyWindowEditor.vue'
+import { scheduleWindows, validReplyWindows, type CommentReplyWindow } from '@/api/commentReplySchedule'
 
 const props = defineProps<{
   modelValue: boolean
@@ -31,7 +33,7 @@ const loading = ref(false)
 const saving = ref(false)
 const loaded = ref(false)
 const activeTab = ref('schedule')
-const times = ref<string[]>([])
+const windows = ref<CommentReplyWindow[]>([])
 const scheduleEndpoint = '/api/interaction-center/comment-reply-schedules'
 const form = reactive({
   enabled: false,
@@ -65,7 +67,7 @@ async function loadPolicy() {
       ? await http.get<AnyRecord>(scheduleEndpoint, { business_platform: activePlatform.value })
       : await http.get<AnyRecord>(endpoint())
     if (revision !== requestRevision) return
-    times.value = Array.isArray(data.times) ? data.times.map(String) : []
+    windows.value = scheduleWindows(data)
     form.enabled = data.comment_reply_quiet_enabled === true
     form.start = String(data.comment_reply_quiet_start || '22:00:00')
     form.end = String(data.comment_reply_quiet_end || '08:00:00')
@@ -80,10 +82,11 @@ async function loadPolicy() {
 async function savePolicy() {
   if (!props.editable || loading.value || saving.value || !loaded.value) return
   if (activeTab.value === 'schedule') {
+    if (!validReplyWindows(windows.value)) return
     saving.value = true
     try {
       await http.put(scheduleEndpoint, {
-        business_platform: activePlatform.value, account_ids: [], inherit: false, times: times.value,
+        business_platform: activePlatform.value, account_ids: [], inherit: false, times: [], windows: windows.value,
       })
       ElNotification.success({ title: '保存成功', message: `${activePlatformLabel.value} 评论回复时间已更新` })
     } catch (err) {
@@ -151,17 +154,12 @@ watch(visible, (value) => {
       </div>
 
       <el-tabs v-model="activeTab" @tab-change="loadPolicy">
-        <el-tab-pane label="评论回复时间" name="schedule" :disabled="platformLocked" />
+        <el-tab-pane label="评论回复范围" name="schedule" :disabled="platformLocked" />
         <el-tab-pane label="评论忽略时间段" name="quiet" :disabled="platformLocked" />
       </el-tabs>
       <section v-if="activeTab === 'schedule'" v-loading="loading" class="reply-schedule-policy">
         <div class="reply-quiet-dialog__copy"><strong>{{ activePlatformLabel }} 默认评论回复时间</strong><small>北京时间（Asia/Shanghai）</small></div>
-        <div v-for="(_, index) in times" :key="index" class="reply-schedule-time">
-          <el-time-picker v-model="times[index]" format="HH:mm" value-format="HH:mm" :clearable="false" :disabled="platformLocked || !editable || !loaded" />
-          <el-tooltip content="删除时间"><el-button v-if="editable" :icon="Trash2" aria-label="删除时间" :disabled="platformLocked || !loaded" @click="times.splice(index, 1)" /></el-tooltip>
-        </div>
-        <el-empty v-if="!loading && loaded && !times.length" description="未设置评论回复时间" :image-size="48" />
-        <el-button v-if="editable" :icon="Plus" :disabled="platformLocked || !loaded || times.length >= 24" @click="times.push('09:00')">添加时间</el-button>
+        <CommentReplyWindowEditor v-model="windows" :disabled="platformLocked || !editable || !loaded" />
       </section>
       <section v-else v-loading="loading" class="reply-quiet-dialog__policy">
         <div class="reply-quiet-dialog__heading">
@@ -219,7 +217,7 @@ watch(visible, (value) => {
 
     <template #footer>
       <el-button :disabled="saving" @click="visible = false">关闭</el-button>
-      <el-button v-if="editable" type="primary" :icon="Save" :loading="saving" :disabled="loading || !loaded" @click="savePolicy">
+      <el-button v-if="editable" type="primary" :icon="Save" :loading="saving" :disabled="loading || !loaded || (activeTab === 'schedule' && !validReplyWindows(windows))" @click="savePolicy">
         {{ activeTab === 'schedule' ? '保存评论回复时间' : '保存评论忽略时间段' }}
       </el-button>
     </template>

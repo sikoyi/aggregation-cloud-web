@@ -2,6 +2,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import ts from 'typescript'
 import source from './CommentReplyTimeSettings.vue?raw'
+import { scheduleWindows, validReplyWindows, type CommentReplyWindow } from '@/api/commentReplySchedule'
 
 const script = source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!
 const ast = ts.createSourceFile('TimeSettings.ts', script, ts.ScriptTarget.Latest, true)
@@ -13,13 +14,13 @@ async function flush() { for (let i = 0; i < 8; i++) { await Promise.resolve(); 
 function setup(options: Record<string, unknown> = {}, get = vi.fn(async (_path: string, params: Record<string, unknown>) =>
   params.account_id ? { inherit: false, times: ['18:30'] } : { inherit: false, times: ['09:00', '12:00'] })) {
   const props = reactive({ active: true, businessPlatform: 'x', accountId: 'a', accounts: undefined,
-    modelValue: { inherit: true, times: [] as string[] }, ...options })
+    modelValue: { inherit: true, times: [] as string[], windows: [] as CommentReplyWindow[] }, ...options })
   const emit = vi.fn((event: string, value: unknown) => { if (event === 'update:modelValue') props.modelValue = value as typeof props.modelValue })
   let unmount = () => {}
   const values = { defineProps: () => props, defineEmits: () => emit, computed, ref, watch,
     onBeforeUnmount: (fn: () => void) => { unmount = fn }, http: { get },
-    getErrorMessage: (err: Error) => err.message }
-  const state = new Function(...Object.keys(values), `${compiled}; return { addTime, removeTime, updateTime, ready, loaded, error, load, inherit };`)(...Object.values(values))
+    getErrorMessage: (err: Error) => err.message, scheduleWindows, validReplyWindows }
+  const state = new Function(...Object.keys(values), `${compiled}; return { windows, ready, loaded, error, load, inherit };`)(...Object.values(values))
   return { props, emit, get, state, unmount: () => unmount() }
 }
 
@@ -27,7 +28,7 @@ describe('监听回复时间', () => {
   it('回显现有账号独立时间，并展示对应 App 默认时间', async () => {
     const s = setup()
     await flush()
-    expect(s.props.modelValue).toEqual({ inherit: false, times: ['18:30'] })
+    expect(s.props.modelValue).toEqual({ inherit: false, times: [], windows: [{ start: '18:30', end: '18:31' }] })
     expect(s.state.ready.value).toBe(true)
     expect(s.get).toHaveBeenCalledWith(expect.any(String), { business_platform: 'x', account_id: 'a' })
     s.state.inherit.value = true
@@ -40,11 +41,11 @@ describe('监听回复时间', () => {
     await flush()
     expect(s.state.ready.value).toBe(false)
     s.state.inherit.value = false
-    s.state.addTime()
+    s.state.windows.value = [{ start: '09:00', end: '11:00' }]
     await flush()
-    expect(s.props.modelValue.times).toEqual(['09:00'])
+    expect(s.props.modelValue.windows).toEqual([{ start: '09:00', end: '11:00' }])
     expect(s.state.ready.value).toBe(true)
-    s.state.removeTime(0)
+    s.state.windows.value = []
     await flush()
     expect(s.state.ready.value).toBe(false)
   })
@@ -57,7 +58,7 @@ describe('监听回复时间', () => {
     expect(s.get).toHaveBeenCalledTimes(2)
     expect(s.state.ready.value).toBe(false)
     s.state.inherit.value = false
-    s.state.addTime()
+    s.state.windows.value = [{ start: '09:00', end: '11:00' }]
     await flush()
     expect(s.state.ready.value).toBe(true)
   })
@@ -70,10 +71,10 @@ describe('监听回复时间', () => {
     await flush()
     s.props.accountId = 'b'
     await flush()
-    expect(s.props.modelValue.times).toEqual(['12:00'])
+    expect(s.props.modelValue.windows).toEqual([{ start: '12:00', end: '12:01' }])
     old({ inherit: false, times: ['23:00'] })
     await flush()
-    expect(s.props.modelValue.times).toEqual(['12:00'])
+    expect(s.props.modelValue.windows).toEqual([{ start: '12:00', end: '12:01' }])
   })
 
   it('加载失败不能保存，重新加载后恢复', async () => {
@@ -90,9 +91,8 @@ describe('监听回复时间', () => {
   it('上限为 24 个时间点，关闭窗口取消待返回的配置', async () => {
     const s = setup()
     await flush()
-    s.props.modelValue.times = Array(24).fill('09:00')
-    s.state.addTime()
-    expect(s.props.modelValue.times).toHaveLength(24)
+    s.state.windows.value = Array(25).fill({ start: '09:00', end: '11:00' })
+    expect(s.state.ready.value).toBe(false)
     s.props.active = false
     await flush()
     expect(s.state.ready.value).toBe(false)

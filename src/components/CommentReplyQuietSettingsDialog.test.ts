@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import ts from 'typescript'
 
 import source from './CommentReplyQuietSettingsDialog.vue?raw'
+import { validReplyWindows } from '@/api/commentReplySchedule'
 
 function scheduleSave() {
   const script = source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!
@@ -10,7 +11,7 @@ function scheduleSave() {
   const state = {
     props: { editable: true }, loading: { value: false }, saving: { value: false }, loaded: { value: true },
     activeTab: { value: 'schedule' }, activePlatform: { value: 'x' }, activePlatformLabel: { value: 'X' },
-    times: { value: ['09:00', '18:00'] }, scheduleEndpoint: '/api/interaction-center/comment-reply-schedules',
+    windows: { value: [{ start: '09:00', end: '11:00' }] }, validReplyWindows, scheduleEndpoint: '/api/interaction-center/comment-reply-schedules',
     http: { put: vi.fn().mockResolvedValue({}) }, ElNotification: { success: vi.fn() }, notifyError: vi.fn(),
   }
   const compiled = ts.transpileModule(handler, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
@@ -22,7 +23,7 @@ describe('账号数据忽略时间段', () => {
     const s = scheduleSave()
     await s.save()
     expect(s.http.put).toHaveBeenCalledWith(s.scheduleEndpoint, {
-      business_platform: 'x', account_ids: [], inherit: false, times: ['09:00', '18:00'],
+      business_platform: 'x', account_ids: [], inherit: false, times: [], windows: [{ start: '09:00', end: '11:00' }],
     })
     expect(s.saving.value).toBe(false)
   })
@@ -44,7 +45,7 @@ describe('账号数据忽略时间段', () => {
     const s = scheduleSave()
     s.http.put.mockRejectedValueOnce(new Error('offline'))
     await s.save()
-    expect(s.times.value).toEqual(['09:00', '18:00'])
+    expect(s.windows.value).toEqual([{ start: '09:00', end: '11:00' }])
     expect(s.saving.value).toBe(false)
     expect(s.notifyError).toHaveBeenCalledOnce()
     await s.save()
