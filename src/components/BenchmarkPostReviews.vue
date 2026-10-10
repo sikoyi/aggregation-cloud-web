@@ -8,6 +8,7 @@ import { uploadMediaAssets } from '@/api/mediaAssets'
 import { prepareSelectedReviews, retryFailedPreparations, type PreparationAction, type PreparationResult } from '@/api/benchmarkReviewPreparation'
 import { findNextReview } from '@/utils/nextReview'
 import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
+import BenchmarkExecutionHistory from '@/components/BenchmarkExecutionHistory.vue'
 import {
   batchApproveBenchmarkPostReviews,
   batchDeleteBenchmarkPostReviews,
@@ -609,7 +610,8 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
             </div>
           </section>
         </div>
-        <span v-if="selected.task_run_id">任务 ID：{{ selected.task_run_id }}</span>
+        <span v-if="selected.task_run_id">最新任务 ID：{{ selected.task_run_id }}</span>
+        <BenchmarkExecutionHistory :review-id="selected.id" :task-id="selected.task_run_id" />
         <el-checkbox v-if="selected.status === 'pending_review' && editable" v-model="continueReview" :disabled="saving">审核后查看下一条</el-checkbox>
       </div>
       <template #footer><el-button :disabled="saving || uploading || regenerating || Boolean(retryingId)" @click="closeDialog">关闭</el-button><el-button v-if="editable" :disabled="!draftDirty || saving || uploading || regenerating" :loading="saving && !regenerating" @click="saveDraft">保存修改</el-button><el-button v-if="selected?.status === 'pending_review' && editable" :icon="SkipForward" :disabled="saving || uploading || regenerating" @click="decide('ignore')">忽略</el-button><el-button v-if="selected?.status === 'pending_review' && editable" type="primary" :icon="Check" :loading="saving && !regenerating" :disabled="saving || uploading || regenerating" @click="decide('approve')">批准发布</el-button><el-button v-if="retryable && selected" type="primary" :icon="RefreshCw" :loading="retryingId === selected.id" :disabled="saving || uploading || regenerating || (Boolean(retryingId) && retryingId !== selected.id)" @click="retry(selected)">重新发布</el-button></template>
