@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Boxes, Layers3, Plus, RefreshCw, RotateCcw } from 'lucide-vue-next'
+import { Boxes, Layers3, RefreshCw, RotateCcw } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
@@ -20,9 +20,7 @@ const groupsVisible = ref(route.query.tab === 'groups')
 const activeTab = ref<DeviceCenterTab>(normalizeTab(route.query.tab))
 const slotPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
 const slotGroupPageRef = ref<InstanceType<typeof CrudPage> | null>(null)
-const activeConfig = computed(() => slotConfig.value)
 const activePage = computed(() => slotPageRef.value)
-const activeCreateLabel = computed(() => activeConfig.value.createLabel || '新增')
 const exactSlotId = computed(() => typeof route.query.slot_id === 'string' ? route.query.slot_id.trim() : '')
 
 function clearExactSlot() {
@@ -45,10 +43,6 @@ function handleTabChange(value: string | number) {
 
 function refreshActivePage() {
   activePage.value?.loadRows()
-}
-
-function openActiveCreate() {
-  activePage.value?.openCreate()
 }
 
 function openSlotSync() {
@@ -98,9 +92,6 @@ function refreshDevices() { slotPageRef.value?.refreshDeviceGroups() }
             @click="openSlotSync"
           >
             主动同步
-          </el-button>
-          <el-button v-if="auth.can('devices.create')" type="primary" :icon="Plus" @click="openActiveCreate">
-            {{ activeCreateLabel }}
           </el-button>
         </div>
       </div>
