@@ -61,10 +61,12 @@ const mappedCount = computed(() => Number(mappingCounts.value.published || 0))
 const failedCount = computed(() => (
   Number(mappingCounts.value.publish_failed || 0)
   + Number(mappingCounts.value.translation_failed || 0)
+  + Number(mappingCounts.value.translation_exhausted || 0)
   + Number(mappingCounts.value.delete_failed || 0)
 ))
 const pendingCount = computed(() => (
   Number(mappingCounts.value.pending_publish || 0)
+  + Number(mappingCounts.value.translation_retry || 0)
   + Number(mappingCounts.value.publishing || 0)
   + Number(mappingCounts.value.awaiting_capture || 0)
   + Number(mappingCounts.value.pending_delete || 0)
@@ -82,6 +84,9 @@ const mappingStatusOptions: Record<string, { label: string; type: 'success' | 'w
   published: { label: '已复刻', type: 'success' },
   publish_failed: { label: '复刻失败', type: 'danger' },
   translation_failed: { label: '翻译失败', type: 'danger' },
+  translation_retry: { label: '翻译重试中', type: 'warning' },
+  translation_canceled: { label: '翻译重试已取消', type: 'info' },
+  translation_exhausted: { label: '翻译重试已结束', type: 'danger' },
   unsupported: { label: '暂不支持', type: 'info' },
   source_deleted: { label: '源帖已删除', type: 'info' },
   pending_delete: { label: '待同步删除', type: 'warning' },
