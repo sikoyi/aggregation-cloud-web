@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import source from './BenchmarkExecutionHistory.vue?raw'
+import review from './BenchmarkPostReviews.vue?raw'
 
-const source = readFileSync(new URL('./BenchmarkExecutionHistory.vue', import.meta.url), 'utf8')
-const review = readFileSync(new URL('./BenchmarkPostReviews.vue', import.meta.url), 'utf8')
 
 describe('帖子执行归档入口', () => {
   it('shows the original task and every attempt inside the same review', () => {
