@@ -155,6 +155,7 @@ export interface RemoteSelectGroupConfig {
 }
 
 export interface FieldConfig {
+  sectionTitle?: string
   key: string
   label: string
   type?: FieldType

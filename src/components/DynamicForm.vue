@@ -430,9 +430,11 @@ watch(() => props.modelValue.execution_mode, (mode) => {
 <template>
   <el-form label-position="top" class="dynamic-form">
     <el-row :gutter="16">
+      <template v-for="field in visibleFields" :key="field.key">
+      <el-col v-if="field.sectionTitle" :span="24">
+        <h3 class="dynamic-form__section-title">{{ field.sectionTitle }}</h3>
+      </el-col>
       <el-col
-        v-for="field in visibleFields"
-        :key="field.key"
         :xs="24"
         :md="fieldColumnSpan(field)"
       >
@@ -723,11 +725,22 @@ watch(() => props.modelValue.execution_mode, (mode) => {
           />
         </el-form-item>
       </el-col>
+      </template>
     </el-row>
   </el-form>
 </template>
 
 <style scoped>
+.dynamic-form__section-title {
+  margin: 8px 0 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
 .text-import-field {
   display: flex;
   flex-direction: column;

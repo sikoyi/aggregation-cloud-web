@@ -5,6 +5,15 @@ import { buildFormState, buildPayload } from '@/utils/form'
 
 describe.each([resources.accounts, buildAccountIdentityResource(resources.accounts)])('$key 导入请求', config => {
   const fields = config.createFields || []
+  it('导入保留唯一主切换，上号与代理采用分区下拉且默认值不变', () => {
+    expect(fields.find(field => field.key === 'post_import_action')).toMatchObject({ type: 'segmented', defaultValue: 'import_only' })
+    expect(fields.find(field => field.key === 'runtime_platform')).toMatchObject({ type: 'select', sectionTitle: '上号设置', defaultValue: 'fingerprint_browser' })
+    expect(fields.find(field => field.key === 'proxy_allocation_mode')).toMatchObject({ type: 'select', sectionTitle: '代理设置', defaultValue: 'none' })
+    expect(fields.find(field => field.key === 'raw_text')).toMatchObject({ type: 'textImport', sectionTitle: '账号内容' })
+    const batchFields = config.batchActions?.find(action => action.key === 'batch-account-onboarding')?.fields || []
+    expect(batchFields.find(field => field.key === 'runtime_platform')?.type).toBe('select')
+    expect(batchFields.find(field => field.key === 'proxy_allocation_mode')?.type).toBe('select')
+  })
   it('上号 Runtime 候选和详情均按业务分工过滤', () => {
     const runtimeField = fields.find(field => field.key === 'target_runtime_instance_id')
     const remote = runtimeField?.remote

@@ -916,12 +916,13 @@ function buildAccountImportPayload(payload: AnyRecord) {
 
 const accountOnboardingFields: FieldConfig[] = [
   {
-    key: "runtime_platform", label: "执行平台", type: "segmented", required: true,
+    key: "runtime_platform", label: "执行平台", type: "select", required: true,
+    sectionTitle: "上号设置",
     options: [
       { label: "指纹浏览器", value: "fingerprint_browser" },
       { label: "已有云手机", value: "cloud_phone" },
     ],
-    defaultValue: "fingerprint_browser", span: 2,
+    defaultValue: "fingerprint_browser",
   },
   {
     key: "provider",
@@ -994,7 +995,8 @@ const accountOnboardingFields: FieldConfig[] = [
   {
     key: "proxy_allocation_mode",
     label: "上号代理方式",
-    type: "segmented",
+    type: "select",
+    sectionTitle: "代理设置",
     options: [
       { label: "不分配新代理", value: "none" },
       { label: "静态代理池", value: "static_group" },
@@ -1342,7 +1344,8 @@ export const resources: Record<string, ResourceConfig> = {
         required: true,
       },
       {
-        key: "runtime_platform", label: "执行平台", type: "segmented", span: 2,
+        key: "runtime_platform", label: "执行平台", type: "select",
+        sectionTitle: "上号设置",
         options: [
           { label: "指纹浏览器", value: "fingerprint_browser" },
           { label: "已有云手机", value: "cloud_phone" },
@@ -1427,7 +1430,8 @@ export const resources: Record<string, ResourceConfig> = {
       {
         key: "proxy_allocation_mode",
         label: "上号代理方式",
-        type: "segmented",
+        type: "select",
+        sectionTitle: "代理设置",
         options: [
           { label: "不分配新代理", value: "none" },
           { label: "静态代理池", value: "static_group" },
@@ -1468,6 +1472,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "raw_text",
         label: "账号文本",
         type: "textImport",
+        sectionTitle: "账号内容",
         required: true,
         span: 2,
         placeholder: "每行一个账号，默认格式：账号---密码---2FA。后面的国家等字段会被忽略。",
