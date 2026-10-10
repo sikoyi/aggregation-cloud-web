@@ -5,6 +5,14 @@ import rawSource from './AccountDataView.vue?raw'
 const source = rawSource.replace(/\r\n/g, '\n')
 
 describe('账号数据聚合总览', () => {
+  it('批量开启时选择采集间隔，默认保留并一起提交', () => {
+    expect(source).toContain("reactive({ mode: 'keep', minutes: 60 })")
+    expect(source).toContain('保留各账号原设置')
+    expect(source).toContain("batchEnableAccountIds.value = [...selectedAccountIds.value]")
+    expect(source).toContain("enabled && batchEnableInterval.mode !== 'keep'")
+    expect(source).toContain('interval_minutes: batchEnableInterval.minutes')
+    expect(source).toContain("submitBatchMonitorState('enable')")
+  })
   it('乱序返回不覆盖新筛选，后台刷新不打开加载遮罩', async () => {
     const body = source.slice(source.indexOf('let rowsRequest ='), source.indexOf('function searchRows()'))
     const pending: Array<(value: unknown) => void> = []

@@ -882,14 +882,34 @@ function openBatchMonitorInterval() {
   batchIntervalVisible.value = true
 }
 
-async function batchSetMonitors(command: string) {
+const batchEnableVisible = ref(false)
+const batchEnableAccountIds = ref<string[]>([])
+const batchEnableInterval = reactive({ mode: 'keep', minutes: 60 })
+
+function batchSetMonitors(command: string) {
+  if (batchActionsDisabled.value) return
+  if (command === 'enable') {
+    batchEnableAccountIds.value = [...selectedAccountIds.value]
+    Object.assign(batchEnableInterval, { mode: 'keep', minutes: 60 })
+    batchEnableVisible.value = true
+    return
+  }
+  void submitBatchMonitorState('disable')
+}
+
+async function submitBatchMonitorState(command: string) {
   const enabled = command === 'enable'
   const action = enabled ? '开启' : '关闭'
-  const accountIds = selectedAccountIds.value
+  const accountIds = enabled ? batchEnableAccountIds.value : [...selectedAccountIds.value]
   if (!accountIds.length || batchUpdating.value) return
+  if (enabled && batchEnableInterval.mode === 'custom'
+    && (!Number.isInteger(batchEnableInterval.minutes) || batchEnableInterval.minutes < 1 || batchEnableInterval.minutes > 1440)) {
+    ElNotification.warning({ title: '请检查采集间隔', message: '请输入 1 至 1440 的整数分钟数' })
+    return
+  }
 
   try {
-    await ElMessageBox.confirm(
+    if (!enabled) await ElMessageBox.confirm(
       enabled
         ? `将批量开启 ${accountIds.length} 个所选账号的监听。只有异常或已关闭的账号会处理，正在监听和未配置账号会跳过。`
         : `将批量关闭 ${accountIds.length} 个所选账号的监听，停止当前及后续采集，保留监听配置。已关闭和未配置账号会跳过。`,
@@ -908,7 +928,13 @@ async function batchSetMonitors(command: string) {
   try {
     const data = await http.put<AccountDataBatchSettingsResult>(
       '/api/accounts/data-overview/monitor-state/batch',
-      { account_ids: accountIds, enabled },
+      {
+        account_ids: accountIds, enabled,
+        ...(enabled && batchEnableInterval.mode !== 'keep' ? {
+          monitor_mode: batchEnableInterval.mode,
+          ...(batchEnableInterval.mode === 'custom' ? { interval_minutes: batchEnableInterval.minutes } : {}),
+        } : {}),
+      },
     )
     const failed = data.failed_count || 0
     const message = `已${action} ${data.updated_count} 个账号，跳过 ${data.skipped_count} 个，失败 ${failed} 个${failed ? `（账号 ID：${data.failed_account_ids?.join('、')}）` : ''}`
@@ -917,6 +943,7 @@ async function batchSetMonitors(command: string) {
     } else {
       ElNotification.warning({ title: '监听设置结果', message, duration: 0 })
     }
+    batchEnableVisible.value = false
     clearOverviewSelection()
     await loadRows()
   } catch (err) {
@@ -1838,6 +1865,27 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </el-card>
+
+    <el-dialog v-model="batchEnableVisible" title="批量开启监听" width="min(480px, calc(100vw - 32px))"
+      :close-on-click-modal="!batchUpdating" :close-on-press-escape="!batchUpdating" :show-close="!batchUpdating">
+      <p>已选择 {{ batchEnableAccountIds.length }} 个账号</p>
+      <el-form label-position="top">
+        <el-form-item label="采集间隔">
+          <el-select v-model="batchEnableInterval.mode" :disabled="batchUpdating">
+            <el-option label="保留各账号原设置" value="keep" />
+            <el-option label="系统默认（60 分钟）" value="system" />
+            <el-option label="自定义间隔" value="custom" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="batchEnableInterval.mode === 'custom'" label="间隔分钟数">
+          <el-input-number v-model="batchEnableInterval.minutes" :min="1" :max="1440" :precision="0" :disabled="batchUpdating" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="batchUpdating" @click="batchEnableVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchUpdating" @click="submitBatchMonitorState('enable')">确认开启</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="batchIntervalVisible"
