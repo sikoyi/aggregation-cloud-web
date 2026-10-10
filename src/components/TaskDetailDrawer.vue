@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Copy, Maximize2 } from 'lucide-vue-next'
 import { ElNotification } from 'element-plus'
 import TaskParameterValue from '@/components/TaskParameterValue.vue'
@@ -25,6 +26,13 @@ const emit = defineEmits<{
 }>()
 
 const loading = ref(false)
+const router = useRouter()
+const reviewId = ref<string | null>(null)
+async function openReview() {
+  if (!reviewId.value) return
+  await router.push({ path: '/post-reviews', query: { review_id: reviewId.value } })
+  visible.value = false
+}
 const compact = ref(false)
 const detailMedia = window.matchMedia('(max-width: 600px)')
 function updateCompact() { compact.value = detailMedia.matches }
@@ -375,6 +383,7 @@ async function loadDetail(taskId: string) {
   const requestId = detailRequestId
   loading.value = true
   task.value = null
+  reviewId.value = null
   events.value = []
   error.value = ''
   paramRows.value = []
@@ -390,6 +399,11 @@ async function loadDetail(taskId: string) {
     if (requestId !== detailRequestId) return
     task.value = detail
     events.value = eventData.items || []
+    if (detail.task_type === 'benchmark_content_publish') {
+      const linked = await http.get<{ review_id: string | null }>(`/api/benchmark-trackers/reviews/by-task/${encodeURIComponent(taskId)}`).catch(() => null)
+      if (requestId !== detailRequestId) return
+      reviewId.value = linked?.review_id || null
+    }
     if (isTaskGroup(detail)) await loadChildren(taskId)
     if (requestId !== detailRequestId) return
     const rows = await buildParamRows(detail)
@@ -431,6 +445,7 @@ onBeforeUnmount(invalidateRequests)
   >
     <div v-loading="loading" class="task-detail-body">
       <template v-if="task">
+        <el-button v-if="reviewId" class="mb-3" type="primary" plain @click="openReview">查看对应工单</el-button>
         <div v-if="taskHistory.length" class="mb-3">
           <el-button size="small" @click="backToPreviousTask">返回父任务</el-button>
         </div>

@@ -470,6 +470,9 @@ function applyReviewShortcut() {
   return true
 }
 watch(() => route.query.status, () => { if (applyReviewShortcut()) void load() })
+watch(() => route.query.review_id, id => {
+  if (typeof id === 'string' && id.trim()) void open({ id: id.trim() })
+}, { immediate: true })
 onMounted(() => { applyReviewShortcut(); void load(); timer = setInterval(() => { void load(true) }, 10000) })
 onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(timer); if (regenerationTimer) clearInterval(regenerationTimer) })
 </script>

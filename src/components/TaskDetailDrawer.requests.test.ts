@@ -24,16 +24,17 @@ function harness() {
   const unmounts: Array<() => void> = []
   const script = source.slice(source.indexOf('const loading ='), source.indexOf('const scriptRelationConfig'))
     + source.slice(source.indexOf('function timelineTitle'), source.indexOf('</script>'))
-  const state = new Function('ref', 'http', 'notifyError', 'buildParamRows', 'isTaskGroup', 'watch', 'onBeforeUnmount', 'onMounted', 'window', 'computed',
+  const state = new Function('ref', 'http', 'notifyError', 'buildParamRows', 'isTaskGroup', 'watch', 'onBeforeUnmount', 'onMounted', 'window', 'computed', 'useRouter',
     `${transpile(script, { target: ScriptTarget.ES2022 })};
     return { loading, task, events, error, children, childTotal, childPage, childLoading, paramRows,
-      currentTaskId, loadDetail, loadChildren, changeChildPage, changeChildPageSize };`)(
+      currentTaskId, reviewId, loadDetail, loadChildren, changeChildPage, changeChildPageSize };`)(
     ref, http, notifyError, buildParamRows, isTaskGroup,
     (_getter: any, callback: typeof changed) => { changed = callback },
     (callback: () => void) => { unmounts.push(callback) },
     (callback: () => void) => callback(),
     { matchMedia: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) },
     computed,
+    () => ({ push: vi.fn() }),
   )
   return { ...state, requests, notifyError, buildParamRows,
     close: () => changed([false, null]), unmount: () => unmounts.forEach(callback => callback()) }
@@ -45,6 +46,23 @@ function finishDetail(h: ReturnType<typeof harness>, offset: number, id: string)
 }
 
 describe('task detail request ordering', () => {
+  it('loads the linked review and clears it when switching tasks', async () => {
+    const h = harness()
+    const first = h.loadDetail('auto')
+    h.requests[0].resolve({ id: 'auto', task_type: 'benchmark_content_publish' })
+    h.requests[1].resolve({ items: [] })
+    await vi.waitFor(() => expect(h.requests).toHaveLength(3))
+    expect(h.requests[2].url).toBe('/api/benchmark-trackers/reviews/by-task/auto')
+    h.requests[2].resolve({ review_id: 'review' })
+    await first
+    expect(h.reviewId.value).toBe('review')
+    const second = h.loadDetail('other')
+    expect(h.reviewId.value).toBeNull()
+    finishDetail(h, 3, 'other')
+    await second
+    expect(h.reviewId.value).toBeNull()
+  })
+
   it('keeps newer task, events and parameters when older detail returns last', async () => {
     const h = harness()
     const a = h.loadDetail('a'), b = h.loadDetail('b')
