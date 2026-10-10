@@ -15,6 +15,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Settings2,
   Minus,
   Users,
 } from 'lucide-vue-next'
@@ -72,6 +73,8 @@ interface AccountDataBatchSettingsResult {
   updated_count: number
   skipped_count: number
   skipped_account_ids: string[]
+  failed_count?: number
+  failed_account_ids?: string[]
 }
 
 interface ProfileSyncBatchRetryResult {
@@ -879,16 +882,20 @@ function openBatchMonitorInterval() {
   batchIntervalVisible.value = true
 }
 
-async function batchEnableMonitors() {
+async function batchSetMonitors(command: string) {
+  const enabled = command === 'enable'
+  const action = enabled ? '开启' : '关闭'
   const accountIds = selectedAccountIds.value
   if (!accountIds.length || batchUpdating.value) return
 
   try {
     await ElMessageBox.confirm(
-      `将批量开启 ${accountIds.length} 个所选账号的监听。只有异常或已关闭的账号会处理，正在监听和未配置账号会跳过。`,
-      '确认批量开启监听',
+      enabled
+        ? `将批量开启 ${accountIds.length} 个所选账号的监听。只有异常或已关闭的账号会处理，正在监听和未配置账号会跳过。`
+        : `将批量关闭 ${accountIds.length} 个所选账号的监听，停止当前及后续采集，保留监听配置。已关闭和未配置账号会跳过。`,
+      `确认批量${action}监听`,
       {
-        confirmButtonText: '确认开启',
+        confirmButtonText: `确认${action}`,
         cancelButtonText: '取消',
         type: 'warning',
       },
@@ -900,19 +907,20 @@ async function batchEnableMonitors() {
   batchUpdating.value = true
   try {
     const data = await http.put<AccountDataBatchSettingsResult>(
-      '/api/accounts/data-overview/monitor-enable/batch',
-      { account_ids: accountIds },
+      '/api/accounts/data-overview/monitor-state/batch',
+      { account_ids: accountIds, enabled },
     )
-    const message = `已开启 ${data.updated_count} 个账号${data.skipped_count ? `，跳过 ${data.skipped_count} 个不符合状态的账号` : ''}`
-    if (data.updated_count > 0) {
-      ElNotification.success({ title: '账号监听已批量开启', message })
+    const failed = data.failed_count || 0
+    const message = `已${action} ${data.updated_count} 个账号，跳过 ${data.skipped_count} 个，失败 ${failed} 个${failed ? `（账号 ID：${data.failed_account_ids?.join('、')}）` : ''}`
+    if (data.updated_count > 0 && !failed) {
+      ElNotification.success({ title: '监听设置完成', message })
     } else {
-      ElNotification.warning({ title: '没有可开启的账号', message })
+      ElNotification.warning({ title: '监听设置结果', message, duration: 0 })
     }
     clearOverviewSelection()
     await loadRows()
   } catch (err) {
-    notifyError(err, '批量开启失败', '账号监听未能批量开启')
+    notifyError(err, `批量${action}失败`, '账号监听未能批量设置')
   } finally {
     batchUpdating.value = false
   }
@@ -1319,16 +1327,23 @@ onBeforeUnmount(() => {
             <div class="account-overview__batch-actions">
               <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" :disabled="batchActionsDisabled" @click="replyScheduleMode = ''; replyScheduleAccounts = selectedAccounts.map(account => ({ ...account })); replyScheduleVisible = true">设置回复时间</el-button>
               <el-button v-if="auth.can('operations.edit')" :icon="GitCompareArrows" :disabled="batchActionsDisabled" @click="openBatchBenchmark">批量对标跟踪</el-button>
-              <el-button
-                type="primary"
-                plain
-                :icon="Play"
-                :loading="batchUpdating"
-                :disabled="batchActionsDisabled"
-                @click="batchEnableMonitors"
-              >
-                批量开启监听
-              </el-button>
+              <el-dropdown trigger="click" :disabled="batchActionsDisabled" @command="batchSetMonitors">
+                <el-button
+                  type="primary"
+                  plain
+                  :icon="Settings2"
+                  :loading="batchUpdating"
+                  :disabled="batchActionsDisabled"
+                >
+                  批量设置监听
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="enable">开启监听</el-dropdown-item>
+                    <el-dropdown-item command="disable">关闭监听</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
               <el-button
                 :icon="Clock"
                 :loading="batchUpdating"
