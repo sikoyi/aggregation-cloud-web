@@ -232,6 +232,7 @@ const isPublishedContentDispatchModal = computed(() => props.config.key === 'pub
 const isInteractionSessionCreateModal = computed(() => props.config.key === 'interactionSessions' && modal.type === 'create')
 const isMediaAssetBatchCreateModal = computed(() => Boolean(props.config.mediaAssetBatchUpload && modal.type === 'create'))
 const modalWidth = computed(() => {
+  if (isAccountImportModal.value) return 'min(1240px, calc(100vw - 32px))'
   if (props.config.key === 'runtimes' && modal.action?.key === 'task-policy') return 'min(560px, calc(100vw - 32px))'
   if (modal.type === 'batch' && modal.action?.key === 'export-accounts') return 'min(520px, calc(100vw - 32px))'
   if (isMediaAssetBatchCreateModal.value) return '900px'
@@ -252,6 +253,9 @@ const modalWidth = computed(() => {
   ) return '1180px'
   return '760px'
 })
+const isAccountImportModal = computed(() => modal.type === 'create'
+  && modalFields.value.some(field => field.key === 'post_import_action')
+  && modalFields.value.some(field => field.key === 'raw_text' && field.type === 'textImport'))
 const dispatchFormMode = computed<'task' | 'published' | 'interaction' | null>(() => {
   if (isTaskDispatchModal.value) return 'task'
   if (isPublishedContentDispatchModal.value) return 'published'
@@ -2136,6 +2140,7 @@ onBeforeUnmount(() => {
       :model-value="Boolean(modal.type)"
       :title="modalTitle"
       :width="modalWidth"
+      :class="{ 'account-import-dialog': isAccountImportModal }"
       destroy-on-close
       append-to-body
       :close-on-click-modal="!submitting"
@@ -2208,7 +2213,7 @@ onBeforeUnmount(() => {
         <DynamicForm v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
         <ContentPreview :record="formState" mode="full" />
       </div>
-      <DynamicForm v-else v-model="formState" :fields="modalFields" :context="modal.record || undefined" />
+      <DynamicForm v-else v-model="formState" :fields="modalFields" :context="modal.record || undefined" :split-import="isAccountImportModal" />
       <template #footer>
         <el-button :disabled="inlineBusy" @click="requestCloseForm">{{ isMediaAssetBatchCreateModal ? '关闭' : '取消' }}</el-button>
         <el-button

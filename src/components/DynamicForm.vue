@@ -26,6 +26,7 @@ const props = defineProps<{
   fields: FieldConfig[]
   modelValue: AnyRecord
   context?: AnyRecord
+  splitImport?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -428,13 +429,15 @@ watch(() => props.modelValue.execution_mode, (mode) => {
 </script>
 
 <template>
-  <el-form label-position="top" class="dynamic-form">
+  <el-form label-position="top" class="dynamic-form" :class="{ 'dynamic-form--split-import': splitImport }">
     <el-row :gutter="16">
       <template v-for="field in visibleFields" :key="field.key">
-      <el-col v-if="field.sectionTitle" :span="24">
+      <el-col v-if="field.sectionTitle" :span="24" class="dynamic-form__section" :class="{ 'dynamic-form__content-heading': splitImport && field.type === 'textImport' }">
         <h3 class="dynamic-form__section-title">{{ field.sectionTitle }}</h3>
       </el-col>
       <el-col
+        class="dynamic-form__field"
+        :class="{ 'dynamic-form__wide': fieldColumnSpan(field) === 24, 'dynamic-form__paired': splitImport && field.key === 'environment_name_prefix', 'dynamic-form__import-content': splitImport && field.type === 'textImport' }"
         :xs="24"
         :md="fieldColumnSpan(field)"
       >
@@ -731,6 +734,37 @@ watch(() => props.modelValue.execution_mode, (mode) => {
 </template>
 
 <style scoped>
+@media (min-width: 1000px) {
+  .dynamic-form--split-import > .el-row {
+    display: grid;
+    margin: 0 !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 1.9fr);
+    align-items: start;
+  }
+  .dynamic-form--split-import .dynamic-form__field,
+  .dynamic-form--split-import .dynamic-form__section { width: 100%; max-width: none; min-width: 0; }
+  .dynamic-form--split-import .dynamic-form__wide,
+  .dynamic-form--split-import .dynamic-form__section { grid-column: 1 / 3; }
+  .dynamic-form--split-import .dynamic-form__paired { grid-column: auto; }
+  .dynamic-form--split-import .dynamic-form__content-heading { grid-column: 3; grid-row: 1; padding-left: 24px !important; }
+  .dynamic-form--split-import .dynamic-form__content-heading h3 { margin-top: 0; padding-top: 0; border: 0; }
+  .dynamic-form--split-import .dynamic-form__import-content {
+    grid-column: 3; grid-row: 2 / span 40; align-self: stretch;
+    padding-left: 24px !important; border-left: 1px solid var(--el-border-color-lighter);
+  }
+  .dynamic-form--split-import .dynamic-form__import-content :deep(.el-form-item) { height: 100%; margin-bottom: 0; display: flex; flex-direction: column; }
+  .dynamic-form--split-import .dynamic-form__import-content :deep(.el-form-item__content) { flex: 1; align-items: stretch; }
+  .dynamic-form--split-import .text-import-field { min-height: 380px; }
+  .dynamic-form--split-import .text-import-field :deep(.el-textarea) { flex: 1; display: flex; }
+  .dynamic-form--split-import .text-import-field :deep(textarea) { flex: 1; resize: none; min-height: 340px !important; }
+  .dynamic-form--split-import :deep(.el-form-item) { margin-bottom: 12px; }
+  .dynamic-form--split-import .dynamic-form__section-title { margin: 4px 0 12px; padding-top: 12px; }
+}
+:global(.account-import-dialog) { display: flex; flex-direction: column; max-height: calc(100vh - 32px); margin-top: 16px !important; }
+:global(.account-import-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
+:global(.account-import-dialog .el-dialog__header),
+:global(.account-import-dialog .el-dialog__footer) { flex-shrink: 0; }
+
 .dynamic-form__section-title {
   margin: 8px 0 16px;
   padding-top: 16px;
