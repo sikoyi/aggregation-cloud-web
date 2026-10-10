@@ -36,8 +36,9 @@ describe('运营中心独立帖子审核', () => {
     expect(reviews).toContain('AI 重新缩写')
     expect(reviews).toContain("selected.value?.business_platform === 'x'")
     expect(reviews).not.toContain('Boolean(selected.value.system_processing?.ai_shortening)')
-    const implementation = reviews.split('async function regenerateContent()')[1]!.split('function handleSelectionChange')[0]!
-    expect(implementation).toContain('/regenerate`')
+    const implementation = reviews.split('async function regenerateContent(')[1]!.split('function handleSelectionChange')[0]!
+    expect(implementation).toContain("mode: 'shorten' | 'translate' = 'shorten'")
+    expect(implementation).toContain("mode === 'translate' ? 'retranslate' : 'regenerate'")
     expect(implementation).toContain('revision: job.revision')
     expect(implementation).toContain('content.value = result.final_content')
     expect(implementation).not.toContain('mediaUrls.value =')
