@@ -45,6 +45,7 @@ import type { RemoteSelectConfig } from '@/types/crud'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 import { commentReplyStatusOptions, operatorReplyStatus, operatorReplyStatusMeta } from '@/config/commentReplyStatus'
+import { findNextReview } from '@/utils/nextReview'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -79,6 +80,8 @@ const pageSize = ref(20)
 const dialogVisible = ref(false)
 const activeJob = ref<AnyRecord | null>(null)
 const editedContent = ref('')
+const continueReview = ref(true)
+let disposed = false
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
@@ -264,21 +267,48 @@ function canViewTaskDetail(row: AnyRecord | null) {
 }
 
 async function approveActive() {
+  if (actionLoading.value || !canApprove.value) return
   if (!activeJob.value || !editedContent.value.trim()) {
     ElNotification.warning({ title: '回复内容不能为空', message: '请填写确认下发的回复文案' })
     return
   }
   actionLoading.value = true
+  const jobId = String(activeJob.value.id)
+  const previousRows = [...rows.value]
+  const scope = JSON.stringify(filters)
   try {
-    await approveCommentReply(String(activeJob.value.id), editedContent.value)
-    dialogVisible.value = false
+    const result = await approveCommentReply(jobId, editedContent.value)
+    activeJob.value = result
     ElNotification.success({ title: '审核通过', message: '工单已进入待定时下发队列' })
     await loadRows()
+    await continueAfterReview(jobId, previousRows, scope)
   } catch (err) {
     notifyError(err, '下发失败', '回复任务未能进入队列')
   } finally {
     actionLoading.value = false
   }
+}
+
+async function continueAfterReview(jobId: string, previousRows: AnyRecord[], scope: string) {
+  if (!continueReview.value) { dialogVisible.value = false; return }
+  try {
+    const next = await findNextReview({ rows: previousRows, currentId: jobId, page: page.value, pageSize: pageSize.value,
+      list: nextPage => listCommentReplies(buildCommentReplyQuery(filters, nextPage, pageSize.value)),
+      detail: getCommentReply,
+      active: () => !disposed && dialogVisible.value && scope === JSON.stringify(filters) && String(activeJob.value?.id) === jobId,
+    })
+    if (disposed || !dialogVisible.value || scope !== JSON.stringify(filters) || String(activeJob.value?.id) !== jobId) return
+    if (next) {
+      page.value = next.page
+      rows.value = next.items
+      total.value = next.total
+      activeJob.value = next.job
+      editedContent.value = String(next.job.final_content || next.job.generated_content || '')
+    } else {
+      dialogVisible.value = false
+      ElNotification.info({ title: '本轮审核完成', message: '当前筛选范围内没有后续待审核评论' })
+    }
+  } catch (err) { notifyError(err, '本条已处理，读取下一条失败，请从列表继续') }
 }
 
 async function regenerate(row: AnyRecord) {
@@ -296,6 +326,7 @@ async function regenerate(row: AnyRecord) {
 }
 
 async function ignore(row: AnyRecord) {
+  if (actionLoading.value) return
   try {
     await ElMessageBox.confirm('忽略后不会为这条评论下发回复任务。', '确认忽略', {
       type: 'warning',
@@ -306,11 +337,15 @@ async function ignore(row: AnyRecord) {
     return
   }
   actionLoading.value = true
+  const previousRows = [...rows.value]
+  const scope = JSON.stringify(filters)
+  const wasOpen = dialogVisible.value && String(activeJob.value?.id) === String(row.id)
   try {
-    await ignoreCommentReply(String(row.id))
-    dialogVisible.value = false
+    const result = await ignoreCommentReply(String(row.id))
+    if (wasOpen) activeJob.value = result
     ElNotification.success({ title: '已忽略', message: '这条新评论不会再自动回复' })
     await loadRows()
+    if (wasOpen) await continueAfterReview(String(row.id), previousRows, scope)
   } catch (err) {
     notifyError(err, '操作失败', '无法忽略回复工单')
   } finally {
@@ -319,9 +354,11 @@ async function ignore(row: AnyRecord) {
 }
 
 async function retry(row: AnyRecord) {
+  if (actionLoading.value || !canRetryReviews.value || !['failed', 'blocked'].includes(String(row.status))) return
   actionLoading.value = true
   try {
-    await retryCommentReply(String(row.id))
+    const result = await retryCommentReply(String(row.id))
+    if (String(activeJob.value?.id) === String(row.id)) activeJob.value = result
     ElNotification.success({ title: '已重试', message: '后台将重新处理该回复工单' })
     await loadRows()
   } catch (err) {
@@ -364,6 +401,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  disposed = true
   window.removeEventListener(REALTIME_EVENT_NAME, handleRealtimeEvent)
   if (refreshTimer) window.clearTimeout(refreshTimer)
 })
@@ -533,7 +571,7 @@ onBeforeUnmount(() => {
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" title="新评论回复" width="min(92vw, 760px)" destroy-on-close :close-on-click-modal="false">
+    <el-dialog v-model="dialogVisible" title="新评论回复" width="min(92vw, 760px)" destroy-on-close :close-on-click-modal="false" :show-close="!actionLoading" :close-on-press-escape="!actionLoading">
       <div v-if="activeJob" class="review-dialog">
         <div class="review-dialog__meta">
           <div><small>发帖账号</small><ReplyJobAccount :job="activeJob" /></div>
@@ -563,11 +601,16 @@ onBeforeUnmount(() => {
           <header><span>中文意思</span><small>仅供运营审核，不会下发给脚本</small></header>
           <p>{{ activeJob.generated_translation }}</p>
         </section>
-        <el-alert v-if="activeJob.error_message || activeJob.generation_error" :title="String(activeJob.error_message || activeJob.generation_error)" type="error" :closable="false" show-icon />
+        <div v-if="activeJob.error_message || activeJob.generation_error">
+          <el-alert :title="String(activeJob.error_message || activeJob.generation_error)" type="error" :closable="false" show-icon />
+          <el-button v-if="['failed', 'blocked'].includes(String(activeJob.status)) && canRetryReviews" :icon="RefreshCw" :loading="actionLoading" :disabled="actionLoading" @click="retry(activeJob)">重试处理</el-button>
+          <el-button v-if="canViewTaskDetail(activeJob)" :icon="ListChecks" :disabled="actionLoading" @click="openTaskDetail(activeJob)">查看执行详情</el-button>
+        </div>
+        <el-checkbox v-if="canApprove" v-model="continueReview" :disabled="actionLoading">审核后查看下一条</el-checkbox>
       </div>
       <template #footer>
-        <el-button @click="dialogVisible = false">关闭</el-button>
-        <el-button v-if="canViewTaskDetail(activeJob)" :icon="ListChecks" @click="openTaskDetail(activeJob)">执行详情</el-button>
+        <el-button :disabled="actionLoading" @click="dialogVisible = false">关闭</el-button>
+        <el-button v-if="canViewTaskDetail(activeJob) && !activeJob?.error_message && !activeJob?.generation_error" :icon="ListChecks" :disabled="actionLoading" @click="openTaskDetail(activeJob)">执行详情</el-button>
         <el-button v-if="canApprove" :icon="SkipForward" :loading="actionLoading" @click="ignoreActive">忽略</el-button>
         <el-button v-if="canApprove" :icon="RotateCcw" :loading="actionLoading" @click="regenerateActive">重新生成</el-button>
         <el-button v-if="canApprove" type="primary" :icon="Check" :loading="actionLoading" @click="approveActive">确认下发</el-button>

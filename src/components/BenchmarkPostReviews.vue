@@ -5,7 +5,9 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { http, resolveBackendUrl } from '@/api/http'
 import { uploadMediaAssets } from '@/api/mediaAssets'
-import { prepareSelectedReviews, type PreparationAction, type PreparationResult } from '@/api/benchmarkReviewPreparation'
+import { prepareSelectedReviews, retryFailedPreparations, type PreparationAction, type PreparationResult } from '@/api/benchmarkReviewPreparation'
+import { findNextReview } from '@/utils/nextReview'
+import TaskDetailDrawer from '@/components/TaskDetailDrawer.vue'
 import {
   batchApproveBenchmarkPostReviews,
   batchDeleteBenchmarkPostReviews,
@@ -74,6 +76,13 @@ const preparationVisible = ref(false)
 const preparationResults = ref<PreparationResult[]>([])
 const preparationTotal = ref(0)
 const preparationTitle = ref('')
+const preparationAction = ref<PreparationAction>('shorten')
+const preparationJobs = ref<{ id: string; revision: string }[]>([])
+const preparationFilter = ref('all')
+const filteredPreparationResults = computed(() => preparationResults.value.filter(item => preparationFilter.value === 'all' || item.status === preparationFilter.value))
+const failedPreparations = computed(() => preparationResults.value.filter(item => item.status === 'failed').length)
+const continueReview = ref(true)
+const taskDetailVisible = ref(false)
 const preparationLabels = { processed: '成功', skipped: '跳过', failed: '失败' }
 const preparationSummary = computed(() => ['processed', 'skipped', 'failed'].map(status =>
   `${preparationLabels[status as keyof typeof preparationLabels]} ${preparationResults.value.filter(item => item.status === status).length}`,
@@ -167,6 +176,30 @@ async function open(row: Record<string, unknown>) {
     regenerationError.value = ''
     visible.value = true
   } catch (error) { notifyError(error, '加载工单失败') }
+}
+async function continueAfterReview(job: Review, previousRows: Review[], scope: string) {
+  if (!continueReview.value || !visible.value) return
+  try {
+    const next = await findNextReview({ rows: previousRows, currentId: job.id, page: page.value, pageSize: 20,
+      list: nextPage => http.get<{ items: Review[]; total: number }>('/api/benchmark-trackers/reviews', buildPostReviewQuery(filters, nextPage)),
+      detail: id => http.get<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(id)}`),
+      active: () => !disposed && visible.value && scope === JSON.stringify(filters) && selected.value?.id === job.id,
+    })
+    if (disposed || !visible.value || scope !== JSON.stringify(filters) || selected.value?.id !== job.id) return
+    if (next) {
+      page.value = next.page
+      rows.value = next.items
+      total.value = next.total
+      selected.value = next.job
+      content.value = next.job.final_content
+      mediaUrls.value = [...next.job.final_media_urls]
+      imageUrlInput.value = ''
+      regenerationError.value = ''
+    } else {
+      visible.value = false
+      ElNotification.info({ title: '本轮审核完成', message: '当前筛选范围内没有后续待审核工单' })
+    }
+  } catch (error) { notifyError(error, '本条已处理，读取下一条失败，请从列表继续') }
 }
 function addImageUrl() {
   const url = imageUrlInput.value.trim()
@@ -291,6 +324,9 @@ async function runPreparation(action: PreparationAction) {
       { type: 'warning', confirmButtonText: '开始处理', cancelButtonText: '取消' })
     } catch { return }
     preparationTitle.value = title
+    preparationAction.value = action
+    preparationJobs.value = jobs
+    preparationFilter.value = 'all'
     preparationResults.value = []
     preparationTotal.value = jobs.length
     preparationVisible.value = true
@@ -298,6 +334,20 @@ async function runPreparation(action: PreparationAction) {
     if (disposed) return
     clearBatchSelection()
     await load()
+  } finally { batchLoading.value = false }
+}
+async function retryPreparationFailures() {
+  if (batchLoading.value || !canManageReviews.value || !failedPreparations.value) return
+  try {
+    await ElMessageBox.confirm(`仅重试 ${failedPreparations.value} 条失败工单，成功和跳过项不重复处理。`, '重试失败项', { type: 'warning' })
+  } catch { return }
+  batchLoading.value = true
+  try {
+    await retryFailedPreparations(preparationJobs.value, [...preparationResults.value], preparationAction.value, result => {
+      const index = preparationResults.value.findIndex(item => item.id === result.id)
+      if (index >= 0) preparationResults.value[index] = result
+    }, () => !disposed)
+    if (!disposed) await load()
   } finally { batchLoading.value = false }
 }
 async function removeReview(raw: unknown) {
@@ -385,11 +435,14 @@ async function decide(action: 'approve' | 'ignore') {
   if (action === 'approve' && draftDirty.value && !await saveDraft()) return
   const job = selected.value
   if (!job) return
+  const previousRows = [...rows.value]
+  const scope = JSON.stringify(filters)
   saving.value = true
   try {
     selected.value = await http.post<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(job.id)}/${action}`, { revision: job.revision, content: content.value })
     ElNotification({ title: '工单已更新', message: labels[selected.value.status] || '已批准，等待发布', type: selected.value.status === 'failed' ? 'error' : 'success' })
     await load()
+    if (selected.value.status !== 'failed' && selected.value.status !== 'pending_review') await continueAfterReview(job, previousRows, scope)
   } catch (error) { notifyError(error, '审核未完成，请刷新工单确认状态') }
   finally { saving.value = false }
 }
@@ -504,7 +557,14 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
           </component>
         </dd><dt>状态</dt><dd><el-tag :type="statusType(selected.status)">{{ labels[selected.status] || '等待发布' }}</el-tag></dd></dl>
         <a v-if="safeUrl(selected.snapshot.content_url)" :href="safeUrl(selected.snapshot.content_url)" target="_blank" rel="noopener noreferrer" class="post-link"><ExternalLink :size="14" />打开原帖</a>
-        <el-alert v-if="selected.status === 'pending_review' && selected.review_reason" :title="selected.review_reason" type="warning" show-icon :closable="false" />
+        <div v-if="selected.review_reason">
+          <el-alert :title="selected.review_reason" :type="selected.status === 'failed' ? 'error' : 'warning'" show-icon :closable="false" />
+          <div class="review-draft-actions">
+            <el-button v-if="canRetranslate && selected.system_processing?.translation_check === 'failed'" :icon="RefreshCw" :disabled="saving || regenerating || uploading" @click="regenerateContent('translate')">重新翻译</el-button>
+            <el-button v-if="canRegenerate && selected.system_processing?.ai_shortening === 'failed'" :icon="Sparkles" :disabled="saving || regenerating || uploading" @click="regenerateContent('shorten')">重新缩写</el-button>
+            <el-button v-if="selected.task_run_id && auth.can('tasks.view')" :icon="Eye" @click="taskDetailVisible = true">查看执行详情</el-button>
+          </div>
+        </div>
         <div v-if="processingLabels.length" class="review-processing"><el-tag v-for="item in processingLabels" :key="item.label" :type="item.type">{{ item.label }}</el-tag></div>
         <div class="review-comparison">
           <section class="review-comparison__original" aria-label="原帖内容">
@@ -547,6 +607,7 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
           </section>
         </div>
         <span v-if="selected.task_run_id">任务 ID：{{ selected.task_run_id }}</span>
+        <el-checkbox v-if="selected.status === 'pending_review' && editable" v-model="continueReview" :disabled="saving">审核后查看下一条</el-checkbox>
       </div>
       <template #footer><el-button :disabled="saving || uploading || regenerating || Boolean(retryingId)" @click="closeDialog">关闭</el-button><el-button v-if="editable" :disabled="!draftDirty || saving || uploading || regenerating" :loading="saving && !regenerating" @click="saveDraft">保存修改</el-button><el-button v-if="selected?.status === 'pending_review' && editable" :icon="SkipForward" :disabled="saving || uploading || regenerating" @click="decide('ignore')">忽略</el-button><el-button v-if="selected?.status === 'pending_review' && editable" type="primary" :icon="Check" :loading="saving && !regenerating" :disabled="saving || uploading || regenerating" @click="decide('approve')">批准发布</el-button><el-button v-if="retryable && selected" type="primary" :icon="RefreshCw" :loading="retryingId === selected.id" :disabled="saving || uploading || regenerating || (Boolean(retryingId) && retryingId !== selected.id)" @click="retry(selected)">重新发布</el-button></template>
     </el-dialog>
@@ -554,13 +615,19 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
   <el-dialog v-model="preparationVisible" :title="preparationTitle" width="min(720px, 94vw)" :close-on-click-modal="false" :close-on-press-escape="!batchLoading" :show-close="!batchLoading">
     <p>{{ preparationResults.length }} / {{ preparationTotal }} · {{ preparationSummary }}</p>
     <el-progress :percentage="preparationTotal ? Math.round(preparationResults.length / preparationTotal * 100) : 0" />
-    <el-table :data="preparationResults" max-height="420">
+    <el-radio-group v-model="preparationFilter" size="small" aria-label="处理结果筛选">
+      <el-radio-button value="all">全部</el-radio-button>
+      <el-radio-button v-for="(label, value) in preparationLabels" :key="value" :value="value">{{ label }}</el-radio-button>
+    </el-radio-group>
+    <el-table :data="filteredPreparationResults" max-height="420">
       <el-table-column prop="id" label="工单 ID" min-width="160" />
       <el-table-column label="结果" width="80"><template #default="{ row }"><el-tag :type="row.status === 'processed' ? 'success' : row.status === 'failed' ? 'danger' : 'info'">{{ preparationLabels[row.status as keyof typeof preparationLabels] }}</el-tag></template></el-table-column>
       <el-table-column prop="message" label="详情" min-width="260" />
+      <el-table-column label="操作" width="90"><template #default="{ row }"><el-button text :icon="Eye" :disabled="batchLoading" @click="open(row)">查看</el-button></template></el-table-column>
     </el-table>
-    <template #footer><el-button :disabled="batchLoading" @click="preparationVisible = false">关闭</el-button></template>
+    <template #footer><el-button :icon="RefreshCw" :loading="batchLoading" :disabled="!failedPreparations || batchLoading || !canManageReviews" @click="retryPreparationFailures">仅重试失败项（{{ failedPreparations }}）</el-button><el-button :disabled="batchLoading" @click="preparationVisible = false">关闭</el-button></template>
   </el-dialog>
+  <TaskDetailDrawer v-model="taskDetailVisible" :task-id="selected?.task_run_id || null" />
 </template>
 
 <style scoped>
