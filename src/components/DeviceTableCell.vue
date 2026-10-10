@@ -175,10 +175,10 @@ function accountTooltip(session: AnyRecord) {
 .device-group-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; }
 .device-group-tag svg { width: 12px; height: 12px; flex: 0 0 12px; }
 .device-group-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.device-group-meta-tag { display: inline-flex; max-width: 100%; overflow: hidden; font-size: 13px; }
-.device-group-meta-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
+.device-group-meta-tag { display: inline-flex; max-width: 100%; height: 24px; padding: 1px 7px; overflow: hidden; font-size: 13px; line-height: 20px; }
+.device-group-meta-tag :deep(.el-tag__content) { display: inline-flex; min-width: 0; align-items: center; gap: 5px; line-height: 20px; }
 .device-group-meta-tag svg { width: 12px; height: 12px; flex: 0 0 12px; opacity: .8; }
-.device-group-meta-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.device-group-meta-tag span { min-width: 0; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .device-group { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 5px; }
 .device-group__sync { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; font-size: 10px; line-height: 1.3; }
 .device-group__sync svg { width: 11px; height: 11px; flex: 0 0 11px; }

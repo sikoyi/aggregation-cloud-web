@@ -4,6 +4,7 @@ import { renderToString } from 'vue/server-renderer'
 import { describe, expect, it, vi } from 'vitest'
 
 import DeviceTableCell from './DeviceTableCell.vue'
+import source from './DeviceTableCell.vue?raw'
 
 vi.mock('element-plus/es/components/base/style/css', () => ({}))
 vi.mock('element-plus/es/components/tag/style/css', () => ({}))
@@ -18,6 +19,12 @@ async function renderCell(kind: 'deviceState' | 'deviceAccount' | 'deviceGroup' 
 }
 
 describe('设备状态与账号状态分列', () => {
+  it('分组标签为英文下延字母保留足够高度', () => {
+    const tagStyle = source.match(/\.device-group-meta-tag \{([^}]+)\}/)?.[1] || ''
+    expect(tagStyle).toContain('height: 24px')
+    expect(tagStyle).toContain('line-height: 20px')
+    expect(source).toContain('min-width: 0; line-height: 20px; overflow: hidden; text-overflow: ellipsis')
+  })
   it.each([
     ['fingerprint_browser', '指纹浏览器'],
     ['cloud_phone', '云手机'],
