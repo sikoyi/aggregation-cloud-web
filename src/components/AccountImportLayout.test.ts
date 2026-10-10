@@ -3,6 +3,12 @@ import form from './DynamicForm.vue?raw'
 import page from './CrudPage.vue?raw'
 
 describe('账号导入左右布局', () => {
+  it('导入弹窗垂直居中且保留视口边距，不强制贴顶', () => {
+    expect(page).toContain(':align-center="isAccountImportModal"')
+    const dialogStyle = form.split(':global(.account-import-dialog) {')[1]!.split('}')[0]!
+    expect(dialogStyle).toContain('max-height: calc(100vh - 32px)')
+    expect(dialogStyle).not.toContain('margin-top')
+  })
   it('只为包含账号文本的导入弹窗启用布局且保持单一表单状态', () => {
     expect(page).toContain("field.key === 'post_import_action'")
     expect(page).toContain("field.key === 'raw_text' && field.type === 'textImport'")

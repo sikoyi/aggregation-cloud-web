@@ -760,7 +760,7 @@ watch(() => props.modelValue.execution_mode, (mode) => {
   .dynamic-form--split-import :deep(.el-form-item) { margin-bottom: 12px; }
   .dynamic-form--split-import .dynamic-form__section-title { margin: 4px 0 12px; padding-top: 12px; }
 }
-:global(.account-import-dialog) { display: flex; flex-direction: column; max-height: calc(100vh - 32px); margin-top: 16px !important; }
+:global(.account-import-dialog) { display: flex; flex-direction: column; max-height: calc(100vh - 32px); }
 :global(.account-import-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
 :global(.account-import-dialog .el-dialog__header),
 :global(.account-import-dialog .el-dialog__footer) { flex-shrink: 0; }

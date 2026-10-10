@@ -2141,6 +2141,7 @@ onBeforeUnmount(() => {
       :title="modalTitle"
       :width="modalWidth"
       :class="{ 'account-import-dialog': isAccountImportModal }"
+      :align-center="isAccountImportModal"
       destroy-on-close
       append-to-body
       :close-on-click-modal="!submitting"
