@@ -22,6 +22,7 @@ export interface SelectionPost {
   comments_count: number | null
 }
 export interface SelectionSource {
+  profile?: SelectionAuthor
   id: string
   business_platform: string
   profile_url: string

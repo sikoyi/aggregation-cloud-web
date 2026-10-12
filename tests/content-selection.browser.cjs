@@ -14,7 +14,7 @@ async function run() {
       const errors = []
       page.on('pageerror', error => errors.push(error.message))
       await page.addInitScript(() => localStorage.setItem('access_token', 'selection-test-token'))
-      const source = { id:'source1', business_platform:'threads', profile_url:'https://www.threads.com/@demo', remark:'旅行选题', enabled:true, interval_minutes:60, version:1, status:'collecting', history_complete:false, pages_collected:12, post_count:220 }
+      const source = { id:'source1', business_platform:'threads', profile_url:'https://www.threads.com/@demo', profile:{username:'demo', display_name:'旅行记录', avatar_url:'https://pbs.twimg.com/selection-demo.png'}, remark:'旅行选题', enabled:true, interval_minutes:60, version:1, status:'collecting', history_complete:false, pages_collected:12, post_count:220 }
       const post = { id:'post1', source_id:'source1', business_platform:'threads', content_url:'https://www.threads.com/@demo/post/123', text_body:'傍晚沿海边走了一圈，看落日，也给自己留一点慢下来的时间。\n#海边 #旅行', media:['https://pbs.twimg.com/selection-demo.png'], media_type:'image', author:{username:'demo', display_name:'旅行记录', profile_url:source.profile_url}, published_at:'2026-10-12T05:00:00Z', likes_count:1320, comments_count:null }
       const order = { id:'order1', post_id:'post1', account_id:'22', business_platform:'x', account:{username:'operator',display_name:'运营测试'}, original:post, draft:{text_body:'编辑后的正文',media:[]}, status:'queued', task_id:'123', created_at:'2026-10-12T06:00:00Z', attempts:[{task_id:'123',status:'queued',created_at:'2026-10-12T06:00:00Z'}] }
       let submitted = null
@@ -41,6 +41,14 @@ async function run() {
         throw error
       })
       assert.equal(await page.locator('.post-item').count(),1)
+      await page.getByRole('tab', {name:'来源账号',exact:true}).click()
+      await page.locator('.source-identity strong').getByText('旅行记录', {exact:true}).waitFor()
+      assert.equal(await page.locator('.source-identity small').innerText(), '@demo')
+      assert.equal(await page.locator('.source-identity img').getAttribute('src'), source.profile.avatar_url)
+      assert.equal(await page.locator('.selection-table.el-table--border.el-table--striped').count(), 1)
+      await page.screenshot({path:path.join(screenshotDir,`sources-${viewport.width}.png`),fullPage:true})
+      await page.getByRole('tab', {name:'帖子选题',exact:true}).click()
+      await page.getByRole('button',{name:'查看选题'}).waitFor()
       const filters = page.locator('.selection-filters')
       await filters.getByText('筛选条件', {exact:true}).waitFor()
       await filters.getByPlaceholder('正文 / 作者').fill('海边')

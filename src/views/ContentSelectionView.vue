@@ -52,6 +52,11 @@ let editRequestId = 0
 let detailRequestId = 0
 const label = (platform: string) => platforms.value.find(item => item.value === platform)?.label || platform
 const showError = (e: unknown) => ElMessage.error(e instanceof Error ? e.message : '请求失败')
+function sourceUsername(source: SelectionSource) {
+  if (source.profile?.username) return source.profile.username.replace(/^@/, '')
+  try { return new URL(source.profile_url).pathname.split('/').filter(Boolean).pop()?.replace(/^@/, '') || '' }
+  catch { return '' }
+}
 
 async function refresh(reset = false) {
   if (reset) page.value = 1
@@ -184,7 +189,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
       <el-form class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
         <div class="filter-grid">
       <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
-      <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="item.remark || item.profile_url" /></el-select></el-form-item>
+      <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="`${item.profile?.display_name || sourceUsername(item)} · @${sourceUsername(item)}${item.remark ? ' · ' + item.remark : ''}`" /></el-select></el-form-item>
       <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="正文 / 作者" clearable /></el-form-item>
       <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
       <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" /></el-form-item>
@@ -217,21 +222,25 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
           </article>
         </div>
       </template>
-      <el-table v-else-if="tab === 'sources'" :data="sources">
-        <el-table-column label="来源账号" min-width="260"><template #default="{ row }"><a :href="safeSelectionLink(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.remark || row.profile_url }}</a></template></el-table-column>
-        <el-table-column label="平台" width="130"><template #default="{ row }">{{ label(row.business_platform) }}</template></el-table-column>
-        <el-table-column label="状态" width="120"><template #default="{ row }">{{ selectionStatus[row.status] || row.status }}</template></el-table-column>
+      <el-table v-else-if="tab === 'sources'" :data="sources" class="selection-table" row-key="id" border stripe empty-text="暂无来源账号">
+        <el-table-column label="来源账号" min-width="260"><template #default="{ row }"><div class="source-identity">
+          <el-avatar :size="44" :src="safeSelectionLink(row.profile?.avatar_url)"><UserRound :size="22" /></el-avatar>
+          <div><a :href="safeSelectionLink(row.profile_url)" target="_blank" rel="noopener noreferrer"><strong>{{ row.profile?.display_name || sourceUsername(row as SelectionSource) || '待采集账号' }}</strong><small v-if="sourceUsername(row as SelectionSource)">@{{ sourceUsername(row as SelectionSource) }}</small></a></div>
+        </div></template></el-table-column>
+        <el-table-column label="平台" width="130" align="center"><template #default="{ row }"><el-tag effect="plain">{{ label(row.business_platform) }}</el-tag></template></el-table-column>
+        <el-table-column label="状态" width="120" align="center"><template #default="{ row }"><el-tag :type="row.status === 'retrying' ? 'danger' : row.status === 'active' ? 'success' : row.status === 'collecting' ? 'warning' : 'info'">{{ selectionStatus[row.status] || row.status }}</el-tag></template></el-table-column>
         <el-table-column label="历史采集" min-width="170"><template #default="{ row }">{{ row.history_complete ? '可获取历史已完成' : '历史采集中' }}<small>已处理 {{ row.pages_collected }} 页 · {{ row.post_count }} 条主帖</small></template></el-table-column>
-        <el-table-column label="异常原因" prop="last_error" min-width="240" />
-        <el-table-column label="操作" width="110"><template #default="{ row }"><el-button v-if="auth.can('operations.edit')" :disabled="sourceBusy" @click="toggleSource(row as SelectionSource)"><Pause v-if="row.enabled" :size="14" /><Play v-else :size="14" />{{ row.enabled ? '暂停' : '继续' }}</el-button></template></el-table-column>
+        <el-table-column label="备注" prop="remark" min-width="160" show-overflow-tooltip />
+        <el-table-column label="异常原因" prop="last_error" min-width="240" show-overflow-tooltip />
+        <el-table-column label="操作" width="90" align="center" fixed="right"><template #default="{ row }"><el-tooltip v-if="auth.can('operations.edit')" :content="row.enabled ? '暂停采集' : '继续采集'"><el-button link type="primary" :icon="row.enabled ? Pause : Play" :aria-label="row.enabled ? '暂停采集' : '继续采集'" :disabled="sourceBusy" @click="toggleSource(row as SelectionSource)" /></el-tooltip></template></el-table-column>
       </el-table>
-      <el-table v-else :data="orders">
+      <el-table v-else :data="orders" class="selection-table" row-key="id" border stripe empty-text="暂无发布工单">
         <el-table-column label="工单 ID" prop="id" min-width="250" />
         <el-table-column label="发布账号" min-width="180"><template #default="{ row }">{{ row.account.display_name || row.account.username }}<small>{{ label(row.business_platform) }} · @{{ row.account.username }}</small></template></el-table-column>
         <el-table-column label="发布稿" min-width="280"><template #default="{ row }"><p class="list-text">{{ row.draft.text_body }}</p></template></el-table-column>
         <el-table-column label="状态" width="130"><template #default="{ row }"><el-tag :type="canRetrySelection(row.status) ? 'danger' : row.status === 'succeeded' ? 'success' : 'info'">{{ selectionStatus[row.status] || row.status }}</el-tag></template></el-table-column>
         <el-table-column label="提交时间" min-width="175"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
-        <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row.id)">查看工单</el-button></template></el-table-column>
+        <el-table-column label="操作" width="100" align="center" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row.id)">查看工单</el-button></template></el-table-column>
       </el-table>
     </div>
     <div v-if="tab !== 'sources'" class="selection-pagination selection-pagination--main"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10, 20, 50, 100]" :pager-count="5" background layout="total, sizes, prev, pager, next" @current-change="refresh()" @size-change="refresh(true)" /></div>
@@ -305,6 +314,11 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .selection-content { min-height: 200px; background: var(--app-surface, #fff); } .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 16px; }
 .post-item { min-width: 0; background: var(--app-surface, #fff); border: 1px solid var(--app-border, #dce3eb); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .author { min-width: 0; } .author > div { min-width: 0; overflow-wrap: anywhere; } .author :deep(.el-avatar) { flex: 0 0 36px; }
+.source-identity { display: flex; align-items: center; gap: 12px; padding: 6px 0; min-width: 0; }
+.source-identity :deep(.el-avatar) { flex-shrink: 0; }
+.source-identity > div { min-width: 0; overflow-wrap: anywhere; }
+.source-identity strong { color: var(--app-text, #26384a); font-size: 14px; font-weight: 700; }
+.selection-table :deep(.el-table__header th) { background: var(--app-surface-muted, #f8fafc); color: var(--app-text, #52606d); font-size: 12px; font-weight: 600; }
 .post-cover { width: 100%; height: 260px; object-fit: contain; background: var(--app-surface-muted, #f6f8fa); }
 .post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; min-height: 100px; }
 footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; }
