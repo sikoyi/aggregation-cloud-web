@@ -101,6 +101,7 @@ const rawNavGroups = [
     icon: FileText,
     children: [
       { label: '内容库', to: '/contents', icon: FileText, permission: 'content.view' },
+      { label: '选题池', to: '/content-selection', icon: FileCheck2, permission: 'operations.view' },
       { label: '素材库', to: '/media-assets', icon: Image, permission: 'media.view' },
     ],
   },

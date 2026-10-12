@@ -51,6 +51,7 @@ export const router = createRouter({
         { path: 'registration-resources', component: RegistrationResourcesView, meta: { permission: 'registration_resources.view' } },
         { path: 'proxy-groups', redirect: { path: '/proxies', query: { tab: 'groups' } } },
         { path: 'contents', component: ContentCenterView, meta: { permission: 'content.view' } },
+        { path: 'content-selection', component: () => import('@/views/ContentSelectionView.vue'), meta: { permission: 'operations.view' } },
         { path: 'content-groups', redirect: { path: '/contents', query: { tab: 'groups' } } },
         { path: 'media-assets', component: MediaAssetCenterView, meta: { permission: 'media.view' } },
         { path: 'media-asset-groups', redirect: { path: '/media-assets', query: { tab: 'groups' } } },
