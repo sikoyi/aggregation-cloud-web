@@ -120,6 +120,8 @@ const canRetranslate = computed(() => canManageReviews.value && selected.value?.
 const batchActionsDisabled = computed(() => batchLoading.value || Boolean(deletingId.value) || selectedRows.value.length === 0)
 const deletableStatuses = new Set(['succeeded', 'failed', 'canceled', 'expired', 'lost', 'ignored'])
 let request = 0
+let detailRequest = 0
+watch(visible, value => { if (!value) detailRequest++ }, { flush: 'sync' })
 let disposed = false
 let timer: ReturnType<typeof setInterval> | undefined
 function safeUrl(value?: string | null) {
@@ -169,14 +171,17 @@ function resetFilters() {
   searchRows()
 }
 async function open(row: Record<string, unknown>) {
+  const current = ++detailRequest
   try {
-    selected.value = await http.get<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(String(row.id))}`)
+    const job = await http.get<Review>(`/api/benchmark-trackers/reviews/${encodeURIComponent(String(row.id))}`)
+    if (disposed || current !== detailRequest) return
+    selected.value = job
     content.value = selected.value.final_content
     mediaUrls.value = [...(selected.value.final_media_urls || [])]
     imageUrlInput.value = ''
     regenerationError.value = ''
     visible.value = true
-  } catch (error) { notifyError(error, '加载工单失败') }
+  } catch (error) { if (!disposed && current === detailRequest) notifyError(error, '加载工单失败') }
 }
 async function continueAfterReview(job: Review, previousRows: Review[], scope: string) {
   if (!continueReview.value || !visible.value) return

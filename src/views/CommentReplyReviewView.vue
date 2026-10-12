@@ -82,6 +82,8 @@ const activeJob = ref<AnyRecord | null>(null)
 const editedContent = ref('')
 const continueReview = ref(true)
 let disposed = false
+let detailRequest = 0
+watch(dialogVisible, value => { if (!value) detailRequest++ }, { flush: 'sync' })
 const taskDetailVisible = ref(false)
 const taskDetailId = ref<string | null>(null)
 const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
@@ -242,13 +244,15 @@ async function runBatchAction(action: BatchAction) {
 }
 
 async function openJob(row: AnyRecord) {
+  const current = ++detailRequest
   try {
     const job = await getCommentReply(String(row.id))
+    if (disposed || current !== detailRequest) return
     activeJob.value = job
     editedContent.value = String(job.final_content || job.generated_content || '')
     dialogVisible.value = true
   } catch (err) {
-    notifyError(err, '读取失败', '无法读取回复工单详情')
+    if (!disposed && current === detailRequest) notifyError(err, '读取失败', '无法读取回复工单详情')
   }
 }
 
