@@ -61,6 +61,14 @@ async function run() {
       assert.equal(await filters.getByPlaceholder('正文 / 作者').inputValue(), '')
       assert.equal(postQueries.at(-1).page, '1')
       assert(!postQueries.at(-1).keyword)
+      assert.equal(await page.locator('.selection-title h1').innerText(), '选题池')
+      assert.equal(await page.locator('.selection-heading .el-button.is-circle').count(), 1)
+      await page.locator('.selection-pagination--main .el-select').click()
+      await Promise.all([
+        page.waitForResponse(response => response.url().includes('/api/content-selection/posts?') && new URL(response.url()).searchParams.get('page_size') === '50'),
+        page.getByRole('option', {name:'50条/页', exact:true}).click(),
+      ])
+      assert.equal(postQueries.at(-1).page, '1')
       const filterBounds = await filters.boundingBox()
       for (const field of await filters.locator('.el-form-item').all()) {
         const bounds = await field.boundingBox()

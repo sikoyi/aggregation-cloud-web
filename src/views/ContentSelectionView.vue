@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ExternalLink, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound } from 'lucide-vue-next'
+import { ClipboardList, ExternalLink, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
 import { contentSelection, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
 import { useAuthStore } from '@/stores/auth'
@@ -22,6 +22,7 @@ const sources = ref<SelectionSource[]>([])
 const orders = ref<SelectionOrder[]>([])
 const total = ref(0)
 const page = ref(1)
+const pageSize = ref(20)
 const dates = ref<[string, string] | null>(null)
 const filters = reactive({ platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
 const hasFilters = computed(() => !!(filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
@@ -63,10 +64,10 @@ async function refresh(reset = false) {
       const result = await contentSelection.sources()
       if (id === requestId) { sources.value = result; total.value = result.length }
     } else if (current === 'orders') {
-      const result = await contentSelection.orders({ page: page.value, page_size: 20 })
+      const result = await contentSelection.orders({ page: page.value, page_size: pageSize.value })
       if (id === requestId) { orders.value = result.items; total.value = result.total }
     } else {
-      const result = await contentSelection.posts({ ...filters, page: page.value, page_size: 20, published_from: dates.value?.[0], published_to: dates.value?.[1] })
+      const result = await contentSelection.posts({ ...filters, page: page.value, page_size: pageSize.value, published_from: dates.value?.[0], published_to: dates.value?.[1] })
       if (id === requestId) { posts.value = result.items; total.value = result.total }
     }
   } catch (e) { if (id === requestId) error.value = e instanceof Error ? e.message : '加载失败' }
@@ -168,11 +169,16 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
 
 <template>
   <section class="selection-view">
-    <header class="selection-heading"><h1>选题池</h1><div>
-      <el-tooltip content="刷新"><el-button :disabled="loading" aria-label="刷新" @click="refresh()"><RefreshCw :size="16" /></el-button></el-tooltip>
+    <header class="selection-heading"><div class="selection-title"><span class="selection-icon"><ClipboardList :size="20" /></span><h1>选题池</h1></div><div class="selection-actions">
+      <el-tooltip content="刷新" placement="bottom"><el-button :disabled="loading" :icon="RefreshCw" circle aria-label="刷新" @click="refresh()" /></el-tooltip>
       <el-button v-if="auth.can('operations.edit')" type="primary" @click="sourceVisible = true"><Plus :size="16" />添加来源账号</el-button>
     </div></header>
-    <el-tabs v-model="tab" @tab-change="refresh(true)"><el-tab-pane label="帖子选题" name="posts" /><el-tab-pane label="来源账号" name="sources" /><el-tab-pane label="发布工单" name="orders" /></el-tabs>
+    <el-tabs v-model="tab" class="selection-tabs" @tab-change="refresh(true)">
+      <el-tab-pane name="posts"><template #label><span class="selection-tab-label"><FileText :size="16" />帖子选题</span></template></el-tab-pane>
+      <el-tab-pane name="sources"><template #label><span class="selection-tab-label"><Users :size="16" />来源账号</span></template></el-tab-pane>
+      <el-tab-pane name="orders"><template #label><span class="selection-tab-label"><ClipboardList :size="16" />发布工单</span></template></el-tab-pane>
+    </el-tabs>
+    <div class="selection-body">
     <div v-if="tab === 'posts'" class="selection-filters">
       <div class="filter-title"><Search :size="14" /><span>筛选条件</span></div>
       <el-form class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
@@ -228,7 +234,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
         <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row.id)">查看工单</el-button></template></el-table-column>
       </el-table>
     </div>
-    <div v-if="tab !== 'sources'" class="selection-pagination"><el-pagination v-model:current-page="page" :total="total" :page-size="20" :pager-count="5" layout="total, prev, pager, next" @current-change="refresh()" /></div>
+    <div v-if="tab !== 'sources'" class="selection-pagination selection-pagination--main"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10, 20, 50, 100]" :pager-count="5" background layout="total, sizes, prev, pager, next" @current-change="refresh()" @size-change="refresh(true)" /></div>
+    </div>
 
     <el-dialog v-model="sourceVisible" title="添加来源账号" width="520px" align-center :close-on-click-modal="false">
       <el-form label-position="top"><el-form-item label="平台"><el-select v-model="sourceForm.business_platform"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
@@ -270,10 +277,19 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
 </template>
 
 <style scoped>
-.selection-view { min-width: 0; background: var(--app-surface, #fff); padding: 18px; }
+.selection-view { min-width: 0; border: 1px solid var(--app-border, #d9e2ec); border-radius: 8px; overflow: hidden; background: var(--app-surface, #fff); }
 .selection-heading, .selection-heading > div, .author, footer, footer > span { display: flex; align-items: center; gap: 12px; }
-.selection-heading { justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
-h1 { margin: 0; font-size: 20px; } h3 { font-size: 15px; margin: 0 0 14px; }
+.selection-heading { justify-content: space-between; gap: 16px; min-height: 70px; padding: 13px 16px; border-bottom: 1px solid var(--app-border, #e6edf3); }
+.selection-title { min-width: 0; gap: 10px; }
+.selection-icon { display: inline-flex; flex: 0 0 34px; align-items: center; justify-content: center; height: 34px; border-radius: 8px; color: var(--app-blue, #1f668f); background: var(--app-surface-muted, #eef8ff); }
+.selection-actions { flex-shrink: 0; justify-content: flex-end; gap: 10px; }
+h1 { margin: 0; color: var(--app-text, #1f2933); font-size: 18px; font-weight: 700; line-height: 1.25; } h3 { font-size: 15px; margin: 0 0 14px; }
+.selection-tabs :deep(.el-tabs__header) { margin: 0; padding: 0 16px; }
+.selection-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--app-border, #e6edf3); }
+.selection-tabs :deep(.el-tabs__item) { height: 40px; color: var(--app-text, #52606d); font-size: 13px; font-weight: 600; }
+.selection-tabs :deep(.el-tabs__item.is-active) { color: var(--app-blue, #1f668f); }
+.selection-tab-label { display: inline-flex; align-items: center; gap: 6px; }
+.selection-body { padding: 14px 16px 16px; background: var(--app-surface-muted, #f8fafc); }
 h3 a { float: right; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; } a { color: var(--app-blue, #28678d); overflow-wrap: anywhere; }
 small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; line-height: 1.7; }
 .selection-filters { margin-bottom: 12px; padding: 12px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); }
@@ -286,13 +302,14 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .filter-grid__item--wide { grid-column: span 2; }
 .filter-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .filter-actions :deep(.el-button + .el-button) { margin-left: 0; }
-.selection-content { min-height: 200px; } .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 16px; }
-.post-item { min-width: 0; border: 1px solid var(--app-border, #dce3eb); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.selection-content { min-height: 200px; background: var(--app-surface, #fff); } .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 16px; }
+.post-item { min-width: 0; background: var(--app-surface, #fff); border: 1px solid var(--app-border, #dce3eb); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .author { min-width: 0; } .author > div { min-width: 0; overflow-wrap: anywhere; } .author :deep(.el-avatar) { flex: 0 0 36px; }
 .post-cover { width: 100%; height: 260px; object-fit: contain; background: var(--app-surface-muted, #f6f8fa); }
 .post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; min-height: 100px; }
 footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; }
 .selection-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
+.selection-pagination--main { padding: 14px 16px; border: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }
 .editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; max-height: 65vh; overflow-y: auto; }
 .editor > section { min-width: 0; } .editor .el-select { width: 100%; }
 .original-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; margin: 0 0 18px; }
@@ -302,6 +319,6 @@ footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } fo
 .list-text { white-space: pre-wrap; margin: 0; max-height: 70px; overflow: hidden; overflow-wrap: anywhere; }
 .order-body { max-height: 68vh; overflow-y: auto; } .order-body .editor { max-height: none; margin-top: 20px; } .order-id { overflow-wrap: anywhere; }
 :deep(.el-button > span) { gap: 6px; }
-@media (max-width: 760px) { .editor { grid-template-columns: minmax(0, 1fr); } .selection-view { padding: 12px; } .selection-filters :deep(.el-date-editor) { width: 100%; min-width: 0; } }
+@media (max-width: 760px) { .editor { grid-template-columns: minmax(0, 1fr); } .selection-heading { flex-direction: column; align-items: flex-start; } .selection-actions { width: 100%; } .selection-body { padding: 12px; } .selection-filters :deep(.el-date-editor) { width: 100%; min-width: 0; } }
 @media (max-width: 640px) { .filter-grid { grid-template-columns: minmax(0, 1fr); } .filter-grid__item--wide { grid-column: auto; } .selection-pagination { justify-content: flex-start; } }
 </style>
