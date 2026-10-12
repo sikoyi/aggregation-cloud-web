@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ClipboardList, ExternalLink, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
+import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
 import { contentSelection, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
 import { useAuthStore } from '@/stores/auth'
@@ -11,6 +11,7 @@ import { formatDate } from '@/utils/format'
 import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from '@/utils/contentSelection'
 import type { AnyRecord } from '@/types/api'
 import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
+import { parseSelectionMarks, selectionDateRange, selectionMarkQuery, selectionStorageKey, type SelectionMarks } from '@/utils/selectionLocalState'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -25,11 +26,76 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const dates = ref<[string, string] | null>(null)
+const reading = ref('all')
+const hideRead = ref(false)
+const quickTime = ref('')
+const expandedFilters = ref(false)
+const storageKey = ref('')
+const storageWarning = ref('')
+const marks = ref<SelectionMarks>({ read: [], saved: [] })
+const readIds = computed(() => new Set(marks.value.read))
+const savedIds = computed(() => new Set(marks.value.saved))
+const loadMoreAnchor = ref<HTMLElement | null>(null)
+const moreLoading = ref(false)
+const moreError = ref('')
+const hasMore = ref(false)
+const expandedPosts = reactive(new Set<string>())
+let postQuery: AnyRecord = {}
+let feedPage = 1
+let observer: IntersectionObserver | null = null
+function setMark(id: string, field: 'read' | 'saved', enabled: boolean) {
+  if (!storageKey.value) return
+  try {
+    const latest = parseSelectionMarks(localStorage.getItem(storageKey.value))
+    const values = new Set(latest[field])
+    if (enabled) values.add(id)
+    else values.delete(id)
+    if (values.size > 100000) throw new Error('limit')
+    latest[field] = [...values]
+    localStorage.setItem(storageKey.value, JSON.stringify(latest))
+    marks.value = latest
+    storageWarning.value = ''
+  } catch { storageWarning.value = '浏览器无法保存阅读标记，请检查本地存储空间或隐私设置' }
+}
+function syncMarks(event: StorageEvent) {
+  if (event.key === storageKey.value || event.key === null) {
+    try { marks.value = parseSelectionMarks(localStorage.getItem(storageKey.value)) } catch { /* 保留当前浏览状态。 */ }
+  }
+}
+function applyQuickTime() {
+  if (quickTime.value === 'custom') return
+  dates.value = selectionDateRange(quickTime.value)
+  void refresh(true)
+}
+async function loadMore() {
+  if (tab.value !== 'posts' || loading.value || moreLoading.value || !hasMore.value || editVisible.value) return
+  const id = requestId
+  moreLoading.value = true
+  moreError.value = ''
+  try {
+    const result = await contentSelection.queryPosts({ ...postQuery, page: feedPage + 1, page_size: 20 })
+    if (id !== requestId) return
+    const existing = new Set(posts.value.map(item => item.id))
+    posts.value.push(...result.items.filter(item => !existing.has(item.id)))
+    feedPage++
+    total.value = result.total
+    hasMore.value = result.items.length > 0 && feedPage * 20 < result.total
+  } catch (e) { if (id === requestId) moreError.value = e instanceof Error ? e.message : '加载失败，请重试' }
+  finally { if (id === requestId) moreLoading.value = false }
+}
+watch(loadMoreAnchor, element => {
+  observer?.disconnect()
+  if (element) observer?.observe(element)
+})
+watch(() => auth.user?.id, () => { storageKey.value = ''; marks.value = { read: [], saved: [] } })
 const filters = reactive({ platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
-const hasFilters = computed(() => !!(filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
+const hasFilters = computed(() => !!(reading.value !== 'all' || hideRead.value || filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
 function resetFilters() {
   Object.assign(filters, { platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined, min_comments: undefined, sort_by: 'published_at' })
   dates.value = null
+  reading.value = 'all'
+  hideRead.value = false
+  quickTime.value = ''
   void refresh(true)
 }
 const sourceVisible = ref(false)
@@ -67,9 +133,12 @@ function sourceUsername(source: SelectionSource) {
 async function refresh(reset = false) {
   if (reset) page.value = 1
   const id = ++requestId
+  moreLoading.value = false
+  moreError.value = ''
   loading.value = true
   error.value = ''
   const current = tab.value
+  if (current === 'posts') hasMore.value = false
   try {
     if (current === 'sources') {
       const result = await contentSelection.sources()
@@ -78,8 +147,10 @@ async function refresh(reset = false) {
       const result = await contentSelection.orders({ page: page.value, page_size: pageSize.value })
       if (id === requestId) { orders.value = result.items; total.value = result.total }
     } else {
-      const result = await contentSelection.posts({ ...filters, page: page.value, page_size: pageSize.value, published_from: dates.value?.[0], published_to: dates.value?.[1] })
-      if (id === requestId) { posts.value = result.items; total.value = result.total }
+      postQuery = Object.fromEntries(Object.entries({ ...filters, published_from: dates.value?.[0], published_to: dates.value?.[1] }).filter(([, value]) => value !== '' && value !== undefined))
+      Object.assign(postQuery, selectionMarkQuery(marks.value, reading.value, hideRead.value))
+      const result = await contentSelection.queryPosts({ ...postQuery, page: 1, page_size: 20 })
+      if (id === requestId) { posts.value = result.items; total.value = result.total; feedPage = 1; hasMore.value = result.items.length > 0 && result.total > 20 }
     }
   } catch (e) { if (id === requestId) error.value = e instanceof Error ? e.message : '加载失败' }
   finally { if (id === requestId) loading.value = false }
@@ -120,6 +191,7 @@ async function openPost(post: SelectionPost) {
     const current = await contentSelection.post(post.id)
     if (id !== editRequestId) return
     selected.value = current
+    setMark(current.id, 'read', true)
     draft.text_body = current.text_body
     draft.media_indexes = current.media.map((_, index) => index)
     const history = await contentSelection.orders({ post_id: post.id, page: 1, page_size: 20 })
@@ -180,12 +252,25 @@ async function retryOrder() {
   catch (e) { showError(e) } finally { if (request === detailRequestId) orderBusy.value = false }
 }
 onMounted(async () => {
+  window.addEventListener('storage', syncMarks)
+  observer = new IntersectionObserver(entries => {
+    if (entries.some(entry => entry.isIntersecting) && !moreError.value) void loadMore()
+  }, { rootMargin: '200px' })
+  try {
+    const scope = await contentSelection.localScope()
+    if (scope.user_id === auth.user?.id && scope.tenant_id) {
+      storageKey.value = selectionStorageKey(scope.tenant_id, scope.user_id)
+      marks.value = parseSelectionMarks(localStorage.getItem(storageKey.value))
+    }
+  } catch { storageWarning.value = '本地阅读标记暂不可用，请刷新重试' }
   sourceForm.business_platform = String(platforms.value[0]?.value || 'threads')
   await refresh()
+  await nextTick()
+  if (loadMoreAnchor.value) observer.observe(loadMoreAnchor.value)
   try { sources.value = await contentSelection.sources() } catch (e) { showError(e) }
   if (typeof route.query.order_id === 'string') await openOrder(route.query.order_id)
 })
-onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
+onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observer?.disconnect(); window.removeEventListener('storage', syncMarks) })
 </script>
 
 <template>
@@ -201,17 +286,23 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
     </el-tabs>
     <div class="selection-body">
     <div v-if="tab === 'posts'" class="selection-filters">
-      <div class="filter-title"><Search :size="14" /><span>筛选条件</span></div>
-      <el-form class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
+      <div class="filter-title"><Search :size="14" /><span>筛选条件</span><el-button link :icon="expandedFilters ? ChevronUp : ChevronDown" @click="expandedFilters = !expandedFilters">{{ expandedFilters ? '收起筛选' : '更多筛选' }}</el-button></div>
+      <div class="feed-controls">
+        <el-radio-group v-model="reading" :disabled="!storageKey" aria-label="阅读状态" @change="refresh(true)"><el-radio-button value="all">全部</el-radio-button><el-radio-button value="unread">未读</el-radio-button><el-radio-button value="saved">收藏</el-radio-button><el-radio-button value="read">已读</el-radio-button></el-radio-group>
+        <el-checkbox v-model="hideRead" :disabled="!storageKey || reading === 'read'" @change="refresh(true)">隐藏已读</el-checkbox>
+        <el-select v-model="quickTime" placeholder="时间不限" aria-label="快捷时间" @change="applyQuickTime"><el-option label="时间不限" value="" /><el-option label="今天" value="1" /><el-option label="昨天" value="yesterday" /><el-option label="近 3 天" value="3" /><el-option label="近 7 天" value="7" /><el-option label="近 30 天" value="30" /><el-option v-if="quickTime === 'custom'" label="自定义时间" value="custom" /></el-select>
+        <el-select v-model="filters.sort_by" aria-label="帖子排序" @change="refresh(true)"><el-option label="最新发布" value="published_at" /><el-option label="点赞最多" value="likes_count" /><el-option label="评论最多" value="comments_count" /><el-option label="最新采集" value="collected_at" /></el-select>
+        <el-input v-model="filters.keyword" placeholder="正文 / 作者" clearable @keyup.enter="refresh(true)" @clear="refresh(true)" />
+        <el-button :icon="Search" type="primary" :loading="loading" @click="refresh(true)">查询</el-button>
+      </div>
+      <el-form v-show="expandedFilters" class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
         <div class="filter-grid">
       <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
       <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="`${item.profile?.display_name || sourceUsername(item)} · @${sourceUsername(item)}${item.remark ? ' · ' + item.remark : ''}`" /></el-select></el-form-item>
-      <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="正文 / 作者" clearable /></el-form-item>
       <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
-      <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" /></el-form-item>
+      <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" @change="quickTime = dates ? 'custom' : ''" /></el-form-item>
       <el-form-item label="最低点赞"><el-input-number v-model="filters.min_likes" :min="0" controls-position="right" /></el-form-item>
       <el-form-item label="最低评论"><el-input-number v-model="filters.min_comments" :min="0" controls-position="right" /></el-form-item>
-      <el-form-item label="排序"><el-select v-model="filters.sort_by"><el-option label="最新发布" value="published_at" /><el-option label="点赞最多" value="likes_count" /><el-option label="评论最多" value="comments_count" /></el-select></el-form-item>
         </div>
         <div class="filter-actions">
           <el-button :icon="RotateCcw" :disabled="!hasFilters" @click="resetFilters">清空</el-button>
@@ -219,6 +310,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
         </div>
       </el-form>
     </div>
+    <el-alert v-if="storageWarning" :title="storageWarning" type="warning" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-loading="loading" class="selection-content">
       <template v-if="tab === 'posts'">
@@ -228,15 +320,20 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
             <header class="author"><el-avatar :src="safeSelectionLink(post.author.avatar_url)"><UserRound :size="20" /></el-avatar><div>
               <a :href="safeSelectionLink(post.author.profile_url)" target="_blank" rel="noopener noreferrer">{{ post.author.display_name || post.author.username }}</a>
               <small>{{ label(post.business_platform) }} · @{{ post.author.username }}</small>
-            </div></header>
-            <video v-if="post.media[0] && selectionIsVideo(post.media[0])" class="post-cover" :src="safeSelectionLink(post.media[0])" controls preload="metadata" />
-            <el-image v-else-if="post.media[0]" class="post-cover" :src="safeSelectionLink(post.media[0])" fit="contain" :preview-src-list="post.media.filter(url => !selectionIsVideo(url)).map(url => safeSelectionLink(url))" preview-teleported><template #error>媒体暂不可用</template></el-image>
-            <p class="post-text">{{ post.text_body }}</p>
+            </div><div class="post-marks"><small v-if="readIds.has(post.id)">已读</small><el-tooltip :content="savedIds.has(post.id) ? '取消收藏' : '收藏'"><el-button :icon="Star" :type="savedIds.has(post.id) ? 'warning' : 'default'" :aria-label="savedIds.has(post.id) ? '取消收藏' : '收藏'" :aria-pressed="savedIds.has(post.id)" :disabled="!storageKey" circle @click="setMark(post.id, 'saved', !savedIds.has(post.id))" /></el-tooltip><el-tooltip v-if="readIds.has(post.id)" content="标为未读"><el-button :icon="Check" aria-label="标为未读" circle @click="setMark(post.id, 'read', false)" /></el-tooltip></div></header>
+            <p class="post-text">{{ expandedPosts.has(post.id) ? post.text_body : post.text_body.slice(0, 400).split('\n').slice(0, 8).join('\n') }}</p>
+            <el-button v-if="post.text_body.length > 400 || post.text_body.split('\n').length > 8" link type="primary" class="expand-post" @click="expandedPosts.has(post.id) ? expandedPosts.delete(post.id) : expandedPosts.add(post.id)">{{ expandedPosts.has(post.id) ? '收起正文' : '展开全文' }}</el-button>
+            <div v-if="post.media.length" class="feed-media"><div v-for="(url, mediaIndex) in post.media" :key="`${mediaIndex}:${url}`">
+              <video v-if="selectionIsVideo(url)" :src="safeSelectionLink(url)" controls preload="none" />
+              <el-image v-else :src="safeSelectionLink(url)" loading="lazy" fit="contain" :preview-src-list="post.media.filter(item => !selectionIsVideo(item)).map(item => safeSelectionLink(item))" :initial-index="post.media.slice(0, mediaIndex).filter(item => !selectionIsVideo(item)).length" preview-teleported><template #error>媒体暂不可用</template></el-image>
+            </div></div>
             <small>{{ post.published_at ? formatDate(post.published_at) : '发布时间未知' }}<span v-if="post.media.length"> · {{ post.media.length }} 项媒体</span></small>
             <footer><span><Heart :size="15" />{{ post.likes_count ?? '未知' }}<MessageCircle :size="15" />{{ post.comments_count ?? '未知' }}</span>
               <el-button @click="openPost(post)">查看选题<ExternalLink :size="14" /></el-button></footer>
           </article>
         </div>
+        <div v-if="hasMore" ref="loadMoreAnchor" class="feed-more"><el-alert v-if="moreError" :title="moreError" type="error" :closable="false" /><el-button :loading="moreLoading" :disabled="loading" @click="loadMore">{{ moreError ? '重试加载' : '加载更多' }}</el-button><small>已加载 {{ posts.length }} / {{ total }} 条</small></div>
+        <small v-else-if="posts.length" class="feed-more">已加载全部 {{ posts.length }} 条</small>
       </template>
       <el-table v-else-if="tab === 'sources'" :data="sources" class="selection-table" row-key="id" border stripe empty-text="暂无来源账号">
         <el-table-column label="来源账号" min-width="260"><template #default="{ row }"><div class="source-identity">
@@ -259,7 +356,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
         <el-table-column label="操作" width="100" align="center" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row.id)">查看工单</el-button></template></el-table-column>
       </el-table>
     </div>
-    <div v-if="tab !== 'sources'" class="selection-pagination selection-pagination--main"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10, 20, 50, 100]" :pager-count="5" background layout="total, sizes, prev, pager, next" @current-change="refresh()" @size-change="refresh(true)" /></div>
+    <div v-if="tab === 'orders'" class="selection-pagination selection-pagination--main"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10, 20, 50, 100]" :pager-count="5" background layout="total, sizes, prev, pager, next" @current-change="refresh()" @size-change="refresh(true)" /></div>
     </div>
 
     <el-dialog v-model="sourceVisible" title="添加来源账号" width="520px" align-center :close-on-click-modal="false">
@@ -373,7 +470,7 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .filter-grid__item--wide { grid-column: span 2; }
 .filter-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .filter-actions :deep(.el-button + .el-button) { margin-left: 0; }
-.selection-content { min-height: 200px; background: var(--app-surface, #fff); } .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 16px; }
+.selection-content { min-height: 200px; } .post-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 960px; margin: auto; }
 .post-item { min-width: 0; background: var(--app-surface, #fff); border: 1px solid var(--app-border, #dce3eb); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .author { min-width: 0; } .author > div { min-width: 0; overflow-wrap: anywhere; } .author :deep(.el-avatar) { flex: 0 0 36px; }
 .source-identity { display: flex; align-items: center; gap: 12px; padding: 6px 0; min-width: 0; }
@@ -382,7 +479,18 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .source-identity strong { color: var(--app-text, #26384a); font-size: 14px; font-weight: 700; }
 .selection-table :deep(.el-table__header th) { background: var(--app-surface-muted, #f8fafc); color: var(--app-text, #52606d); font-size: 12px; font-weight: 600; }
 .post-cover { width: 100%; height: 260px; object-fit: contain; background: var(--app-surface-muted, #f6f8fa); }
-.post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; min-height: 100px; }
+.post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; line-height: 1.8; font-size: 15px; }
+.expand-post { align-self: flex-start; }
+.post-marks { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.feed-media { display: flex; overflow-x: auto; gap: 12px; scroll-snap-type: x proximity; }
+.feed-media > div { flex: 0 0 min(100%, 360px); scroll-snap-align: start; }
+.feed-media video, .feed-media .el-image { width: 100%; height: 320px; object-fit: contain; background: var(--app-surface-muted, #f8fafc); }
+.feed-more { text-align: center; padding: 20px; }
+.feed-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.feed-controls .el-select { width: 132px; }
+.feed-controls .el-input { width: 220px; max-width: 100%; }
+.feed-controls + .el-form { margin-top: 16px; }
+.filter-title .el-button { margin-left: auto; }
 footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; }
 .selection-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .selection-pagination--main { padding: 14px 16px; border: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }

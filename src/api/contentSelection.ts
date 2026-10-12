@@ -61,6 +61,8 @@ export interface SelectionAiRequest {
 export interface SelectionAiResult { text_body: string; changed: boolean; message?: string | null }
 const base = '/api/content-selection'
 export const contentSelection = {
+  localScope: () => http.get<{ tenant_id: string; user_id: string }>(`${base}/local-state-scope`),
+  queryPosts: (data: AnyRecord) => http.post<SelectionPage<SelectionPost>>(`${base}/posts/query`, data),
   previewText: (id: string, data: SelectionAiRequest) =>
     http.post<SelectionAiResult>(`${base}/posts/${encodeURIComponent(id)}/ai-preview`, data),
   sources: () => http.get<SelectionSource[]>(`${base}/sources`),
