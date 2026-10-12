@@ -10,6 +10,7 @@ import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusines
 import { formatDate } from '@/utils/format'
 import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from '@/utils/contentSelection'
 import type { AnyRecord } from '@/types/api'
+import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -38,6 +39,7 @@ const selected = ref<SelectionPost | null>(null)
 const editVisible = ref(false)
 const editLoading = ref(false)
 const publishBusy = ref(false)
+const aiBusy = ref(false)
 const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[] })
 const accounts = ref<AnyRecord[]>([])
 const previousOrders = ref<SelectionOrder[]>([])
@@ -99,6 +101,7 @@ async function toggleSource(source: SelectionSource) {
   } catch (e) { showError(e) } finally { sourceBusy.value = false }
 }
 async function openPost(post: SelectionPost) {
+  aiBusy.value = false
   const id = ++editRequestId
   selected.value = null
   previousOrders.value = []
@@ -132,9 +135,9 @@ async function loadPrevious() {
   } catch (e) { showError(e) }
 }
 async function publish() {
-  if (!selected.value || !draft.account_id || publishBusy.value) return
+  if (!selected.value || !draft.account_id || publishBusy.value || aiBusy.value) return
   try { await ElMessageBox.confirm('将发布到所选账号，确认提交？', '确认发布', { type: 'warning' }) } catch { return }
-  if (publishBusy.value || !selected.value) return
+  if (publishBusy.value || aiBusy.value || !selected.value) return
   publishBusy.value = true
   try {
     const order = await contentSelection.publish(selected.value.id, { ...draft, media_indexes: [...draft.media_indexes], source_revision: selected.value.updated_at })
@@ -264,6 +267,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
         <section><h3>发布稿</h3><el-form label-position="top"><el-form-item label="发布账号" required><el-select v-model="draft.account_id" filterable :disabled="publishBusy || !auth.can('accounts.view')" placeholder="选择账号">
           <el-option v-for="account in accounts" :key="String(account.id)" :value="String(account.id)" :label="`${account.display_name || account.username} · @${account.username || ''} · ${label(String(account.business_platform))} · ID ${account.id}`" />
         </el-select></el-form-item><el-form-item label="发布正文"><el-input v-model="draft.text_body" type="textarea" :rows="9" :maxlength="20000" :disabled="publishBusy" /></el-form-item></el-form>
+          <SelectionAiEditor v-if="editVisible && auth.can('operations.dispatch')" v-model="draft.text_body" :post-id="selected.id" :revision="selected.updated_at" :account-id="draft.account_id" :platform="String(accounts.find(a => String(a.id) === draft.account_id)?.business_platform || '')" :disabled="publishBusy" @busy="aiBusy = $event" />
           <p>已保留 {{ draft.media_indexes.length }} 项媒体</p>
           <el-alert v-if="duplicate" title="此账号已有发布工单，请查看原工单" type="warning" :closable="false" />
           <h3>已使用账号</h3><el-empty v-if="!previousTotal" description="尚未提交发布" :image-size="48" />
@@ -271,7 +275,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
           <div v-if="previousTotal > 20" class="selection-pagination"><el-pagination v-model:current-page="previousPage" :total="previousTotal" :page-size="20" :pager-count="5" layout="total, prev, pager, next" @current-change="loadPrevious" /></div>
         </section>
       </div>
-      <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
+      <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || aiBusy || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
     </el-dialog>
     <el-dialog v-model="orderVisible" title="选题发布工单" width="980px" align-center :close-on-click-modal="false" @closed="detailRequestId++">
       <div v-loading="orderBusy" class="order-body" v-if="detail"><p class="order-id">工单 ID：{{ detail.id }}</p><p>{{ detail.account.display_name || detail.account.username }} · {{ label(detail.business_platform) }} · {{ selectionStatus[detail.status] || detail.status }}</p>

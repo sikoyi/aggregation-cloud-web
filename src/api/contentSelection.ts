@@ -51,8 +51,18 @@ export interface SelectionOrder {
   attempts?: { task_id: string; status: string; error_message?: string; created_at: string }[]
 }
 export interface SelectionPage<T> { items: T[]; total: number }
+export interface SelectionAiRequest {
+  account_id: string
+  source_revision: string
+  text_body: string
+  action: 'translate' | 'shorten'
+  language?: string
+}
+export interface SelectionAiResult { text_body: string; changed: boolean; message?: string | null }
 const base = '/api/content-selection'
 export const contentSelection = {
+  previewText: (id: string, data: SelectionAiRequest) =>
+    http.post<SelectionAiResult>(`${base}/posts/${encodeURIComponent(id)}/ai-preview`, data),
   sources: () => http.get<SelectionSource[]>(`${base}/sources`),
   createSource: (data: AnyRecord) => http.post<SelectionSource>(`${base}/sources`, data),
   updateSource: (id: string, data: AnyRecord) => http.put<SelectionSource>(`${base}/sources/${encodeURIComponent(id)}`, data),

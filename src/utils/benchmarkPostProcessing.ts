@@ -8,7 +8,7 @@ export interface PostProcessing {
   image_reduction?: { before: number; after: number }
 }
 
-const languages: Record<string, string> = {
+export const languages: Record<string, string> = {
   en: '英语', ko: '韩语', ja: '日语', es: '西班牙语', fr: '法语', de: '德语',
   pt: '葡萄牙语', it: '意大利语', id: '印尼语', th: '泰语', vi: '越南语',
   ar: '阿拉伯语', hi: '印地语', tr: '土耳其语', 'zh-CN': '简体中文', 'zh-TW': '繁体中文',
