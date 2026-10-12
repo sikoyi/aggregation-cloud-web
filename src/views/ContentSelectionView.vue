@@ -46,6 +46,9 @@ const selectedAccount = computed(() => accounts.value.find(account => String(acc
 const previousOrders = ref<SelectionOrder[]>([])
 const previousTotal = ref(0)
 const previousPage = ref(1)
+const editTab = ref('content')
+const historyLoading = ref(false)
+let historyRequestId = 0
 const orderVisible = ref(false)
 const detail = ref<SelectionOrder | null>(null)
 const orderBusy = ref(false)
@@ -102,6 +105,9 @@ async function toggleSource(source: SelectionSource) {
   } catch (e) { showError(e) } finally { sourceBusy.value = false }
 }
 async function openPost(post: SelectionPost) {
+  editTab.value = 'content'
+  historyRequestId++
+  historyLoading.value = false
   aiBusy.value = false
   const id = ++editRequestId
   selected.value = null
@@ -129,11 +135,17 @@ async function openPost(post: SelectionPost) {
 }
 async function loadPrevious() {
   const id = editRequestId
+  const request = ++historyRequestId
   if (!selected.value) return
+  historyLoading.value = true
   try {
     const result = await contentSelection.orders({ post_id: selected.value.id, page: previousPage.value, page_size: 20 })
-    if (id === editRequestId) previousOrders.value = result.items
-  } catch (e) { showError(e) }
+    if (id === editRequestId && request === historyRequestId) {
+      previousOrders.value = result.items
+      previousTotal.value = result.total
+    }
+  } catch (e) { if (id === editRequestId && request === historyRequestId) showError(e) }
+  finally { if (id === editRequestId && request === historyRequestId) historyLoading.value = false }
 }
 async function publish() {
   if (!selected.value || !draft.account_id || publishBusy.value || aiBusy.value) return
@@ -259,6 +271,11 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
     </el-dialog>
     <el-dialog v-model="editVisible" class="selection-publish-dialog" title="选题发布" width="1140px" align-center :close-on-click-modal="false" :close-on-press-escape="!publishBusy" :show-close="!publishBusy" @closed="editRequestId++">
       <div v-loading="editLoading" class="publish-body" v-if="selected">
+        <el-tabs v-model="editTab" class="publish-tabs">
+          <el-tab-pane label="内容编辑" name="content" />
+          <el-tab-pane :label="`发布记录（${previousTotal}）`" name="history" />
+        </el-tabs>
+        <div v-show="editTab === 'content'">
         <el-form class="publish-account" label-position="left" label-width="80px"><el-form-item label="发布账号" required>
           <el-select v-model="draft.account_id" filterable :disabled="publishBusy || !auth.can('accounts.view')" placeholder="选择账号">
             <template #prefix><el-avatar :size="26" :src="safeSelectionLink(String(selectedAccount?.avatar_url || ''))"><UserRound :size="16" /></el-avatar></template>
@@ -283,11 +300,19 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
             <el-checkbox :value="index" :disabled="publishBusy">保留第 {{ index + 1 }} 项</el-checkbox>
           </div></el-checkbox-group>
         </section>
-        <details v-if="previousTotal" :key="selected.id" class="publish-history"><summary>发布历史 · {{ previousTotal }} 条</summary>
-          <div v-for="order in previousOrders" :key="order.id" class="previous-order"><span>{{ order.account.display_name || order.account.username }} · {{ selectionStatus[order.status] || order.status }}</span><el-button link type="primary" @click="openOrder(order.id)">查看工单</el-button></div>
-          <div v-if="previousTotal > 20" class="selection-pagination"><el-pagination v-model:current-page="previousPage" :total="previousTotal" :page-size="20" :pager-count="5" layout="total, prev, pager, next" @current-change="loadPrevious" /></div>
-        </details>
-        <small v-else class="publish-history">暂无发布记录</small>
+        </div>
+        <div v-show="editTab === 'history'" class="publish-history">
+          <el-table v-loading="historyLoading" :data="previousOrders" class="selection-table" row-key="id" border stripe max-height="380" empty-text="暂无发布记录">
+            <el-table-column label="发布账号" min-width="260"><template #default="{ row }"><div class="source-identity">
+              <el-avatar :size="36" :src="safeSelectionLink(row.account.avatar_url)"><UserRound :size="18" /></el-avatar>
+              <div><strong>{{ row.account.display_name || row.account.username }}</strong><small>@{{ row.account.username }} · {{ label(row.business_platform) }}</small></div>
+            </div></template></el-table-column>
+            <el-table-column label="状态" width="120"><template #default="{ row }"><el-tag :type="canRetrySelection(row.status) ? 'danger' : row.status === 'succeeded' ? 'success' : 'info'">{{ selectionStatus[row.status] || row.status }}</el-tag></template></el-table-column>
+            <el-table-column label="提交时间" min-width="175"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
+            <el-table-column label="操作" width="110" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row.id)">查看工单</el-button></template></el-table-column>
+          </el-table>
+          <div class="selection-pagination"><el-pagination v-model:current-page="previousPage" :total="previousTotal" :page-size="20" :pager-count="5" :disabled="historyLoading || editLoading" background layout="total, prev, pager, next" @current-change="loadPrevious" /></div>
+        </div>
       </div>
       <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || aiBusy || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
     </el-dialog>
@@ -320,8 +345,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
 .publish-text :deep(textarea) { height: 212px; min-height: 212px !important; line-height: 1.7; padding: 10px 12px; }
 .publish-media { padding-top: 16px; border-top: 1px solid var(--app-border, #dce3eb); }
 .publish-media h3 { display: flex; align-items: center; gap: 12px; }
-.publish-history { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--app-border, #dce3eb); }
-.publish-history summary { cursor: pointer; font-size: 13px; color: var(--app-text-muted, #697786); }
+.publish-tabs :deep(.el-tabs__header) { margin-bottom: 16px; }
+.publish-history { min-width: 0; }
 @media (max-width: 760px) { .publish-comparison { grid-template-columns: minmax(0, 1fr); gap: 16px; } .publish-original { height: auto; max-height: 212px; } }
 .selection-view { min-width: 0; border: 1px solid var(--app-border, #d9e2ec); border-radius: 8px; overflow: hidden; background: var(--app-surface, #fff); }
 .selection-heading, .selection-heading > div, .author, footer, footer > span { display: flex; align-items: center; gap: 12px; }
