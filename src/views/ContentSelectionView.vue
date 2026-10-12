@@ -24,6 +24,12 @@ const total = ref(0)
 const page = ref(1)
 const dates = ref<[string, string] | null>(null)
 const filters = reactive({ platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
+const hasFilters = computed(() => !!(filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
+function resetFilters() {
+  Object.assign(filters, { platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined, min_comments: undefined, sort_by: 'published_at' })
+  dates.value = null
+  void refresh(true)
+}
 const sourceVisible = ref(false)
 const sourceBusy = ref(false)
 const sourceForm = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60 })
@@ -167,17 +173,25 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
       <el-button v-if="auth.can('operations.edit')" type="primary" @click="sourceVisible = true"><Plus :size="16" />添加来源账号</el-button>
     </div></header>
     <el-tabs v-model="tab" @tab-change="refresh(true)"><el-tab-pane label="帖子选题" name="posts" /><el-tab-pane label="来源账号" name="sources" /><el-tab-pane label="发布工单" name="orders" /></el-tabs>
-    <el-form v-if="tab === 'posts'" class="selection-filters" inline @submit.prevent="refresh(true)">
-      <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
-      <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="item.remark || item.profile_url" /></el-select></el-form-item>
+    <div v-if="tab === 'posts'" class="selection-filters">
+      <div class="filter-title"><Search :size="14" /><span>筛选条件</span></div>
+      <el-form class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
+        <div class="filter-grid">
+      <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
+      <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="item.remark || item.profile_url" /></el-select></el-form-item>
       <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="正文 / 作者" clearable /></el-form-item>
-      <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
-      <el-form-item label="发布时间"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" start-placeholder="开始时间" end-placeholder="结束时间" /></el-form-item>
+      <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
+      <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" /></el-form-item>
       <el-form-item label="最低点赞"><el-input-number v-model="filters.min_likes" :min="0" controls-position="right" /></el-form-item>
       <el-form-item label="最低评论"><el-input-number v-model="filters.min_comments" :min="0" controls-position="right" /></el-form-item>
       <el-form-item label="排序"><el-select v-model="filters.sort_by"><el-option label="最新发布" value="published_at" /><el-option label="点赞最多" value="likes_count" /><el-option label="评论最多" value="comments_count" /></el-select></el-form-item>
-      <el-form-item><el-button type="primary" native-type="submit"><Search :size="16" />查询</el-button></el-form-item>
-    </el-form>
+        </div>
+        <div class="filter-actions">
+          <el-button :icon="RotateCcw" :disabled="!hasFilters" @click="resetFilters">清空</el-button>
+          <el-button type="primary" :icon="Search" :loading="loading" native-type="submit">查询</el-button>
+        </div>
+      </el-form>
+    </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-loading="loading" class="selection-content">
       <template v-if="tab === 'posts'">
@@ -214,7 +228,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
         <el-table-column label="操作" width="100"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row.id)">查看工单</el-button></template></el-table-column>
       </el-table>
     </div>
-    <el-pagination v-if="tab !== 'sources'" v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="refresh()" />
+    <div v-if="tab !== 'sources'" class="selection-pagination"><el-pagination v-model:current-page="page" :total="total" :page-size="20" :pager-count="5" layout="total, prev, pager, next" @current-change="refresh()" /></div>
 
     <el-dialog v-model="sourceVisible" title="添加来源账号" width="520px" align-center :close-on-click-modal="false">
       <el-form label-position="top"><el-form-item label="平台"><el-select v-model="sourceForm.business_platform"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
@@ -238,7 +252,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
           <el-alert v-if="duplicate" title="此账号已有发布工单，请查看原工单" type="warning" :closable="false" />
           <h3>已使用账号</h3><el-empty v-if="!previousTotal" description="尚未提交发布" :image-size="48" />
           <div v-for="order in previousOrders" :key="order.id" class="previous-order"><span>{{ order.account.display_name || order.account.username }} · {{ selectionStatus[order.status] || order.status }}</span><el-button link type="primary" @click="openOrder(order.id)">查看工单</el-button></div>
-          <el-pagination v-if="previousTotal > 20" v-model:current-page="previousPage" :total="previousTotal" :page-size="20" layout="prev, pager, next" @current-change="loadPrevious" />
+          <div v-if="previousTotal > 20" class="selection-pagination"><el-pagination v-model:current-page="previousPage" :total="previousTotal" :page-size="20" :pager-count="5" layout="total, prev, pager, next" @current-change="loadPrevious" /></div>
         </section>
       </div>
       <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
@@ -262,16 +276,23 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
 h1 { margin: 0; font-size: 20px; } h3 { font-size: 15px; margin: 0 0 14px; }
 h3 a { float: right; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; } a { color: var(--app-blue, #28678d); overflow-wrap: anywhere; }
 small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; line-height: 1.7; }
-.selection-filters { border-bottom: 1px solid var(--app-border, #dce3eb); margin-bottom: 18px; }
-.selection-filters :deep(.el-select), .selection-filters :deep(.el-input) { width: 170px; }
-.selection-filters :deep(.el-input-number) { width: 130px; }
+.selection-filters { margin-bottom: 12px; padding: 12px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); }
+.filter-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 13px; font-weight: 700; }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; }
+.filter-grid :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; min-width: 0; }
+.filter-grid :deep(.el-form-item__label) { min-width: 72px; justify-content: flex-end; color: var(--app-text, #52606d); font-size: 12px; font-weight: 600; text-align: right; }
+.filter-grid :deep(.el-form-item__content) { min-width: 0; }
+.filter-grid :deep(.el-select), .filter-grid :deep(.el-input), .filter-grid :deep(.el-date-editor), .filter-grid :deep(.el-input-number) { width: 100%; min-width: 0; }
+.filter-grid__item--wide { grid-column: span 2; }
+.filter-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.filter-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .selection-content { min-height: 200px; } .post-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 16px; }
 .post-item { min-width: 0; border: 1px solid var(--app-border, #dce3eb); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 .author { min-width: 0; } .author > div { min-width: 0; overflow-wrap: anywhere; } .author :deep(.el-avatar) { flex: 0 0 36px; }
 .post-cover { width: 100%; height: 260px; object-fit: contain; background: var(--app-surface-muted, #f6f8fa); }
 .post-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; min-height: 100px; }
 footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; }
-.el-pagination { justify-content: flex-end; margin-top: 18px; }
+.selection-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; max-height: 65vh; overflow-y: auto; }
 .editor > section { min-width: 0; } .editor .el-select { width: 100%; }
 .original-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; margin: 0 0 18px; }
@@ -282,4 +303,5 @@ footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } fo
 .order-body { max-height: 68vh; overflow-y: auto; } .order-body .editor { max-height: none; margin-top: 20px; } .order-id { overflow-wrap: anywhere; }
 :deep(.el-button > span) { gap: 6px; }
 @media (max-width: 760px) { .editor { grid-template-columns: minmax(0, 1fr); } .selection-view { padding: 12px; } .selection-filters :deep(.el-date-editor) { width: 100%; min-width: 0; } }
+@media (max-width: 640px) { .filter-grid { grid-template-columns: minmax(0, 1fr); } .filter-grid__item--wide { grid-column: auto; } .selection-pagination { justify-content: flex-start; } }
 </style>
