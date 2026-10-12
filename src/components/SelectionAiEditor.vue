@@ -24,6 +24,7 @@ function apply() {
 <template>
   <div class="selection-ai">
     <div class="ai-toolbar">
+      <h3>发布稿</h3>
       <el-select v-model="language" :disabled="disabled || busy" placeholder="目标语言" aria-label="翻译目标语言" class="ai-language">
         <el-option v-for="(name, code) in languages" :key="code" :label="name" :value="code" />
       </el-select>
@@ -32,6 +33,7 @@ function apply() {
         <span><el-button type="primary" plain :icon="Sparkles" :disabled="unavailable || platform !== 'x'" @click="generate('shorten')">AI 缩写</el-button></span>
       </el-tooltip>
     </div>
+    <slot />
     <small v-if="busy" role="status">AI 处理中…</small>
     <small v-if="modelValue.length > 10000">正文超过 AI 处理上限（10000 字符）</small>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
@@ -48,10 +50,12 @@ function apply() {
 </template>
 
 <style scoped>
-.selection-ai { margin: 0 0 16px; min-width: 0; }
+.selection-ai { min-width: 0; }
 .ai-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.selection-ai > .ai-toolbar { min-height: 40px; margin-bottom: 12px; }
+.ai-toolbar h3 { margin: 0 auto 0 0; font-size: 15px; }
 .ai-toolbar :deep(.el-button) { margin-left: 0; }
-.ai-toolbar .ai-language { width: 160px; max-width: 100%; }
+.ai-toolbar .ai-language { width: 130px; max-width: 100%; }
 .ai-result { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--app-border, #dce3eb); }
 .ai-result p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; max-height: 260px; overflow-y: auto; }
 .selection-ai :deep(.el-alert) { margin-top: 10px; }

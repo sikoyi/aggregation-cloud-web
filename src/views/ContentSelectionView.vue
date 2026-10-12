@@ -42,6 +42,7 @@ const publishBusy = ref(false)
 const aiBusy = ref(false)
 const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[] })
 const accounts = ref<AnyRecord[]>([])
+const selectedAccount = computed(() => accounts.value.find(account => String(account.id) === draft.account_id))
 const previousOrders = ref<SelectionOrder[]>([])
 const previousTotal = ref(0)
 const previousPage = ref(1)
@@ -256,24 +257,37 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
         <el-form-item label="增量采集间隔（分钟）"><el-input-number v-model="sourceForm.interval_minutes" :min="1" :max="1440" /></el-form-item></el-form>
       <template #footer><el-button :disabled="sourceBusy" @click="sourceVisible = false">取消</el-button><el-button type="primary" :loading="sourceBusy" @click="createSource">开始采集</el-button></template>
     </el-dialog>
-    <el-dialog v-model="editVisible" title="选题发布" width="1140px" align-center :close-on-click-modal="false" :close-on-press-escape="!publishBusy" :show-close="!publishBusy" @closed="editRequestId++">
-      <div v-loading="editLoading" class="editor" v-if="selected">
-        <section><h3>原帖内容 <a :href="safeSelectionLink(selected.content_url)" target="_blank" rel="noopener noreferrer"><ExternalLink :size="15" />原帖</a></h3><p class="original-text">{{ selected.text_body }}</p>
+    <el-dialog v-model="editVisible" class="selection-publish-dialog" title="选题发布" width="1140px" align-center :close-on-click-modal="false" :close-on-press-escape="!publishBusy" :show-close="!publishBusy" @closed="editRequestId++">
+      <div v-loading="editLoading" class="publish-body" v-if="selected">
+        <el-form class="publish-account" label-position="left" label-width="80px"><el-form-item label="发布账号" required>
+          <el-select v-model="draft.account_id" filterable :disabled="publishBusy || !auth.can('accounts.view')" placeholder="选择账号">
+            <template #prefix><el-avatar :size="26" :src="safeSelectionLink(String(selectedAccount?.avatar_url || ''))"><UserRound :size="16" /></el-avatar></template>
+            <el-option v-for="account in accounts" :key="String(account.id)" :value="String(account.id)" :label="`${account.display_name || account.username} · @${account.username || ''} · ${label(String(account.business_platform))} · ID ${account.id}`">
+              <div class="account-option"><el-avatar :size="28" :src="safeSelectionLink(String(account.avatar_url || ''))"><UserRound :size="16" /></el-avatar><span>{{ account.display_name || account.username }} · @{{ account.username }} · {{ label(String(account.business_platform)) }} · ID {{ account.id }}</span></div>
+            </el-option>
+          </el-select>
+        </el-form-item></el-form>
+        <el-alert v-if="duplicate" title="此账号已有发布工单，请查看原工单" type="warning" :closable="false" />
+        <div class="publish-comparison">
+        <section><h3 class="original-heading">原帖内容 <a :href="safeSelectionLink(selected.content_url)" target="_blank" rel="noopener noreferrer"><ExternalLink :size="15" />原帖</a></h3><p class="original-text publish-original">{{ selected.text_body || '无正文' }}</p></section>
+        <section>
+          <SelectionAiEditor v-if="editVisible && auth.can('operations.dispatch')" v-model="draft.text_body" :post-id="selected.id" :revision="selected.updated_at" :account-id="draft.account_id" :platform="String(selectedAccount?.business_platform || '')" :disabled="publishBusy" @busy="aiBusy = $event">
+            <el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" />
+          </SelectionAiEditor>
+          <template v-else><h3 class="original-heading">发布稿</h3><el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" /></template>
+        </section>
+        </div>
+        <section v-if="selected.media.length" class="publish-media"><h3>媒体 <small>已保留 {{ draft.media_indexes.length }} / {{ selected.media.length }} 项</small></h3>
           <el-checkbox-group v-model="draft.media_indexes" class="media-grid"><div v-for="(url, index) in selected.media" :key="url" class="media-item">
             <video v-if="selectionIsVideo(url)" :src="safeSelectionLink(url)" controls preload="metadata" /><el-image v-else :src="safeSelectionLink(url)" fit="contain" :preview-src-list="[safeSelectionLink(url)]" preview-teleported />
             <el-checkbox :value="index" :disabled="publishBusy">保留第 {{ index + 1 }} 项</el-checkbox>
           </div></el-checkbox-group>
         </section>
-        <section><h3>发布稿</h3><el-form label-position="top"><el-form-item label="发布账号" required><el-select v-model="draft.account_id" filterable :disabled="publishBusy || !auth.can('accounts.view')" placeholder="选择账号">
-          <el-option v-for="account in accounts" :key="String(account.id)" :value="String(account.id)" :label="`${account.display_name || account.username} · @${account.username || ''} · ${label(String(account.business_platform))} · ID ${account.id}`" />
-        </el-select></el-form-item><el-form-item label="发布正文"><el-input v-model="draft.text_body" type="textarea" :rows="9" :maxlength="20000" :disabled="publishBusy" /></el-form-item></el-form>
-          <SelectionAiEditor v-if="editVisible && auth.can('operations.dispatch')" v-model="draft.text_body" :post-id="selected.id" :revision="selected.updated_at" :account-id="draft.account_id" :platform="String(accounts.find(a => String(a.id) === draft.account_id)?.business_platform || '')" :disabled="publishBusy" @busy="aiBusy = $event" />
-          <p>已保留 {{ draft.media_indexes.length }} 项媒体</p>
-          <el-alert v-if="duplicate" title="此账号已有发布工单，请查看原工单" type="warning" :closable="false" />
-          <h3>已使用账号</h3><el-empty v-if="!previousTotal" description="尚未提交发布" :image-size="48" />
+        <details v-if="previousTotal" :key="selected.id" class="publish-history"><summary>发布历史 · {{ previousTotal }} 条</summary>
           <div v-for="order in previousOrders" :key="order.id" class="previous-order"><span>{{ order.account.display_name || order.account.username }} · {{ selectionStatus[order.status] || order.status }}</span><el-button link type="primary" @click="openOrder(order.id)">查看工单</el-button></div>
           <div v-if="previousTotal > 20" class="selection-pagination"><el-pagination v-model:current-page="previousPage" :total="previousTotal" :page-size="20" :pager-count="5" layout="total, prev, pager, next" @current-change="loadPrevious" /></div>
-        </section>
+        </details>
+        <small v-else class="publish-history">暂无发布记录</small>
       </div>
       <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || aiBusy || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
     </el-dialog>
@@ -290,6 +304,25 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++ })
 </template>
 
 <style scoped>
+:global(.selection-publish-dialog) { max-height: calc(100dvh - 32px); display: flex; flex-direction: column; margin: auto !important; }
+:global(.selection-publish-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
+:global(.selection-publish-dialog .el-dialog__header), :global(.selection-publish-dialog .el-dialog__footer) { flex-shrink: 0; }
+.publish-account { padding-bottom: 16px; border-bottom: 1px solid var(--app-border, #dce3eb); margin-bottom: 16px; }
+.publish-account :deep(.el-form-item) { margin-bottom: 0; }
+.publish-account :deep(.el-select) { max-width: 720px; }
+.account-option { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.account-option :deep(.el-avatar) { flex-shrink: 0; }
+.account-option span { overflow: hidden; text-overflow: ellipsis; }
+.publish-comparison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.publish-comparison > section { min-width: 0; }
+.original-heading { display: flex; align-items: center; justify-content: space-between; min-height: 40px; margin: 0 0 12px; }
+.publish-original { height: 212px; overflow-y: auto; padding: 10px 12px; box-sizing: border-box; background: var(--app-surface-muted, #f8fafc); border: 1px solid var(--app-border, #dce3eb); border-radius: 4px; }
+.publish-text :deep(textarea) { height: 212px; min-height: 212px !important; line-height: 1.7; padding: 10px 12px; }
+.publish-media { padding-top: 16px; border-top: 1px solid var(--app-border, #dce3eb); }
+.publish-media h3 { display: flex; align-items: center; gap: 12px; }
+.publish-history { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--app-border, #dce3eb); }
+.publish-history summary { cursor: pointer; font-size: 13px; color: var(--app-text-muted, #697786); }
+@media (max-width: 760px) { .publish-comparison { grid-template-columns: minmax(0, 1fr); gap: 16px; } .publish-original { height: auto; max-height: 212px; } }
 .selection-view { min-width: 0; border: 1px solid var(--app-border, #d9e2ec); border-radius: 8px; overflow: hidden; background: var(--app-surface, #fff); }
 .selection-heading, .selection-heading > div, .author, footer, footer > span { display: flex; align-items: center; gap: 12px; }
 .selection-heading { justify-content: space-between; gap: 16px; min-height: 70px; padding: 13px 16px; border-bottom: 1px solid var(--app-border, #e6edf3); }
