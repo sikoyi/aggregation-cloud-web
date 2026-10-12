@@ -46,6 +46,17 @@ async function run() {
       assert.equal(await page.locator('.source-identity small').innerText(), '@demo')
       assert.equal(await page.locator('.source-identity img').getAttribute('src'), source.profile.avatar_url)
       assert.equal(await page.locator('.selection-table.el-table--border.el-table--striped').count(), 1)
+      source.status = 'retrying'
+      source.last_error = 'HTTP 500 internal-private-diagnostic'
+      await page.getByRole('button', {name:'刷新',exact:true}).click()
+      await page.getByText('采集暂缓，稍后自动重试', {exact:true}).waitFor()
+      assert(!(await page.locator('.selection-table').innerText()).includes('internal-private-diagnostic'))
+      source.status = 'attention'
+      source.last_error = '采集授权不可用，请联系管理员检查密钥或访问权限'
+      await page.getByRole('button', {name:'刷新',exact:true}).click()
+      await page.getByRole('button', {name:'查看处理提示',exact:true}).click()
+      await page.locator('.el-popover:visible').filter({hasText:source.last_error}).waitFor()
+      await page.locator('.selection-title').click()
       await page.screenshot({path:path.join(screenshotDir,`sources-${viewport.width}.png`),fullPage:true})
       await page.getByRole('tab', {name:'帖子选题',exact:true}).click()
       await page.getByRole('button',{name:'查看选题'}).waitFor()

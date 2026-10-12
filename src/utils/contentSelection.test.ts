@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { canRetrySelection, safeSelectionLink, selectionIsVideo } from './contentSelection'
+import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from './contentSelection'
 
 describe('selection publication boundaries', () => {
+  it('separates temporary collection delays from actionable failures', () => {
+    expect(selectionStatus.retrying).toBe('采集暂缓')
+    expect(selectionStatus.attention).toBe('需要处理')
+    expect(selectionStatus.collecting).toBe('采集中')
+  })
   it.each(['queued', 'running', 'dispatching', 'succeeded', 'completed', 'waiting_runtime'])('does not retry %s', status => {
     expect(canRetrySelection(status)).toBe(false)
   })
