@@ -1980,6 +1980,34 @@ export const resources: Record<string, ResourceConfig> = {
       { key: "created_at", label: "创建时间", type: "datetime", readonly: true },
       { key: "updated_at", label: "更新时间", type: "datetime", readonly: true },
     ],
+    rowActions: [
+      {
+        key: "release-account-bindings",
+        label: "释放账号",
+        permission: "devices.edit",
+        method: "POST",
+        icon: "unlink",
+        variant: "danger",
+        // 非运行设备固定展示释放入口；无绑定时后端按幂等成功返回，便于运营确认设备已释放。
+        visible: (record) => record.status !== "running" && !record.current_task_run_id,
+        path: (record) =>
+          `/api/execution-slots/${encodeURIComponent(String(record.id))}/release-account-bindings`,
+        confirm: (record) => {
+          const name = String(record.display_name || record.provider_slot_id || record.id)
+          return `确认释放设备 ${name} 的账号绑定？将解除 Instagram、Threads 等当前平台会话，设备、账号和代理配置都会保留。`
+        },
+        successTitle: "设备账号已释放",
+        successMessage: (data) => {
+          const count = Number(data.released_count || 0)
+          const platforms = Array.isArray(data.released_platforms)
+            ? data.released_platforms.join("、")
+            : ""
+          return count > 0
+            ? `已解除 ${count} 个平台账号绑定${platforms ? `（${platforms}）` : ""}`
+            : "设备当前已经没有账号绑定"
+        },
+      },
+    ],
     batchActions: [
       {
         key: "batch-set-group",
@@ -2037,7 +2065,8 @@ export const resources: Record<string, ResourceConfig> = {
         },
       },
     ],
-    inlineActionKeys: ["sync-detail"],
+    // 释放账号是设备复用前的高频操作，直接显示在操作列中。
+    inlineActionKeys: ["sync-detail", "release-account-bindings"],
   },
 
   slotGroups: {

@@ -835,6 +835,26 @@ describe('设备批量分组', () => {
   })
 })
 
+describe('设备释放账号绑定', () => {
+  const action = resources.slots.rowActions?.find((item) => item.key === 'release-account-bindings')
+
+  it('对所有非运行设备开放，无绑定时也能确认设备已经释放', () => {
+    expect(action?.visible?.({ id: 'slot-1', status: 'idle', account_sessions: [{ id: 'session-1' }] })).toBe(true)
+    expect(action?.visible?.({ id: 'slot-1', status: 'idle', bound_account_id: 'account-1' })).toBe(true)
+    expect(action?.visible?.({ id: 'slot-1', status: 'running', account_sessions: [{ id: 'session-1' }] })).toBe(false)
+    expect(action?.visible?.({ id: 'slot-1', status: 'idle', current_task_run_id: 'task-1', bound_account_id: 'account-1' })).toBe(false)
+    expect(action?.visible?.({ id: 'slot-1', status: 'idle', account_sessions: [] })).toBe(true)
+    expect(resources.slots.inlineActionKeys).toContain('release-account-bindings')
+  })
+
+  it('调用设备级释放接口并保留清晰的结果提示', () => {
+    expect(action?.method).toBe('POST')
+    expect(action?.path?.({ id: 'slot/1' })).toBe('/api/execution-slots/slot%2F1/release-account-bindings')
+    expect(action?.successMessage?.({ released_count: 2, released_platforms: ['instagram', 'threads'] }, {}))
+      .toBe('已解除 2 个平台账号绑定（instagram、threads）')
+  })
+})
+
 describe('设备组同步失败提示', () => {
   it('设备与分组列表使用弹窗提醒，不再保留行内重新同步入口', () => {
     expect(resources.slots.runtimeSyncFailureAlerts).toBe(true)
