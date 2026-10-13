@@ -72,7 +72,7 @@ export const contentSelection = {
   post: (id: string) => http.get<SelectionPost>(`${base}/posts/${encodeURIComponent(id)}`),
   orders: (params: AnyRecord) => http.get<SelectionPage<SelectionOrder>>(`${base}/orders`, params),
   order: (id: string) => http.get<SelectionOrder>(`${base}/orders/${encodeURIComponent(id)}`),
-  publish: (id: string, data: { account_id: string; text_body: string; media_indexes: number[]; source_revision: string }) =>
+  publish: (id: string, data: { account_id: string; text_body: string; media_indexes: number[]; source_revision: string; creation_job_id?: string }) =>
     http.post<SelectionOrder>(`${base}/posts/${encodeURIComponent(id)}/dispatch`, data),
   retry: (id: string) => http.post<SelectionOrder>(`${base}/orders/${encodeURIComponent(id)}/retry`, {}),
 }

@@ -11,6 +11,7 @@ import { formatDate } from '@/utils/format'
 import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from '@/utils/contentSelection'
 import type { AnyRecord } from '@/types/api'
 import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
+import PersonaCreationPanel from '@/components/PersonaCreationPanel.vue'
 import { parseSelectionMarks, selectionDateRange, selectionMarkQuery, selectionStorageKey, type SelectionMarks } from '@/utils/selectionLocalState'
 
 const auth = useAuthStore()
@@ -106,7 +107,9 @@ const editVisible = ref(false)
 const editLoading = ref(false)
 const publishBusy = ref(false)
 const aiBusy = ref(false)
-const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[] })
+const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[], creation_job_id: undefined as string | undefined })
+watch(() => draft.account_id, () => { draft.creation_job_id = undefined })
+function applyCreation(text: string, jobId: string) { draft.text_body = text; draft.creation_job_id = jobId }
 const accounts = ref<AnyRecord[]>([])
 const selectedAccount = computed(() => accounts.value.find(account => String(account.id) === draft.account_id))
 const previousOrders = ref<SelectionOrder[]>([])
@@ -184,6 +187,7 @@ async function openPost(post: SelectionPost) {
   selected.value = null
   previousOrders.value = []
   draft.account_id = ''
+  draft.creation_job_id = undefined
   editVisible.value = true
   editLoading.value = true
   previousPage.value = 1
@@ -389,6 +393,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
             <el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" />
           </SelectionAiEditor>
           <template v-else><h3 class="original-heading">发布稿</h3><el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" /></template>
+          <PersonaCreationPanel v-if="editVisible && draft.account_id && auth.can('operations.dispatch') && auth.can('accounts.view')" :key="`${selected.id}:${draft.account_id}:${selected.updated_at}`"
+            :account-id="draft.account_id" :post-id="selected.id" :revision="selected.updated_at" :model-value="draft.text_body" :disabled="publishBusy || aiBusy" @apply="applyCreation" />
         </section>
         </div>
         <section v-if="selected.media.length" class="publish-media"><h3>媒体 <small>已保留 {{ draft.media_indexes.length }} / {{ selected.media.length }} 项</small></h3>
