@@ -29,4 +29,11 @@ describe('account persona API', () => {
     accountPersona.save('a', 'j', 'manual text', 3)
     expect(http.put).toHaveBeenCalledWith('/api/account-personas/a/jobs/j/draft', { text_body: 'manual text', expected_version: 3 })
   })
+  it('keeps the source author distinct from the publishing account', () => {
+    const data = { request_key: 'request', post_id: 'p', persona_id: 'source-v1', language: 'zh-CN', direction: '', target_account_id: '5822' }
+    accountPersona.generate('source:author-1', data)
+    expect(http.post).toHaveBeenCalledExactlyOnceWith('/api/account-personas/source%3Aauthor-1/generate', data)
+    accountPersona.overview('source:author-1')
+    expect(http.get).toHaveBeenCalledWith('/api/account-personas/source%3Aauthor-1')
+  })
 })

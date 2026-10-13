@@ -393,7 +393,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
             <el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" />
           </SelectionAiEditor>
           <template v-else><h3 class="original-heading">发布稿</h3><el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" /></template>
-          <PersonaCreationPanel v-if="editVisible && draft.account_id && auth.can('operations.dispatch') && auth.can('accounts.view')" :key="`${selected.id}:${draft.account_id}:${selected.updated_at}`"
+          <PersonaCreationPanel v-if="editVisible && auth.can('operations.dispatch')" :key="`${selected.id}:${draft.account_id}:${selected.updated_at}`"
+            :source-id="selected.source_id" :source-name="selected.author.display_name || selected.author.username || '原帖作者'"
             :account-id="draft.account_id" :post-id="selected.id" :revision="selected.updated_at" :model-value="draft.text_body" :disabled="publishBusy || aiBusy" @apply="applyCreation" />
         </section>
         </div>

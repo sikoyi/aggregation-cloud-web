@@ -24,7 +24,8 @@ let disposed = false
 let timer: ReturnType<typeof setTimeout> | undefined
 let loading = false
 let detailSequence = 0
-const canEdit = computed(() => auth.can('accounts.edit'))
+const isSource = computed(() => props.accountId.startsWith('source:'))
+const canEdit = computed(() => auth.can(isSource.value ? 'operations.dispatch' : 'accounts.edit'))
 const active = computed(() => jobs.value.some(j => j.kind === 'analyze' && ['queued', 'running'].includes(j.status)))
 const fail = (e: unknown) => { error.value = e instanceof Error ? e.message : '加载失败，请重试' }
 async function load(initial = false) {
@@ -103,7 +104,7 @@ onBeforeUnmount(() => { disposed = true; detailSequence++; clearTimeout(timer) }
 </script>
 
 <template>
-  <el-dialog :model-value="true" :title="`账号画像与人设 · ${accountName || accountId}`" width="1040px" align-center append-to-body :close-on-click-modal="false" @close="emit('close')">
+  <el-dialog :model-value="true" :title="`${isSource ? '原帖作者画像与人设' : '账号画像与人设'} · ${accountName || accountId}`" width="1040px" align-center append-to-body :close-on-click-modal="false" @close="emit('close')">
     <div class="persona-dialog">
       <el-alert v-if="error" :title="error" type="error" :closable="false" />
       <div class="persona-tools">

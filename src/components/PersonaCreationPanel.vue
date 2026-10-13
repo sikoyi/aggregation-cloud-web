@@ -7,7 +7,8 @@ import AccountPersonaDialog from '@/components/AccountPersonaDialog.vue'
 import { languages } from '@/utils/benchmarkPostProcessing'
 import { formatDate } from '@/utils/format'
 
-const props = defineProps<{ accountId: string; postId: string; revision: string; modelValue: string; disabled: boolean }>()
+const props = defineProps<{ accountId: string; sourceId: string; sourceName: string; postId: string; revision: string; modelValue: string; disabled: boolean }>()
+const subjectId = computed(() => `source:${props.sourceId}`)
 const emit = defineEmits<{ apply: [text: string, jobId: string] }>()
 const persona = ref<PersonaVersion | null>(null)
 const jobs = ref<PersonaJob[]>([])
@@ -31,10 +32,10 @@ async function load() {
   if (disposed || loading) return
   loading = true
   try {
-    const data = await accountPersona.overview(props.accountId)
+    const data = await accountPersona.overview(subjectId.value)
     if (disposed) return
     persona.value = data.versions[0] || null
-    jobs.value = data.jobs.filter(j => j.kind === 'generate' && j.post_id === props.postId)
+    jobs.value = data.jobs.filter(j => j.kind === 'generate' && j.post_id === props.postId && j.target_account_id === props.accountId)
     if (selectedJob.value) {
       const fresh = jobs.value.find(j => j.id === selectedJob.value?.id)
       if (fresh) selectedJob.value = { ...selectedJob.value, status: fresh.status, result: fresh.result,
@@ -51,14 +52,14 @@ async function selectJob(id: string) {
   const current = ++sequence
   selectedJob.value = null
   index.value = '0'
-  try { const result = await accountPersona.job(props.accountId, id); if (!disposed && current === sequence) selectedJob.value = result }
+  try { const result = await accountPersona.job(subjectId.value, id); if (!disposed && current === sequence) selectedJob.value = result }
   catch (e) { if (!disposed && current === sequence) fail(e) }
 }
 async function generate() {
-  if (!persona.value || busy.value || active.value || props.disabled) return
+  if (!persona.value || !props.accountId || busy.value || active.value || props.disabled) return
   busy.value = true; error.value = ''
   try {
-    const job = await accountPersona.generate(props.accountId, { request_key: crypto.randomUUID(), post_id: props.postId,
+    const job = await accountPersona.generate(subjectId.value, { request_key: crypto.randomUUID(), post_id: props.postId, target_account_id: props.accountId,
       persona_id: persona.value.id, language: language.value, direction: direction.value })
     if (!disposed) { await selectJob(job.id); await load() }
   } catch (e) { if (!disposed) fail(e) } finally { busy.value = false }
@@ -76,7 +77,7 @@ async function save() {
   const current = sequence
   busy.value = true; error.value = ''
   try {
-    const saved = await accountPersona.save(props.accountId, job.id, props.modelValue, job.draft_version)
+    const saved = await accountPersona.save(subjectId.value, job.id, props.modelValue, job.draft_version)
     if (!disposed && current === sequence) { selectedJob.value = { ...job, ...saved }; ElMessage.success('人工草稿已保存') }
   } catch (e) { if (!disposed) fail(e) } finally { busy.value = false }
 }
@@ -86,13 +87,13 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
 
 <template>
   <section class="persona-creation">
-    <div class="creation-toolbar"><strong>人设创作</strong><el-tag :type="persona ? 'success' : 'info'">{{ persona ? `人设 v${persona.version}` : '未确认人设' }}</el-tag>
-      <el-button :icon="UserRound" :disabled="disabled" @click="personaVisible = true">账号画像 / 人设</el-button></div>
+    <div class="creation-toolbar"><strong>原帖作者人设 · {{ sourceName }}</strong><el-tag :type="persona ? 'success' : 'info'">{{ persona ? `人设 v${persona.version}` : '未确认人设' }}</el-tag>
+      <el-button :icon="UserRound" :disabled="disabled" @click="personaVisible = true">作者画像 / 人设</el-button></div>
     <p v-if="persona" class="persona-summary">{{ persona.document.positioning }}</p>
     <el-form label-position="top" :disabled="disabled || busy">
       <el-form-item label="本次创作方向"><el-input v-model="direction" :maxlength="1000" type="textarea" :rows="2" /></el-form-item>
       <div class="creation-toolbar"><el-select v-model="language" aria-label="创作语言"><el-option v-for="(name, code) in languages" :key="code" :value="code" :label="name" /></el-select>
-        <el-button type="primary" :icon="Sparkles" :loading="busy" :disabled="!persona || active" @click="generate">{{ active ? '创作处理中' : 'AI 创作' }}</el-button></div>
+        <el-button type="primary" :icon="Sparkles" :loading="busy" :disabled="!persona || !accountId || active" @click="generate">{{ active ? '创作处理中' : 'AI 创作' }}</el-button></div>
     </el-form>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-if="jobs.length" class="creation-toolbar"><el-select :model-value="selectedJob?.id || ''" aria-label="生成记录" placeholder="生成记录" @change="selectJob">
@@ -109,7 +110,7 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
           <el-button v-if="selectedJob.draft_text" :disabled="disabled || busy || staleSource" @click="apply(selectedJob.draft_text)">恢复已存草稿</el-button></div></div>
       <small v-for="(usage, i) in selectedJob.usage" :key="i">{{ usage.model }} · Token {{ usage.total_tokens ?? '未返回' }}<template v-if="usage.cost !== null"> · {{ usage.cost }} {{ usage.currency }}</template></small>
     </template>
-    <AccountPersonaDialog v-if="personaVisible" :account-id="accountId" @close="personaVisible = false" @confirmed="load" />
+    <AccountPersonaDialog v-if="personaVisible" :account-id="subjectId" :account-name="sourceName" @close="personaVisible = false" @confirmed="load" />
   </section>
 </template>
 
@@ -118,6 +119,7 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
 .creation-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
 .creation-toolbar .el-select { width: 240px; max-width: 100%; }
 .creation-toolbar :deep(.el-button) { margin-left: 0; }
+.creation-toolbar strong { overflow-wrap: anywhere; }
 .persona-summary { color: var(--app-text-muted); max-height: 70px; overflow: auto; }
 .candidate > p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; max-height: 280px; overflow: auto; }
 .persona-creation small { display: block; color: var(--app-text-muted); }
