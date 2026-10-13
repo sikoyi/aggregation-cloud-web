@@ -8,7 +8,7 @@ const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => no
 function setup() {
   const state = {
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
-    form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true },
+    form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true, group_id: '' },
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     metricSort: { value: null as { prop: string; order: string } | null },
@@ -31,6 +31,23 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('添加时一并保存分组，连续添加保留选择', async () => {
+    const s = setup()
+    s.form.group_id = 'group-one'
+    await s.save()
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ group_id: 'group-one' }))
+    expect(s.form.group_id).toBe('group-one')
+    expect(s.form.profile_url).toBe('')
+  })
+  it('分组失效时保留账号和分组供修改后重试', async () => {
+    const s = setup()
+    s.form.group_id = 'deleted'
+    s.http.post.mockRejectedValueOnce(new Error('所选分组不存在'))
+    await s.save()
+    expect(s.form.profile_url).toBe('https://x.com/source')
+    expect(s.form.group_id).toBe('deleted')
+    expect(s.ElNotification.error).toHaveBeenCalled()
+  })
   it('前日指标增量使用简写并保留完整数值提示', () => {
     expect(source).toContain('formatCompactSignedCount(value)')
     expect(source).toContain(':title="metricDelta(row.day_deltas?.[metric.key], metric.key).fullLabel"')
@@ -171,7 +188,7 @@ describe('外部账号只读监听', () => {
   it('添加后继续输入下一账号，保留平台与间隔', async () => {
     const s = setup()
     await s.save()
-    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60 })
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, group_id: null })
     expect(s.form.profile_url).toBe('')
     expect(s.formVisible.value).toBe(true)
     expect(s.form.business_platform).toBe('x')
