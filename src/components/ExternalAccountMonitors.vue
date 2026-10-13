@@ -39,7 +39,7 @@ const canEdit = computed(() => auth.can('operations.edit'))
 const labels: Record<string, string> = { pending: '等待采集', collecting: '采集中', active: '监听中', retrying: '等待重试', paused: '已暂停' }
 const rows = ref<ExternalMonitor[]>([])
 const total = ref(0)
-const groups = ref<{ id: string; name: string; version: number }[]>([])
+const groups = ref<{ id: string; name: string; version: number; member_count: number }[]>([])
 const selected = ref<ExternalMonitor[]>([])
 const table = ref<{ clearSelection: () => void; clearSort: () => void } | null>(null)
 const metricSort = ref<{ prop: string; order: 'asc' | 'desc' } | null>(null)
@@ -146,7 +146,7 @@ function filterStatus(status: string) { filters.status = status; search() }
 function groupName(id?: string | null) { return groups.value.find(group => group.id === id)?.name || (id ? '分组已变更' : '未分组') }
 async function loadGroups() {
   try {
-    const result = await http.get<{ id: string; name: string; version: number }[]>('/api/external-account-monitors/groups')
+    const result = await http.get<{ id: string; name: string; version: number; member_count: number }[]>('/api/external-account-monitors/groups')
     if (!disposed) groups.value = result
   } catch (e) { if (!disposed) ElNotification.error({ title: '加载分组失败', message: message(e) }) }
 }
@@ -250,7 +250,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
     <header class="external-monitors__header">
       <h2><Activity :size="20" />外部账号监听</h2>
       <div class="external-monitors__actions">
-        <ExternalMonitorGroups v-if="canEdit" :groups="groups" @changed="groupsChanged" />
+        <ExternalMonitorGroups v-if="canEdit" :groups="groups" @changed="groupsChanged" @refresh="loadGroups" />
         <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" :disabled="batchBusy" @click="load()" /></el-tooltip>
         <el-button v-if="canEdit" type="primary" :icon="Plus" :disabled="!platforms.length" @click="openForm()">添加外部账号</el-button>
       </div>

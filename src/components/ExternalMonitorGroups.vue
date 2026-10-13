@@ -4,9 +4,9 @@ import { Layers3, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 
-interface Group { id: string; name: string; version: number }
+interface Group { id: string; name: string; version: number; member_count: number }
 defineProps<{ groups: Group[] }>()
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: []; refresh: [] }>()
 const visible = ref(false)
 const busy = ref(false)
 const name = ref('')
@@ -39,7 +39,7 @@ async function remove(group: Group) {
 </script>
 
 <template>
-  <el-button :icon="Layers3" @click="visible = true">管理分组</el-button>
+  <el-button :icon="Layers3" @click="visible = true; emit('refresh')">管理分组</el-button>
   <el-dialog v-model="visible" title="外部账号分组" width="min(560px, 96vw)" append-to-body destroy-on-close>
     <el-form inline @submit.prevent="save">
       <el-form-item :label="editing ? '修改名称' : '新建分组'"><el-input v-model="name" maxlength="80" :disabled="busy" /></el-form-item>
@@ -47,7 +47,8 @@ async function remove(group: Group) {
       <el-button v-if="editing" :disabled="busy" @click="edit()">取消编辑</el-button>
     </el-form>
     <el-table :data="groups" max-height="380" empty-text="暂无分组">
-      <el-table-column prop="name" label="分组名称" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="name" label="分组名称" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="member_count" label="成员数量" width="100" align="center" />
       <el-table-column label="操作" width="100"><template #default="{ row }">
         <el-tooltip content="修改名称"><el-button text circle :icon="Pencil" aria-label="修改分组名称" :disabled="busy" @click="edit(row as Group)" /></el-tooltip>
         <el-tooltip content="删除分组"><el-button text circle type="danger" :icon="Trash2" aria-label="删除分组" :disabled="busy" @click="remove(row as Group)" /></el-tooltip>
