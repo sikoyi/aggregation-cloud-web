@@ -516,6 +516,7 @@ watch(
 
 <style scoped>
 .post-review-menu-badge { display: inline-flex; align-items: center; margin-left: auto; flex-shrink: 0; line-height: normal; }
+.post-review-menu-badge :deep(.el-badge__content) { position: static; transform: none; vertical-align: middle; line-height: 1; }
 .release-notes { display: grid; gap: 16px; color: var(--el-text-color-primary); }
 .release-notes__title { margin: 0 0 10px; font-size: 16px; font-weight: 600; line-height: 24px; }
 .release-notes__list { margin: 0; padding-left: 20px; list-style: disc; max-height: 55vh; overflow-y: auto; }
