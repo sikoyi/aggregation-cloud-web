@@ -64,7 +64,7 @@ const formVisible = ref(false)
 const saving = ref(false)
 const busy = ref('')
 const deleting = ref('')
-const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true })
+const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true, group_id: '' })
 const detailVisible = ref(false)
 const detail = ref<ExternalDetail | null>(null)
 const detailId = ref('')
@@ -164,6 +164,8 @@ function batchCompleted() {
 }
 function openForm(row?: ExternalMonitor) {
   editing.value = row || null
+  form.group_id = row?.group_id || ''
+  if (!row) void loadGroups()
   Object.assign(form, row ? { business_platform: row.business_platform, profile_url: row.profile_url, remark: row.remark, interval_minutes: row.interval_minutes, enabled: row.enabled }
     : { business_platform: platforms.value[0]?.value || 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true })
   formVisible.value = true
@@ -178,7 +180,7 @@ async function save() {
       if (disposed) return
       editing.value = updated
     } else {
-      await http.post('/api/external-account-monitors', { business_platform: form.business_platform, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes })
+      await http.post('/api/external-account-monitors', { business_platform: form.business_platform, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes, group_id: form.group_id || null })
       if (disposed) return
       form.profile_url = ''
       form.remark = ''
@@ -311,6 +313,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
+        <el-form-item v-if="!editing" label="分组"><el-select v-model="form.group_id" filterable clearable placeholder="未分组" :disabled="saving" aria-label="添加账号分组"><el-option v-for="group in groups" :key="group.id" :label="group.name" :value="group.id" /></el-select></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>
       </el-form>
