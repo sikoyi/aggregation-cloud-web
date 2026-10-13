@@ -4,18 +4,29 @@ import {
   batchApproveBenchmarkPostReviews,
   batchDeleteBenchmarkPostReviews,
   batchIgnoreBenchmarkPostReviews,
+  getPendingPostReviewCount,
 } from '@/api/benchmarkPostReviews'
 import { http } from '@/api/http'
 
 vi.mock('@/api/http', () => ({
   http: {
     post: vi.fn(),
+    getWithSignal: vi.fn(),
   },
 }))
 
 describe('帖子审核批量 API', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('菜单只查询待审核总数，不带页面筛选或拉取全部帖子', async () => {
+    const controller = new AbortController()
+    vi.mocked(http.getWithSignal).mockResolvedValue({ total: 105, items: [{}] })
+    expect(await getPendingPostReviewCount(controller.signal)).toBe(105)
+    expect(http.getWithSignal).toHaveBeenCalledExactlyOnceWith(
+      '/api/benchmark-trackers/reviews?status=pending_review&page=1&page_size=1', controller.signal,
+    )
   })
 
   it.each([

@@ -4,6 +4,7 @@ import source from './BenchmarkPostReviews.vue?raw'
 
 function setup(): Record<string, any> & { load: (quiet?: boolean) => Promise<void> } {
   const state: Record<string, any> = { disposed: false, document: { hidden: false }, request: 0,
+    window: { dispatchEvent: vi.fn() }, POST_REVIEW_REFRESH_EVENT: 'aggregation:post-review-refresh',
     filters: {}, http: { get: vi.fn() }, notifyError: vi.fn(), buildPostReviewQuery: vi.fn() }
   for (const key of ['visible', 'preparationVisible', 'batchLoading', 'saving', 'uploading', 'regenerating', 'deletingId', 'retryingId', 'loading', 'refreshing']) state[key] = { value: false }
   state.selectedRows = { value: [] }; state.rows = { value: [{ id: 'one' }] }; state.page = { value: 1 }; state.total = { value: 1 }
@@ -21,6 +22,7 @@ it('polls without loading mask or replacing unchanged rows', async () => {
   await s.load(true); expect(s.http.get).toHaveBeenCalledTimes(1)
   complete({ items: [{ id: 'one' }], total: 1 }); await pending
   expect(s.rows.value).toBe(previous); expect(s.refreshing.value).toBe(false)
+  expect(s.window.dispatchEvent).not.toHaveBeenCalled()
 })
 
 it('does not apply a polling response after selection starts', async () => {
@@ -36,6 +38,7 @@ it('quiet failures retain rows without repeated notifications; manual requests s
   await s.load(true); expect(s.notifyError).not.toHaveBeenCalled()
   expect(s.rows.value).toEqual([{ id: 'one' }])
   await s.load(); expect(s.notifyError).toHaveBeenCalledTimes(1)
+  expect(s.window.dispatchEvent).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ type: s.POST_REVIEW_REFRESH_EVENT }))
 })
 
 it('manual requests supersede older polling results', async () => {

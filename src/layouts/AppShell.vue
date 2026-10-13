@@ -45,11 +45,15 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import TelegramReviewBinding from '@/components/TelegramReviewBinding.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { usePendingPostReviewCount } from '@/composables/usePendingPostReviewCount'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 const realtime = useRealtimeEvents()
+const { count: pendingPostReviewCount } = usePendingPostReviewCount(
+  () => auth.token && auth.can('operations.view') ? auth.token : '',
+)
 
 const notificationPopoverVisible = ref(false)
 const notificationDialogVisible = ref(false)
@@ -354,6 +358,15 @@ watch(
             <el-menu-item v-for="item in group.children" :key="item.to" :index="item.to">
               <component :is="item.icon" class="mr-3 h-4 w-4" />
               <span>{{ item.label }}</span>
+              <el-badge
+                v-if="item.to === '/post-reviews' && pendingPostReviewCount > 0"
+                class="post-review-menu-badge"
+                :value="pendingPostReviewCount"
+                :max="99"
+                type="danger"
+                :title="`待审核 ${pendingPostReviewCount} 条`"
+                :aria-label="`待审核 ${pendingPostReviewCount} 条`"
+              />
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
@@ -502,6 +515,7 @@ watch(
 </template>
 
 <style scoped>
+.post-review-menu-badge { display: inline-flex; align-items: center; margin-left: auto; flex-shrink: 0; line-height: normal; }
 .release-notes { display: grid; gap: 16px; color: var(--el-text-color-primary); }
 .release-notes__title { margin: 0 0 10px; font-size: 16px; font-weight: 600; line-height: 24px; }
 .release-notes__list { margin: 0; padding-left: 20px; list-style: disc; max-height: 55vh; overflow-y: auto; }

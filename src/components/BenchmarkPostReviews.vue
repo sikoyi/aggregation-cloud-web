@@ -13,6 +13,7 @@ import {
   batchApproveBenchmarkPostReviews,
   batchDeleteBenchmarkPostReviews,
   batchIgnoreBenchmarkPostReviews,
+  POST_REVIEW_REFRESH_EVENT,
 } from '@/api/benchmarkPostReviews'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
@@ -148,6 +149,7 @@ function pollingPaused() {
 }
 async function load(quiet = false) {
   if (quiet && (refreshing.value || pollingPaused())) return
+  if (!quiet) window.dispatchEvent(new Event(POST_REVIEW_REFRESH_EVENT))
   const id = ++request
   refreshing.value = true
   if (!quiet) loading.value = true

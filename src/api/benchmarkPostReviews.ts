@@ -1,5 +1,14 @@
 import { http } from '@/api/http'
 
+export const POST_REVIEW_REFRESH_EVENT = 'aggregation:post-review-refresh'
+
+export async function getPendingPostReviewCount(signal: AbortSignal) {
+  const result = await http.getWithSignal<{ total: number }>(
+    '/api/benchmark-trackers/reviews?status=pending_review&page=1&page_size=1', signal,
+  )
+  return result.total
+}
+
 export interface BenchmarkPostReviewBatchFailure {
   job_id: string
   message: string
