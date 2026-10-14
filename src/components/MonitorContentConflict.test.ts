@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import ts from 'typescript'
 import source from './MonitorContentConflict.vue?raw'
-import tags from './GroupTagSelect.vue?raw'
+import tags from './ExternalAccountTagSelect.vue?raw'
 import external from './ExternalAccountMonitors.vue?raw'
 import internal from '../views/AccountDataView.vue?raw'
 
@@ -50,12 +50,12 @@ describe('监听关联账号提示', () => {
     await s.run()
     expect(s.http.get).not.toHaveBeenCalled()
   })
-  it('仅外部分组使用展开单选，内部设备分组保留下拉', () => {
-    expect(tags).toContain('<el-radio-group')
+  it('仅外部标签使用展开多选，内部设备分组保留下拉', () => {
+    expect(tags).toContain('<el-checkbox-group')
     expect(tags).toContain(':disabled="disabled"')
     expect(tags).toContain('overflow-wrap: anywhere')
-    expect(external).toContain('v-model="filters.group_id" label="外部账号分组筛选"')
-    expect(external).toContain('v-model="form.group_id" label="添加账号分组"')
+    expect(external).toContain('v-model="filters.tag_ids" label="外部账号标签筛选"')
+    expect(external).toContain('v-model="form.tag_ids" label="账号标签"')
     expect(internal).toContain('<el-select v-model="filters.slot_group_id"')
   })
 })

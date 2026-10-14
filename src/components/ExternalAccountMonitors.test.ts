@@ -8,11 +8,11 @@ const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => no
 function setup() {
   const state = {
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
-    form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true, group_id: '' },
+    form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[] },
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     metricSort: { value: null as { prop: string; order: string } | null },
-    loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: {}, busy: { value: '' }, deleting: { value: '' },
+    loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: { tag_ids: [] as string[] }, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
     batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), clearSort: vi.fn() } },
@@ -31,21 +31,21 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
-  it('添加时一并保存分组，连续添加保留选择', async () => {
+  it('添加时一并保存多个标签，连续添加保留选择', async () => {
     const s = setup()
-    s.form.group_id = 'group-one'
+    s.form.tag_ids = ['one', 'two']
     await s.save()
-    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ group_id: 'group-one' }))
-    expect(s.form.group_id).toBe('group-one')
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ tag_ids: ['one', 'two'] }))
+    expect(s.form.tag_ids).toEqual(['one', 'two'])
     expect(s.form.profile_url).toBe('')
   })
-  it('分组失效时保留账号和分组供修改后重试', async () => {
+  it('标签失效时保留账号和标签供修改后重试', async () => {
     const s = setup()
-    s.form.group_id = 'deleted'
-    s.http.post.mockRejectedValueOnce(new Error('所选分组不存在'))
+    s.form.tag_ids = ['deleted']
+    s.http.post.mockRejectedValueOnce(new Error('所选标签不存在'))
     await s.save()
     expect(s.form.profile_url).toBe('https://x.com/source')
-    expect(s.form.group_id).toBe('deleted')
+    expect(s.form.tag_ids).toEqual(['deleted'])
     expect(s.ElNotification.error).toHaveBeenCalled()
   })
   it('前日指标增量使用简写并保留完整数值提示', () => {
@@ -62,9 +62,9 @@ describe('外部账号只读监听', () => {
   it.each(['followers_count', 'total_post_views_count', 'total_likes_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
     const s = setup()
     s.metricSort.value = { prop, order: 'asc' }
-    Object.assign(s.appliedFilters, { platform: 'x', status: 'active', group_id: 'group' })
+    Object.assign(s.appliedFilters, { platform: 'x', status: 'active', tag_ids: ['one','two'] })
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { platform: 'x', status: 'active', group_id: 'group', sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { platform: 'x', status: 'active', tag_ids: ['one','two'], sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
     s.reset()
     expect(s.metricSort.value).toBeNull()
     expect(s.table.value.clearSort).toHaveBeenCalled()
@@ -129,10 +129,10 @@ describe('外部账号只读监听', () => {
   })
   it('统计不受状态和分页限制，刷新清除旧选择', async () => {
     const s = setup()
-    Object.assign(s.appliedFilters, { platform: 'x', group_id: 'group', status: 'paused', keyword: 'source' })
+    Object.assign(s.appliedFilters, { platform: 'x', tag_ids: ['one'], untagged: false, status: 'paused', keyword: 'source' })
     s.selected.value = [{ id: 'old' }]
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', { platform: 'x', group_id: 'group', keyword: 'source' })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', { platform: 'x', tag_ids: ['one'], untagged: false, keyword: 'source' })
     expect(s.selected.value).toEqual([])
     expect(s.table.value.clearSelection).toHaveBeenCalled()
     s.http.get.mockClear()
@@ -147,7 +147,7 @@ describe('外部账号只读监听', () => {
     s.search()
     expect(s.page.value).toBe(1)
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { sort_order: 'asc', page: 1, page_size: 20 })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { sort_order: 'asc', tag_ids: [], page: 1, page_size: 20 })
     s.reset()
     expect(s.filters).toMatchObject({ sort_order: 'desc' })
     expect(s.appliedFilters).toMatchObject({ sort_order: 'desc' })
@@ -188,7 +188,7 @@ describe('外部账号只读监听', () => {
   it('添加后继续输入下一账号，保留平台与间隔', async () => {
     const s = setup()
     await s.save()
-    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, group_id: null })
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, tag_ids: [] })
     expect(s.form.profile_url).toBe('')
     expect(s.formVisible.value).toBe(true)
     expect(s.form.business_platform).toBe('x')
@@ -208,7 +208,7 @@ describe('外部账号只读监听', () => {
     const s = setup()
     s.editing.value = { id: 'external', version: 1 }
     await s.save()
-    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { remark: 'note', interval_minutes: 60, enabled: true, expected_version: 1 })
+    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { remark: 'note', interval_minutes: 60, enabled: true, expected_version: 1, tag_ids: [] })
     expect(s.editing.value?.version).toBe(2)
     expect(s.http.post).not.toHaveBeenCalled()
   })
