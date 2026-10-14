@@ -104,14 +104,17 @@ describe('外部账号只读监听', () => {
     expect(source).toContain('.external-metric-delta.is-down { color: var(--app-green, #238457); }')
     expect(source).toContain("label: '较前一日 持平', fullLabel: '较前一日 持平', tone: 'flat'")
   })
-  it('浏览量列只展示缓存值和日增量，不暴露汇总状态', () => {
+  it('帖子总数使用平台指标，不以已采集数量替代', () => {
+    expect(source).toContain("{ key: 'posts_count', label: '帖子总数' }")
+    expect(source).not.toContain('帖子总浏览量')
+    expect(source).not.toContain('collected_post_count')
     expect(source).toContain(':value="row.profile[metric.key]"')
     expect(source).not.toContain('定时汇总')
     expect(source).not.toContain('等待汇总')
     expect(source).not.toContain('post_views_updated_at')
   })
 
-  it.each(['followers_count', 'total_post_views_count', 'total_likes_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
+  it.each(['followers_count', 'posts_count', 'total_likes_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
     const s = setup()
     s.metricSort.value = { prop, order: 'asc' }
     Object.assign(s.appliedFilters, { platform: 'x', status: 'active', tag_ids: ['one','two'] })
@@ -120,6 +123,11 @@ describe('外部账号只读监听', () => {
     s.reset()
     expect(s.metricSort.value).toBeNull()
     expect(s.table.value.sort).toHaveBeenCalledWith('created_at', 'descending')
+  })
+  it.each(['ascending', 'descending'] as const)('帖子总数表头支持%s排序', order => {
+    const s = setup()
+    s.sortMetrics({ prop: 'posts_count', order })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ sort_by: 'posts_count', sort_order: order === 'ascending' ? 'asc' : 'desc' }))
   })
   it('后台刷新不显示遮罩、不清除选择、未变化的行保持引用', async () => {
     const s = setup()

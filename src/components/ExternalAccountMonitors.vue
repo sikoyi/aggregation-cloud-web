@@ -141,7 +141,7 @@ function filterTags() { filters.untagged = false; search() }
 function filterUntagged() { filters.tag_ids = []; search() }
 function allTags() { filters.tag_ids = []; filters.untagged = false; search() }
 function sortMetrics({ prop, order }: { prop: string | null; order: 'ascending' | 'descending' | null }) {
-  if (order && !['created_at', 'followers_count', 'total_post_views_count', 'total_likes_count'].includes(prop || '')) return
+  if (order && !['created_at', 'followers_count', 'posts_count', 'total_likes_count'].includes(prop || '')) return
   const next = order && prop && !(prop === 'created_at' && order === 'descending') ? { prop, order: order === 'ascending' ? 'asc' as const : 'desc' as const } : null
   const changed = JSON.stringify(next) !== JSON.stringify(metricSort.value)
   metricSort.value = next
@@ -302,7 +302,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="externalAvatarUrl(row.profile.avatar_url)"><UserRound :size="22" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
       <el-table-column label="账号标签" min-width="200"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-for="id in row.tag_ids" :key="id" effect="plain">{{ groupName(id) }}</el-tag><span v-if="!row.tag_ids?.length">未设置标签</span></div></template></el-table-column>
-      <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="metric.key === 'total_post_views_count' ? 156 : 132" align="center" sortable="custom">
+      <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'posts_count', label: '帖子总数' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="132" align="center" sortable="custom">
         <template #default="{ row }">
           <div class="external-metric-cell">
             <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>
