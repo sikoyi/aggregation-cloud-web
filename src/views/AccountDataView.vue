@@ -2486,8 +2486,8 @@ onBeforeUnmount(() => {
   line-height: 18px;
   white-space: nowrap;
 }
-.account-overview__metric span.is-up { color: var(--app-green, #238457); }
-.account-overview__metric span.is-down { color: var(--app-red, #cf4f4f); }
+.account-overview__metric span.is-up { color: var(--app-red, #cf4f4f); }
+.account-overview__metric span.is-down { color: var(--app-green, #238457); }
 .account-overview__monitor { gap: 6px; }
 .account-overview__monitor small { color: var(--app-text-muted, #718096); font-size: 10px; white-space: nowrap; }
 .account-overview__pagination {
@@ -2690,8 +2690,8 @@ onBeforeUnmount(() => {
   line-height: 1;
   white-space: nowrap;
 }
-.account-profile__delta.is-up { color: var(--app-green, #238457); }
-.account-profile__delta.is-down { color: var(--app-red, #cf4f4f); }
+.account-profile__delta.is-up { color: var(--app-red, #cf4f4f); }
+.account-profile__delta.is-down { color: var(--app-green, #238457); }
 .account-profile__delta.is-flat,
 .account-profile__delta.is-unknown { color: var(--app-text-muted, #8291a1); }
 .account-profile__tabs { margin-top: 10px; }
