@@ -95,22 +95,23 @@ function updateValue(key: string, value: unknown) {
 }
 
 watch(
-  () => [props.modelValue.runtime_platform, props.modelValue.slot_group_id, props.modelValue.business_platform,
-    props.context?.selectedRows, props.context?.id] as const,
-  async ([platform, groupId, businessPlatform, rows, accountId]) => {
+  [() => props.modelValue.runtime_platform, () => props.modelValue.slot_group_id,
+    () => props.modelValue.business_platform, () => JSON.stringify(props.context?.selectedRows || []),
+    () => props.context?.id, () => props.fields.some((field) => field.key === 'slot_group_id')],
+  async ([platform, groupId, businessPlatform, serializedRows, accountId, enabled]) => {
     const request = ++cloudSlotPreviewSeq
-    if (!props.fields.some((field) => field.key === 'slot_group_id')
-      || platform !== 'cloud_phone' || !groupId) return
+    if (!enabled || platform !== 'cloud_phone' || !groupId) return
+    const rows: AnyRecord[] = JSON.parse(serializedRows)
     const identityRows = Array.isArray(rows) && rows.some((row) => Array.isArray(row.matched_account_ids))
     const count = identityRows
       ? new Set(rows.flatMap((row) => {
-          const ids = new Set((row.matched_account_ids || []).map(String))
-          return (row.platform_summaries || [])
+          const ids = new Set((Array.isArray(row.matched_account_ids) ? row.matched_account_ids : []).map(String))
+          return (Array.isArray(row.platform_summaries) ? row.platform_summaries : [])
             .filter((summary: AnyRecord) => ids.has(String(summary.account_id))
               && summary.business_platform === businessPlatform)
             .map((summary: AnyRecord) => String(summary.account_id))
         })).size
-      : Array.isArray(rows) ? rows.length : accountId ? 1 : 0
+      : rows.length || (accountId ? 1 : 0)
     if (!count) return
     try {
       const devices = await http.get<Array<{ id: string; name: string }>>(
@@ -118,7 +119,10 @@ watch(
         { slot_group_id: groupId, count },
       )
       if (request !== cloudSlotPreviewSeq) return
-      emit('update:modelValue', { ...props.modelValue, slot_ids: devices.map((device) => device.id) })
+      const slotIds = devices.map((device) => String(device.id))
+      const currentIds = Array.isArray(props.modelValue.slot_ids) ? props.modelValue.slot_ids.map(String) : []
+      if (JSON.stringify(slotIds) === JSON.stringify(currentIds)) return
+      emit('update:modelValue', { ...props.modelValue, slot_ids: slotIds })
     } catch (error) {
       if (request === cloudSlotPreviewSeq) notifyError(error, '无法预选云手机')
     }
