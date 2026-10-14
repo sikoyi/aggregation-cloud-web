@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { externalMonitorProgress, externalMonitorStatus } from './externalMonitorProgress'
 
 describe('外部监听采集进度', () => {
+  it('区分历史补采和新帖检查，不把分页暂停当作采集完成', () => {
+    expect(externalMonitorProgress({ phase: 'history', history_pages: 100 })).toBe('历史补采 · 已处理 100 页')
+    expect(externalMonitorProgress({ phase: 'latest_checking' })).toBe('新帖检查中')
+    expect(externalMonitorProgress({ phase: 'latest' })).toBe('等待新帖检查')
+    expect(externalMonitorProgress({ phase: 'latest', latest_checked_at: '2026-10-14' })).toBe('新帖检查已完成')
+  })
   it('区分阶段等待和实际正在请求，并兼容旧服务端', () => {
     expect(externalMonitorStatus({ status: 'collecting', activity_status: 'waiting' })).toBe('等待调度')
     expect(externalMonitorStatus({ status: 'pending', activity_status: 'collecting' })).toBe('采集中')
