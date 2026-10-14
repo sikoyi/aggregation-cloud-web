@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import GroupTagSelect from './GroupTagSelect.vue'
+import ExternalAccountTagSelect from './ExternalAccountTagSelect.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Activity, ArrowDown, ArrowUp, Minus, Clock3, Eye, Layers3, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, TriangleAlert, UserRound, Users } from 'lucide-vue-next'
 import ExternalMonitorGroups from '@/components/ExternalMonitorGroups.vue'
@@ -29,7 +29,7 @@ interface ExternalMonitor {
   collection_progress?: ExternalCollectionProgress
   version: number
   day_deltas?: Record<string, number | null>
-  group_id?: string | null
+  tag_ids: string[]
   profile: { display_name?: string; username?: string; avatar_url?: string; biography?: string; followers_count?: number; following_count?: number; posts_count?: number }
 }
 interface ExternalDetail { monitor: ExternalMonitor; posts: AnyRecord[]; total: number; snapshots: AnyRecord[] }
@@ -58,14 +58,14 @@ const pageSize = ref(20)
 const loading = ref(false)
 const refreshing = ref(false)
 const error = ref('')
-const filters = reactive({ platform: '', status: '', keyword: '', sort_order: 'desc', group_id: '' })
+const filters = reactive({ platform: '', status: '', keyword: '', sort_order: 'desc', tag_ids: [] as string[], untagged: false })
 const appliedFilters = reactive({ ...filters })
 const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
 const saving = ref(false)
 const busy = ref('')
 const deleting = ref('')
-const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true, group_id: '' })
+const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true, tag_ids: [] as string[] })
 const detailVisible = ref(false)
 const detail = ref<ExternalDetail | null>(null)
 const detailId = ref('')
@@ -114,7 +114,7 @@ async function load(background = false) {
   try {
     const [result, counts] = await Promise.all([
       http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, ...(metricSort.value ? { sort_by: metricSort.value.prop, sort_order: metricSort.value.order } : {}), page: page.value, page_size: pageSize.value }),
-      http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, keyword: appliedFilters.keyword, group_id: appliedFilters.group_id }),
+      http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
     ])
     if (disposed || id !== sequence) return
     if (background && backgroundRefreshBlocked()) return
@@ -135,28 +135,32 @@ async function load(background = false) {
     else if (id === sequence) loading.value = false
   }
 }
-function search() { Object.assign(appliedFilters, filters); if (page.value === 1) void load(); else page.value = 1 }
+function search() { Object.assign(appliedFilters, filters, { tag_ids: [...filters.tag_ids] }); if (page.value === 1) void load(); else page.value = 1 }
+function filterTags() { filters.untagged = false; search() }
+function filterUntagged() { filters.tag_ids = []; search() }
+function allTags() { filters.tag_ids = []; filters.untagged = false; search() }
 function sortMetrics({ prop, order }: { prop: string | null; order: 'ascending' | 'descending' | null }) {
   if (order && !['followers_count', 'total_post_views_count', 'total_likes_count'].includes(prop || '')) return
   metricSort.value = order && prop ? { prop, order: order === 'ascending' ? 'asc' : 'desc' } : null
   search()
 }
 function sortByCreated() { metricSort.value = null; table.value?.clearSort(); search() }
-function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc', group_id: '' }); sortByCreated() }
+function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
 function filterStatus(status: string) { filters.status = status; search() }
-function groupName(id?: string | null) { return groups.value.find(group => group.id === id)?.name || (id ? '分组已变更' : '未分组') }
+function groupName(id: string) { return groups.value.find(group => group.id === id)?.name || '标签已变更' }
 async function loadGroups() {
   try {
-    const result = await http.get<{ id: string; name: string; version: number; member_count: number }[]>('/api/external-account-monitors/groups')
+    const result = await http.get<{ id: string; name: string; version: number; member_count: number }[]>('/api/external-account-monitors/tags')
     if (!disposed) groups.value = result
-  } catch (e) { if (!disposed) ElNotification.error({ title: '加载分组失败', message: message(e) }) }
+  } catch (e) { if (!disposed) ElNotification.error({ title: '加载标签失败', message: message(e) }) }
 }
 async function groupsChanged() {
   await loadGroups()
-  if (filters.group_id && filters.group_id !== 'ungrouped' && !groups.value.some(group => group.id === filters.group_id)) filters.group_id = ''
+  filters.tag_ids = filters.tag_ids.filter(id => groups.value.some(group => group.id === id))
   search()
 }
 function batchCompleted() {
+  void loadGroups()
   batchBusy.value = false
   selected.value = []
   table.value?.clearSelection()
@@ -165,8 +169,8 @@ function batchCompleted() {
 }
 function openForm(row?: ExternalMonitor) {
   editing.value = row || null
-  form.group_id = row?.group_id || ''
-  if (!row) void loadGroups()
+  form.tag_ids = [...(row?.tag_ids || [])]
+  void loadGroups()
   Object.assign(form, row ? { business_platform: row.business_platform, profile_url: row.profile_url, remark: row.remark, interval_minutes: row.interval_minutes, enabled: row.enabled }
     : { business_platform: platforms.value[0]?.value || 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true })
   formVisible.value = true
@@ -177,16 +181,17 @@ async function save() {
   saving.value = true
   try {
     if (editing.value) {
-      const updated = await http.put<ExternalMonitor>(`/api/external-account-monitors/${editing.value.id}`, { remark: form.remark, interval_minutes: form.interval_minutes, enabled: form.enabled, expected_version: editing.value.version })
+      const updated = await http.put<ExternalMonitor>(`/api/external-account-monitors/${editing.value.id}`, { remark: form.remark, interval_minutes: form.interval_minutes, enabled: form.enabled, expected_version: editing.value.version, tag_ids: form.tag_ids })
       if (disposed) return
       editing.value = updated
     } else {
-      await http.post('/api/external-account-monitors', { business_platform: form.business_platform, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes, group_id: form.group_id || null })
+      await http.post('/api/external-account-monitors', { business_platform: form.business_platform, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes, tag_ids: form.tag_ids })
       if (disposed) return
       form.profile_url = ''
       form.remark = ''
     }
     ElNotification.success({ title: editing.value ? '监听配置已保存' : '已添加，等待首次采集' })
+    void loadGroups()
     await load()
   } catch (e) { if (!disposed) ElNotification.error({ title: '保存失败', message: message(e) }) }
   finally { saving.value = false }
@@ -213,6 +218,7 @@ async function remove(row: ExternalMonitor) {
     await http.delete(`/api/external-account-monitors/${row.id}?expected_version=${encodeURIComponent(row.version)}`)
     if (disposed) return
     ElNotification.success({ title: '外部账号监听已删除' })
+    void loadGroups()
     if (rows.value.length === 1 && page.value > 1) page.value -= 1
     else await load()
   } catch (e) {
@@ -267,7 +273,10 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-form inline label-width="72px" :disabled="batchBusy">
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
-        <el-form-item label="账号分组" class="external-monitors__group-filter"><GroupTagSelect v-model="filters.group_id" label="外部账号分组筛选" :disabled="batchBusy" :options="[{ value: '', label: '全部分组' }, { value: 'ungrouped', label: '未分组' }, ...groups.map(group => ({ value: group.id, label: group.name }))]" @update:model-value="search" /></el-form-item>
+        <el-form-item label="账号标签" class="external-monitors__group-filter"><div class="external-monitors__tag-filter">
+          <div><el-check-tag :checked="!filters.tag_ids.length && !filters.untagged" :disabled="batchBusy" @change="allTags">全部</el-check-tag><el-checkbox v-model="filters.untagged" :disabled="batchBusy" @change="filterUntagged">未设置标签</el-checkbox></div>
+          <ExternalAccountTagSelect v-model="filters.tag_ids" label="外部账号标签筛选" :disabled="batchBusy" :options="groups.map(group => ({ value: group.id, label: group.name }))" @update:model-value="filterTags" />
+        </div></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
         <el-form-item label="监听排序"><el-select v-model="filters.sort_order" @change="sortByCreated"><el-option label="最新添加在前" value="desc" /><el-option label="最早添加在前" value="asc" /></el-select></el-form-item>
       </el-form>
@@ -279,7 +288,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-table-column v-if="canEdit" type="selection" width="44" fixed="left" :selectable="() => !batchBusy" />
       <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="externalAvatarUrl(row.profile.avatar_url)"><UserRound :size="22" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
-      <el-table-column label="账号分组" min-width="150" show-overflow-tooltip><template #default="{ row }"><el-tag :type="row.group_id ? 'primary' : 'info'" effect="plain"><span class="external-monitors__group"><Layers3 v-if="row.group_id" :size="13" />{{ groupName(row.group_id) }}</span></el-tag></template></el-table-column>
+      <el-table-column label="账号标签" min-width="200"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-for="id in row.tag_ids" :key="id" effect="plain">{{ groupName(id) }}</el-tag><span v-if="!row.tag_ids?.length">未设置标签</span></div></template></el-table-column>
       <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" width="132" align="center" sortable="custom">
         <template #default="{ row }">
           <div class="external-metric-cell">
@@ -314,7 +323,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
-        <el-form-item v-if="!editing" label="分组"><GroupTagSelect v-model="form.group_id" label="添加账号分组" :disabled="saving" :options="[{ value: '', label: '未分组' }, ...groups.map(group => ({ value: group.id, label: group.name }))]" /></el-form-item>
+        <el-form-item label="账号标签"><ExternalAccountTagSelect v-model="form.tag_ids" label="账号标签" :disabled="saving" :options="groups.map(group => ({ value: group.id, label: group.name }))" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>
       </el-form>
@@ -370,6 +379,10 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors__stat-label { display: block; color: var(--app-text-muted, #66788a); font-size: 12px; }
 .external-monitors__stat strong { display: block; font-size: 20px; line-height: 1.3; color: var(--app-text, #1f2933); overflow-wrap: anywhere; }
 .external-monitors__group { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
+.external-monitors__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.external-monitors__tags :deep(.el-tag) { height: auto; min-height: 24px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 20px; }
+.external-monitors__tag-filter { width: 100%; }
+.external-monitors__tag-filter > div:first-child { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
 @media (max-width: 1000px) { .external-monitors__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
   .external-monitors__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }

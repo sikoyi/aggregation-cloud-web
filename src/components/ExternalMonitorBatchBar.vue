@@ -3,15 +3,16 @@ import { computed, ref } from 'vue'
 import { Clock3, Layers3, Pause, Play, Trash2 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
+import ExternalAccountTagSelect from './ExternalAccountTagSelect.vue'
 
-type Action = 'enable' | 'disable' | 'interval' | 'group' | 'delete'
+type Action = 'enable' | 'disable' | 'interval' | 'tags' | 'delete'
 interface Result { succeeded: number; skipped: number; failed: number; items: { id: string; status: string; message: string }[] }
 const props = defineProps<{ selected: { id: string; version: number }[]; groups: { id: string; name: string }[]; disabled: boolean }>()
 const emit = defineEmits<{ completed: []; busy: [value: boolean] }>()
 const busy = ref(false)
-const dialog = ref<'interval' | 'group' | null>(null)
+const dialog = ref<'interval' | 'tags' | null>(null)
 const interval = ref(60)
-const group = ref('')
+const tags = ref<string[]>([])
 const result = ref<Result | null>(null)
 const resultVisible = ref(false)
 const disabled = computed(() => busy.value || props.disabled || !props.selected.length)
@@ -22,9 +23,10 @@ async function run(action: Action) {
   emit('busy', true)
   try {
     if (action === 'delete') await ElMessageBox.confirm(`确认删除选中的 ${items.length} 个外部账号监听及其已采集帖子、历史指标？操作日志仍会保留。`, '批量删除监听', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' })
+    if (action === 'tags') await ElMessageBox.confirm(tags.value.length ? `将 ${items.length} 个账号的现有标签替换为：${tags.value.map(id => props.groups.find(tag => tag.id === id)?.name || id).join('、')}` : `清空所选 ${items.length} 个账号的全部标签？`, tags.value.length ? '替换账号标签' : '清空账号标签', { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' })
     result.value = await http.post<Result>('/api/external-account-monitors/batch', { action, items,
       ...(action === 'interval' ? { interval_minutes: interval.value } : {}),
-      ...(action === 'group' ? { group_id: group.value || null } : {}),
+      ...(action === 'tags' ? { tag_ids: [...tags.value] } : {}),
     })
     dialog.value = null
     const message = `成功 ${result.value.succeeded}，跳过 ${result.value.skipped}，失败 ${result.value.failed}`
@@ -43,14 +45,14 @@ async function run(action: Action) {
       <el-button :icon="Play" :disabled="disabled" @click="run('enable')">批量开启监听</el-button>
       <el-button :icon="Pause" :disabled="disabled" @click="run('disable')">批量关闭监听</el-button>
       <el-button :icon="Clock3" :disabled="disabled" @click="dialog = 'interval'">批量修改间隔</el-button>
-      <el-button :icon="Layers3" :disabled="disabled" @click="dialog = 'group'">批量分组</el-button>
+      <el-button :icon="Layers3" :disabled="disabled" @click="tags = []; dialog = 'tags'">批量设置标签</el-button>
       <el-button :icon="Trash2" type="danger" plain :disabled="disabled" @click="run('delete')">批量删除</el-button>
     </div>
   </div>
-  <el-dialog :model-value="!!dialog" :title="dialog === 'interval' ? '批量修改监听间隔' : '批量设置分组'" width="min(440px, 96vw)" append-to-body :close-on-click-modal="false" @update:model-value="value => { if (!value && !busy) dialog = null }">
+  <el-dialog :model-value="!!dialog" :title="dialog === 'interval' ? '批量修改监听间隔' : '批量设置标签'" width="min(440px, 96vw)" append-to-body :close-on-click-modal="false" @update:model-value="value => { if (!value && !busy) dialog = null }">
     <el-form label-position="top">
       <el-form-item v-if="dialog === 'interval'" label="监听间隔（分钟）"><el-input-number v-model="interval" :min="1" :max="1440" :disabled="busy" /></el-form-item>
-      <el-form-item v-else label="账号分组"><el-select v-model="group" :disabled="busy" style="width: 100%"><el-option label="未分组" value="" /><el-option v-for="item in groups" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
+      <el-form-item v-else label="账号标签"><ExternalAccountTagSelect v-model="tags" label="批量账号标签" :disabled="busy" :options="groups.map(item => ({ value: item.id, label: item.name }))" /></el-form-item>
     </el-form>
     <template #footer><el-button :disabled="busy" @click="dialog = null">取消</el-button><el-button type="primary" :loading="busy" :disabled="disabled" @click="dialog && run(dialog)">确认修改</el-button></template>
   </el-dialog>
