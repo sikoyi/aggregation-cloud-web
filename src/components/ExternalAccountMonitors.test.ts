@@ -12,17 +12,18 @@ function setup() {
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     metricSort: { value: null as { prop: string; order: string } | null },
-    loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: { tag_ids: [] as string[] }, busy: { value: '' }, deleting: { value: '' },
+    loading: { value: false }, error: { value: '' }, appliedFilters: { tag_ids: [] as string[] }, filters: { tag_ids: [] as string[] }, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
     batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), sort: vi.fn() } },
-    summary: { value: null as unknown }, groups: { value: [] },
-    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockResolvedValue({ items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
+    summary: { value: null as unknown }, groups: { value: [] as { id: string; name: string; member_count: number }[] },
+    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
-  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadDetail, search, reset, sortMetrics};`)(...Object.values(state)) as {
+  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics};`)(...Object.values(state)) as {
+    loadGroups: () => Promise<void>
     sortMetrics: (value: { prop: string | null; order: 'ascending' | 'descending' | null }) => void
     search: () => void; reset: () => void
     save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: (background?: boolean) => Promise<void>
@@ -32,6 +33,51 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('标签旧响应不能覆盖最新成员数量', async () => {
+    const s = setup()
+    let resolve!: (value: unknown) => void
+    s.http.get.mockReturnValueOnce(new Promise(done => { resolve = done }))
+    const old = s.loadGroups()
+    s.http.get.mockResolvedValueOnce([{ id: 'a', name: 'A', member_count: 3 }] as never)
+    await s.loadGroups()
+    resolve([{ id: 'a', name: 'A', member_count: 1 }])
+    await old
+    expect(s.groups.value[0]?.member_count).toBe(3)
+  })
+  it('刷新标签清理失效筛选，不提交尚未查询的关键词', async () => {
+    const s = setup()
+    Object.assign(s.filters, { tag_ids: ['gone', 'a'], keyword: 'draft' })
+    Object.assign(s.appliedFilters, { tag_ids: ['gone', 'a'], keyword: 'applied' })
+    s.http.get.mockResolvedValueOnce([{ id: 'a', name: 'A', member_count: 2 }] as never)
+    await s.loadGroups()
+    expect(s.filters.tag_ids).toEqual(['a'])
+    expect(s.appliedFilters).toEqual({ tag_ids: ['a'], keyword: 'applied' })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ tag_ids: ['a'], keyword: 'applied', page: 1 }))
+  })
+  it('标签加载失败不清空筛选，旧失败不覆盖新成功', async () => {
+    const s = setup()
+    s.filters.tag_ids = ['a']
+    s.appliedFilters.tag_ids = ['a']
+    let reject!: (error: Error) => void
+    s.http.get.mockReturnValueOnce(new Promise((_, fail) => { reject = fail }))
+    const old = s.loadGroups()
+    s.http.get.mockResolvedValueOnce([{ id: 'a', name: 'A', member_count: 2 }] as never)
+    await s.loadGroups()
+    reject(new Error('old request failed'))
+    await old
+    expect(s.ElNotification.error).not.toHaveBeenCalled()
+    expect(s.appliedFilters.tag_ids).toEqual(['a'])
+  })
+  it('筛选标签全部失效后回到第一页', async () => {
+    const s = setup()
+    s.page.value = 3
+    s.appliedFilters.tag_ids = ['gone']
+    s.filters.tag_ids = ['gone']
+    s.http.get.mockResolvedValueOnce([] as never)
+    await s.loadGroups()
+    expect(s.page.value).toBe(1)
+    expect(s.appliedFilters.tag_ids).toEqual([])
+  })
   it('添加时一并保存多个标签，连续添加保留选择', async () => {
     const s = setup()
     s.form.tag_ids = ['one', 'two']

@@ -73,6 +73,7 @@ const detailPage = ref(1)
 const detailLoading = ref(false)
 const detailError = ref('')
 let sequence = 0
+let groupsSequence = 0
 let detailSequence = 0
 let disposed = false
 let timer: ReturnType<typeof setInterval> | undefined
@@ -153,15 +154,24 @@ function reset() { Object.assign(filters, { platform: '', status: '', keyword: '
 function filterStatus(status: string) { filters.status = status; search() }
 function groupName(id: string) { return groups.value.find(group => group.id === id)?.name || '标签已变更' }
 async function loadGroups() {
+  const request = ++groupsSequence
   try {
     const result = await http.get<{ id: string; name: string; version: number; member_count: number }[]>('/api/external-account-monitors/tags')
-    if (!disposed) groups.value = result
-  } catch (e) { if (!disposed) ElNotification.error({ title: '加载标签失败', message: message(e) }) }
+    if (disposed || request !== groupsSequence) return
+    groups.value = result
+    const available = new Set(result.map(group => group.id))
+    filters.tag_ids = filters.tag_ids.filter(id => available.has(id))
+    const active = appliedFilters.tag_ids.filter(id => available.has(id))
+    if (active.length !== appliedFilters.tag_ids.length) {
+      appliedFilters.tag_ids = active
+      if (page.value === 1) void load()
+      else page.value = 1
+      return true
+    }
+  } catch (e) { if (!disposed && request === groupsSequence) ElNotification.error({ title: '加载标签失败', message: message(e) }) }
 }
 async function groupsChanged() {
-  await loadGroups()
-  filters.tag_ids = filters.tag_ids.filter(id => groups.value.some(group => group.id === id))
-  search()
+  if (!await loadGroups()) void load()
 }
 function batchCompleted() {
   void loadGroups()
