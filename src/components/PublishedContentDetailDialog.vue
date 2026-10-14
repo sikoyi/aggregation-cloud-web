@@ -159,8 +159,8 @@ function deltaText(value: unknown) {
 
 function trendType(value: unknown) {
   const direction = String(value || '')
-  if (direction === 'up') return 'success'
-  if (direction === 'down') return 'danger'
+  if (direction === 'up') return 'danger'
+  if (direction === 'down') return 'success'
   if (direction === 'flat') return 'info'
   return 'info'
 }
