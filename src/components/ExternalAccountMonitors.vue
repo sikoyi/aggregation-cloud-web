@@ -349,8 +349,8 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-metric-delta { display: flex; align-items: center; justify-content: center; gap: 3px; max-width: 100%; min-width: 0; font-size: 12px; line-height: 18px; color: var(--app-text-muted, #8291a1); white-space: nowrap; }
 .external-metric-delta > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .external-metric-delta svg { flex-shrink: 0; }
-.external-metric-delta.is-up { color: var(--app-green, #238457); }
-.external-metric-delta.is-down { color: var(--app-red, #cf4f4f); }
+.external-metric-delta.is-up { color: var(--app-red, #cf4f4f); }
+.external-metric-delta.is-down { color: var(--app-green, #238457); }
 .external-collection-progress { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--app-text-muted, #718096); overflow-wrap: anywhere; }
 .external-monitors { background: var(--app-surface, #fff); padding: 16px; border: 1px solid var(--app-border, #dce5ed); }
 .external-monitors :deep(th.is-sortable .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }

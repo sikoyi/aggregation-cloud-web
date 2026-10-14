@@ -53,6 +53,11 @@ describe('外部账号只读监听', () => {
     expect(source).toContain('formatCompactSignedCount(value)')
     expect(source).toContain(':title="metricDelta(row.day_deltas?.[metric.key], metric.key).fullLabel"')
   })
+  it('上涨红色、下跌绿色，持平保持中性色', () => {
+    expect(source).toContain('.external-metric-delta.is-up { color: var(--app-red, #cf4f4f); }')
+    expect(source).toContain('.external-metric-delta.is-down { color: var(--app-green, #238457); }')
+    expect(source).toContain("label: '较前一日 持平', fullLabel: '较前一日 持平', tone: 'flat'")
+  })
   it('浏览量列只展示缓存值和日增量，不暴露汇总状态', () => {
     expect(source).toContain(':value="row.profile[metric.key]"')
     expect(source).not.toContain('定时汇总')
