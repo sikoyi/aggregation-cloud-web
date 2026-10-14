@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MonitorContentConflict from '@/components/MonitorContentConflict.vue'
 import {
   Activity,
   AlertTriangle,
@@ -1817,6 +1818,7 @@ onBeforeUnmount(() => {
                       show-icon
                       class="profile-section__alert"
                     />
+                    <MonitorContentConflict :account-id="String(selectedAccount.account_id)" :error-message="String(selectedAccount.last_error_message || '')" />
                   </section>
 
                   <section class="profile-section">
