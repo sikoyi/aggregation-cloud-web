@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElNotification } from 'element-plus'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { ApiError, http } from '@/api/http'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
@@ -48,6 +48,7 @@ const selectedGroup = computed({
 const suppressNextModelReload = ref(false)
 let loadRequestId = 0
 let groupRequestId = 0
+onBeforeUnmount(() => { ++loadRequestId; ++groupRequestId })
 
 const groupEnabled = computed(() => Boolean(props.config.group && !props.compact))
 const canLoad = computed(() => props.config.loadWhen?.(props.context) ?? true)
@@ -310,7 +311,19 @@ async function mergeDetailsForCurrentSelection(
   return [...details, ...items]
 }
 
-async function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
+let activeLoad: { key: string; promise: Promise<void> } | undefined
+function loadOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
+  const key = JSON.stringify([requestSignature.value, canLoad.value, keyword,
+    Boolean(behavior.clearMissing), selectedValues()])
+  if (activeLoad?.key === key) return activeLoad.promise
+  const promise = fetchOptions(keyword, behavior).finally(() => {
+    if (activeLoad?.promise === promise) activeLoad = undefined
+  })
+  activeLoad = { key, promise }
+  return promise
+}
+
+async function fetchOptions(keyword = '', behavior: { clearMissing?: boolean } = {}) {
   const requestId = ++loadRequestId
   if (!canLoad.value) {
     options.value = withFixedOptions([])
@@ -380,7 +393,7 @@ onMounted(() => {
 })
 
 watch(
-  () => props.modelValue,
+  () => JSON.stringify(selectedValues()),
   () => {
     if (suppressNextModelReload.value) {
       suppressNextModelReload.value = false
