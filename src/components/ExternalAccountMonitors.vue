@@ -42,7 +42,7 @@ const rows = ref<ExternalMonitor[]>([])
 const total = ref(0)
 const groups = ref<{ id: string; name: string; version: number; member_count: number }[]>([])
 const selected = ref<ExternalMonitor[]>([])
-const table = ref<{ clearSelection: () => void; clearSort: () => void } | null>(null)
+const table = ref<{ clearSelection: () => void; sort: (prop: string, order: 'ascending' | 'descending') => void } | null>(null)
 const metricSort = ref<{ prop: string; order: 'asc' | 'desc' } | null>(null)
 const batchBusy = ref(false)
 const summary = ref<Record<string, number> | null>(null)
@@ -140,11 +140,15 @@ function filterTags() { filters.untagged = false; search() }
 function filterUntagged() { filters.tag_ids = []; search() }
 function allTags() { filters.tag_ids = []; filters.untagged = false; search() }
 function sortMetrics({ prop, order }: { prop: string | null; order: 'ascending' | 'descending' | null }) {
-  if (order && !['followers_count', 'total_post_views_count', 'total_likes_count'].includes(prop || '')) return
-  metricSort.value = order && prop ? { prop, order: order === 'ascending' ? 'asc' : 'desc' } : null
+  if (order && !['created_at', 'followers_count', 'total_post_views_count', 'total_likes_count'].includes(prop || '')) return
+  const next = order && prop && !(prop === 'created_at' && order === 'descending') ? { prop, order: order === 'ascending' ? 'asc' as const : 'desc' as const } : null
+  const changed = JSON.stringify(next) !== JSON.stringify(metricSort.value)
+  metricSort.value = next
+  if (!order) table.value?.sort('created_at', 'descending')
+  if (!changed) return
   search()
 }
-function sortByCreated() { metricSort.value = null; table.value?.clearSort(); search() }
+function sortByCreated() { metricSort.value = null; table.value?.sort('created_at', 'descending'); search() }
 function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
 function filterStatus(status: string) { filters.status = status; search() }
 function groupName(id: string) { return groups.value.find(group => group.id === id)?.name || '标签已变更' }
@@ -273,23 +277,22 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-form inline label-width="72px" :disabled="batchBusy">
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+        <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
         <el-form-item label="账号标签" class="external-monitors__group-filter"><div class="external-monitors__tag-filter">
           <div><el-check-tag :checked="!filters.tag_ids.length && !filters.untagged" :disabled="batchBusy" @change="allTags">全部</el-check-tag><el-checkbox v-model="filters.untagged" :disabled="batchBusy" @change="filterUntagged">未设置标签</el-checkbox></div>
           <ExternalAccountTagSelect v-model="filters.tag_ids" label="外部账号标签筛选" :disabled="batchBusy" :options="groups.map(group => ({ value: group.id, label: group.name }))" @update:model-value="filterTags" />
         </div></el-form-item>
-        <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
-        <el-form-item label="监听排序"><el-select v-model="filters.sort_order" @change="sortByCreated"><el-option label="最新添加在前" value="desc" /><el-option label="最早添加在前" value="asc" /></el-select></el-form-item>
       </el-form>
       <el-button :icon="RotateCcw" :disabled="batchBusy" @click="reset">清空</el-button><el-button :icon="Search" type="primary" :disabled="batchBusy" @click="search">查询</el-button>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <ExternalMonitorBatchBar v-if="canEdit" :selected="selected" :groups="groups" :disabled="loading || saving || !!busy || !!deleting" @busy="batchBusy = $event" @completed="batchCompleted" />
-    <el-table ref="table" v-loading="loading" :data="rows" row-key="id" stripe border table-layout="fixed" empty-text="暂无外部账号" @selection-change="selected = $event" @sort-change="sortMetrics">
+    <el-table ref="table" v-loading="loading" :data="rows" :default-sort="{ prop: 'created_at', order: 'descending' }" row-key="id" stripe border table-layout="fixed" empty-text="暂无外部账号" @selection-change="selected = $event" @sort-change="sortMetrics">
       <el-table-column v-if="canEdit" type="selection" width="44" fixed="left" :selectable="() => !batchBusy" />
       <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="externalAvatarUrl(row.profile.avatar_url)"><UserRound :size="22" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
       <el-table-column label="账号标签" min-width="200"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-for="id in row.tag_ids" :key="id" effect="plain">{{ groupName(id) }}</el-tag><span v-if="!row.tag_ids?.length">未设置标签</span></div></template></el-table-column>
-      <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" width="132" align="center" sortable="custom">
+      <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="metric.key === 'total_post_views_count' ? 156 : 132" align="center" sortable="custom">
         <template #default="{ row }">
           <div class="external-metric-cell">
             <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>
@@ -299,6 +302,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
           </div>
         </template>
       </el-table-column>
+      <el-table-column prop="created_at" label="添加时间" width="180" align="center" sortable="custom"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
       <el-table-column label="监听状态 / 进度" width="180" align="center"><template #default="{ row }">
         <MonitorErrorStatus v-if="['retrying', 'abnormal'].includes(row.activity_status || row.status) || row.last_error" :label="externalMonitorStatus(row as ExternalMonitor)" :data="row" />
         <el-tag v-else :type="(row.activity_status || row.status) === 'active' ? 'success' : (row.activity_status || row.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(row as ExternalMonitor) }}</el-tag>
@@ -349,6 +353,8 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-metric-delta.is-down { color: var(--app-red, #cf4f4f); }
 .external-collection-progress { margin-top: 5px; font-size: 12px; line-height: 1.5; color: var(--app-text-muted, #718096); overflow-wrap: anywhere; }
 .external-monitors { background: var(--app-surface, #fff); padding: 16px; border: 1px solid var(--app-border, #dce5ed); }
+.external-monitors :deep(th.is-sortable .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+.external-monitors :deep(th.is-sortable .caret-wrapper) { flex-shrink: 0; }
 .external-monitors__header, .external-monitors__actions, .external-monitors h2, .external-monitors__filters > strong { display: flex; align-items: center; gap: 10px; }
 .external-monitors__header { justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; gap: 12px; }
 .external-monitors h2 { font-size: 18px; margin: 0; }

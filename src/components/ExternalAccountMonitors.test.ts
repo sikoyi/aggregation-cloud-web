@@ -15,14 +15,15 @@ function setup() {
     loading: { value: false }, error: { value: '' }, appliedFilters: {}, filters: { tag_ids: [] as string[] }, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
-    batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), clearSort: vi.fn() } },
+    batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), sort: vi.fn() } },
     summary: { value: null as unknown }, groups: { value: [] },
     http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockResolvedValue({ items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadDetail, search, reset};`)(...Object.values(state)) as {
+  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadDetail, search, reset, sortMetrics};`)(...Object.values(state)) as {
+    sortMetrics: (value: { prop: string | null; order: 'ascending' | 'descending' | null }) => void
     search: () => void; reset: () => void
     save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: (background?: boolean) => Promise<void>
     remove: (row: Record<string, unknown>) => Promise<void>; loadDetail: () => Promise<void>
@@ -67,7 +68,7 @@ describe('外部账号只读监听', () => {
     expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { platform: 'x', status: 'active', tag_ids: ['one','two'], sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
     s.reset()
     expect(s.metricSort.value).toBeNull()
-    expect(s.table.value.clearSort).toHaveBeenCalled()
+    expect(s.table.value.sort).toHaveBeenCalledWith('created_at', 'descending')
   })
   it('后台刷新不显示遮罩、不清除选择、未变化的行保持引用', async () => {
     const s = setup()
@@ -151,7 +152,8 @@ describe('外部账号只读监听', () => {
     s.reset()
     expect(s.filters).toMatchObject({ sort_order: 'desc' })
     expect(s.appliedFilters).toMatchObject({ sort_order: 'desc' })
-    expect(source).toContain('v-model="filters.sort_order" @change="sortByCreated"')
+    expect(source).not.toContain('label="监听排序"')
+    expect(source).toContain('prop="created_at" label="添加时间"')
   })
   it('详情翻页使用对应页码，较早的响应不能覆盖新页', async () => {
     const s = setup()
@@ -244,5 +246,26 @@ describe('外部账号只读监听', () => {
     expect(s.safeUrl('javascript:alert(1)')).toBe('')
     expect(s.safeUrl('https://user:password@x.com/source')).toBe('')
     expect(s.safeUrl('https://x.com/source')).toBe('https://x.com/source')
+  })
+  it('添加时间排序走服务端，切换方向与清空都回到第一页', async () => {
+    const s = setup()
+    s.page.value = 3
+    s.sortMetrics({ prop: 'created_at', order: 'ascending' })
+    expect(s.page.value).toBe(1)
+    expect(s.metricSort.value).toEqual({ prop: 'created_at', order: 'asc' })
+    await s.load()
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ sort_by: 'created_at', sort_order: 'asc' }))
+    s.sortMetrics({ prop: 'created_at', order: 'descending' })
+    expect(s.metricSort.value).toBeNull()
+    s.sortMetrics({ prop: 'total_likes_count', order: 'ascending' })
+    s.sortMetrics({ prop: null, order: null })
+    expect(s.metricSort.value).toBeNull()
+    expect(s.table.value.sort).toHaveBeenCalledWith('created_at', 'descending')
+  })
+  it('关键词在标签前，排序表头保持单行', () => {
+    const filters = source.split('<div class="external-monitors__filters">')[1]!.split('</el-form>')[0]!
+    expect(filters.indexOf('label="关键词"')).toBeLessThan(filters.indexOf('label="账号标签"'))
+    expect(source).toContain('th.is-sortable .cell')
+    expect(source).toContain('justify-content: center; white-space: nowrap;')
   })
 })
