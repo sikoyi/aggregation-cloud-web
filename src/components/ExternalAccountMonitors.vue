@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GroupTagSelect from './GroupTagSelect.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Activity, ArrowDown, ArrowUp, Minus, Clock3, Eye, Layers3, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, TriangleAlert, UserRound, Users } from 'lucide-vue-next'
 import ExternalMonitorGroups from '@/components/ExternalMonitorGroups.vue'
@@ -266,7 +267,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-form inline label-width="72px" :disabled="batchBusy">
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
-        <el-form-item label="账号分组"><el-select v-model="filters.group_id" placeholder="全部分组" clearable filterable><el-option label="未分组" value="ungrouped" /><el-option v-for="group in groups" :key="group.id" :label="group.name" :value="group.id" /></el-select></el-form-item>
+        <el-form-item label="账号分组" class="external-monitors__group-filter"><GroupTagSelect v-model="filters.group_id" label="外部账号分组筛选" :disabled="batchBusy" :options="[{ value: '', label: '全部分组' }, { value: 'ungrouped', label: '未分组' }, ...groups.map(group => ({ value: group.id, label: group.name }))]" @update:model-value="search" /></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
         <el-form-item label="监听排序"><el-select v-model="filters.sort_order" @change="sortByCreated"><el-option label="最新添加在前" value="desc" /><el-option label="最早添加在前" value="asc" /></el-select></el-form-item>
       </el-form>
@@ -313,7 +314,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
-        <el-form-item v-if="!editing" label="分组"><el-select v-model="form.group_id" filterable clearable placeholder="未分组" :disabled="saving" aria-label="添加账号分组"><el-option v-for="group in groups" :key="group.id" :label="group.name" :value="group.id" /></el-select></el-form-item>
+        <el-form-item v-if="!editing" label="分组"><GroupTagSelect v-model="form.group_id" label="添加账号分组" :disabled="saving" :options="[{ value: '', label: '未分组' }, ...groups.map(group => ({ value: group.id, label: group.name }))]" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>
       </el-form>
@@ -355,6 +356,8 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors a { color: var(--app-blue, #286794); overflow-wrap: anywhere; }
 .external-monitors__pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .external-monitors__full { width: 100%; }
+.external-monitors__filters :deep(.external-monitors__group-filter) { display: flex; margin-right: 0; width: 100%; }
+.external-monitors__group-filter :deep(.el-form-item__content) { min-width: 0; }
 .external-monitors__detail { max-height: 72vh; overflow-y: auto; overflow-x: hidden; min-height: 180px; padding-right: 8px; }
 .external-monitors__summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 .external-monitors__stat { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 64px; padding: 12px; border: 1px solid var(--app-border, #dce5ed); border-radius: 6px; background: var(--app-surface, #fff); text-align: left; cursor: pointer; }
