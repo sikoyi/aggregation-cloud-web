@@ -7,6 +7,7 @@ const ast = ts.createSourceFile('ExternalMonitor.ts', source.split('<script setu
 const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => node.getText(ast)).join('\n')
 function setup() {
   const state = {
+    platforms: { value: [{ value: 'x' }] },
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
     form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[] },
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
@@ -22,7 +23,8 @@ function setup() {
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics};`)(...Object.values(state)) as {
+  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics};`)(...Object.values(state)) as {
+    openForm: (row?: Record<string, unknown>) => void
     loadGroups: () => Promise<void>
     sortMetrics: (value: { prop: string | null; order: 'ascending' | 'descending' | null }) => void
     search: () => void; reset: () => void
@@ -33,6 +35,26 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('新增及重新打开默认六小时，编辑和连续添加保留自定义间隔', async () => {
+    const s = setup()
+    expect(source).toContain("remark: '', interval_minutes: 360, enabled: true, tag_ids:")
+    s.openForm()
+    expect(s.form.interval_minutes).toBe(360)
+    s.form.profile_url = 'https://x.com/source'
+    await s.save()
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ interval_minutes: 360 }))
+
+    s.form.interval_minutes = 45
+    s.form.profile_url = 'https://x.com/second'
+    await s.save()
+    expect(s.form.interval_minutes).toBe(45)
+    s.openForm({ id: 'external', version: 1, business_platform: 'x', profile_url: 'https://x.com/source', remark: '', interval_minutes: 60, enabled: true })
+    expect(s.form.interval_minutes).toBe(60)
+    await s.save()
+    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', expect.objectContaining({ interval_minutes: 60 }))
+    s.openForm()
+    expect(s.form.interval_minutes).toBe(360)
+  })
   it('标签旧响应不能覆盖最新成员数量', async () => {
     const s = setup()
     let resolve!: (value: unknown) => void

@@ -151,7 +151,7 @@ const monitorReplySchedule = ref<CommentReplyScheduleOptions>({ inherit: true, t
 const monitorReplyScheduleReady = ref(false)
 const batchIntervalForm = reactive({
   monitor_mode: 'system' as AccountMonitorMode,
-  interval_minutes: 60,
+  interval_minutes: 180,
 })
 const total = ref(0)
 const page = ref(1)
@@ -247,7 +247,7 @@ const monitorForm = reactive({
   account_id: '',
   profile_url: '',
   monitor_mode: 'system',
-  interval_minutes: 60,
+  interval_minutes: 180,
   comment_reply_mode: 'disabled',
   ai_provider: '',
   ai_language: 'auto',
@@ -556,7 +556,7 @@ function openMonitor(account?: AnyRecord) {
     account_id: String(account?.account_id || ''),
     profile_url: String(account?.profile_url || ''),
     monitor_mode: String(account?.monitor_mode || 'system'),
-    interval_minutes: Number(account?.monitor_interval_minutes || 60),
+    interval_minutes: Number(account?.monitor_interval_minutes || 180),
     comment_reply_mode: String(account?.comment_reply_mode || 'disabled'),
     ai_provider: String(aiConfig.provider || monitorForm.ai_provider || ''),
     ai_language: String(aiConfig.language || 'auto'),
@@ -841,7 +841,7 @@ const postSyncOptions = [
 const batchReplyModeOptions = commentReplyStateOptions.filter(option => option.value !== 'not_configured')
 const batchPostSyncOptions = postSyncOptions.filter(option => option.value !== 'not_configured')
 const batchMonitorModeOptions = [
-  { label: '系统默认（60 分钟）', value: 'system' },
+  { label: '系统默认（3 小时 / 180 分钟）', value: 'system' },
   { label: '自定义间隔', value: 'custom' },
 ]
 
@@ -878,20 +878,20 @@ function openBatchMonitorInterval() {
   if (batchActionsDisabled.value) return
   Object.assign(batchIntervalForm, {
     monitor_mode: 'system',
-    interval_minutes: 60,
+    interval_minutes: 180,
   })
   batchIntervalVisible.value = true
 }
 
 const batchEnableVisible = ref(false)
 const batchEnableAccountIds = ref<string[]>([])
-const batchEnableInterval = reactive({ mode: 'keep', minutes: 60 })
+const batchEnableInterval = reactive({ mode: 'keep', minutes: 180 })
 
 function batchSetMonitors(command: string) {
   if (batchActionsDisabled.value) return
   if (command === 'enable') {
     batchEnableAccountIds.value = [...selectedAccountIds.value]
-    Object.assign(batchEnableInterval, { mode: 'keep', minutes: 60 })
+    Object.assign(batchEnableInterval, { mode: 'keep', minutes: 180 })
     batchEnableVisible.value = true
     return
   }
@@ -1875,7 +1875,7 @@ onBeforeUnmount(() => {
         <el-form-item label="采集间隔">
           <el-select v-model="batchEnableInterval.mode" :disabled="batchUpdating">
             <el-option label="保留各账号原设置" value="keep" />
-            <el-option label="系统默认（60 分钟）" value="system" />
+            <el-option label="系统默认（3 小时 / 180 分钟）" value="system" />
             <el-option label="自定义间隔" value="custom" />
           </el-select>
         </el-form-item>
@@ -1991,7 +1991,7 @@ onBeforeUnmount(() => {
             <div class="monitor-form-row">
               <el-form-item label="监听规则">
                 <el-select v-model="monitorForm.monitor_mode" class="w-full">
-                  <el-option label="系统默认（每 60 分钟）" value="system" />
+                  <el-option label="系统默认（每 3 小时 / 180 分钟）" value="system" />
                   <el-option label="自定义间隔" value="custom" />
                 </el-select>
               </el-form-item>

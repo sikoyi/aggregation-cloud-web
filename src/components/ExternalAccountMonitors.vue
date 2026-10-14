@@ -65,7 +65,7 @@ const formVisible = ref(false)
 const saving = ref(false)
 const busy = ref('')
 const deleting = ref('')
-const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true, tag_ids: [] as string[] })
+const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 360, enabled: true, tag_ids: [] as string[] })
 const detailVisible = ref(false)
 const detail = ref<ExternalDetail | null>(null)
 const detailId = ref('')
@@ -186,7 +186,7 @@ function openForm(row?: ExternalMonitor) {
   form.tag_ids = [...(row?.tag_ids || [])]
   void loadGroups()
   Object.assign(form, row ? { business_platform: row.business_platform, profile_url: row.profile_url, remark: row.remark, interval_minutes: row.interval_minutes, enabled: row.enabled }
-    : { business_platform: platforms.value[0]?.value || 'threads', profile_url: '', remark: '', interval_minutes: 60, enabled: true })
+    : { business_platform: platforms.value[0]?.value || 'threads', profile_url: '', remark: '', interval_minutes: 360, enabled: true })
   formVisible.value = true
 }
 async function save() {
