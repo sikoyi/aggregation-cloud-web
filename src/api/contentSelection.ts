@@ -22,6 +22,9 @@ export interface SelectionPost {
   comments_count: number | null
 }
 export interface SelectionSource {
+  external_monitor_id?: string | null
+  country?: string
+  tags?: { id: string; name: string }[]
   profile?: SelectionAuthor
   id: string
   business_platform: string
