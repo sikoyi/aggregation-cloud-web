@@ -46,6 +46,7 @@ import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
 import { commentReplyStatusOptions, operatorReplyStatus, operatorReplyStatusMeta } from '@/config/commentReplyStatus'
 import { findNextReview } from '@/utils/nextReview'
+import { replyReviewFocus } from '@/utils/replyReviewFocus'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -388,13 +389,22 @@ function handleRealtimeEvent(event: Event) {
 }
 
 function applyReviewShortcut() {
+  const jobId = replyReviewFocus(route.query.job_id)
+  if (jobId) {
+    Object.assign(filters, createDefaultCommentReplyFilters(), { status: '', jobId })
+    page.value = 1
+    void openJob({ id: jobId })
+    return true
+  }
   if (route.query.status !== 'pending_review') return false
   Object.assign(filters, createDefaultCommentReplyFilters(), { status: 'pending_review' })
   page.value = 1
   return true
 }
 
-watch(() => route.query.status, () => {
+watch(() => [route.query.status, route.query.job_id], () => {
+  detailRequest++
+  dialogVisible.value = false
   if (applyReviewShortcut()) void loadRows()
 })
 

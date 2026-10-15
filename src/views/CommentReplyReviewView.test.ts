@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest'
 import source from './CommentReplyReviewView.vue?raw'
 
 describe('回复审核筛选区', () => {
+  it('TG 工单入口清除缓存条件并打开精确工单', () => {
+    expect(source).toContain('replyReviewFocus(route.query.job_id)')
+    expect(source).toContain("{ status: '', jobId }")
+    expect(source).toContain('void openJob({ id: jobId })')
+    expect(source).toContain('route.query.status, route.query.job_id')
+  })
   it('列表隐藏处理方式，保留回复模式筛选和详情', () => {
     expect(source).not.toContain('<el-table-column label="处理方式"')
     expect(source).toContain('<el-form-item label="回复模式">')
