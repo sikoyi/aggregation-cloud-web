@@ -17,13 +17,15 @@ function setup() {
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
     batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), sort: vi.fn() } },
+    countries: { value: [] as string[] },
     summary: { value: null as unknown }, groups: { value: [] as { id: string; name: string; member_count: number }[] },
-    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
+    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : path.endsWith('/countries') ? ['日本', '韩国'] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics};`)(...Object.values(state)) as {
+  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics, filterCountry};`)(...Object.values(state)) as {
+    filterCountry: (country?: string, unset?: boolean) => void
     openForm: (row?: Record<string, unknown>) => void
     loadGroups: () => Promise<void>
     sortMetrics: (value: { prop: string | null; order: 'ascending' | 'descending' | null }) => void
@@ -35,6 +37,63 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('国家独占一行且筛选只展示服务端去重选项，表单仍有完整国家列表', async () => {
+    const s = setup()
+    await s.load()
+    expect(s.countries.value).toEqual(['日本', '韩国'])
+    expect(source).toContain('label="国家" class="external-monitors__group-filter"')
+    expect(source).toContain('v-for="country in countries"')
+    expect(source).toContain('v-model="form.country"')
+    expect(source.match(/v-for="option in accountCountryOptions"/g)).toHaveLength(1)
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/countries')
+  })
+  it('国家、未设置、全部互斥，切换回第一页且批量操作时禁用', async () => {
+    const s = setup()
+    s.page.value = 3
+    s.filterCountry('日本')
+    expect(s.page.value).toBe(1)
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '日本', country_unset: false }))
+    s.filterCountry('', true)
+    await s.load()
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ country: '', country_unset: true }))
+    s.filterCountry()
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '', country_unset: false }))
+    s.batchBusy.value = true
+    s.filterCountry('韩国')
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '', country_unset: false }))
+  })
+  it('国家消失时仅清除该筛选，保留其他已应用条件，不提交草稿', async () => {
+    const s = setup()
+    Object.assign(s.appliedFilters, { country: '美国', keyword: 'applied', tag_ids: ['a'] })
+    Object.assign(s.filters, { country: '美国', keyword: 'draft', tag_ids: ['b'] })
+    await s.load()
+    expect(s.appliedFilters).toEqual({ country: '', keyword: 'applied', tag_ids: ['a'] })
+    expect(s.filters).toEqual({ country: '', keyword: 'draft', tag_ids: ['b'] })
+    expect(s.http.get).toHaveBeenCalledTimes(6)
+  })
+  it('空国家列表和请求失败不产生虚假国家或重复请求', async () => {
+    const s = setup()
+    s.http.get.mockImplementation(async (path: string) => path.endsWith('/countries') ? [] : { items: [], total: 0 })
+    await s.load()
+    expect(s.countries.value).toEqual([])
+    expect(s.http.get).toHaveBeenCalledTimes(3)
+    s.countries.value = ['日本']
+    s.http.get.mockImplementation(async (path: string) => { if (path.endsWith('/countries')) throw new Error('offline'); return { items: [], total: 0 } })
+    await s.load()
+    expect(s.countries.value).toEqual(['日本'])
+    expect(s.error.value).toBe('offline')
+  })
+  it('旧请求迟到不能覆盖新国家选项', async () => {
+    const s = setup()
+    let resolve!: (value: string[]) => void
+    s.http.get.mockImplementation(async (path: string) => path.endsWith('/countries') ? new Promise<string[]>(done => { resolve = done }) : { items: [], total: 0 })
+    const old = s.load()
+    s.http.get.mockImplementation(async (path: string) => path.endsWith('/countries') ? ['韩国'] : { items: [], total: 0 })
+    await s.load()
+    resolve(['日本'])
+    await old
+    expect(s.countries.value).toEqual(['韩国'])
+  })
   it('国家单选、连续添加保留国家、重新打开清空并在编辑时回填', async () => {
     const s = setup()
     s.form.country = '日本'
@@ -49,7 +108,8 @@ describe('外部账号只读监听', () => {
     await s.save()
     expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/one', expect.objectContaining({ country: '', expected_version: 2 }))
     expect(source).toContain('v-if="row.country"')
-    expect(source).toContain('v-model="filters.country"')
+    expect(source).toContain('v-for="country in countries"')
+    expect(source).not.toContain('v-model="filters.country"')
   })
   it('国家筛选同时传给列表和统计，清空时移除国家', async () => {
     const s = setup()
@@ -198,7 +258,7 @@ describe('外部账号只读监听', () => {
     s.http.get.mockReturnValueOnce(new Promise(done => { resolve = done }))
     const pending = s.load(true)
     await s.load(true)
-    expect(s.http.get).toHaveBeenCalledTimes(2)
+    expect(s.http.get).toHaveBeenCalledTimes(3)
     s.selected.value = [{ id: 'one' }]
     resolve({ items: [{ id: 'two' }], total: 1 })
     await pending
