@@ -43,6 +43,7 @@ const labels: Record<string, string> = { pending: '等待采集', collecting: '�
 const rows = ref<ExternalMonitor[]>([])
 const total = ref(0)
 const groups = ref<{ id: string; name: string; version: number; member_count: number }[]>([])
+const countries = ref<string[]>([])
 const selected = ref<ExternalMonitor[]>([])
 const table = ref<{ clearSelection: () => void; sort: (prop: string, order: 'ascending' | 'descending') => void } | null>(null)
 const metricSort = ref<{ prop: string; order: 'asc' | 'desc' } | null>(null)
@@ -60,7 +61,7 @@ const pageSize = ref(20)
 const loading = ref(false)
 const refreshing = ref(false)
 const error = ref('')
-const filters = reactive({ platform: '', status: '', keyword: '', country: '', sort_order: 'desc', tag_ids: [] as string[], untagged: false })
+const filters = reactive({ platform: '', status: '', keyword: '', country: '', country_unset: false, sort_order: 'desc', tag_ids: [] as string[], untagged: false })
 const appliedFilters = reactive({ ...filters })
 const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
@@ -115,12 +116,21 @@ async function load(background = false) {
     error.value = ''
   }
   try {
-    const [result, counts] = await Promise.all([
+    const [result, counts, countryOptions] = await Promise.all([
       http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, ...(metricSort.value ? { sort_by: metricSort.value.prop, sort_order: metricSort.value.order } : {}), page: page.value, page_size: pageSize.value }),
-      http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, country: appliedFilters.country, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
+      http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, country: appliedFilters.country, country_unset: appliedFilters.country_unset, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
+      http.get<string[]>('/api/external-account-monitors/countries'),
     ])
     if (disposed || id !== sequence) return
     if (background && backgroundRefreshBlocked()) return
+    countries.value = countryOptions
+    if (filters.country && !countryOptions.includes(filters.country)) filters.country = ''
+    if (appliedFilters.country && !countryOptions.includes(appliedFilters.country)) {
+      appliedFilters.country = ''
+      if (page.value === 1) await load()
+      else page.value = 1
+      return
+    }
     if (background) {
       const previous = new Map(rows.value.map(row => [row.id, row]))
       const next = result.items.map(row => {
@@ -139,6 +149,12 @@ async function load(background = false) {
   }
 }
 function search() { Object.assign(appliedFilters, filters, { tag_ids: [...filters.tag_ids] }); if (page.value === 1) void load(); else page.value = 1 }
+function filterCountry(country = '', unset = false) {
+  if (batchBusy.value || (filters.country === country && filters.country_unset === unset)) return
+  filters.country = country
+  filters.country_unset = unset
+  search()
+}
 function filterTags() { filters.untagged = false; search() }
 function filterUntagged() { filters.tag_ids = []; search() }
 function allTags() { filters.tag_ids = []; filters.untagged = false; search() }
@@ -152,7 +168,7 @@ function sortMetrics({ prop, order }: { prop: string | null; order: 'ascending' 
   search()
 }
 function sortByCreated() { metricSort.value = null; table.value?.sort('created_at', 'descending'); search() }
-function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', country: '', sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
+function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', country: '', country_unset: false, sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
 function filterStatus(status: string) { filters.status = status; search() }
 function groupName(id: string) { return groups.value.find(group => group.id === id)?.name || '标签已变更' }
 async function loadGroups() {
@@ -291,7 +307,11 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
-        <el-form-item label="国家"><el-select v-model="filters.country" placeholder="全部" filterable clearable><el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" /></el-select></el-form-item>
+        <el-form-item label="国家" class="external-monitors__group-filter"><div class="external-monitors__country-filter" role="group" aria-label="国家筛选">
+          <button type="button" class="el-check-tag" :class="{ 'is-checked': !filters.country && !filters.country_unset }" :aria-pressed="!filters.country && !filters.country_unset" :disabled="batchBusy" @click="filterCountry()">全部</button>
+          <button type="button" class="el-check-tag" :class="{ 'is-checked': filters.country_unset }" :aria-pressed="filters.country_unset" :disabled="batchBusy" @click="filterCountry('', true)">未设置国家</button>
+          <button v-for="country in countries" :key="country" type="button" class="el-check-tag" :class="{ 'is-checked': filters.country === country }" :aria-pressed="filters.country === country" :disabled="batchBusy" @click="filterCountry(country)">{{ country }}</button>
+        </div></el-form-item>
         <el-form-item label="账号标签" class="external-monitors__group-filter"><div class="external-monitors__tag-filter">
           <div><el-check-tag :checked="!filters.tag_ids.length && !filters.untagged" :disabled="batchBusy" @change="allTags">全部</el-check-tag><el-checkbox v-model="filters.untagged" :disabled="batchBusy" @change="filterUntagged">未设置标签</el-checkbox></div>
           <ExternalAccountTagSelect v-model="filters.tag_ids" label="外部账号标签筛选" :disabled="batchBusy" :options="groups.map(group => ({ value: group.id, label: group.name }))" @update:model-value="filterTags" />
@@ -404,6 +424,11 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
 .external-monitors__tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .external-monitors__tags :deep(.el-tag) { height: auto; min-height: 24px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 20px; }
 .external-monitors__tag-filter { width: 100%; }
+.external-monitors__country-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.external-monitors__country-filter :deep(.el-check-tag) { max-width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 20px; }
+.external-monitors__country-filter button { border: 0; font-family: inherit; }
+.external-monitors__country-filter button:focus-visible { outline: 2px solid var(--app-blue, #316589); outline-offset: 2px; }
+.external-monitors__country-filter button:disabled { cursor: not-allowed; opacity: .55; }
 .external-monitors__tag-filter > div:first-child { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
 @media (max-width: 1000px) { .external-monitors__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
