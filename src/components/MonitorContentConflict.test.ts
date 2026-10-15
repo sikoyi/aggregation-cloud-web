@@ -12,13 +12,23 @@ function setup() {
   const http = { get: vi.fn() }
   let callback: (a: unknown, b: unknown, cleanup: (fn: () => void) => void) => Promise<void>
   const compiled = ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const state = new Function('defineProps', 'ref', 'computed', 'watch', 'http', `${compiled}; return { result, loading, failed, profileUrl }`)(
+  const state = new Function('defineProps', 'ref', 'computed', 'watch', 'http', `${compiled}; return { result, loading, failed, profileUrl, accountUrl }`)(
     () => props, (value: unknown) => ({ value }), (get: () => unknown) => ({ get value() { return get() } }),
     (_: unknown, fn: typeof callback) => { callback = fn }, http)
   return { props, http, state, run: (cleanup: (fn: () => void) => void = () => {}) => callback!(null, null, cleanup) }
 }
 
 describe('监听关联账号提示', () => {
+  it('仅给可见关联账号生成精确系统入口并编码 ID', async () => {
+    const s = setup()
+    s.http.get.mockResolvedValue({ status: 'available', account: { id: '946&other=1' } })
+    await s.run()
+    expect(s.state.accountUrl.value).toBe('/account-data/social?account_id=946%26other%3D1')
+    s.http.get.mockResolvedValue({ status: 'unavailable' })
+    await s.run()
+    expect(s.state.accountUrl.value).toBe('')
+    expect(source).toContain('打开系统账号')
+  })
   it('加载时清理旧账号，忽略过期请求', async () => {
     const s = setup()
     let resolve!: (value: unknown) => void

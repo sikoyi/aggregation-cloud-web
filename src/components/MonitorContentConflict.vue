@@ -9,6 +9,8 @@ const result = ref<Conflict | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 const refresh = ref(0)
+const accountUrl = computed(() => result.value?.status === 'available' && result.value.account?.id
+  ? `/account-data/social?account_id=${encodeURIComponent(result.value.account.id)}` : '')
 const profileUrl = computed(() => {
   try {
     const url = new URL(result.value?.account?.profile_url || '')
@@ -39,6 +41,7 @@ watch(() => [props.accountId, props.errorMessage, refresh.value], async (_, __, 
       <span>关联账号：</span><strong>{{ result.account.display_name || result.account.username || '未设置昵称' }}</strong>
       <span v-if="result.account.username">@{{ result.account.username.replace(/^@/, '') }}</span>
       <span>{{ result.account.business_platform }} · ID {{ result.account.id }}</span>
+      <a v-if="accountUrl" :href="accountUrl" target="_blank" rel="noopener noreferrer"><ExternalLink :size="14" />打开系统账号</a>
       <a v-if="profileUrl" :href="profileUrl" target="_blank" rel="noopener noreferrer"><ExternalLink :size="14" />查看账号主页</a>
     </template>
     <span v-else>{{ result?.message }}</span>
