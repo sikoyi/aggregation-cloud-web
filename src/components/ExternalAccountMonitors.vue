@@ -13,6 +13,7 @@ import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { formatDate } from '@/utils/format'
+import { accountCountryOptions } from '@/config/options'
 import { externalAvatarUrl } from '@/utils/externalAvatar'
 import { externalMonitorProgress, externalMonitorStatus, type ExternalCollectionProgress } from '@/utils/externalMonitorProgress'
 import type { AnyRecord } from '@/types/api'
@@ -22,6 +23,7 @@ interface ExternalMonitor {
   business_platform: string
   profile_url: string
   remark: string
+  country?: string
   interval_minutes: number
   enabled: boolean
   status: string
@@ -58,14 +60,14 @@ const pageSize = ref(20)
 const loading = ref(false)
 const refreshing = ref(false)
 const error = ref('')
-const filters = reactive({ platform: '', status: '', keyword: '', sort_order: 'desc', tag_ids: [] as string[], untagged: false })
+const filters = reactive({ platform: '', status: '', keyword: '', country: '', sort_order: 'desc', tag_ids: [] as string[], untagged: false })
 const appliedFilters = reactive({ ...filters })
 const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
 const saving = ref(false)
 const busy = ref('')
 const deleting = ref('')
-const form = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 360, enabled: true, tag_ids: [] as string[] })
+const form = reactive({ business_platform: 'threads', profile_url: '', country: '', remark: '', interval_minutes: 360, enabled: true, tag_ids: [] as string[] })
 const detailVisible = ref(false)
 const detail = ref<ExternalDetail | null>(null)
 const detailId = ref('')
@@ -115,7 +117,7 @@ async function load(background = false) {
   try {
     const [result, counts] = await Promise.all([
       http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, ...(metricSort.value ? { sort_by: metricSort.value.prop, sort_order: metricSort.value.order } : {}), page: page.value, page_size: pageSize.value }),
-      http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
+      http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, country: appliedFilters.country, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
     ])
     if (disposed || id !== sequence) return
     if (background && backgroundRefreshBlocked()) return
@@ -150,7 +152,7 @@ function sortMetrics({ prop, order }: { prop: string | null; order: 'ascending' 
   search()
 }
 function sortByCreated() { metricSort.value = null; table.value?.sort('created_at', 'descending'); search() }
-function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
+function reset() { Object.assign(filters, { platform: '', status: '', keyword: '', country: '', sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
 function filterStatus(status: string) { filters.status = status; search() }
 function groupName(id: string) { return groups.value.find(group => group.id === id)?.name || '标签已变更' }
 async function loadGroups() {
@@ -184,6 +186,7 @@ function batchCompleted() {
 function openForm(row?: ExternalMonitor) {
   editing.value = row || null
   form.tag_ids = [...(row?.tag_ids || [])]
+  form.country = row?.country || ''
   void loadGroups()
   Object.assign(form, row ? { business_platform: row.business_platform, profile_url: row.profile_url, remark: row.remark, interval_minutes: row.interval_minutes, enabled: row.enabled }
     : { business_platform: platforms.value[0]?.value || 'threads', profile_url: '', remark: '', interval_minutes: 360, enabled: true })
@@ -195,11 +198,11 @@ async function save() {
   saving.value = true
   try {
     if (editing.value) {
-      const updated = await http.put<ExternalMonitor>(`/api/external-account-monitors/${editing.value.id}`, { remark: form.remark, interval_minutes: form.interval_minutes, enabled: form.enabled, expected_version: editing.value.version, tag_ids: form.tag_ids })
+      const updated = await http.put<ExternalMonitor>(`/api/external-account-monitors/${editing.value.id}`, { country: form.country, remark: form.remark, interval_minutes: form.interval_minutes, enabled: form.enabled, expected_version: editing.value.version, tag_ids: form.tag_ids })
       if (disposed) return
       editing.value = updated
     } else {
-      await http.post('/api/external-account-monitors', { business_platform: form.business_platform, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes, tag_ids: form.tag_ids })
+      await http.post('/api/external-account-monitors', { business_platform: form.business_platform, country: form.country, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes, tag_ids: form.tag_ids })
       if (disposed) return
       form.profile_url = ''
       form.remark = ''
@@ -288,6 +291,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
+        <el-form-item label="国家"><el-select v-model="filters.country" placeholder="全部" filterable clearable><el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" /></el-select></el-form-item>
         <el-form-item label="账号标签" class="external-monitors__group-filter"><div class="external-monitors__tag-filter">
           <div><el-check-tag :checked="!filters.tag_ids.length && !filters.untagged" :disabled="batchBusy" @change="allTags">全部</el-check-tag><el-checkbox v-model="filters.untagged" :disabled="batchBusy" @change="filterUntagged">未设置标签</el-checkbox></div>
           <ExternalAccountTagSelect v-model="filters.tag_ids" label="外部账号标签筛选" :disabled="batchBusy" :options="groups.map(group => ({ value: group.id, label: group.name }))" @update:model-value="filterTags" />
@@ -302,6 +306,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <el-table-column label="外部账号" min-width="250" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="externalAvatarUrl(row.profile.avatar_url)"><UserRound :size="22" /></el-avatar><div><strong>{{ row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</strong><a :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platformLabel(row.business_platform) }}</el-tag></template></el-table-column>
       <el-table-column label="账号标签" min-width="200"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-for="id in row.tag_ids" :key="id" effect="plain">{{ groupName(id) }}</el-tag><span v-if="!row.tag_ids?.length">未设置标签</span></div></template></el-table-column>
+      <el-table-column label="国家" min-width="160"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-if="row.country" type="info" effect="plain">{{ row.country }}</el-tag><span v-else>未设置</span></div></template></el-table-column>
       <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'posts_count', label: '帖子总数' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="132" align="center" sortable="custom">
         <template #default="{ row }">
           <div class="external-metric-cell">
@@ -338,6 +343,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
         <el-form-item label="账号标签"><ExternalAccountTagSelect v-model="form.tag_ids" label="账号标签" :disabled="saving" :options="groups.map(group => ({ value: group.id, label: group.name }))" /></el-form-item>
+        <el-form-item label="国家"><el-select v-model="form.country" placeholder="未设置" filterable clearable :disabled="saving"><el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" /></el-select></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>
       </el-form>

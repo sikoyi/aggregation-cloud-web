@@ -9,7 +9,7 @@ function setup() {
   const state = {
     platforms: { value: [{ value: 'x' }] },
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
-    form: { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[] },
+    form: { business_platform: 'x', profile_url: 'https://x.com/source', country: '', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[] },
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     metricSort: { value: null as { prop: string; order: string } | null },
@@ -35,6 +35,32 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('国家单选、连续添加保留国家、重新打开清空并在编辑时回填', async () => {
+    const s = setup()
+    s.form.country = '日本'
+    await s.save()
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ country: '日本' }))
+    expect(s.form.country).toBe('日本')
+    s.openForm()
+    expect(s.form.country).toBe('')
+    s.openForm({ id: 'one', country: '韩国', version: 2, profile_url: 'https://x.com/source' })
+    expect(s.form.country).toBe('韩国')
+    s.form.country = ''
+    await s.save()
+    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/one', expect.objectContaining({ country: '', expected_version: 2 }))
+    expect(source).toContain('v-if="row.country"')
+    expect(source).toContain('v-model="filters.country"')
+  })
+  it('国家筛选同时传给列表和统计，清空时移除国家', async () => {
+    const s = setup()
+    Object.assign(s.filters, { country: '日本' })
+    s.search()
+    await s.load()
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ country: '日本', page: 1 }))
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ country: '日本' }))
+    s.reset()
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '' }))
+  })
   it('新增及重新打开默认六小时，编辑和连续添加保留自定义间隔', async () => {
     const s = setup()
     expect(source).toContain("remark: '', interval_minutes: 360, enabled: true, tag_ids:")
@@ -271,7 +297,7 @@ describe('外部账号只读监听', () => {
   it('添加后继续输入下一账号，保留平台与间隔', async () => {
     const s = setup()
     await s.save()
-    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { business_platform: 'x', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, tag_ids: [] })
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { business_platform: 'x', country: '', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, tag_ids: [] })
     expect(s.form.profile_url).toBe('')
     expect(s.formVisible.value).toBe(true)
     expect(s.form.business_platform).toBe('x')
@@ -291,7 +317,7 @@ describe('外部账号只读监听', () => {
     const s = setup()
     s.editing.value = { id: 'external', version: 1 }
     await s.save()
-    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { remark: 'note', interval_minutes: 60, enabled: true, expected_version: 1, tag_ids: [] })
+    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { country: '', remark: 'note', interval_minutes: 60, enabled: true, expected_version: 1, tag_ids: [] })
     expect(s.editing.value?.version).toBe(2)
     expect(s.http.post).not.toHaveBeenCalled()
   })

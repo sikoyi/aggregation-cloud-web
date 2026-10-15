@@ -11,7 +11,7 @@ import type { AnyRecord } from '@/types/api'
 const props = defineProps<{
   detail: { monitor: {
     id: string; profile?: AnyRecord; profile_url: string; business_platform: string;
-    status: string; enabled: boolean; interval_minutes: number; remark?: string;
+    status: string; enabled: boolean; interval_minutes: number; remark?: string; country?: string;
     activity_status?: string; collection_progress?: ExternalCollectionProgress;
     last_success_at?: unknown; next_run_at?: unknown; last_error?: string;
   }; posts: AnyRecord[]; total: number; snapshots: AnyRecord[] }
@@ -55,6 +55,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
         <div class="external-profile__handle">{{ profile.username ? '@' + String(profile.username).replace(/^@/, '') : '暂未采集公开用户名' }}</div>
         <p class="external-profile__bio">{{ profile.biography || '暂未采集到账号简介' }}</p>
         <div class="external-profile__tags">
+          <el-tag v-if="detail.monitor.country" type="info" effect="plain">{{ detail.monitor.country }}</el-tag>
           <el-tag effect="plain">{{ detail.monitor.business_platform === 'x' ? 'X(Twitter)' : detail.monitor.business_platform === 'instagram' ? 'Instagram' : 'Threads' }}</el-tag>
           <el-tag :type="(detail.monitor.activity_status || detail.monitor.status) === 'active' ? 'success' : (detail.monitor.activity_status || detail.monitor.status) === 'retrying' ? 'warning' : 'info'">{{ externalMonitorStatus(detail.monitor) }}</el-tag>
         </div>
