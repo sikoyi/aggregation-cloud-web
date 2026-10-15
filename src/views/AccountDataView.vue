@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import MonitorContentConflict from '@/components/MonitorContentConflict.vue'
+import { useRoute } from 'vue-router'
+import { accountDataFocus, accountDataQuery } from '@/utils/accountDataFocus'
 import {
   Activity,
   AlertTriangle,
@@ -417,6 +419,7 @@ async function loadReplyOptions() {
 }
 
 let rowsRequest = 0
+const focusedAccountId = ref(accountDataFocus(useRoute().query.account_id))
 let rowsDisposed = false
 let rowsInFlight = 0
 async function loadRows(background: unknown = false) {
@@ -428,17 +431,20 @@ async function loadRows(background: unknown = false) {
   rowsInFlight += 1
   if (!silent) loading.value = true
   try {
-    const data = await http.get<AccountDataPage>('/api/accounts/data-overview', {
-      ...filters,
-      page: page.value,
-      page_size: pageSize.value,
-    })
+    const data = await http.get<AccountDataPage>('/api/accounts/data-overview',
+      accountDataQuery(focusedAccountId.value, filters, page.value, pageSize.value))
     if (rowsDisposed || requestId !== rowsRequest) return
     rows.value = data.items
     total.value = data.total
     Object.assign(summary, data.summary)
     const selectedId = String(selectedAccount.value?.account_id || '')
-    selectedAccount.value = data.items.find((item) => String(item.account_id) === selectedId) || data.items[0] || null
+    selectedAccount.value = focusedAccountId.value
+      ? data.items.find((item) => String(item.account_id) === focusedAccountId.value) || null
+      : data.items.find((item) => String(item.account_id) === selectedId) || data.items[0] || null
+    if (focusedAccountId.value && !silent) {
+      if (selectedAccount.value) openAccountDetail(selectedAccount.value)
+      else ElNotification.warning({ title: '无法定位账号', message: '账号已删除或当前账号无权查看' })
+    }
   } catch (err) {
     if (!rowsDisposed && requestId === rowsRequest && !silent) notifyError(err, '加载失败', '加载账号数据失败')
   } finally {
@@ -460,6 +466,7 @@ function handleOverviewSortChange({ prop, order }: { prop: string | null; order:
 }
 
 function resetFilters() {
+  focusedAccountId.value = ''
   resetCachedFilters()
   overviewTableRef.value?.clearSort()
   searchRows()
@@ -1205,6 +1212,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="account-data__actions">
+          <el-button v-if="focusedAccountId" :icon="Users" @click="resetFilters">返回全部账号</el-button>
           <el-segmented
             v-model="viewMode"
             :options="viewModeOptions"
