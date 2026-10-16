@@ -117,13 +117,15 @@ async function load(background = false) {
     error.value = ''
   }
   try {
-    const [result, counts, countryOptions] = await Promise.all([
+    const [result, counts, usedCountries, countryConfig] = await Promise.all([
       http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, ...(metricSort.value ? { sort_by: metricSort.value.prop, sort_order: metricSort.value.order } : {}), page: page.value, page_size: pageSize.value }),
       http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, country: appliedFilters.country, country_unset: appliedFilters.country_unset, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
       http.get<string[]>('/api/external-account-monitors/countries'),
+      http.get<{ countries: string[] }>('/api/external-account-monitors/country-options'),
     ])
     if (disposed || id !== sequence) return
     if (background && backgroundRefreshBlocked()) return
+    const countryOptions = [...new Set([...countryConfig.countries, ...usedCountries])]
     countries.value = countryOptions
     if (filters.country && !countryOptions.includes(filters.country)) filters.country = ''
     if (appliedFilters.country && !countryOptions.includes(appliedFilters.country)) {

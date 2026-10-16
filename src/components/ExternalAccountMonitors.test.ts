@@ -18,11 +18,14 @@ function setup() {
     detailError: { value: '' }, detail: { value: null as unknown },
     batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), sort: vi.fn() } },
     countries: { value: [] as string[] },
+    managedCountries: { countries: [] as string[], version: 1 },
     summary: { value: null as unknown }, groups: { value: [] as { id: string; name: string; member_count: number }[] },
     http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : path.endsWith('/countries') ? ['日本', '韩国'] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
+  const get = state.http.get.getMockImplementation()!
+  state.http.get.mockImplementation(async (path: string) => path.endsWith('/country-options') ? state.managedCountries : get(path))
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
   const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics, filterCountry};`)(...Object.values(state)) as {
     filterCountry: (country?: string, unset?: boolean) => void
@@ -37,10 +40,11 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
-  it('国家独占一行且筛选展示已用国家，表单使用常用国家选择器', async () => {
+  it('国家独占一行且合并常用和已用国家，未使用的常用国家也显示并去重', async () => {
     const s = setup()
+    s.managedCountries.countries = ['加蓬', '日本']
     await s.load()
-    expect(s.countries.value).toEqual(['日本', '韩国'])
+    expect(s.countries.value).toEqual(['加蓬', '日本', '韩国'])
     expect(source).toContain('label="国家" class="external-monitors__group-filter"')
     expect(source).toContain('v-for="country in countries"')
     expect(source).toContain('v-model="form.country"')
@@ -63,6 +67,69 @@ describe('外部账号只读监听', () => {
     s.filterCountry('韩国')
     expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '', country_unset: false }))
   })
+  it('管理国家变更后刷新，新国家无账号也能筛选且保持零结果', async () => {
+    const s = setup()
+    await s.load()
+    s.managedCountries.countries = ['加蓬']
+    await s.load()
+    expect(s.countries.value).toEqual(['加蓬', '日本', '韩国'])
+    Object.assign(s.filters, { country: '加蓬' })
+    Object.assign(s.appliedFilters, { country: '加蓬' })
+    s.http.get.mockClear()
+    await s.load()
+    expect(s.total.value).toBe(0)
+    expect(s.appliedFilters).toMatchObject({ country: '加蓬' })
+    expect(s.http.get).toHaveBeenCalledTimes(4)
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ country: '加蓬' }))
+    expect(source).toContain(':disabled="batchBusy" @changed="load()"')
+  })
+  it('移除常用国家保留历史已使用国家，未使用的移除后清理筛选', async () => {
+    const s = setup()
+    s.managedCountries.countries = ['加蓬', '日本']
+    await s.load()
+    s.managedCountries.countries = []
+    Object.assign(s.filters, { country: '日本' })
+    Object.assign(s.appliedFilters, { country: '日本' })
+    await s.load()
+    expect(s.countries.value).toEqual(['日本', '韩国'])
+    expect(s.appliedFilters).toMatchObject({ country: '日本' })
+    Object.assign(s.filters, { country: '加蓬', keyword: 'draft' })
+    Object.assign(s.appliedFilters, { country: '加蓬', keyword: 'applied' })
+    await s.load()
+    expect(s.filters).toMatchObject({ country: '', keyword: 'draft' })
+    expect(s.appliedFilters).toMatchObject({ country: '', keyword: 'applied' })
+  })
+  it('只读用户也展示常用国家，请求失败保留当前国家筛选', async () => {
+    const s = setup()
+    s.canEdit.value = false
+    s.managedCountries.countries = ['加蓬']
+    await s.load()
+    expect(s.countries.value).toContain('加蓬')
+    Object.assign(s.filters, { country: '加蓬' })
+    Object.assign(s.appliedFilters, { country: '加蓬' })
+    const get = s.http.get.getMockImplementation()!
+    s.http.get.mockImplementation(async (path: string) => {
+      if (path.endsWith('/country-options')) throw new Error('offline')
+      return get(path)
+    })
+    await s.load()
+    expect(s.countries.value).toContain('加蓬')
+    expect(s.appliedFilters).toMatchObject({ country: '加蓬' })
+    expect(s.error.value).toBe('offline')
+  })
+  it('迟到的常用国家响应不能覆盖新的管理结果', async () => {
+    const s = setup()
+    const get = s.http.get.getMockImplementation()!
+    let resolve!: (value: { countries: string[] }) => void
+    s.http.get.mockImplementation(async (path: string) => path.endsWith('/country-options') ? new Promise<{ countries: string[] }>(done => { resolve = done }) : get(path))
+    const old = s.load()
+    s.managedCountries.countries = ['加蓬']
+    s.http.get.mockImplementation(get)
+    await s.load()
+    resolve({ countries: ['美国'] })
+    await old
+    expect(s.countries.value).toEqual(['加蓬', '日本', '韩国'])
+  })
   it('国家消失时仅清除该筛选，保留其他已应用条件，不提交草稿', async () => {
     const s = setup()
     Object.assign(s.appliedFilters, { country: '美国', keyword: 'applied', tag_ids: ['a'] })
@@ -70,14 +137,14 @@ describe('外部账号只读监听', () => {
     await s.load()
     expect(s.appliedFilters).toEqual({ country: '', keyword: 'applied', tag_ids: ['a'] })
     expect(s.filters).toEqual({ country: '', keyword: 'draft', tag_ids: ['b'] })
-    expect(s.http.get).toHaveBeenCalledTimes(6)
+    expect(s.http.get).toHaveBeenCalledTimes(8)
   })
   it('空国家列表和请求失败不产生虚假国家或重复请求', async () => {
     const s = setup()
-    s.http.get.mockImplementation(async (path: string) => path.endsWith('/countries') ? [] : { items: [], total: 0 })
+    s.http.get.mockImplementation(async (path: string) => path.endsWith('/country-options') ? { countries: [] } : path.endsWith('/countries') ? [] : { items: [], total: 0 })
     await s.load()
     expect(s.countries.value).toEqual([])
-    expect(s.http.get).toHaveBeenCalledTimes(3)
+    expect(s.http.get).toHaveBeenCalledTimes(4)
     s.countries.value = ['日本']
     s.http.get.mockImplementation(async (path: string) => { if (path.endsWith('/countries')) throw new Error('offline'); return { items: [], total: 0 } })
     await s.load()
@@ -87,9 +154,9 @@ describe('外部账号只读监听', () => {
   it('旧请求迟到不能覆盖新国家选项', async () => {
     const s = setup()
     let resolve!: (value: string[]) => void
-    s.http.get.mockImplementation(async (path: string) => path.endsWith('/countries') ? new Promise<string[]>(done => { resolve = done }) : { items: [], total: 0 })
+    s.http.get.mockImplementation(async (path: string) => path.endsWith('/country-options') ? { countries: [] } : path.endsWith('/countries') ? new Promise<string[]>(done => { resolve = done }) : { items: [], total: 0 })
     const old = s.load()
-    s.http.get.mockImplementation(async (path: string) => path.endsWith('/countries') ? ['韩国'] : { items: [], total: 0 })
+    s.http.get.mockImplementation(async (path: string) => path.endsWith('/country-options') ? { countries: [] } : path.endsWith('/countries') ? ['韩国'] : { items: [], total: 0 })
     await s.load()
     resolve(['日本'])
     await old
@@ -259,7 +326,7 @@ describe('外部账号只读监听', () => {
     s.http.get.mockReturnValueOnce(new Promise(done => { resolve = done }))
     const pending = s.load(true)
     await s.load(true)
-    expect(s.http.get).toHaveBeenCalledTimes(3)
+    expect(s.http.get).toHaveBeenCalledTimes(4)
     s.selected.value = [{ id: 'one' }]
     resolve({ items: [{ id: 'two' }], total: 1 })
     await pending
