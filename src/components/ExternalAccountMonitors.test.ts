@@ -13,7 +13,7 @@ function setup() {
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     metricSort: { value: null as { prop: string; order: string } | null },
-    loading: { value: false }, error: { value: '' }, appliedFilters: { tag_ids: [] as string[] }, filters: { tag_ids: [] as string[] }, busy: { value: '' }, deleting: { value: '' },
+    loading: { value: false }, error: { value: '' }, appliedFilters: { tag_ids: [] as string[], countries: [] as string[] }, filters: { tag_ids: [] as string[], countries: [] as string[] }, busy: { value: '' }, deleting: { value: '' },
     detailId: { value: 'external' }, detailPage: { value: 1 }, detailLoading: { value: false },
     detailError: { value: '' }, detail: { value: null as unknown },
     batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), sort: vi.fn() } },
@@ -27,8 +27,8 @@ function setup() {
   const get = state.http.get.getMockImplementation()!
   state.http.get.mockImplementation(async (path: string) => path.endsWith('/country-options') ? state.managedCountries : get(path))
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics, filterCountry};`)(...Object.values(state)) as {
-    filterCountry: (country?: string, unset?: boolean) => void
+  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics, filterCountries};`)(...Object.values(state)) as {
+    filterCountries: (countries?: string[], unset?: boolean) => void
     openForm: (row?: Record<string, unknown>) => void
     loadGroups: () => Promise<void>
     sortMetrics: (value: { prop: string | null; order: 'ascending' | 'descending' | null }) => void
@@ -40,13 +40,42 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
+  it('国家多选传给列表与汇总，复用账号标签样式且保持草稿独立', async () => {
+    const s = setup()
+    s.page.value = 3
+    s.filterCountries(['日本', '韩国', '日本'])
+    expect(s.page.value).toBe(1)
+    expect(s.appliedFilters.countries).toEqual(['日本', '韩国'])
+    s.filters.countries.push('美国')
+    await s.load()
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ countries: ['日本', '韩国'] }))
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ countries: ['日本', '韩国'] }))
+    s.filterCountries([], true)
+    expect(s.appliedFilters).toMatchObject({ countries: [], country_unset: true })
+    s.filterCountries(['日本'])
+    expect(s.appliedFilters).toMatchObject({ countries: ['日本'], country_unset: false })
+    s.filterCountries([])
+    expect(s.appliedFilters).toMatchObject({ countries: [], country_unset: false })
+    expect(source).toContain('<ExternalAccountTagSelect v-if="countries.length"')
+    expect(source).not.toContain('external-monitors__country-filter')
+  })
+  it('部分国家失效时保留有效选择并返回第一页', async () => {
+    const s = setup()
+    Object.assign(s.filters, { countries: ['日本', '美国'], keyword: 'draft' })
+    Object.assign(s.appliedFilters, { countries: ['日本', '美国'], keyword: 'applied' })
+    s.page.value = 3
+    await s.load()
+    expect(s.appliedFilters).toMatchObject({ countries: ['日本'], keyword: 'applied' })
+    expect(s.filters).toMatchObject({ countries: ['日本'], keyword: 'draft' })
+    expect(s.page.value).toBe(1)
+  })
   it('国家独占一行且合并常用和已用国家，未使用的常用国家也显示并去重', async () => {
     const s = setup()
     s.managedCountries.countries = ['加蓬', '日本']
     await s.load()
     expect(s.countries.value).toEqual(['加蓬', '日本', '韩国'])
     expect(source).toContain('label="国家" class="external-monitors__group-filter"')
-    expect(source).toContain('v-for="country in countries"')
+    expect(source).toContain('label="外部账号国家筛选"')
     expect(source).toContain('v-model="form.country"')
     expect(source).toContain('<ExternalCountrySelect')
     expect(source).not.toContain('v-for="option in accountCountryOptions"')
@@ -55,17 +84,17 @@ describe('外部账号只读监听', () => {
   it('国家、未设置、全部互斥，切换回第一页且批量操作时禁用', async () => {
     const s = setup()
     s.page.value = 3
-    s.filterCountry('日本')
+    s.filterCountries(['日本'])
     expect(s.page.value).toBe(1)
-    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '日本', country_unset: false }))
-    s.filterCountry('', true)
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ countries: ['日本'], country_unset: false }))
+    s.filterCountries([], true)
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ country: '', country_unset: true }))
-    s.filterCountry()
-    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '', country_unset: false }))
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ countries: [], country_unset: true }))
+    s.filterCountries()
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ countries: [], country_unset: false }))
     s.batchBusy.value = true
-    s.filterCountry('韩国')
-    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '', country_unset: false }))
+    s.filterCountries(['韩国'])
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ countries: [], country_unset: false }))
   })
   it('管理国家变更后刷新，新国家无账号也能筛选且保持零结果', async () => {
     const s = setup()
@@ -73,14 +102,14 @@ describe('外部账号只读监听', () => {
     s.managedCountries.countries = ['加蓬']
     await s.load()
     expect(s.countries.value).toEqual(['加蓬', '日本', '韩国'])
-    Object.assign(s.filters, { country: '加蓬' })
-    Object.assign(s.appliedFilters, { country: '加蓬' })
+    Object.assign(s.filters, { countries: ['加蓬'] })
+    Object.assign(s.appliedFilters, { countries: ['加蓬'] })
     s.http.get.mockClear()
     await s.load()
     expect(s.total.value).toBe(0)
-    expect(s.appliedFilters).toMatchObject({ country: '加蓬' })
+    expect(s.appliedFilters).toMatchObject({ countries: ['加蓬'] })
     expect(s.http.get).toHaveBeenCalledTimes(4)
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ country: '加蓬' }))
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ countries: ['加蓬'] }))
     expect(source).toContain(':disabled="batchBusy" @changed="load()"')
   })
   it('移除常用国家保留历史已使用国家，未使用的移除后清理筛选', async () => {
@@ -88,16 +117,16 @@ describe('外部账号只读监听', () => {
     s.managedCountries.countries = ['加蓬', '日本']
     await s.load()
     s.managedCountries.countries = []
-    Object.assign(s.filters, { country: '日本' })
-    Object.assign(s.appliedFilters, { country: '日本' })
+    Object.assign(s.filters, { countries: ['日本'] })
+    Object.assign(s.appliedFilters, { countries: ['日本'] })
     await s.load()
     expect(s.countries.value).toEqual(['日本', '韩国'])
-    expect(s.appliedFilters).toMatchObject({ country: '日本' })
-    Object.assign(s.filters, { country: '加蓬', keyword: 'draft' })
-    Object.assign(s.appliedFilters, { country: '加蓬', keyword: 'applied' })
+    expect(s.appliedFilters).toMatchObject({ countries: ['日本'] })
+    Object.assign(s.filters, { countries: ['加蓬'], keyword: 'draft' })
+    Object.assign(s.appliedFilters, { countries: ['加蓬'], keyword: 'applied' })
     await s.load()
-    expect(s.filters).toMatchObject({ country: '', keyword: 'draft' })
-    expect(s.appliedFilters).toMatchObject({ country: '', keyword: 'applied' })
+    expect(s.filters).toMatchObject({ countries: [], keyword: 'draft' })
+    expect(s.appliedFilters).toMatchObject({ countries: [], keyword: 'applied' })
   })
   it('只读用户也展示常用国家，请求失败保留当前国家筛选', async () => {
     const s = setup()
@@ -105,8 +134,8 @@ describe('外部账号只读监听', () => {
     s.managedCountries.countries = ['加蓬']
     await s.load()
     expect(s.countries.value).toContain('加蓬')
-    Object.assign(s.filters, { country: '加蓬' })
-    Object.assign(s.appliedFilters, { country: '加蓬' })
+    Object.assign(s.filters, { countries: ['加蓬'] })
+    Object.assign(s.appliedFilters, { countries: ['加蓬'] })
     const get = s.http.get.getMockImplementation()!
     s.http.get.mockImplementation(async (path: string) => {
       if (path.endsWith('/country-options')) throw new Error('offline')
@@ -114,7 +143,7 @@ describe('外部账号只读监听', () => {
     })
     await s.load()
     expect(s.countries.value).toContain('加蓬')
-    expect(s.appliedFilters).toMatchObject({ country: '加蓬' })
+    expect(s.appliedFilters).toMatchObject({ countries: ['加蓬'] })
     expect(s.error.value).toBe('offline')
   })
   it('迟到的常用国家响应不能覆盖新的管理结果', async () => {
@@ -132,11 +161,11 @@ describe('外部账号只读监听', () => {
   })
   it('国家消失时仅清除该筛选，保留其他已应用条件，不提交草稿', async () => {
     const s = setup()
-    Object.assign(s.appliedFilters, { country: '美国', keyword: 'applied', tag_ids: ['a'] })
-    Object.assign(s.filters, { country: '美国', keyword: 'draft', tag_ids: ['b'] })
+    Object.assign(s.appliedFilters, { countries: ['美国'], keyword: 'applied', tag_ids: ['a'] })
+    Object.assign(s.filters, { countries: ['美国'], keyword: 'draft', tag_ids: ['b'] })
     await s.load()
-    expect(s.appliedFilters).toEqual({ country: '', keyword: 'applied', tag_ids: ['a'] })
-    expect(s.filters).toEqual({ country: '', keyword: 'draft', tag_ids: ['b'] })
+    expect(s.appliedFilters).toEqual({ countries: [], keyword: 'applied', tag_ids: ['a'] })
+    expect(s.filters).toEqual({ countries: [], keyword: 'draft', tag_ids: ['b'] })
     expect(s.http.get).toHaveBeenCalledTimes(8)
   })
   it('空国家列表和请求失败不产生虚假国家或重复请求', async () => {
@@ -176,18 +205,18 @@ describe('外部账号只读监听', () => {
     await s.save()
     expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/one', expect.objectContaining({ country: '', expected_version: 2 }))
     expect(source).toContain('v-if="row.country"')
-    expect(source).toContain('v-for="country in countries"')
+    expect(source).toContain('label="外部账号国家筛选"')
     expect(source).not.toContain('v-model="filters.country"')
   })
   it('国家筛选同时传给列表和统计，清空时移除国家', async () => {
     const s = setup()
-    Object.assign(s.filters, { country: '日本' })
+    Object.assign(s.filters, { countries: ['日本'] })
     s.search()
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ country: '日本', page: 1 }))
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ country: '日本' }))
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ countries: ['日本'], page: 1 }))
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ countries: ['日本'] }))
     s.reset()
-    expect(s.appliedFilters).toEqual(expect.objectContaining({ country: '' }))
+    expect(s.appliedFilters).toEqual(expect.objectContaining({ countries: [] }))
   })
   it('新增及重新打开默认六小时，编辑和连续添加保留自定义间隔', async () => {
     const s = setup()
@@ -227,7 +256,7 @@ describe('外部账号只读监听', () => {
     s.http.get.mockResolvedValueOnce([{ id: 'a', name: 'A', member_count: 2 }] as never)
     await s.loadGroups()
     expect(s.filters.tag_ids).toEqual(['a'])
-    expect(s.appliedFilters).toEqual({ tag_ids: ['a'], keyword: 'applied' })
+    expect(s.appliedFilters).toEqual({ tag_ids: ['a'], countries: [], keyword: 'applied' })
     expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ tag_ids: ['a'], keyword: 'applied', page: 1 }))
   })
   it('标签加载失败不清空筛选，旧失败不覆盖新成功', async () => {
@@ -295,7 +324,7 @@ describe('外部账号只读监听', () => {
     s.metricSort.value = { prop, order: 'asc' }
     Object.assign(s.appliedFilters, { platform: 'x', status: 'active', tag_ids: ['one','two'] })
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { platform: 'x', status: 'active', tag_ids: ['one','two'], sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { platform: 'x', countries: [], status: 'active', tag_ids: ['one','two'], sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
     s.reset()
     expect(s.metricSort.value).toBeNull()
     expect(s.table.value.sort).toHaveBeenCalledWith('created_at', 'descending')
@@ -368,7 +397,7 @@ describe('外部账号只读监听', () => {
     Object.assign(s.appliedFilters, { platform: 'x', tag_ids: ['one'], untagged: false, status: 'paused', keyword: 'source' })
     s.selected.value = [{ id: 'old' }]
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', { platform: 'x', tag_ids: ['one'], untagged: false, keyword: 'source' })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', { platform: 'x', countries: [], tag_ids: ['one'], untagged: false, keyword: 'source' })
     expect(s.selected.value).toEqual([])
     expect(s.table.value.clearSelection).toHaveBeenCalled()
     s.http.get.mockClear()
@@ -383,7 +412,7 @@ describe('外部账号只读监听', () => {
     s.search()
     expect(s.page.value).toBe(1)
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { sort_order: 'asc', tag_ids: [], page: 1, page_size: 20 })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { sort_order: 'asc', countries: [], tag_ids: [], page: 1, page_size: 20 })
     s.reset()
     expect(s.filters).toMatchObject({ sort_order: 'desc' })
     expect(s.appliedFilters).toMatchObject({ sort_order: 'desc' })
