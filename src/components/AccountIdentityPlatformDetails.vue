@@ -5,7 +5,6 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
-import AccountBackupDeleteDialog from '@/components/AccountBackupDeleteDialog.vue'
 import AccountPersonaDialog from '@/components/AccountPersonaDialog.vue'
 import PlatformAccountEditDialog from '@/components/PlatformAccountEditDialog.vue'
 import { businessPlatformLabel } from '@/config/options'
@@ -32,21 +31,11 @@ const actionLoading = ref('')
 const rows = ref<AnyRecord[]>([])
 const editingAccount = ref<AnyRecord | null>(null)
 const personaAccount = ref<AnyRecord | null>(null)
-const backupDeleteId = ref<string | null>(null)
-const backupChanged = ref(false)
 let requestSequence = 0
 
 async function platformAccountChanged() {
   await loadRows()
   emit('changed')
-}
-
-async function closeBackupDelete() {
-  backupDeleteId.value = null
-  if (backupChanged.value) {
-    backupChanged.value = false
-    await platformAccountChanged()
-  }
 }
 
 async function loadRows() {
@@ -331,9 +320,6 @@ onMounted(loadRows)
           </div>
           <el-tag v-else-if="!row.account_package_delete_pending" type="info" effect="plain" round>未备份</el-tag>
           <el-tag v-if="row.account_package_delete_pending" type="warning" effect="plain">待清理</el-tag>
-          <el-tooltip v-if="auth.can('accounts.delete_backup')" content="删除备份包 / 重试清理" placement="top">
-            <el-button text circle type="danger" :icon="Trash2" aria-label="删除备份包" @click.stop="backupDeleteId = String(row.id)" />
-          </el-tooltip>
           </div>
         </template>
       </el-table-column>
@@ -390,7 +376,6 @@ onMounted(loadRows)
     <PlatformAccountEditDialog v-if="editingAccount" :key="String(editingAccount.id)"
       :account-id="String(editingAccount.id)" :platform="String(editingAccount.business_platform)"
       @close="editingAccount = null" @changed="platformAccountChanged" />
-    <AccountBackupDeleteDialog v-if="backupDeleteId" :account-ids="[backupDeleteId]" @close="closeBackupDelete" @changed="backupChanged = true" />
     <AccountPersonaDialog v-if="personaAccount" :key="String(personaAccount.id)" :account-id="String(personaAccount.id)" :account-name="accountLabel(personaAccount)" @close="personaAccount = null" />
   </section>
 </template>

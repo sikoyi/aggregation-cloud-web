@@ -10,6 +10,21 @@ import accountCenterSource from '@/views/AccountCenterView.vue?raw'
 const crudSource = rawCrudSource.replace(/\r\n/g, '\n')
 
 describe('account identity resource', () => {
+  it('展开行移除单个备份删除，保留状态、打开复制与顶部批量删除', () => {
+    expect(platformDetailsSource).not.toContain('AccountBackupDeleteDialog')
+    expect(platformDetailsSource).not.toContain('backupDeleteId')
+    expect(platformDetailsSource).not.toContain('backupChanged')
+    expect(platformDetailsSource).not.toContain('aria-label="删除备份包"')
+    expect(platformDetailsSource).toContain('row.account_package_delete_pending')
+    expect(platformDetailsSource).toContain('aria-label="打开备份地址"')
+    expect(platformDetailsSource).toContain('aria-label="复制备份地址"')
+    const config = buildAccountIdentityResource(resources.accounts)
+    expect(config.batchActions?.find(action => action.key === 'delete-account-backups')).toBeDefined()
+    expect(crudSource).toContain("if (!auth.can('accounts.delete_backup') || !selectedRows.value.length) return")
+    expect(crudSource).toContain("props.config.key === 'accountIdentities' ? selectedPlatformAccountIds(selectedRows.value)")
+    expect(crudSource).toContain('backupDeleteIds.value = [...ids]')
+    expect(crudSource).toContain('<AccountBackupDeleteDialog v-if="backupDeleteIds" :account-ids="backupDeleteIds"')
+  })
   it('设备和登录身份支持可选绑定冲突筛选，展开行共用只读弹窗', () => {
     for (const config of [resources.slots, buildAccountIdentityResource(resources.accounts)]) {
       expect(config.filters?.find(item => item.key === 'has_binding_conflict')).toMatchObject({
