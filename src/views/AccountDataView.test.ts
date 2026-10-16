@@ -35,7 +35,7 @@ describe('账号数据聚合总览', () => {
       summary: {}, selectedAccount: { value: null }, filters: {}, page: { value: 1 }, pageSize: { value: 20 },
       monitorVisible: { value: false }, batchUpdating: { value: false }, batchIntervalVisible: { value: false },
       selectedAccountIds: { value: [] }, document: { hidden: false }, notifyError: vi.fn(), http,
-      ref, useRoute: () => ({ query: {} }), useRouter: () => ({}), accountDataFocus, accountDataQuery, nextSelectedAccount }
+      useRouter: () => ({}), nextSelectedAccount }
     const load = new Function(...Object.keys(state), `${transpile(body)}; return loadRows;`)(...Object.values(state))
     const old = load()
     const latest = load()
