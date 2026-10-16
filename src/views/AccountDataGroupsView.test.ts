@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { transpile } from 'typescript'
 import { ref } from 'vue'
 import rawSource from './AccountDataView.vue?raw'
-import { accountGroupKey, nextSelectedAccount, selectedPlatformAccounts } from '@/utils/accountDataGroups'
+import { accountGroupKey, accountOverviewRows, accountOverviewRowKey, nextSelectedAccount, selectedPlatformAccounts, updateExpandedAccountKeys } from '@/utils/accountDataGroups'
 import { accountDataFocus, accountDataQuery } from '@/utils/accountDataFocus'
 
 const source = rawSource.replace(/\r\n/g, '\n')
@@ -12,7 +12,9 @@ const getFunction = (start: string, end: string, context: Record<string, unknown
 
 describe('多平台账号数据视图', () => {
   it('总览与目录直接使用服务端分组行，详情平台切换使用独立账号 ID', () => {
-    expect(source).toContain(':row-key="accountGroupKey"')
+    expect(source).toContain(':row-key="accountOverviewRowKey"')
+    expect(source).toContain(':data="overviewRows"')
+    expect(source).toContain(':expand-row-keys="expandedAccountKeys"')
     expect(source).toContain(':key="accountGroupKey(account)"')
     expect(source).toContain('v-model="selectedPlatformId"')
     expect(source).toContain('aria-label="账号平台"')
@@ -47,13 +49,50 @@ describe('多平台账号数据视图', () => {
   })
   it('批量操作收到全部可见平台 ID，而非仅代表行', () => {
     const selectedAccounts = { value: [] }
-    const handler = getFunction('function handleOverviewSelectionChange(', '\nfunction clearOverviewSelection()', {
+    const handler = getFunction('function handleOverviewSelectionChange(', '\nfunction handleOverviewExpandChange(', {
       selectedAccounts, selectedPlatformAccounts,
     }, 'handleOverviewSelectionChange')
     const platforms = [{ account_id: '1' }, { account_id: '2' }]
     handler([{ ...platforms[0], group_key: accountGroupKey({ account_id: '1' }), platform_accounts: platforms }])
     expect(selectedAccounts.value).toEqual(platforms)
     expect(source).toContain('个平台账号')
+  })
+  it('点击身份只展开，不进入详情；单个平台仍可查看详情', () => {
+    const row = { is_identity_group: true, account_id: '1' }
+    const overviewTableRef = { value: { toggleRowExpansion: vi.fn() } }
+    const openAccountDetail = vi.fn()
+    const handler = getFunction('function openOverviewRow(', '\nwatch(rows,', { overviewTableRef, openAccountDetail }, 'openOverviewRow')
+    handler(row)
+    expect(overviewTableRef.value.toggleRowExpansion).toHaveBeenCalledWith(row)
+    expect(openAccountDetail).not.toHaveBeenCalled()
+    const leaf = { is_identity_group: false, account_id: '2' }
+    handler(leaf)
+    expect(openAccountDetail).toHaveBeenCalledWith(leaf)
+  })
+  it('树形展开事件同步稳定键，兼容普通展开事件但不误更新状态', () => {
+    const expandedAccountKeys = { value: [] }
+    const handler = getFunction('function handleOverviewExpandChange(', '\nfunction openOverviewRow(', {
+      expandedAccountKeys, updateExpandedAccountKeys,
+    }, 'handleOverviewExpandChange')
+    const row = { account_id: '1', login_identity_id: 'a', is_identity_group: true }
+    handler(row, true)
+    expect(expandedAccountKeys.value).toEqual(['identity:a'])
+    handler(row, [])
+    expect(expandedAccountKeys.value).toEqual(['identity:a'])
+    handler(row, false)
+    expect(expandedAccountKeys.value).toEqual([])
+  })
+  it('筛选和翻页清理失效展开项，刷新保留当前页仍可展开的身份', () => {
+    let callback: (records: unknown[]) => void = () => undefined
+    const expandedAccountKeys = { value: ['identity:a', 'identity:b'] }
+    getFunction('watch(rows,', '\nfunction clearOverviewSelection()', {
+      rows: {}, expandedAccountKeys, accountOverviewRows, accountOverviewRowKey,
+      watch: (_source: unknown, cb: typeof callback) => { callback = cb },
+    }, 'undefined')
+    callback([{ account_id: '1', login_identity_id: 'a', platform_accounts: [{ account_id: '1' }, { account_id: '2' }] }])
+    expect(expandedAccountKeys.value).toEqual(['identity:a'])
+    callback([{ account_id: '1', login_identity_id: 'a', platform_accounts: [{ account_id: '1' }] }])
+    expect(expandedAccountKeys.value).toEqual([])
   })
   it('深链接选中非首个平台，后续后台刷新不强制切回定位平台', async () => {
     const a = { account_id: '1', login_identity_id: 'i', business_platform: 'instagram' }

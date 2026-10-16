@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountGroupKey, accountPlatforms, findPlatformAccount, nextSelectedAccount, selectedPlatformAccounts } from './accountDataGroups'
+import { accountGroupKey, accountOverviewRows, accountOverviewRowKey, accountPlatforms, findPlatformAccount, nextSelectedAccount, selectedPlatformAccounts, updateExpandedAccountKeys } from './accountDataGroups'
 
 const instagram = { account_id: '11', login_identity_id: 'a', business_platform: 'instagram', followers_count: 20 }
 const threads = { account_id: '12', login_identity_id: 'a', business_platform: 'threads', followers_count: 30 }
@@ -38,5 +38,41 @@ describe('账号数据身份分组', () => {
     expect(selectedPlatformAccounts([groups[0]!, threads])).toEqual([instagram, threads])
     expect(selectedPlatformAccounts([other])).toEqual([other])
     expect(selectedPlatformAccounts([])).toEqual([])
+  })
+  it('多平台形成可折叠父子行，单平台直接展示，原始响应不变', () => {
+    const before = JSON.stringify(groups)
+    const result = accountOverviewRows(groups)
+    expect(result).toHaveLength(2)
+    expect(result[0]?.is_identity_group).toBe(true)
+    expect(result[0]?.children).toEqual([
+      { ...instagram, is_identity_group: false }, { ...threads, is_identity_group: false },
+    ])
+    expect(result[1]).toEqual({ ...other, is_identity_group: false })
+    expect(accountOverviewRowKey(result[0]!)).toBe('identity:a')
+    expect(accountOverviewRowKey((result[0]?.children as typeof result)[0]!)).toBe('platform:11')
+    expect(JSON.stringify(groups)).toBe(before)
+    expect(accountOverviewRows([])).toEqual([])
+  })
+  it('筛选只剩单个平台时不再展示父行和其他平台，保留匹配平台指标', () => {
+    const [row] = accountOverviewRows([{ ...threads, platform_accounts: [threads] }])
+    expect(row?.is_identity_group).toBe(false)
+    expect(row?.children).toBeUndefined()
+    expect(row?.account_id).toBe('12')
+    expect(row?.followers_count).toBe(30)
+    expect(accountOverviewRows([other])[0]?.children).toBeUndefined()
+  })
+  it('父子行勾选不重复下发，子行单独选择不会带入兄弟平台', () => {
+    const [parent] = accountOverviewRows(groups)
+    const children = parent?.children as typeof groups
+    expect(selectedPlatformAccounts([parent!, ...children]).map(item => item.account_id)).toEqual(['11', '12'])
+    expect(selectedPlatformAccounts([children[1]!]).map(item => item.account_id)).toEqual(['12'])
+  })
+  it('展开收起使用稳定身份键且不重复，叶子不产生展开状态', () => {
+    const [parent, leaf] = accountOverviewRows(groups)
+    const keys = updateExpandedAccountKeys([], parent!, true)
+    expect(keys).toEqual(['identity:a'])
+    expect(updateExpandedAccountKeys(keys, parent!, true)).toEqual(keys)
+    expect(updateExpandedAccountKeys(keys, parent!, false)).toEqual([])
+    expect(updateExpandedAccountKeys([], leaf!, true)).toEqual([])
   })
 })

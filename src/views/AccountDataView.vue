@@ -2,7 +2,7 @@
 import MonitorContentConflict from '@/components/MonitorContentConflict.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { accountDataFocus, accountDataQuery } from '@/utils/accountDataFocus'
-import { accountGroupKey, accountPlatforms, nextSelectedAccount, selectedPlatformAccounts } from '@/utils/accountDataGroups'
+import { accountGroupKey, accountOverviewRows, accountOverviewRowKey, accountPlatforms, nextSelectedAccount, selectedPlatformAccounts, updateExpandedAccountKeys } from '@/utils/accountDataGroups'
 import {
   Activity,
   AlertTriangle,
@@ -144,7 +144,13 @@ const submitting = ref(false)
 const disablingAccountId = ref('')
 const disablingBenchmarkAccountId = ref('')
 const rows = ref<AnyRecord[]>([])
-const overviewTableRef = ref<{ clearSelection: () => void; clearSort: () => void } | null>(null)
+const overviewRows = computed(() => accountOverviewRows(rows.value))
+const expandedAccountKeys = ref<string[]>([])
+const overviewTableRef = ref<{
+  clearSelection: () => void
+  clearSort: () => void
+  toggleRowExpansion: (row: AnyRecord, expanded?: boolean) => void
+} | null>(null)
 const selectedAccounts = ref<AnyRecord[]>([])
 const batchUpdating = ref(false)
 const batchIntervalVisible = ref(false)
@@ -936,6 +942,21 @@ function handleOverviewSelectionChange(selection: AnyRecord[]) {
   selectedAccounts.value = selectedPlatformAccounts(selection)
 }
 
+function handleOverviewExpandChange(row: AnyRecord, expanded: boolean | AnyRecord[]) {
+  if (typeof expanded !== 'boolean') return
+  expandedAccountKeys.value = updateExpandedAccountKeys(expandedAccountKeys.value, row, expanded)
+}
+
+function openOverviewRow(row: AnyRecord) {
+  if (row.is_identity_group) overviewTableRef.value?.toggleRowExpansion(row)
+  else openAccountDetail(row)
+}
+
+watch(rows, (records) => {
+  const visible = new Set(accountOverviewRows(records).filter(row => row.is_identity_group).map(accountOverviewRowKey))
+  expandedAccountKeys.value = expandedAccountKeys.value.filter(key => visible.has(key))
+})
+
 function clearOverviewSelection() {
   overviewTableRef.value?.clearSelection()
   selectedAccounts.value = []
@@ -1440,8 +1461,7 @@ onBeforeUnmount(() => {
         <section v-if="viewMode === 'overview'" class="account-overview">
           <div class="account-overview__header">
             <div>
-              <strong>账号指标总览</strong>
-              <small>按账号横向比较最新采集数据，点击账号可查看完整资料和内容。</small>
+              <strong>账号列表</strong>
             </div>
             <div class="account-overview__scope">
               <el-tag v-if="activeSlotGroupName" type="primary" effect="plain">
@@ -1537,22 +1557,26 @@ onBeforeUnmount(() => {
           <el-table
             ref="overviewTableRef"
             v-loading="loading"
-            :data="rows"
+            :data="overviewRows"
             :default-sort="overviewDefaultSort"
-            :row-key="accountGroupKey"
+            :row-key="accountOverviewRowKey"
+            :tree-props="{ children: 'children' }"
+            :expand-row-keys="expandedAccountKeys"
             border
             class="account-overview__table"
             empty-text="暂无符合条件的账号数据"
             @selection-change="handleOverviewSelectionChange"
+            @expand-change="handleOverviewExpandChange"
             @sort-change="handleOverviewSortChange"
           >
             <el-table-column type="selection" width="46" fixed="left" />
-            <el-table-column label="账号" min-width="230" fixed="left">
+            <el-table-column label="账号" min-width="260" fixed="left" class-name="account-overview__tree-cell">
               <template #default="scope">
                 <button
                   type="button"
                   class="account-overview__account"
-                  @click="openAccountDetail(scope.row)"
+                  :aria-expanded="scope.row.is_identity_group ? expandedAccountKeys.includes(accountOverviewRowKey(scope.row)) : undefined"
+                  @click="openOverviewRow(scope.row)"
                 >
                   <el-avatar
                     :size="48"
@@ -1563,8 +1587,9 @@ onBeforeUnmount(() => {
                     {{ String(scope.row.account_name || '-').slice(0, 1) }}
                   </el-avatar>
                   <span class="account-overview__identity">
-                    <strong :title="String(scope.row.account_name || scope.row.login_username || '')">{{ scope.row.account_name || scope.row.login_username || '-' }}</strong>
-                    <small v-if="scope.row.username" :title="'@' + scope.row.username">@{{ scope.row.username }}</small>
+                    <strong :title="String(scope.row.is_identity_group ? scope.row.login_username || scope.row.account_name : scope.row.account_name || scope.row.login_username || '')">{{ scope.row.is_identity_group ? scope.row.login_username || scope.row.account_name : scope.row.account_name || scope.row.login_username || '-' }}</strong>
+                    <small v-if="scope.row.is_identity_group">{{ accountPlatforms(scope.row).length }} 个平台账号</small>
+                    <small v-else-if="scope.row.username" :title="'@' + scope.row.username">@{{ scope.row.username }}</small>
                     <small v-else>{{ scope.row.login_username || '暂无公开用户名' }}</small>
                   </span>
                 </button>
@@ -1573,7 +1598,9 @@ onBeforeUnmount(() => {
 
             <el-table-column label="设备分组" min-width="145">
               <template #default="scope">
+                <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
                 <el-tooltip
+                  v-else
                   :content="String(scope.row.slot_group_name || '未分组')"
                   :disabled="!scope.row.slot_group_name"
                   placement="top"
@@ -1602,15 +1629,15 @@ onBeforeUnmount(() => {
                       :key="String(platformAccount.account_id)"
                       link
                       type="primary"
-                      :aria-label="`查看 ${optionLabel(businessPlatformOptions, platformAccount.business_platform)} 账号详情`"
-                      @click="openAccountDetail(platformAccount)"
+                      :aria-label="scope.row.is_identity_group ? `展开 ${accountPlatforms(scope.row).length} 个平台账号` : `查看 ${optionLabel(businessPlatformOptions, platformAccount.business_platform)} 账号详情`"
+                      @click="openOverviewRow(scope.row)"
                     >
-                      <el-tag size="small" :effect="platformAccount.account_id === scope.row.account_id ? 'light' : 'plain'">
+                      <el-tag size="small" effect="plain">
                         {{ optionLabel(businessPlatformOptions, platformAccount.business_platform) }}
                       </el-tag>
                     </el-button>
                   </div>
-                  <span>{{ scope.row.country || '-' }}</span>
+                  <span v-if="!scope.row.is_identity_group">{{ scope.row.country || '-' }}</span>
                 </div>
               </template>
             </el-table-column>
@@ -1633,7 +1660,8 @@ onBeforeUnmount(() => {
                 </el-tooltip>
               </template>
               <template #default="scope">
-                <div class="account-overview__metric">
+                <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
+                <div v-else class="account-overview__metric">
                   <strong>
                     <CompactFollowerCount :key="scope.row.account_id" :value="scope.row[metric.valueKey]" :label="metric.label" />
                   </strong>
@@ -1647,7 +1675,8 @@ onBeforeUnmount(() => {
 
             <el-table-column label="距上次发帖" prop="last_post_published_at" sortable="custom" :sort-orders="['descending', 'ascending', null]" width="148" align="center" header-align="center" header-class-name="account-overview__sortable-header">
               <template #default="scope">
-                <el-tooltip v-if="scope.row.last_post_published_at" :content="formatDate(scope.row.last_post_published_at)" placement="top">
+                <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
+                <el-tooltip v-else-if="scope.row.last_post_published_at" :content="formatDate(scope.row.last_post_published_at)" placement="top">
                   <strong class="account-overview__last-post">{{ lastPostElapsed(scope.row.last_post_published_at, elapsedNow) }}</strong>
                 </el-tooltip>
                 <span v-else class="text-muted">暂无发帖数据</span>
@@ -1656,7 +1685,10 @@ onBeforeUnmount(() => {
 
             <el-table-column label="监听 / 采集" width="170" align="center" header-align="center">
               <template #default="scope">
-                <div class="account-overview__monitor">
+                <div v-if="scope.row.is_identity_group" class="account-overview__monitor">
+                  <el-tag v-for="state in [...new Set(accountPlatforms(scope.row).map(account => String(account.monitor_state)))]" :key="state" size="small" :type="monitorStateType(state)" effect="light">{{ monitorStateLabel(state) }}</el-tag>
+                </div>
+                <div v-else class="account-overview__monitor">
                   <MonitorErrorStatus v-if="scope.row.monitor_state === 'abnormal'" label="监听异常" :data="scope.row" />
                   <el-tag v-else size="small" :type="monitorStateType(scope.row.monitor_state)" effect="light">
                     {{ monitorStateLabel(scope.row.monitor_state) }}
@@ -1669,18 +1701,21 @@ onBeforeUnmount(() => {
             <el-table-column label="回复方式" width="125" align="center" header-align="center">
               <template #default="scope">
                 <el-tag
+                  v-if="!scope.row.is_identity_group"
                   size="small"
                   :type="replyModeType(resolveReplyState(scope.row))"
                   effect="light"
                 >
                   {{ replyModeLabel(resolveReplyState(scope.row)) }}
                 </el-tag>
+                <span v-else class="text-muted">--</span>
               </template>
             </el-table-column>
 
             <el-table-column label="帖子同步" width="130" align="center" header-align="center">
               <template #default="scope">
-                <div class="account-overview__post-sync">
+                <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
+                <div v-else class="account-overview__post-sync">
                   <el-tag size="small" :type="replyModeType(resolvePostSyncMode(scope.row))" effect="light">
                     {{ postSyncLabel(scope.row) }}
                   </el-tag>
@@ -1726,7 +1761,7 @@ onBeforeUnmount(() => {
                       @click="openAccountDetail(scope.row)"
                     />
                   </el-tooltip>
-                  <el-tooltip content="监听设置" placement="top">
+                  <el-tooltip v-if="!scope.row.is_identity_group" content="监听设置" placement="top">
                     <el-button
                       circle
                       text
@@ -2631,6 +2666,10 @@ onBeforeUnmount(() => {
 .account-overview__monitor { gap: 6px; }
 .account-overview__platforms { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
 .account-overview__platforms :deep(.el-button) { margin-left: 0; }
+.account-overview__table :deep(.account-overview__tree-cell .cell) { display: flex; align-items: center; min-width: 0; }
+.account-overview__table :deep(.account-overview__tree-cell .el-table__indent),
+.account-overview__table :deep(.account-overview__tree-cell .el-table__expand-icon),
+.account-overview__table :deep(.account-overview__tree-cell .el-table__placeholder) { flex-shrink: 0; }
 .account-overview__monitor small { color: var(--app-text-muted, #718096); font-size: 10px; white-space: nowrap; }
 .account-overview__pagination {
   display: flex;

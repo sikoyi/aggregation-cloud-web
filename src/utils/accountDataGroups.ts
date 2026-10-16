@@ -11,6 +11,28 @@ export function accountPlatforms(account: AnyRecord): AnyRecord[] {
     ? account.platform_accounts : [account]
 }
 
+export function accountOverviewRows(groups: AnyRecord[]): AnyRecord[] {
+  return groups.map(group => {
+    const platforms = accountPlatforms(group)
+    if (platforms.length === 1) return { ...platforms[0], is_identity_group: false }
+    return {
+      ...group,
+      is_identity_group: true,
+      children: platforms.map(account => ({ ...account, is_identity_group: false })),
+    }
+  })
+}
+
+export function accountOverviewRowKey(account: AnyRecord): string {
+  return account.is_identity_group ? accountGroupKey(account) : `platform:${account.account_id}`
+}
+
+export function updateExpandedAccountKeys(keys: string[], row: AnyRecord, expanded: boolean): string[] {
+  if (!row.is_identity_group) return keys
+  const key = accountOverviewRowKey(row)
+  return expanded ? [...new Set([...keys, key])] : keys.filter(value => value !== key)
+}
+
 export function findPlatformAccount(groups: AnyRecord[], accountId: string): AnyRecord | undefined {
   return groups.flatMap(accountPlatforms).find(account => String(account.account_id) === accountId)
 }

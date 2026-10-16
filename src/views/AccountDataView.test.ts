@@ -244,7 +244,7 @@ describe('账号数据聚合总览', () => {
     expect(overviewMetrics).not.toContain("valueKey: 'following_count'")
     expect(overviewMetrics).not.toContain("valueKey: 'posts_count'")
     expect(source).toContain("{ label: '总回复', value: account.total_replies_count")
-    expect(source).toContain(':data="rows"')
+    expect(source).toContain(':data="overviewRows"')
     expect(source).toContain('metrics_captured_at')
   })
 
