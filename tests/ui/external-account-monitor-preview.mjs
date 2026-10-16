@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const now = new Date().toISOString()
+let countryOptions = { countries: [], version: 1 }
 let rows = [{ id: 'fixture-1', business_platform: 'x', profile_url: 'https://x.com/example', remark: '界面测试数据',
   country: '', tag_ids: [], interval_minutes: 60, enabled: true, version: 1, status: 'active', next_run_at: now, last_success_at: now,
   profile: { display_name: 'External Example', username: 'example', avatar_url: 'http://127.0.0.1:5198/favicon.svg', biography: 'Only fixture data, no real collection.', followers_count: 1234, following_count: 0, posts_count: 78 } }]
@@ -37,7 +38,13 @@ const server = await createServer({
       const body = input ? JSON.parse(input) : {}
       const id = url.pathname.split('/')[3]
       let data
-      if (id === 'countries') {
+      if (id === 'country-options') {
+        if (req.method === 'PUT') {
+          if (body.expected_version !== countryOptions.version) { res.statusCode = 409; res.end(JSON.stringify({code:40900,msg:'配置已变化'})); return }
+          countryOptions = { countries: body.countries, version: countryOptions.version + 1 }
+        }
+        data = countryOptions
+      } else if (id === 'countries') {
         data = [...new Set(rows.map(row => row.country).filter(Boolean))]
       } else if (id === 'tags') {
         data = []

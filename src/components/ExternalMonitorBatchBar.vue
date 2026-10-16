@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { Clock3, Globe, Layers3, Pause, Play, Trash2 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
-import { accountCountryOptions } from '@/config/options'
+import ExternalCountrySelect from './ExternalCountrySelect.vue'
 import ExternalAccountTagSelect from './ExternalAccountTagSelect.vue'
 
 type Action = 'enable' | 'disable' | 'interval' | 'tags' | 'country' | 'delete'
@@ -60,7 +60,7 @@ async function run(action: Action) {
       <el-form-item v-if="dialog === 'interval'" label="监听间隔（分钟）"><el-input-number v-model="interval" :min="1" :max="1440" :disabled="busy" /></el-form-item>
       <template v-else-if="dialog === 'country'">
         <el-form-item label="修改方式"><el-radio-group v-model="countryMode" :disabled="busy"><el-radio-button value="set">设置国家</el-radio-button><el-radio-button value="clear">清空国家</el-radio-button></el-radio-group></el-form-item>
-        <el-form-item v-if="countryMode === 'set'" label="国家"><el-select v-model="country" placeholder="请选择国家" filterable clearable :disabled="busy"><el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" /></el-select></el-form-item>
+        <el-form-item v-if="countryMode === 'set'" label="国家"><ExternalCountrySelect v-model="country" :disabled="busy" /></el-form-item>
       </template>
       <el-form-item v-else label="账号标签"><ExternalAccountTagSelect v-model="tags" label="批量账号标签" :disabled="busy" :options="groups.map(item => ({ value: item.id, label: item.name }))" /></el-form-item>
     </el-form>

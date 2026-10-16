@@ -13,7 +13,8 @@ import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { formatDate } from '@/utils/format'
-import { accountCountryOptions } from '@/config/options'
+import ExternalCountrySelect from './ExternalCountrySelect.vue'
+import ExternalMonitorCountries from './ExternalMonitorCountries.vue'
 import { externalAvatarUrl } from '@/utils/externalAvatar'
 import { externalMonitorProgress, externalMonitorStatus, type ExternalCollectionProgress } from '@/utils/externalMonitorProgress'
 import type { AnyRecord } from '@/types/api'
@@ -291,6 +292,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <h2><Activity :size="20" />外部账号监听</h2>
       <div class="external-monitors__actions">
         <ExternalMonitorGroups v-if="canEdit" :groups="groups" @changed="groupsChanged" @refresh="loadGroups" />
+        <ExternalMonitorCountries v-if="canEdit" :disabled="batchBusy" @changed="load()" />
         <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" :disabled="batchBusy" @click="load()" /></el-tooltip>
         <el-button v-if="canEdit" type="primary" :icon="Plus" :disabled="!platforms.length" @click="openForm()">添加外部账号</el-button>
       </div>
@@ -363,7 +365,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
         <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
         <el-form-item label="账号标签"><ExternalAccountTagSelect v-model="form.tag_ids" label="账号标签" :disabled="saving" :options="groups.map(group => ({ value: group.id, label: group.name }))" /></el-form-item>
-        <el-form-item label="国家"><el-select v-model="form.country" placeholder="未设置" filterable clearable :disabled="saving"><el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" /></el-select></el-form-item>
+        <el-form-item label="国家"><ExternalCountrySelect :key="editing?.id || 'new'" v-model="form.country" :retained-country="editing?.country" :disabled="saving" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>
       </el-form>
