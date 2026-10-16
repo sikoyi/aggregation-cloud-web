@@ -37,14 +37,15 @@ function setup() {
 }
 
 describe('外部账号只读监听', () => {
-  it('国家独占一行且筛选只展示服务端去重选项，表单仍有完整国家列表', async () => {
+  it('国家独占一行且筛选展示已用国家，表单使用常用国家选择器', async () => {
     const s = setup()
     await s.load()
     expect(s.countries.value).toEqual(['日本', '韩国'])
     expect(source).toContain('label="国家" class="external-monitors__group-filter"')
     expect(source).toContain('v-for="country in countries"')
     expect(source).toContain('v-model="form.country"')
-    expect(source.match(/v-for="option in accountCountryOptions"/g)).toHaveLength(1)
+    expect(source).toContain('<ExternalCountrySelect')
+    expect(source).not.toContain('v-for="option in accountCountryOptions"')
     expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/countries')
   })
   it('国家、未设置、全部互斥，切换回第一页且批量操作时禁用', async () => {
