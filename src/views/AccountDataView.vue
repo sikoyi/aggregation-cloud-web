@@ -15,6 +15,7 @@ import {
   Layers3,
   MessageSquareReply,
   Play,
+  Plus,
   RefreshCw,
   RotateCcw,
   Search,
@@ -269,6 +270,8 @@ let realtimeRefreshTimer: number | undefined
 let accountProfileRequest = 0
 let profileSyncCapabilityRequest = 0
 const accountProfileLoading = ref(false)
+const addingPlatformMonitor = ref(false)
+const platformMonitorAccount = ref<AnyRecord | null>(null)
 const profileSyncCapability = reactive<ProfileSyncCapability>({
   loading: false,
   available: false,
@@ -305,10 +308,10 @@ const activeAccountTagName = computed(() => {
   const tag = accountTags.value.find((item) => String(item.id) === tagId)
   return String(tag?.name || tagId)
 })
-const monitorAccountFilters = computed(() => ({
+const monitorAccountFilters = computed(() => addingPlatformMonitor.value ? {} : ({
   business_platform: monitorForm.business_platform,
 }))
-const monitorFeatureOptions = computed(() => ['threads', 'x'].includes(monitorForm.business_platform)
+const monitorFeatureOptions = computed(() => !addingPlatformMonitor.value && ['threads', 'x'].includes(monitorForm.business_platform)
   ? [
       { label: '账号数据监听', value: 'account_data' },
       { label: '对标账号跟踪', value: 'benchmark' },
@@ -331,12 +334,13 @@ const profileMetricItems = computed(() => {
   ]
 })
 const monitorDialogTitle = computed(() => {
+  if (addingPlatformMonitor.value) return '添加平台监听'
   if (batchBenchmark.value) return `批量对标跟踪（${batchBenchmarkAccounts.value.length} 个账号）`
   if (!monitorAccountLocked.value) return '账号监听'
   return `监听设置：${String(monitorTargetAccount.value?.account_name || monitorTargetAccount.value?.login_username || '-')}`
 })
 const monitorSubmitLabel = computed(() => (
-  monitorFeature.value === 'benchmark'
+  addingPlatformMonitor.value ? '确认添加' : monitorFeature.value === 'benchmark'
     ? monitorTargetAccount.value?.benchmark_state === 'paused'
       ? '重新开启对标'
       : monitorTargetAccount.value?.benchmark_tracker_id ? '保存对标配置' : '开启对标跟踪'
@@ -547,7 +551,9 @@ function profileSyncFieldDisabled(field: string) {
     || (!profileSyncCapability.available && !benchmarkForm.profile_sync_fields.includes(field))
 }
 
-function openMonitor(account?: AnyRecord) {
+function openMonitor(account?: AnyRecord, addPlatform = false) {
+  addingPlatformMonitor.value = addPlatform
+  platformMonitorAccount.value = null
   monitorReplySchedule.value = { inherit: true, times: [] }
   monitorReplyScheduleReady.value = false
   batchBenchmark.value = false
@@ -562,9 +568,9 @@ function openMonitor(account?: AnyRecord) {
     )?.value || monitorBusinessPlatformOptions.value[0]?.value || ''),
     account_id: String(account?.account_id || ''),
     profile_url: String(account?.profile_url || ''),
-    monitor_mode: String(account?.monitor_mode || 'system'),
-    interval_minutes: Number(account?.monitor_interval_minutes || 180),
-    comment_reply_mode: String(account?.comment_reply_mode || 'disabled'),
+    monitor_mode: addPlatform ? 'system' : String(account?.monitor_mode || 'system'),
+    interval_minutes: addPlatform ? 180 : Number(account?.monitor_interval_minutes || 180),
+    comment_reply_mode: addPlatform ? 'disabled' : String(account?.comment_reply_mode || 'disabled'),
     ai_provider: String(aiConfig.provider || monitorForm.ai_provider || ''),
     ai_language: String(aiConfig.language || 'auto'),
     ai_tone: String(aiConfig.tone || 'natural'),
@@ -582,9 +588,17 @@ function openMonitor(account?: AnyRecord) {
     interval_minutes: Number(account?.benchmark_interval_minutes || 60),
   })
   monitorVisible.value = true
-  if (monitorForm.account_id) {
+  if (monitorForm.account_id && !addPlatform) {
     void loadProfileSyncCapability(monitorForm.account_id, monitorForm.business_platform)
   }
+}
+
+function openPlatformMonitor(account?: AnyRecord) {
+  openMonitor(account, true)
+}
+
+function handleMonitorPlatformChange() {
+  if (!addingPlatformMonitor.value) resetMonitorAccount()
 }
 
 function openBatchBenchmark() {
@@ -758,7 +772,9 @@ async function saveMonitor() {
       ElNotification.warning({ title: '请设置回复时间', message: '请选择有有效时间的 App 默认配置，或自定义至少一个回复时间' })
       return
     }
-    const data = await http.post<AnyRecord>('/api/interaction-center/content-monitor/accounts', {
+    const data = await http.post<AnyRecord>(addingPlatformMonitor.value
+      ? '/api/interaction-center/content-monitor/platform-accounts'
+      : '/api/interaction-center/content-monitor/accounts', {
       ...(repliesEnabled ? { comment_reply_schedule: monitorReplySchedule.value } : {}),
       business_platform: monitorForm.business_platform,
       account_id: monitorForm.account_id,
@@ -1156,6 +1172,7 @@ watch(monitorVisible, (visible) => {
 watch(
   () => monitorForm.account_id,
   async (accountId, previousAccountId) => {
+    if (addingPlatformMonitor.value) return
     if (monitorAccountLocked.value || !monitorVisible.value || accountId === previousAccountId) return
     const requestId = ++accountProfileRequest
     monitorForm.profile_url = ''
@@ -1173,6 +1190,32 @@ watch(
       }
     } catch (err) {
       if (requestId === accountProfileRequest) notifyError(err, '账号读取失败', '无法读取账号主页信息')
+    } finally {
+      if (requestId === accountProfileRequest) accountProfileLoading.value = false
+    }
+  },
+)
+
+watch(
+  () => [addingPlatformMonitor.value, monitorForm.account_id, monitorForm.business_platform, monitorVisible.value] as const,
+  async ([adding, sourceId, platform, visible]) => {
+    if (!adding || !visible) return
+    const requestId = ++accountProfileRequest
+    platformMonitorAccount.value = null
+    monitorForm.profile_url = ''
+    accountProfileLoading.value = Boolean(sourceId)
+    if (!sourceId) return
+    try {
+      const source = await http.get<AnyRecord>(`/api/accounts/${encodeURIComponent(sourceId)}`)
+      const accounts = source.login_identity_id
+        ? (await http.get<{ items: AnyRecord[] }>(`/api/account-identities/${encodeURIComponent(String(source.login_identity_id))}/accounts`)).items
+        : [source]
+      if (requestId !== accountProfileRequest || !monitorVisible.value || !addingPlatformMonitor.value) return
+      const target = accounts.find(account => String(account.business_platform) === platform) || null
+      platformMonitorAccount.value = target
+      monitorForm.profile_url = String(target?.profile_url || '')
+    } catch (err) {
+      if (requestId === accountProfileRequest) notifyError(err, '账号读取失败', '无法读取平台账号信息')
     } finally {
       if (requestId === accountProfileRequest) accountProfileLoading.value = false
     }
@@ -1228,6 +1271,7 @@ onBeforeUnmount(() => {
           <el-tooltip content="刷新" placement="bottom">
             <el-button circle :icon="RefreshCw" :loading="loading" @click="loadRows" />
           </el-tooltip>
+          <el-button v-if="auth.can('accounts.edit') && auth.can('operations.edit')" :icon="Plus" @click="openPlatformMonitor()">添加平台监听</el-button>
           <el-button type="primary" :icon="Play" @click="openMonitor()">开启账号监听</el-button>
         </div>
       </div>
@@ -1604,7 +1648,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="112" fixed="right" align="center" header-align="center">
+            <el-table-column label="操作" width="144" fixed="right" align="center" header-align="center">
               <template #default="scope">
                 <div class="account-overview__actions">
                   <el-tooltip content="查看账号详情" placement="top">
@@ -1626,6 +1670,9 @@ onBeforeUnmount(() => {
                       aria-label="监听设置"
                       @click="openMonitor(scope.row)"
                     />
+                  </el-tooltip>
+                  <el-tooltip v-if="auth.can('accounts.edit') && auth.can('operations.edit')" content="添加平台监听" placement="top">
+                    <el-button circle text type="primary" :icon="Plus" aria-label="添加平台监听" @click="openPlatformMonitor(scope.row)" />
                   </el-tooltip>
                 </div>
               </template>
@@ -1942,7 +1989,7 @@ onBeforeUnmount(() => {
       v-model="monitorVisible"
       class="account-monitor-dialog"
       :title="monitorDialogTitle"
-      width="min(92vw, 860px)"
+      :width="addingPlatformMonitor && !monitorAccountLocked ? 'min(92vw, 1080px)' : 'min(92vw, 860px)'"
       align-center
       destroy-on-close
       :close-on-click-modal="false"
@@ -1964,12 +2011,12 @@ onBeforeUnmount(() => {
           <el-form-item v-if="batchBenchmark" label="已有对标配置">
             <el-checkbox v-model="overwriteBenchmark">覆盖已有配置</el-checkbox>
           </el-form-item>
-          <el-form-item v-if="!monitorAccountLocked" label="业务 App">
-            <el-select v-model="monitorForm.business_platform" class="w-full" @change="resetMonitorAccount">
+          <el-form-item v-if="!monitorAccountLocked || addingPlatformMonitor" label="业务 App">
+            <el-select v-model="monitorForm.business_platform" class="w-full" @change="handleMonitorPlatformChange">
               <el-option v-for="option in monitorBusinessPlatformOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
             </el-select>
           </el-form-item>
-          <div v-if="!batchBenchmark" class="monitor-type-switch">
+          <div v-if="!batchBenchmark && !addingPlatformMonitor" class="monitor-type-switch">
             <el-segmented
               v-model="monitorFeature"
               :options="monitorFeatureOptions"
@@ -1985,10 +2032,15 @@ onBeforeUnmount(() => {
                 · {{ monitorTargetAccount.slot_group_name || '未分组' }}
               </small>
             </span>
-            <StatusBadge :value="monitorTargetAccount.login_status" />
+            <StatusBadge v-if="!addingPlatformMonitor" :value="monitorTargetAccount.login_status" />
           </div>
           <template v-if="monitorFeature === 'account_data'">
             <div class="dialog-section-title">账号数据监听</div>
+            <el-form-item v-if="addingPlatformMonitor && monitorForm.account_id" label="平台账号">
+              <span v-if="accountProfileLoading">读取中</span>
+              <span v-else-if="platformMonitorAccount">{{ platformMonitorAccount.display_name || platformMonitorAccount.username || platformMonitorAccount.login_username }} <StatusBadge :value="platformMonitorAccount.login_status" /></span>
+              <el-tag v-else type="info" effect="plain">新增 · 未登录</el-tag>
+            </el-form-item>
             <el-form-item label="账号主页链接" required>
               <el-input
                 v-model="monitorForm.profile_url"
@@ -1996,7 +2048,7 @@ onBeforeUnmount(() => {
                 :placeholder="monitorForm.business_platform === 'facebook' ? '例如：https://www.facebook.com/username' : monitorForm.business_platform === 'x' ? '例如：https://x.com/username' : monitorForm.business_platform === 'instagram' ? '例如：https://www.instagram.com/username/' : '例如：https://www.threads.com/@username'"
               />
             </el-form-item>
-            <div class="monitor-form-row">
+            <div class="monitor-form-row" :class="{ 'monitor-form-row--platform': addingPlatformMonitor }">
               <el-form-item label="监听规则">
                 <el-select v-model="monitorForm.monitor_mode" class="w-full">
                   <el-option label="系统默认（每 3 小时 / 180 分钟）" value="system" />
@@ -2025,7 +2077,7 @@ onBeforeUnmount(() => {
                 v-model="monitorReplySchedule"
                 :active="monitorVisible && monitorFeature === 'account_data'"
                 :business-platform="monitorForm.business_platform"
-                :account-id="monitorForm.account_id"
+                :account-id="addingPlatformMonitor ? String(platformMonitorAccount?.id || '') : monitorForm.account_id"
                 @ready="monitorReplyScheduleReady = $event"
               />
               <template v-if="monitorForm.comment_reply_mode !== 'disabled'">
@@ -2196,7 +2248,7 @@ onBeforeUnmount(() => {
       <template #footer>
         <div class="monitor-dialog-footer">
           <el-button
-            v-if="monitorFeature === 'account_data' && monitorAccountLocked && monitorTargetAccount?.monitor_enabled"
+            v-if="!addingPlatformMonitor && monitorFeature === 'account_data' && monitorAccountLocked && monitorTargetAccount?.monitor_enabled"
             type="danger"
             plain
             :icon="CircleOff"
@@ -2759,6 +2811,7 @@ onBeforeUnmount(() => {
 .monitor-target-account__content strong { overflow: hidden; color: var(--app-text, #203346); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .monitor-target-account__content small { overflow: hidden; color: var(--app-text-muted, #718096); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .monitor-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.monitor-form-row--platform { grid-template-columns: minmax(0, 1fr) 160px; }
 :global(.account-monitor-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
 :global(.account-monitor-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
 :global(.account-monitor-dialog .el-dialog__header),

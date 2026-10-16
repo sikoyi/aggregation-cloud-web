@@ -16,7 +16,7 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain("submitBatchMonitorState('enable')")
   })
   it('内部默认三小时，对标默认与已有自定义间隔不变', () => {
-    expect(source).toContain("interval_minutes: Number(account?.monitor_interval_minutes || 180)")
+    expect(source).toContain("interval_minutes: addPlatform ? 180 : Number(account?.monitor_interval_minutes || 180)")
     expect(source).toContain("interval_minutes: Number(account?.benchmark_interval_minutes || 60)")
     expect(source).toContain('系统默认（3 小时 / 180 分钟）')
     expect(source).toContain('系统默认（每 3 小时 / 180 分钟）')
@@ -33,7 +33,8 @@ describe('账号数据聚合总览', () => {
       loading: { value: false }, rows: { value: [] }, total: { value: 0 },
       summary: {}, selectedAccount: { value: null }, filters: {}, page: { value: 1 }, pageSize: { value: 20 },
       monitorVisible: { value: false }, batchUpdating: { value: false }, batchIntervalVisible: { value: false },
-      selectedAccountIds: { value: [] }, document: { hidden: false }, notifyError: vi.fn(), http }
+      selectedAccountIds: { value: [] }, document: { hidden: false }, notifyError: vi.fn(), http,
+      ref, useRoute: () => ({ query: {} }), accountDataFocus, accountDataQuery }
     const load = new Function(...Object.keys(state), `${transpile(body)}; return loadRows;`)(...Object.values(state))
     const old = load()
     const latest = load()
@@ -193,7 +194,7 @@ describe('账号数据聚合总览', () => {
     expect(searchRows).toHaveBeenCalledTimes(9)
   })
   it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
-    expect(source).toMatch(/width="min\(92vw, 860px\)"\r?\n\s+align-center/)
+    expect(source).toMatch(/:width="addingPlatformMonitor[^\n]+min\(92vw, 860px\)'"\r?\n\s+align-center/)
     expect(source).toContain('.monitor-dialog-account { align-self: start; }')
     expect(source).toContain('.monitor-dialog-account :deep(.account-tree-select) { max-height: none; overflow: visible; }')
     expect(source).not.toContain('.monitor-dialog-account { max-height: 510px; overflow: auto; }')
@@ -266,10 +267,10 @@ describe('账号数据聚合总览', () => {
     expect(overview).toContain('@click="openAccountDetail(scope.row)"')
     expect(overview).toContain('aria-label="监听设置"')
     expect(overview).toContain('content="监听设置"')
-    expect(overview).toContain('label="操作" width="112" fixed="right"')
+    expect(overview).toContain('label="操作" width="144" fixed="right"')
     expect(overview).toContain('class="account-overview__actions"')
 
-    const openMonitor = source.split('function openMonitor(account?: AnyRecord) {')[1]?.split('\nasync function ')[0] || ''
+    const openMonitor = source.split('function openMonitor(account?: AnyRecord, addPlatform = false) {')[1]?.split('\nasync function ')[0] || ''
     expect(openMonitor).toContain('monitorTargetAccount.value = account || null')
     expect(openMonitor).toContain('account_id: String(account?.account_id')
     expect(openMonitor).toContain('business_platform: String(account?.business_platform')

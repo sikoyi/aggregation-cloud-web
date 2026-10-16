@@ -6,15 +6,19 @@ import source from './AccountDataView.vue?raw'
 // Execute the actual dialog handlers without mounting the unrelated dashboard panels.
 const script = source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!
 const ast = ts.createSourceFile('AccountDataView.ts', script, ts.ScriptTarget.Latest, true)
-const handlers = ['resetProfileSyncCapability', 'loadProfileSyncCapability', 'resetMonitorAccount', 'finishMonitorSave', 'saveMonitor', 'saveBenchmarkTracker']
+const handlers = ['resetProfileSyncCapability', 'loadProfileSyncCapability', 'resetMonitorAccount', 'finishMonitorSave', 'saveMonitor', 'saveBenchmarkTracker', 'handleMonitorPlatformChange']
 const handlerSource = ast.statements.filter((node) => ts.isFunctionDeclaration(node)
   && handlers.includes(node.name?.text || '')).map((node) => node.getText(ast)).join('\n')
 const accountWatcher = ast.statements.find((node) => ts.isExpressionStatement(node)
   && node.getText(ast).startsWith('watch(') && node.getText(ast).includes('() => monitorForm.account_id'))!.getText(ast)
+const platformWatcher = ast.statements.find((node) => ts.isExpressionStatement(node)
+  && node.getText(ast).startsWith('watch(') && node.getText(ast).includes('[addingPlatformMonitor.value'))!.getText(ast)
 
 function setup(locked = false) {
   const state = {
     monitorAccountLocked: { value: locked },
+    addingPlatformMonitor: { value: false },
+    platformMonitorAccount: { value: null },
     monitorVisible: { value: true },
     submitting: { value: false },
     accountProfileLoading: { value: false },
@@ -44,8 +48,12 @@ function setup(locked = false) {
     loadRows: vi.fn().mockResolvedValue(undefined),
   }
   let accountChanged: (id: string, previous: string) => Promise<void> = async () => {}
-  const watch = (_source: unknown, callback: typeof accountChanged) => { accountChanged = callback }
-  const compiled = ts.transpileModule(`let accountProfileRequest = 0;\nlet profileSyncCapabilityRequest = 0;\n${handlerSource}\n${accountWatcher}`, {
+  let platformChanged: (value: readonly [boolean, string, string, boolean]) => Promise<void> = async () => {}
+  const watch = (source: unknown, callback: any) => {
+    if (String(source).includes('addingPlatformMonitor.value')) platformChanged = callback
+    else accountChanged = callback
+  }
+  const compiled = ts.transpileModule(`let accountProfileRequest = 0;\nlet profileSyncCapabilityRequest = 0;\n${handlerSource}\n${accountWatcher}\n${platformWatcher}`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText
   const actions = new Function(...Object.keys(state), 'watch', `${compiled}; return { ${handlers.join(', ')} };`)(...Object.values(state), watch) as {
@@ -53,11 +61,47 @@ function setup(locked = false) {
     saveBenchmarkTracker: () => Promise<void>
     resetMonitorAccount: () => void
     loadProfileSyncCapability: (accountId: string, platform: string) => Promise<void>
+    handleMonitorPlatformChange: () => void
   }
-  return { ...state, ...actions, accountChanged }
+  return { ...state, ...actions, accountChanged, platformChanged }
 }
 
 describe('监听窗口连续设置', () => {
+  it('添加平台时切换 App 保留来源账号，普通设置清空旧选择', () => {
+    const s = setup()
+    s.addingPlatformMonitor.value = true
+    s.handleMonitorPlatformChange()
+    expect(s.monitorForm.account_id).toBe('123')
+    s.addingPlatformMonitor.value = false
+    s.handleMonitorPlatformChange()
+    expect(s.monitorForm.account_id).toBe('')
+  })
+  it('平台资料慢响应不覆盖新平台，复用对应平台主页', async () => {
+    const s = setup(true)
+    s.addingPlatformMonitor.value = true
+    const pending: Array<(value: any) => void> = []
+    s.http.get.mockImplementation(() => new Promise(resolve => pending.push(resolve)))
+    const old = s.platformChanged([true, '123', 'x', true])
+    const latest = s.platformChanged([true, '123', 'threads', true])
+    pending[1]!({ login_identity_id: 'identity-1' })
+    await Promise.resolve()
+    pending[2]!({ items: [{ business_platform: 'threads', profile_url: 'https://www.threads.com/@new' }] })
+    await latest
+    pending[0]!({ business_platform: 'x', profile_url: 'https://x.com/old' })
+    await old
+    expect(s.monitorForm.profile_url).toBe('https://www.threads.com/@new')
+    expect(s.accountProfileLoading.value).toBe(false)
+  })
+  it('添加平台监听提交来源账号与所选平台，普通设置仍使用原接口', async () => {
+    const s = setup(true)
+    s.addingPlatformMonitor.value = true
+    s.monitorForm.business_platform = 'threads'
+    s.monitorForm.profile_url = 'https://www.threads.com/@newauthor'
+    await s.saveMonitor()
+    expect(s.http.post).toHaveBeenCalledWith('/api/interaction-center/content-monitor/platform-accounts', expect.objectContaining({
+      account_id: '123', business_platform: 'threads', profile_url: 'https://www.threads.com/@newauthor',
+    }))
+  })
   it('自动回复与时间一次保存，关闭回复不改已有时间', async () => {
     const s = setup(true)
     s.monitorForm.comment_reply_mode = 'automatic'
@@ -241,7 +285,7 @@ describe('监听窗口连续设置', () => {
   it('平台选项受用户范围与监听能力限制，切换后清除旧账号', () => {
     expect(source).toContain("availableBusinessPlatformOptions.value.filter(")
     expect(source).toContain("['threads', 'x', 'instagram', 'facebook'].includes(String(option.value))")
-    expect(source).toContain('@change="resetMonitorAccount"')
+    expect(source).toContain('@change="handleMonitorPlatformChange"')
     expect(source).not.toContain('v-model="monitorForm.business_platform" disabled')
     expect(source).toContain('monitorForm.business_platform === platform')
     expect(source).toContain('requestId === accountProfileRequest && monitorVisible.value')
