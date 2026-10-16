@@ -1,32 +1,37 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Clock3, Layers3, Pause, Play, Trash2 } from 'lucide-vue-next'
+import { Clock3, Globe, Layers3, Pause, Play, Trash2 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
+import { accountCountryOptions } from '@/config/options'
 import ExternalAccountTagSelect from './ExternalAccountTagSelect.vue'
 
-type Action = 'enable' | 'disable' | 'interval' | 'tags' | 'delete'
+type Action = 'enable' | 'disable' | 'interval' | 'tags' | 'country' | 'delete'
 interface Result { succeeded: number; skipped: number; failed: number; items: { id: string; status: string; message: string }[] }
 const props = defineProps<{ selected: { id: string; version: number }[]; groups: { id: string; name: string }[]; disabled: boolean }>()
 const emit = defineEmits<{ completed: []; busy: [value: boolean] }>()
 const busy = ref(false)
-const dialog = ref<'interval' | 'tags' | null>(null)
+const dialog = ref<'interval' | 'tags' | 'country' | null>(null)
 const interval = ref(60)
 const tags = ref<string[]>([])
+const country = ref('')
+const countryMode = ref<'set' | 'clear'>('set')
 const result = ref<Result | null>(null)
 const resultVisible = ref(false)
 const disabled = computed(() => busy.value || props.disabled || !props.selected.length)
 async function run(action: Action) {
-  if (disabled.value) return
+  if (disabled.value || busy.value || (action === 'country' && countryMode.value === 'set' && !country.value)) return
   const items = props.selected.map(row => ({ id: row.id, expected_version: row.version }))
   busy.value = true
   emit('busy', true)
   try {
     if (action === 'delete') await ElMessageBox.confirm(`确认删除选中的 ${items.length} 个外部账号监听及其已采集帖子、历史指标？操作日志仍会保留。`, '批量删除监听', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' })
     if (action === 'tags') await ElMessageBox.confirm(tags.value.length ? `将 ${items.length} 个账号的现有标签替换为：${tags.value.map(id => props.groups.find(tag => tag.id === id)?.name || id).join('、')}` : `清空所选 ${items.length} 个账号的全部标签？`, tags.value.length ? '替换账号标签' : '清空账号标签', { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' })
+    if (action === 'country') await ElMessageBox.confirm(countryMode.value === 'clear' ? `将所选 ${items.length} 个外部账号的国家清空为“未设置”？` : `将所选 ${items.length} 个外部账号的国家统一修改为：${country.value}？`, countryMode.value === 'clear' ? '清空国家' : '批量修改国家', { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' })
     result.value = await http.post<Result>('/api/external-account-monitors/batch', { action, items,
       ...(action === 'interval' ? { interval_minutes: interval.value } : {}),
       ...(action === 'tags' ? { tag_ids: [...tags.value] } : {}),
+      ...(action === 'country' ? { country: countryMode.value === 'clear' ? '' : country.value } : {}),
     })
     dialog.value = null
     const message = `成功 ${result.value.succeeded}，跳过 ${result.value.skipped}，失败 ${result.value.failed}`
@@ -46,15 +51,20 @@ async function run(action: Action) {
       <el-button :icon="Pause" :disabled="disabled" @click="run('disable')">批量关闭监听</el-button>
       <el-button :icon="Clock3" :disabled="disabled" @click="dialog = 'interval'">批量修改间隔</el-button>
       <el-button :icon="Layers3" :disabled="disabled" @click="tags = []; dialog = 'tags'">批量设置标签</el-button>
+      <el-button :icon="Globe" :disabled="disabled" @click="country = ''; countryMode = 'set'; dialog = 'country'">批量修改国家</el-button>
       <el-button :icon="Trash2" type="danger" plain :disabled="disabled" @click="run('delete')">批量删除</el-button>
     </div>
   </div>
-  <el-dialog :model-value="!!dialog" :title="dialog === 'interval' ? '批量修改监听间隔' : '批量设置标签'" width="min(440px, 96vw)" append-to-body :close-on-click-modal="false" @update:model-value="value => { if (!value && !busy) dialog = null }">
+  <el-dialog :model-value="!!dialog" :title="dialog === 'interval' ? '批量修改监听间隔' : dialog === 'country' ? '批量修改国家' : '批量设置标签'" width="min(440px, 96vw)" append-to-body :close-on-click-modal="false" :close-on-press-escape="!busy" :show-close="!busy" @update:model-value="value => { if (!value && !busy) dialog = null }">
     <el-form label-position="top">
       <el-form-item v-if="dialog === 'interval'" label="监听间隔（分钟）"><el-input-number v-model="interval" :min="1" :max="1440" :disabled="busy" /></el-form-item>
+      <template v-else-if="dialog === 'country'">
+        <el-form-item label="修改方式"><el-radio-group v-model="countryMode" :disabled="busy"><el-radio-button value="set">设置国家</el-radio-button><el-radio-button value="clear">清空国家</el-radio-button></el-radio-group></el-form-item>
+        <el-form-item v-if="countryMode === 'set'" label="国家"><el-select v-model="country" placeholder="请选择国家" filterable clearable :disabled="busy"><el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" /></el-select></el-form-item>
+      </template>
       <el-form-item v-else label="账号标签"><ExternalAccountTagSelect v-model="tags" label="批量账号标签" :disabled="busy" :options="groups.map(item => ({ value: item.id, label: item.name }))" /></el-form-item>
     </el-form>
-    <template #footer><el-button :disabled="busy" @click="dialog = null">取消</el-button><el-button type="primary" :loading="busy" :disabled="disabled" @click="dialog && run(dialog)">确认修改</el-button></template>
+    <template #footer><el-button :disabled="busy" @click="dialog = null">取消</el-button><el-button type="primary" :loading="busy" :disabled="disabled || (dialog === 'country' && countryMode === 'set' && !country)" @click="dialog && run(dialog)">确认修改</el-button></template>
   </el-dialog>
   <el-dialog v-model="resultVisible" title="批量操作结果" width="min(600px, 96vw)" append-to-body>
     <p v-if="result">成功 {{ result.succeeded }}，跳过 {{ result.skipped }}，失败 {{ result.failed }}</p>
