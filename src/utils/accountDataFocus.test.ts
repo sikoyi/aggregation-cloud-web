@@ -10,7 +10,7 @@ describe('账号数据精确定位', () => {
   })
   it('跳转不受旧筛选和页码影响，返回后恢复普通查询', () => {
     const filters = { monitor_state: 'abnormal', keyword: 'other' }
-    expect(accountDataQuery('946', filters, 9, 50)).toEqual({ account_id: '946', page: 1, page_size: 20 })
-    expect(accountDataQuery('', filters, 1, 50)).toEqual({ ...filters, page: 1, page_size: 50 })
+    expect(accountDataQuery('946', filters, 9, 50)).toEqual({ account_id: '946', group_by_identity: true, page: 1, page_size: 20 })
+    expect(accountDataQuery('', filters, 1, 50)).toEqual({ ...filters, group_by_identity: true, page: 1, page_size: 50 })
   })
 })

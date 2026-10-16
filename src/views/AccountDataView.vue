@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import MonitorContentConflict from '@/components/MonitorContentConflict.vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { accountDataFocus, accountDataQuery } from '@/utils/accountDataFocus'
+import { accountGroupKey, accountPlatforms, nextSelectedAccount, selectedPlatformAccounts } from '@/utils/accountDataGroups'
 import {
   Activity,
   AlertTriangle,
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   CircleOff,
   Clock,
@@ -245,6 +247,22 @@ const benchmarkMappingCount = computed(() => {
 })
 const detailTab = ref('overview')
 const selectedAccount = ref<AnyRecord | null>(null)
+const selectedAccountGroup = computed(() => rows.value.find(
+  account => accountGroupKey(account) === accountGroupKey(selectedAccount.value),
+))
+const selectedPlatformOptions = computed(() => selectedAccountGroup.value
+  ? accountPlatforms(selectedAccountGroup.value).map(account => ({
+      label: optionLabel(businessPlatformOptions, account.business_platform), value: String(account.account_id),
+    })) : [])
+const selectedPlatformId = computed({
+  get: () => String(selectedAccount.value?.account_id || ''),
+  set: (id: string) => {
+    const account = selectedAccountGroup.value && accountPlatforms(selectedAccountGroup.value).find(
+      account => String(account.account_id) === id,
+    )
+    if (account) selectAccount(account)
+  },
+})
 const monitorForm = reactive({
   business_platform: 'threads',
   account_id: '',
@@ -423,7 +441,9 @@ async function loadReplyOptions() {
 }
 
 let rowsRequest = 0
-const focusedAccountId = ref(accountDataFocus(useRoute().query.account_id))
+const accountDataRoute = useRoute()
+const accountDataRouter = useRouter()
+const focusedAccountId = ref(accountDataFocus(accountDataRoute.query.account_id))
 let rowsDisposed = false
 let rowsInFlight = 0
 async function loadRows(background: unknown = false) {
@@ -441,10 +461,7 @@ async function loadRows(background: unknown = false) {
     rows.value = data.items
     total.value = data.total
     Object.assign(summary, data.summary)
-    const selectedId = String(selectedAccount.value?.account_id || '')
-    selectedAccount.value = focusedAccountId.value
-      ? data.items.find((item) => String(item.account_id) === focusedAccountId.value) || null
-      : data.items.find((item) => String(item.account_id) === selectedId) || data.items[0] || null
+    selectedAccount.value = nextSelectedAccount(data.items, selectedAccount.value, selectedAccount.value ? '' : focusedAccountId.value)
     if (focusedAccountId.value && !silent) {
       if (selectedAccount.value) openAccountDetail(selectedAccount.value)
       else ElNotification.warning({ title: '无法定位账号', message: '账号已删除或当前账号无权查看' })
@@ -471,10 +488,41 @@ function handleOverviewSortChange({ prop, order }: { prop: string | null; order:
 
 function resetFilters() {
   focusedAccountId.value = ''
+  viewMode.value = 'overview'
+  clearAccountFocusQuery()
   resetCachedFilters()
   overviewTableRef.value?.clearSort()
   searchRows()
 }
+
+function clearAccountFocusQuery() {
+  if (!accountDataRoute.query.account_id && !accountDataRoute.query.view) return
+  const { account_id: _accountId, view: _view, ...query } = accountDataRoute.query
+  void accountDataRouter.replace({ query })
+}
+
+function showAccountOverview() {
+  const wasFocused = Boolean(focusedAccountId.value)
+  focusedAccountId.value = ''
+  viewMode.value = 'overview'
+  clearAccountFocusQuery()
+  if (wasFocused) searchRows()
+}
+
+watch(() => accountDataRoute.query.account_id, (value) => {
+  const id = accountDataFocus(value)
+  if (id === focusedAccountId.value) return
+  focusedAccountId.value = id
+  viewMode.value = id || accountDataRoute.query.view === 'detail' ? 'detail' : 'overview'
+  selectedAccount.value = null
+  clearOverviewSelection()
+  page.value = 1
+  void loadRows()
+})
+
+watch(() => accountDataRoute.query.view, (value) => {
+  if (!focusedAccountId.value) viewMode.value = value === 'detail' ? 'detail' : 'overview'
+}, { immediate: true })
 
 function useMonitorFilter(value: string) {
   filters.monitor_state = filters.monitor_state === value ? '' : value
@@ -834,7 +882,7 @@ function selectAccount(account: AnyRecord) {
   if (String(selectedAccount.value?.account_id || '') !== String(account.account_id || '')) {
     detailTab.value = 'overview'
   }
-  selectedAccount.value = account
+  selectedAccount.value = nextSelectedAccount(rows.value, account) || account
 }
 
 function openAccountDetail(account: AnyRecord) {
@@ -885,7 +933,7 @@ function resolveReplyState(account: AnyRecord) {
 }
 
 function handleOverviewSelectionChange(selection: AnyRecord[]) {
-  selectedAccounts.value = selection
+  selectedAccounts.value = selectedPlatformAccounts(selection)
 }
 
 function clearOverviewSelection() {
@@ -894,7 +942,12 @@ function clearOverviewSelection() {
 }
 
 watch(viewMode, (mode) => {
-  if (mode !== 'overview') clearOverviewSelection()
+  if (mode !== 'overview') {
+    clearOverviewSelection()
+    if (!focusedAccountId.value && accountDataRoute.query.view !== 'detail') {
+      void accountDataRouter.replace({ query: { ...accountDataRoute.query, view: 'detail' } })
+    }
+  } else showAccountOverview()
 })
 
 function openBatchMonitorInterval() {
@@ -1259,6 +1312,7 @@ onBeforeUnmount(() => {
           <el-segmented
             v-model="viewMode"
             :options="viewModeOptions"
+            aria-label="账号数据视图"
             class="account-data__mode"
           />
           <el-button
@@ -1402,7 +1456,7 @@ onBeforeUnmount(() => {
 
           <div class="account-overview__batch-bar">
             <span class="account-overview__selected-count">
-              已选择 <strong>{{ selectedAccountIds.length }}</strong> 个账号
+              已选择 <strong>{{ selectedAccountIds.length }}</strong> 个平台账号
             </span>
             <div class="account-overview__batch-actions">
               <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" :disabled="batchActionsDisabled" @click="replyScheduleMode = ''; replyScheduleAccounts = selectedAccounts.map(account => ({ ...account })); replyScheduleVisible = true">设置回复时间</el-button>
@@ -1485,7 +1539,7 @@ onBeforeUnmount(() => {
             v-loading="loading"
             :data="rows"
             :default-sort="overviewDefaultSort"
-            row-key="account_id"
+            :row-key="accountGroupKey"
             border
             class="account-overview__table"
             empty-text="暂无符合条件的账号数据"
@@ -1539,12 +1593,23 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="平台 / 国家" width="125" align="center" header-align="center">
+            <el-table-column label="平台 / 国家" width="156" align="center" header-align="center">
               <template #default="scope">
                 <div class="account-overview__attributes">
-                  <el-tag size="small" effect="plain">
-                    {{ optionLabel(businessPlatformOptions, scope.row.business_platform) }}
-                  </el-tag>
+                  <div class="account-overview__platforms">
+                    <el-button
+                      v-for="platformAccount in accountPlatforms(scope.row)"
+                      :key="String(platformAccount.account_id)"
+                      link
+                      type="primary"
+                      :aria-label="`查看 ${optionLabel(businessPlatformOptions, platformAccount.business_platform)} 账号详情`"
+                      @click="openAccountDetail(platformAccount)"
+                    >
+                      <el-tag size="small" :effect="platformAccount.account_id === scope.row.account_id ? 'light' : 'plain'">
+                        {{ optionLabel(businessPlatformOptions, platformAccount.business_platform) }}
+                      </el-tag>
+                    </el-button>
+                  </div>
                   <span>{{ scope.row.country || '-' }}</span>
                 </div>
               </template>
@@ -1709,11 +1774,11 @@ onBeforeUnmount(() => {
                 <div v-if="rows.length" class="account-directory__items">
                   <button
                     v-for="account in rows"
-                    :key="String(account.account_id)"
+                    :key="accountGroupKey(account)"
                     type="button"
                     class="account-directory__item"
-                    :class="{ 'is-selected': String(selectedAccount?.account_id || '') === String(account.account_id) }"
-                    :aria-pressed="String(selectedAccount?.account_id || '') === String(account.account_id)"
+                    :class="{ 'is-selected': accountGroupKey(selectedAccount) === accountGroupKey(account) }"
+                    :aria-pressed="accountGroupKey(selectedAccount) === accountGroupKey(account)"
                     @click="selectAccount(account)"
                   >
                     <el-avatar
@@ -1729,7 +1794,7 @@ onBeforeUnmount(() => {
                       <small v-if="account.username" :title="'@' + account.username">@{{ account.username }}</small>
                       <small v-else>{{ account.login_username || '暂无公开用户名' }}</small>
                       <span class="account-directory__tags">
-                        <el-tag size="small" effect="plain">{{ optionLabel(businessPlatformOptions, account.business_platform) }}</el-tag>
+                        <el-tag v-for="platformAccount in accountPlatforms(account)" :key="String(platformAccount.account_id)" size="small" effect="plain">{{ optionLabel(businessPlatformOptions, platformAccount.business_platform) }}</el-tag>
                         <el-tag size="small" :type="monitorStateType(account.monitor_state)" effect="light">
                           {{ monitorStateLabel(account.monitor_state) }}
                         </el-tag>
@@ -1758,6 +1823,17 @@ onBeforeUnmount(() => {
 
           <main class="account-profile">
             <template v-if="selectedAccount">
+              <div class="account-profile__navigation">
+                <el-button :icon="ArrowLeft" @click="showAccountOverview">返回总览</el-button>
+                <el-segmented
+                  v-if="selectedPlatformOptions.length > 1"
+                  v-model="selectedPlatformId"
+                  :options="selectedPlatformOptions"
+                  aria-label="账号平台"
+                />
+                <el-tag v-else effect="plain">{{ optionLabel(businessPlatformOptions, selectedAccount.business_platform) }}</el-tag>
+                <el-button v-if="auth.can('accounts.edit') && auth.can('operations.edit')" :icon="Plus" @click="openPlatformMonitor(selectedAccount)">添加平台监听</el-button>
+              </div>
               <div v-if="selectedAccount.cover_url" class="account-profile__cover">
                 <img :src="resolveBackendUrl(selectedAccount.cover_url)" alt="账号背景图" />
               </div>
@@ -2328,17 +2404,20 @@ onBeforeUnmount(() => {
 
 .account-data__header {
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 13px var(--content-inset);
   border-bottom: 1px solid var(--app-border, #e6edf3);
   background: var(--app-surface, #fff);
 }
 
-.account-data__title { gap: 10px; }
+.account-data__title { min-width: 0; flex: 1 0 230px; gap: 10px; }
+.account-data__title > div:last-child { min-width: 0; }
 .account-data__icon {
   display: inline-flex;
   width: 34px;
   height: 34px;
+  flex: 0 0 34px;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
@@ -2347,7 +2426,8 @@ onBeforeUnmount(() => {
 }
 .account-data__title h1 { color: var(--app-text, #1f2933); font-size: 18px; font-weight: 700; line-height: 1.25; }
 .account-data__title p { margin-top: 3px; color: var(--app-text-muted, #66788a); font-size: 12px; }
-.account-data__actions { gap: 10px; }
+.account-data__actions { min-width: 0; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+.account-data__actions :deep(.el-button) { margin-left: 0; }
 .account-data__mode { min-width: 184px; }
 .account-data__body { padding: 14px var(--content-inset) 16px; background: var(--app-surface-muted, #f8fafc); }
 
@@ -2549,6 +2629,8 @@ onBeforeUnmount(() => {
 .account-overview__metric span.is-up { color: var(--app-red, #cf4f4f); }
 .account-overview__metric span.is-down { color: var(--app-green, #238457); }
 .account-overview__monitor { gap: 6px; }
+.account-overview__platforms { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.account-overview__platforms :deep(.el-button) { margin-left: 0; }
 .account-overview__monitor small { color: var(--app-text-muted, #718096); font-size: 10px; white-space: nowrap; }
 .account-overview__pagination {
   display: flex;
@@ -2629,7 +2711,7 @@ onBeforeUnmount(() => {
 }
 .account-directory__copy > strong { color: var(--app-text, #243548); font-size: 16px; line-height: 1.5; }
 .account-directory__copy > small { margin-top: 3px; color: var(--app-text-muted, #7b8b9b); font-size: 14px; line-height: 1.5; }
-.account-directory__tags { gap: 5px; margin-top: 6px; }
+.account-directory__tags { flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .account-directory__tags :deep(.el-tag) { height: 20px; padding: 0 6px; font-size: 10px; }
 .account-directory__pagination {
   justify-content: space-between;
@@ -2654,6 +2736,10 @@ onBeforeUnmount(() => {
   padding: 18px 20px 22px;
   background: var(--app-surface, #fff);
 }
+.account-profile__navigation { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.account-profile__navigation :deep(.el-segmented) { max-width: 100%; overflow-x: auto; }
+.account-profile__navigation :deep(.el-button) { margin-left: 0; }
+.account-profile__navigation + .account-profile__cover { margin-top: 0; }
 .account-profile__cover {
   height: 150px;
   margin: -18px -20px 0;
@@ -2668,6 +2754,7 @@ onBeforeUnmount(() => {
 }
 .account-profile__header {
   align-items: flex-start;
+  flex-wrap: wrap;
   gap: 16px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--app-border, #e7edf3);
@@ -2675,7 +2762,7 @@ onBeforeUnmount(() => {
 .account-profile__header.has-cover { padding-top: 16px; }
 .account-profile__header.has-cover .account-profile__avatar { margin-top: -52px; }
 .account-profile__avatar { box-shadow: 0 0 0 4px #f3f8fb; }
-.account-profile__identity { min-width: 0; flex: 1; }
+.account-profile__identity { min-width: 0; max-width: 100%; flex: 1 1 260px; }
 .account-profile__name-row { flex-wrap: wrap; gap: 9px; }
 .account-profile__name-row h2 {
   overflow: hidden;
@@ -2683,8 +2770,8 @@ onBeforeUnmount(() => {
   color: var(--app-text, #1f2f40);
   font-size: 24px;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .account-profile__handle { flex-wrap: wrap; gap: 12px; margin-top: 5px; color: var(--app-text-muted, #718096); font-size: 16px; overflow-wrap: anywhere; }
 .account-profile__handle span + span { position: relative; padding-left: 12px; }
@@ -2856,10 +2943,12 @@ onBeforeUnmount(() => {
 @media (max-width: 800px) {
   .account-data__header,
   .account-profile__header { align-items: flex-start; flex-direction: column; }
+  .account-data__title { flex: 0 1 auto; }
+  .account-profile__identity { width: 100%; flex: 0 1 auto; }
   .account-data__actions,
   .account-profile__actions { width: 100%; justify-content: flex-end; }
   .account-data__actions { flex-wrap: wrap; }
-  .account-data__mode { min-width: 0; flex: 1; }
+  .account-data__mode { min-width: 184px; flex: 0 0 auto; }
   .account-overview__header { align-items: flex-start; flex-direction: column; }
   .account-overview__scope { width: 100%; justify-content: flex-start; }
   .account-overview__batch-bar { align-items: flex-start; flex-direction: column; }
