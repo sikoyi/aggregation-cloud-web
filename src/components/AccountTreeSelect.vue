@@ -128,7 +128,6 @@ let loadRequestId = 0
 const emptyMessage = computed(() => {
   if (props.publishPool) {
     if (candidateAccountCount.value === 0) return '当前业务 App 暂无帐号'
-    if (selectableCount.value === 0) return '当前帐号均缺少云手机帐号数据包'
     return ''
   }
   if (props.monitoringOnly) {
@@ -183,7 +182,7 @@ function accountMatchesRuntime(account: AnyRecord) {
 
 function accountSelectable(account: AnyRecord) {
   if (props.associationOnly || props.monitoringOnly) return true
-  if (props.publishPool) return Boolean(account.has_data_package)
+  if (props.publishPool) return true
   return Boolean(account.bound_slot_id)
 }
 
@@ -209,7 +208,7 @@ function toAccountNode(account: AnyRecord): AccountTreeNode {
   const providerSlotId = String(account.bound_slot_provider_id || '')
   const slotName = String(account.bound_slot_name || '')
   const selectable = accountSelectable(account)
-  const unavailableSuffix = props.publishPool ? '（缺少帐号数据包）' : '（未绑定设备）'
+  const unavailableSuffix = '（未绑定设备）'
   return {
     id: accountNodeId(String(account.id)),
     accountId: String(account.id),
