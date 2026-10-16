@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { AlertTriangle, Copy, ExternalLink, MapPin, Pencil, RefreshCw, Scissors, Trash2, Unlink } from 'lucide-vue-next'
+import { AlertTriangle, Copy, ExternalLink, MapPin, Pencil, RefreshCw, Scissors, Sparkles, Trash2, Unlink } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 import { http, resolveBackendUrl } from '@/api/http'
 import StatusBadge from '@/components/StatusBadge.vue'
 import AccountBackupDeleteDialog from '@/components/AccountBackupDeleteDialog.vue'
+import AccountPersonaDialog from '@/components/AccountPersonaDialog.vue'
 import PlatformAccountEditDialog from '@/components/PlatformAccountEditDialog.vue'
 import { businessPlatformLabel } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
@@ -30,6 +31,7 @@ const loading = ref(false)
 const actionLoading = ref('')
 const rows = ref<AnyRecord[]>([])
 const editingAccount = ref<AnyRecord | null>(null)
+const personaAccount = ref<AnyRecord | null>(null)
 const backupDeleteId = ref<string | null>(null)
 const backupChanged = ref(false)
 let requestSequence = 0
@@ -220,6 +222,7 @@ onMounted(loadRows)
               </span>
               <small v-if="row.username">@{{ row.username }}</small>
               <small>账号 ID {{ row.id }}<span v-if="row.platform_account_id"> · 平台 ID {{ row.platform_account_id }}</span></small>
+              <el-button v-if="auth.can('accounts.view') && ['threads','x','instagram'].includes(row.business_platform)" text size="small" :icon="Sparkles" @click.stop="personaAccount = row">AI 画像 / 人设</el-button>
             </div>
           </div>
         </template>
@@ -388,6 +391,7 @@ onMounted(loadRows)
       :account-id="String(editingAccount.id)" :platform="String(editingAccount.business_platform)"
       @close="editingAccount = null" @changed="platformAccountChanged" />
     <AccountBackupDeleteDialog v-if="backupDeleteId" :account-ids="[backupDeleteId]" @close="closeBackupDelete" @changed="backupChanged = true" />
+    <AccountPersonaDialog v-if="personaAccount" :key="String(personaAccount.id)" :account-id="String(personaAccount.id)" :account-name="accountLabel(personaAccount)" @close="personaAccount = null" />
   </section>
 </template>
 

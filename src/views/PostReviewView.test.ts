@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import source from './PostReviewView.vue?raw'
+import rawSource from './PostReviewView.vue?raw'
+const source = rawSource.replace(/\r\n/g, '\n')
 import reply from './CommentReplyReviewView.vue?raw'
 import routes from '@/router/index.ts?raw'
 import shell from '@/layouts/AppShell.vue?raw'
-import reviews from '@/components/BenchmarkPostReviews.vue?raw'
+import rawReviews from '@/components/BenchmarkPostReviews.vue?raw'
+const reviews = rawReviews.replace(/\r\n/g, '\n')
 import mediaPreview from '@/components/ReviewMediaPreview.vue?raw'
 
 describe('运营中心独立帖子审核', () => {

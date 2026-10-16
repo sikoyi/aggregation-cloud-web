@@ -11,6 +11,7 @@ import { formatDate } from '@/utils/format'
 import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from '@/utils/contentSelection'
 import type { AnyRecord } from '@/types/api'
 import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
+import PersonaCreationPanel from '@/components/PersonaCreationPanel.vue'
 import { parseSelectionMarks, selectionDateRange, selectionMarkQuery, selectionStorageKey, type SelectionMarks } from '@/utils/selectionLocalState'
 
 const auth = useAuthStore()
@@ -88,10 +89,12 @@ watch(loadMoreAnchor, element => {
   if (element) observer?.observe(element)
 })
 watch(() => auth.user?.id, () => { storageKey.value = ''; marks.value = { read: [], saved: [] } })
-const filters = reactive({ platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
-const hasFilters = computed(() => !!(reading.value !== 'all' || hideRead.value || filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
+const sourceCountries = computed(() => [...new Set(sources.value.map(item => item.country).filter((value): value is string => !!value))].sort())
+const sourceTags = computed(() => [...new Map(sources.value.flatMap(item => item.tags || []).map(tag => [tag.id, tag])).values()])
+const filters = reactive({ country: '', tag_id: '', platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
+const hasFilters = computed(() => !!(filters.country || filters.tag_id || reading.value !== 'all' || hideRead.value || filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
 function resetFilters() {
-  Object.assign(filters, { platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined, min_comments: undefined, sort_by: 'published_at' })
+  Object.assign(filters, { country: '', tag_id: '', platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined, min_comments: undefined, sort_by: 'published_at' })
   dates.value = null
   reading.value = 'all'
   hideRead.value = false
@@ -106,7 +109,9 @@ const editVisible = ref(false)
 const editLoading = ref(false)
 const publishBusy = ref(false)
 const aiBusy = ref(false)
-const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[] })
+const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[], creation_job_id: undefined as string | undefined })
+watch(() => draft.account_id, () => { draft.creation_job_id = undefined })
+function applyCreation(text: string, jobId: string) { draft.text_body = text; draft.creation_job_id = jobId }
 const accounts = ref<AnyRecord[]>([])
 const selectedAccount = computed(() => accounts.value.find(account => String(account.id) === draft.account_id))
 const previousOrders = ref<SelectionOrder[]>([])
@@ -184,6 +189,7 @@ async function openPost(post: SelectionPost) {
   selected.value = null
   previousOrders.value = []
   draft.account_id = ''
+  draft.creation_job_id = undefined
   editVisible.value = true
   editLoading.value = true
   previousPage.value = 1
@@ -300,6 +306,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
       <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
       <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="`${item.profile?.display_name || sourceUsername(item)} · @${sourceUsername(item)}${item.remark ? ' · ' + item.remark : ''}`" /></el-select></el-form-item>
       <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
+      <el-form-item label="来源国家"><el-select v-model="filters.country" clearable filterable placeholder="全部"><el-option v-for="country in sourceCountries" :key="country" :label="country" :value="country" /></el-select></el-form-item>
+      <el-form-item label="账号标签"><el-select v-model="filters.tag_id" clearable filterable placeholder="全部"><el-option v-for="tag in sourceTags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item>
       <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" @change="quickTime = dates ? 'custom' : ''" /></el-form-item>
       <el-form-item label="最低点赞"><el-input-number v-model="filters.min_likes" :min="0" controls-position="right" /></el-form-item>
       <el-form-item label="最低评论"><el-input-number v-model="filters.min_comments" :min="0" controls-position="right" /></el-form-item>
@@ -342,10 +350,10 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
         </div></template></el-table-column>
         <el-table-column label="平台" width="130" align="center"><template #default="{ row }"><el-tag effect="plain">{{ label(row.business_platform) }}</el-tag></template></el-table-column>
         <el-table-column label="状态" width="120" align="center"><template #default="{ row }"><el-tag :type="row.status === 'attention' ? 'danger' : row.status === 'active' ? 'success' : row.status === 'collecting' ? 'warning' : 'info'">{{ selectionStatus[row.status] || row.status }}</el-tag></template></el-table-column>
-        <el-table-column label="历史采集" min-width="170"><template #default="{ row }">{{ row.history_complete ? '可获取历史已完成' : '历史采集中' }}<small>已处理 {{ row.pages_collected }} 页 · {{ row.post_count }} 条主帖</small></template></el-table-column>
+        <el-table-column label="历史采集" min-width="170"><template #default="{ row }"><template v-if="row.external_monitor_id">外部监听同步<small>已收录 {{ row.post_count }} 条主帖</small></template><template v-else>{{ row.history_complete ? '可获取历史已完成' : '历史采集中' }}<small>已处理 {{ row.pages_collected }} 页 · {{ row.post_count }} 条主帖</small></template></template></el-table-column>
         <el-table-column label="备注" prop="remark" min-width="160" show-overflow-tooltip />
         <el-table-column label="采集提示" min-width="240"><template #default="{ row }"><span v-if="row.status === 'retrying'">采集暂缓，稍后自动重试</span><el-popover v-else-if="row.status === 'attention'" trigger="click" title="处理提示" :width="300"><template #reference><el-button link type="warning">查看处理提示</el-button></template>{{ row.last_error }}</el-popover><span v-else>-</span></template></el-table-column>
-        <el-table-column label="操作" width="90" align="center" fixed="right"><template #default="{ row }"><el-tooltip v-if="auth.can('operations.edit')" :content="row.enabled ? '暂停采集' : '继续采集'"><el-button link type="primary" :icon="row.enabled ? Pause : Play" :aria-label="row.enabled ? '暂停采集' : '继续采集'" :disabled="sourceBusy" @click="toggleSource(row as SelectionSource)" /></el-tooltip></template></el-table-column>
+        <el-table-column label="操作" width="130" align="center" fixed="right"><template #default="{ row }"><span v-if="row.external_monitor_id">外部监听管理</span><el-tooltip v-else-if="auth.can('operations.edit')" :content="row.enabled ? '暂停采集' : '继续采集'"><el-button link type="primary" :icon="row.enabled ? Pause : Play" :aria-label="row.enabled ? '暂停采集' : '继续采集'" :disabled="sourceBusy" @click="toggleSource(row as SelectionSource)" /></el-tooltip></template></el-table-column>
       </el-table>
       <el-table v-else :data="orders" class="selection-table" row-key="id" border stripe empty-text="暂无发布工单">
         <el-table-column label="工单 ID" prop="id" min-width="250" />
@@ -389,6 +397,9 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
             <el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" />
           </SelectionAiEditor>
           <template v-else><h3 class="original-heading">发布稿</h3><el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" /></template>
+          <PersonaCreationPanel v-if="editVisible && auth.can('operations.dispatch')" :key="`${selected.id}:${draft.account_id}:${selected.updated_at}`"
+            :source-id="selected.source_id" :source-name="selected.author.display_name || selected.author.username || '原帖作者'"
+            :account-id="draft.account_id" :post-id="selected.id" :revision="selected.updated_at" :model-value="draft.text_body" :disabled="publishBusy || aiBusy" @apply="applyCreation" />
         </section>
         </div>
         <section v-if="selected.media.length" class="publish-media"><h3>媒体 <small>已保留 {{ draft.media_indexes.length }} / {{ selected.media.length }} 项</small></h3>

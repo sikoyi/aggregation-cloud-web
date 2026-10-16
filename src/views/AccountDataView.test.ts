@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { transpile } from 'typescript'
+import { ref } from 'vue'
+import { accountDataFocus, accountDataQuery } from '@/utils/accountDataFocus'
 
 import rawSource from './AccountDataView.vue?raw'
 const source = rawSource.replace(/\r\n/g, '\n')
@@ -27,7 +29,8 @@ describe('账号数据聚合总览', () => {
     const body = source.slice(source.indexOf('let rowsRequest ='), source.indexOf('function searchRows()'))
     const pending: Array<(value: unknown) => void> = []
     const http = { get: vi.fn(() => new Promise(resolve => pending.push(resolve))) }
-    const state = { loading: { value: false }, rows: { value: [] }, total: { value: 0 },
+    const state = { ref, accountDataFocus, accountDataQuery, useRoute: () => ({ query: {} }),
+      loading: { value: false }, rows: { value: [] }, total: { value: 0 },
       summary: {}, selectedAccount: { value: null }, filters: {}, page: { value: 1 }, pageSize: { value: 20 },
       monitorVisible: { value: false }, batchUpdating: { value: false }, batchIntervalVisible: { value: false },
       selectedAccountIds: { value: [] }, document: { hidden: false }, notifyError: vi.fn(), http }

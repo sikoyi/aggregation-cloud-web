@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import source from './RegistrationResourcesView.vue?raw'
+import rawSource from './RegistrationResourcesView.vue?raw'
+const source = rawSource.replace(/\r\n/g, '\n')
 
 function setup(confirm = vi.fn().mockResolvedValue('confirm'), remove = vi.fn().mockResolvedValue({})) {
   const state = { batchDeleting: { value: false }, loading: { value: false }, canDelete: { value: true },
