@@ -316,6 +316,36 @@ describe('代理协议选项', () => {
 describe('发布内容来源', () => {
   const fields = resources.publishedContents.createFields || []
 
+  it('云手机发布复用上号代理选择并清理隐藏字段', () => {
+    const mode = fields.find((field) => field.key === 'proxy_allocation_mode')
+    expect(mode?.label).toBe('发布代理方式')
+    expect(mode?.defaultValue).toBe('none')
+    expect(mode?.options?.map((option) => option.value)).toEqual(['none', 'static_group', 'dynamic_template'])
+    for (const key of ['proxy_allocation_mode', 'proxy_group_id', 'dynamic_proxy_id']) {
+      const field = fields.find((item) => item.key === key)
+      expect(field?.visibleWhenAll).toContainEqual({ key: 'runtime_platform', value: 'cloud_phone' })
+      expect(field?.visibleWhenAll).toContainEqual({ key: 'provider', value: 'vmos' })
+      expect(field?.clearWhenHidden).toBe(key !== 'proxy_allocation_mode')
+    }
+    const cloud = { runtime_platform: 'cloud_phone', provider: 'vmos', slot_ids: ['slot-1'], content_source_type: 'ungrouped' }
+    const build = (extra: Record<string, unknown>) => resources.publishedContents.createBody?.({ ...cloud, ...extra }) as Record<string, unknown>
+    const staticBody = build({ proxy_allocation_mode: 'static_group', proxy_group_id: ' group-1 ', dynamic_proxy_id: 'stale' })
+    expect(staticBody.proxy_group_id).toBe('group-1')
+    expect(staticBody).not.toHaveProperty('dynamic_proxy_id')
+    const dynamicBody = build({ proxy_allocation_mode: 'dynamic_template', dynamic_proxy_id: 'proxy-1', proxy_group_id: 'stale' })
+    expect(dynamicBody.dynamic_proxy_id).toBe('proxy-1')
+    expect(dynamicBody).not.toHaveProperty('proxy_group_id')
+    const none = build({ proxy_allocation_mode: 'none', proxy_group_id: 'stale', dynamic_proxy_id: 'stale' })
+    expect(none.proxy_allocation_mode).toBe('none')
+    expect(none).not.toHaveProperty('proxy_group_id')
+    expect(none).not.toHaveProperty('dynamic_proxy_id')
+    const fingerprint = build({ runtime_platform: 'fingerprint_browser', provider: 'morelogin', proxy_allocation_mode: 'dynamic_template', dynamic_proxy_id: 'stale' })
+    expect(fingerprint).not.toHaveProperty('proxy_allocation_mode')
+    expect(fingerprint).not.toHaveProperty('dynamic_proxy_id')
+    expect(() => build({ proxy_allocation_mode: 'static_group' })).toThrow('请选择静态代理组')
+    expect(() => build({ proxy_allocation_mode: 'dynamic_template' })).toThrow('请选择动态代理模板')
+  })
+
   it('按设备下发且固定只展示已绑定账号的设备', () => {
     const slotField = fields.find((field) => field.key === 'slot_ids')
 

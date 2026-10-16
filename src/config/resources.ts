@@ -764,6 +764,18 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
   } else {
     delete body.account_ids;
   }
+  if (body.runtime_platform === "cloud_phone" && body.provider === "vmos") {
+    body.proxy_allocation_mode = payload.proxy_allocation_mode || "none";
+    if (body.proxy_allocation_mode === "static_group") {
+      body.proxy_group_id = String(payload.proxy_group_id || "").trim();
+      if (!body.proxy_group_id) throw new Error("请选择静态代理组");
+    } else if (body.proxy_allocation_mode === "dynamic_template") {
+      body.dynamic_proxy_id = String(payload.dynamic_proxy_id || "").trim();
+      if (!body.dynamic_proxy_id) throw new Error("请选择动态代理模板");
+    } else if (body.proxy_allocation_mode !== "none") {
+      throw new Error("发布代理方式无效");
+    }
+  }
   const rawComments = Array.isArray(payload.comments) ? payload.comments : [];
   if (rawComments.length > 20) {
     throw new Error("每个发布任务最多添加 20 条评论");
@@ -3282,6 +3294,19 @@ export const resources: Record<string, ResourceConfig> = {
         clearWhenHidden: true,
         span: 2,
       },
+      ...accountOnboardingFields
+        .filter((field) => ["proxy_allocation_mode", "proxy_group_id", "dynamic_proxy_id"].includes(field.key))
+        .map((field) => ({
+          ...field,
+          label: field.key === "proxy_allocation_mode" ? "发布代理方式" : field.label,
+          visibleWhen: undefined,
+          visibleWhenAll: [
+            { key: "runtime_platform", value: "cloud_phone" },
+            { key: "provider", value: "vmos" },
+            ...(field.visibleWhen ? [field.visibleWhen] : []),
+          ],
+          clearWhenHidden: field.key !== "proxy_allocation_mode",
+        })),
       {
         key: "content_source_type",
         label: "内容来源",
