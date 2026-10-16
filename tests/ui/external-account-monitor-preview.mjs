@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const now = new Date().toISOString()
 let rows = [{ id: 'fixture-1', business_platform: 'x', profile_url: 'https://x.com/example', remark: '界面测试数据',
-  interval_minutes: 60, enabled: true, version: 1, status: 'active', next_run_at: now, last_success_at: now,
+  country: '', tag_ids: [], interval_minutes: 60, enabled: true, version: 1, status: 'active', next_run_at: now, last_success_at: now,
   profile: { display_name: 'External Example', username: 'example', avatar_url: 'http://127.0.0.1:5198/favicon.svg', biography: 'Only fixture data, no real collection.', followers_count: 1234, following_count: 0, posts_count: 78 } }]
 const html = `<!doctype html><html lang="zh-CN"><head><meta name="viewport" content="width=device-width, initial-scale=1"/><title>外部监听隔离验证</title></head><body><div id="app"></div><script type="module">
 import {createApp} from 'vue';
@@ -37,7 +37,22 @@ const server = await createServer({
       const body = input ? JSON.parse(input) : {}
       const id = url.pathname.split('/')[3]
       let data
-      if (req.method === 'POST') {
+      if (id === 'countries') {
+        data = [...new Set(rows.map(row => row.country).filter(Boolean))]
+      } else if (id === 'tags') {
+        data = []
+      } else if (id === 'summary') {
+        data = { total: rows.length, active: rows.length, pending: 0, retrying: 0, paused: 0 }
+      } else if (id === 'batch' && req.method === 'POST' && body.action === 'country') {
+        const items = body.items.map(item => {
+          const row = rows.find(row => row.id === item.id)
+          if (!row || row.version !== item.expected_version) return { id: item.id, status: 'failed', message: '配置已变化' }
+          if (row.country === body.country) return { id: item.id, status: 'skipped', message: '配置无需修改' }
+          row.country = body.country; row.version += 1
+          return { id: item.id, status: 'succeeded', message: '操作成功' }
+        })
+        data = { items, ...Object.fromEntries(['succeeded', 'skipped', 'failed'].map(status => [status, items.filter(item => item.status === status).length])) }
+      } else if (req.method === 'POST') {
         if (rows.some(row => row.profile_url === body.profile_url)) { res.statusCode = 409; res.end(JSON.stringify({code:40900,msg:'该外部账号已添加'})); return }
         data = { ...rows[0], ...body, id: `fixture-${rows.length + 1}`, profile: {}, status: 'pending' }; rows.push(data)
       } else if (req.method === 'PUT') {
