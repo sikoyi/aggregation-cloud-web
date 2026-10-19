@@ -26,11 +26,17 @@ async function run() {
       let saved = null
       let published = null
       let forbiddenCalls = 0
+      let confirmation = null
+      let versions = []
+      let refreshedJob = null
+      const authorAnalysis = { observations: [{ dimension: '表达风格', finding: '生活观察、克制短句', confidence: 'low', evidence_ids: ['post1'] }],
+        suggested_persona: { positioning: '生活观察与慢节奏记录', audience: '关注生活细节的读者', voice: '克制短句，平实自然',
+          facts: '', boundaries: '不虚构个人身份与经历', preferences: '日常散步、自然景色' }, limitations: '仅依据已采集内容，样本有限', sample_count: 1, available_posts: 1 }
       const job = { id: 'job1', account_id: 'source:source1', target_account_id: '22', post_id: 'post1', persona_id: null,
         kind: 'generate', status: 'succeeded', created_at: post.updated_at, attempts: 1, draft_version: 0,
-        result: { candidates: candidates.map((text_body, i) => ({ title: `候选 ${i + 1}`, text_body,
+        result: { author_analysis: authorAnalysis, candidates: candidates.map((text_body, i) => ({ title: `候选 ${i + 1}`, text_body,
           review_notes: '原作者历史主帖不足 3 条，风格参考有限，请人工核对。' })) }, usage: [],
-        input: { source_revision: post.updated_at } }
+        input: { source_revision: post.updated_at, prompt_version: 'source-author-creation-v3', post } }
       await page.route(url => url.pathname.startsWith('/api/'), async route => {
         const request = route.request()
         const p = decodeURIComponent(new URL(request.url()).pathname)
@@ -42,8 +48,15 @@ async function run() {
         else if (p === '/api/content-selection/posts' || p === '/api/content-selection/posts/query') data = { items: [post], total: 1 }
         else if (p === '/api/content-selection/posts/post1') data = post
         else if (p === '/api/accounts/selection-options') data = [{ id: '22', business_platform: 'x', username: 'operator', display_name: '发布账号', bound_slot_id: '6' }]
-        else if (p === '/api/account-personas/source:source1') data = { versions: [], jobs: generation ? [job] : [] }
-        else if (p.endsWith('/analyze') || p.endsWith('/confirm')) forbiddenCalls++
+        else if (p === '/api/account-personas/source:source1') data = { versions, jobs: generation ? [...(refreshedJob ? [refreshedJob] : []), job] : [] }
+        else if (p.endsWith('/analyze')) forbiddenCalls++
+        else if (p === '/api/account-personas/source:source1/confirm') {
+          confirmation = request.postDataJSON()
+          const version = { id: 'manual1', version: 1, document: confirmation.document,
+            analysis_job_id: confirmation.analysis_job_id, created_at: '2026-10-19T03:00:00Z' }
+          versions = [version]
+          data = version
+        }
         else if (p === '/api/account-personas/source:source1/generate') {
           generationCount++
           if (generationCount > 1) return route.fulfill({ status: 503, json: { code: 50000, msg: 'AI 暂时不可用，原稿未变更' } })
@@ -74,10 +87,39 @@ async function run() {
       const create = dialog.getByRole('button', { name: 'AI 创作', exact: true })
       await create.waitFor()
       assert(await create.isEnabled(), 'no author persona must not block creation')
+      await dialog.getByRole('button', { name: '作者 AI 人设', exact: true }).click()
+      let personaDialog = page.getByRole('dialog', { name: '原帖作者 AI 人设 · 原作者', exact: true })
+      await personaDialog.getByText('暂无作者 AI 分析结果', { exact: true }).waitFor()
+      assert.equal(await personaDialog.getByRole('textbox', { name: '账号定位', exact: true }).count(), 0)
+      await personaDialog.getByRole('button', { name: '关闭', exact: true }).click()
       assert.equal(generationCount, 0)
       assert.equal(forbiddenCalls, 0)
       await create.click()
       await dialog.getByRole('tab', { name: '候选 1', exact: true }).waitFor()
+      assert.equal(confirmation, null)
+      await dialog.getByRole('button', { name: '作者 AI 人设', exact: true }).click()
+      personaDialog = page.getByRole('dialog', { name: '原帖作者 AI 人设 · 原作者', exact: true })
+      const positioning = personaDialog.getByRole('textbox', { name: '账号定位', exact: true })
+      await positioning.waitFor()
+      assert.equal(await positioning.inputValue(), authorAnalysis.suggested_persona.positioning)
+      assert.equal(await personaDialog.getByRole('textbox', { name: '表达风格', exact: true }).inputValue(), authorAnalysis.suggested_persona.voice)
+      assert(!(await personaDialog.getByRole('button', { name: '保存调整', exact: true }).isEnabled()))
+      await positioning.fill('运营微调后的作者定位')
+      refreshedJob = { ...job, id: 'analysis2', kind: 'analyze', created_at: '2026-10-19T02:00:00Z',
+        result: { ...authorAnalysis, suggested_persona: { ...authorAnalysis.suggested_persona, positioning: '更新的 AI 结果' } } }
+      await Promise.all([
+        page.waitForResponse(response => decodeURIComponent(new URL(response.url()).pathname) === '/api/account-personas/source:source1'),
+        personaDialog.getByRole('button', { name: '刷新人设记录', exact: true }).click(),
+      ])
+      await personaDialog.getByRole('tab', { name: 'AI 画像', exact: true }).click()
+      await personaDialog.getByRole('tab', { name: '内容人设', exact: true }).click()
+      assert.equal(await positioning.inputValue(), '运营微调后的作者定位')
+      await page.screenshot({ path: path.join(output, `author-persona-${viewport.width}.png`), fullPage: true })
+      await personaDialog.getByRole('button', { name: '保存调整', exact: true }).click()
+      await page.getByText('人设 v1 已确认', { exact: true }).waitFor()
+      assert.equal(confirmation.analysis_job_id, 'job1')
+      assert.equal(confirmation.document.positioning, '运营微调后的作者定位')
+      await personaDialog.getByRole('button', { name: '关闭', exact: true }).click()
       assert.equal(await dialog.getByRole('textbox', { name: '发布正文', exact: true }).inputValue(), post.text_body)
       await dialog.getByRole('tab', { name: '候选 2', exact: true }).click()
       await dialog.getByRole('button', { name: '应用候选稿', exact: true }).click()

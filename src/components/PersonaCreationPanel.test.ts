@@ -24,4 +24,13 @@ describe('source author persona creation', () => {
     expect(panel).not.toContain('未确认人设')
     expect(panel).toContain('参考人设 v')
   })
+  it('prefills author analysis without showing an empty source form or discarding operator edits', () => {
+    expect(panel).toContain('作者 AI 人设')
+    expect(panel).toContain('AI 分析原作者中')
+    expect(dialog).toContain('isSource && !hasDocument')
+    expect(dialog).toContain('jobPersonaAnalysis(latest)')
+    expect(dialog).toContain('dirty.value')
+    expect(dialog).toContain('@input="dirty = true"')
+    expect(dialog).toContain("isSource ? '保存调整' : '确认新版本'")
+  })
 })

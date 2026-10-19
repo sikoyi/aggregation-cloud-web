@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, Save, Sparkles, UserRound } from 'lucide-vue-next'
-import { accountPersona, personaStatus, type PersonaJob, type PersonaVersion } from '@/api/accountPersona'
+import { Check, Save, Sparkles } from 'lucide-vue-next'
+import { accountPersona, personaStatus, type PersonaAnalysis, type PersonaJob, type PersonaVersion } from '@/api/accountPersona'
 import AccountPersonaDialog from '@/components/AccountPersonaDialog.vue'
 import { languages } from '@/utils/benchmarkPostProcessing'
 import { formatDate } from '@/utils/format'
+import { jobPersonaAnalysis } from '@/utils/personaAnalysis'
 
 const props = defineProps<{ accountId: string; sourceId: string; sourceName: string; postId: string; revision: string; modelValue: string; disabled: boolean }>()
 const subjectId = computed(() => `source:${props.sourceId}`)
 const emit = defineEmits<{ apply: [text: string, jobId: string] }>()
 const persona = ref<PersonaVersion | null>(null)
+const authorAnalysis = ref<PersonaAnalysis | null>(null)
 const jobs = ref<PersonaJob[]>([])
 const selectedJob = ref<PersonaJob | null>(null)
 const index = ref('0')
@@ -26,6 +28,9 @@ let timer: ReturnType<typeof setTimeout> | undefined
 const active = computed(() => jobs.value.some(j => ['queued', 'running'].includes(j.status)))
 const candidates = computed(() => selectedJob.value?.result.candidates || [])
 const candidate = computed(() => candidates.value[Number(index.value)])
+const currentAnalysis = computed(() => jobPersonaAnalysis(selectedJob.value) || authorAnalysis.value)
+const statusText = computed(() => selectedJob.value?.status === 'running' && selectedJob.value.input?.prompt_version === 'source-author-creation-v3'
+  ? (selectedJob.value.result.author_analysis ? '生成候选稿中' : 'AI 分析原作者中') : selectedJob.value ? personaStatus[selectedJob.value.status] : '')
 const staleSource = computed(() => !!selectedJob.value?.input?.source_revision && new Date(selectedJob.value.input.source_revision).getTime() !== new Date(props.revision).getTime())
 const fail = (e: unknown) => { error.value = e instanceof Error ? e.message : '创作请求未完成' }
 async function load() {
@@ -35,6 +40,7 @@ async function load() {
     const data = await accountPersona.overview(subjectId.value)
     if (disposed) return
     persona.value = data.versions[0] || null
+    authorAnalysis.value = data.jobs.map(jobPersonaAnalysis).find((value): value is PersonaAnalysis => !!value) || null
     jobs.value = data.jobs.filter(j => j.kind === 'generate' && j.post_id === props.postId && j.target_account_id === props.accountId)
     if (selectedJob.value) {
       const fresh = jobs.value.find(j => j.id === selectedJob.value?.id)
@@ -88,8 +94,9 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
 <template>
   <section class="persona-creation">
     <div class="creation-toolbar"><strong>原帖作者 · {{ sourceName }}</strong><el-tag v-if="persona" type="info">参考人设 v{{ persona.version }}</el-tag>
-      <el-button :icon="UserRound" :disabled="disabled" @click="personaVisible = true">作者画像 / 人设</el-button></div>
-    <p v-if="persona" class="persona-summary">{{ persona.document.positioning }}</p>
+      <el-tag v-if="currentAnalysis" type="success">AI 已分析</el-tag>
+      <el-button :icon="Sparkles" :disabled="disabled" @click="personaVisible = true">作者 AI 人设</el-button></div>
+    <p v-if="currentAnalysis || persona" class="persona-summary">{{ persona?.document.positioning || currentAnalysis?.suggested_persona.positioning }}</p>
     <el-form label-position="top" :disabled="disabled || busy">
       <el-form-item label="本次创作方向"><el-input v-model="direction" :maxlength="1000" type="textarea" :rows="2" /></el-form-item>
       <div class="creation-toolbar"><el-select v-model="language" aria-label="创作语言"><el-option v-for="(name, code) in languages" :key="code" :value="code" :label="name" /></el-select>
@@ -99,7 +106,7 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
     <div v-if="jobs.length" class="creation-toolbar"><el-select :model-value="selectedJob?.id || ''" aria-label="生成记录" placeholder="生成记录" @change="selectJob">
       <el-option v-for="job in jobs" :key="job.id" :value="job.id" :label="`${formatDate(job.created_at)} · ${personaStatus[job.status]}`" /></el-select></div>
     <template v-if="selectedJob">
-      <p role="status">{{ personaStatus[selectedJob.status] }} · 第 {{ selectedJob.attempts }} 次处理</p>
+      <p role="status">{{ statusText }} · 第 {{ selectedJob.attempts }} 次处理</p>
       <el-tag v-if="selectedJob.input?.persona" type="info">本次参考作者人设 v{{ selectedJob.input.persona.version }}</el-tag>
       <el-alert v-if="staleSource" title="原帖已更新，此记录仅供查看，请重新生成" type="warning" :closable="false" />
       <el-alert v-if="selectedJob.error_message" :title="selectedJob.error_message" type="warning" :closable="false" />

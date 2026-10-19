@@ -7,15 +7,20 @@ export interface PersonaVersion {
   id: string; version: number; document: PersonaDocument; analysis_job_id: string | null; created_at: string
 }
 export interface PersonaObservation { dimension: string; finding: string; confidence: 'low' | 'medium' | 'high'; evidence_ids: string[] }
+export interface PersonaAnalysis {
+  observations: PersonaObservation[]; suggested_persona: PersonaDocument; limitations: string
+  sample_count?: number; available_posts?: number
+}
 export interface PersonaJob {
   target_account_id?: string
   id: string; account_id: string; post_id: string | null; persona_id: string | null
   kind: 'analyze' | 'generate'; status: 'queued' | 'running' | 'succeeded' | 'failed'; created_at: string
   attempts: number; draft_text: string | null; draft_version: number; error_message: string | null
   result: { observations?: PersonaObservation[]; suggested_persona?: PersonaDocument; limitations?: string; sample_count?: number; available_posts?: number;
-    candidates?: { title: string; text_body: string; review_notes: string }[] }
+    author_analysis?: PersonaAnalysis; candidates?: { title: string; text_body: string; review_notes: string }[] }
   usage: { model: string; input_tokens: number | null; output_tokens: number | null; total_tokens: number | null; cost: number | null; currency: string | null }[]
-  input?: { source_revision?: string; persona?: PersonaVersion; posts?: { id: string; content_url: string; text_content: string; truncated: boolean }[] }
+  input?: { prompt_version?: string; source_revision?: string; persona?: PersonaVersion;
+    post?: { id: string; content_url: string; text_body: string }; posts?: { id: string; content_url: string; text_content: string; truncated: boolean }[] }
 }
 export const emptyPersona = (): PersonaDocument => ({ positioning: '', audience: '', voice: '', facts: '', boundaries: '', preferences: '' })
 export const personaFields: { key: keyof PersonaDocument; label: string; limit: number }[] = [
