@@ -8,9 +8,9 @@ import { languages } from '@/utils/benchmarkPostProcessing'
 import { formatDate } from '@/utils/format'
 import { jobPersonaAnalysis, latestPersonaJob, personaProgress } from '@/utils/personaAnalysis'
 
-const props = defineProps<{ accountId: string; sourceId: string; sourceName: string; postId: string; revision: string; modelValue: string; disabled: boolean }>()
+const props = defineProps<{ accountId: string; sourceId: string; sourceName: string; postId: string; revision: string; modelValue: string; disabled: boolean; historyTarget?: string }>()
 const subjectId = computed(() => `source:${props.sourceId}`)
-const emit = defineEmits<{ apply: [text: string, jobId: string] }>()
+const emit = defineEmits<{ apply: [text: string, jobId: string]; historyCount: [count: number] }>()
 const persona = ref<PersonaVersion | null>(null)
 const authorAnalysis = ref<PersonaAnalysis | null>(null)
 const jobs = ref<PersonaJob[]>([])
@@ -57,6 +57,7 @@ async function load() {
     if (disposed || request !== historySequence) return
     jobs.value = history.items
     historyTotal.value = history.total
+    emit('historyCount', history.total)
     if (selectedJob.value) {
       const fresh = jobs.value.find(j => j.id === selectedJob.value?.id)
       if (fresh) selectedJob.value = { ...selectedJob.value, status: fresh.status, result: fresh.result,
@@ -137,6 +138,9 @@ onBeforeUnmount(() => { disposed = true; sequence++; historySequence++; clearTim
         <el-button type="primary" :icon="Sparkles" :loading="busy" :disabled="!accountId || active" @click="generate">{{ active ? '创作处理中' : 'AI 创作' }}</el-button></div>
     </el-form>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
+    <Teleport :to="historyTarget || 'body'" :disabled="!historyTarget" defer>
+    <section class="persona-creation creation-history">
+    <el-alert v-if="historyTarget && error" :title="error" type="error" :closable="false" />
     <div class="creation-toolbar"><strong>创作记录<span v-if="historyTotal">（{{ historyTotal }}）</span></strong>
       <el-select v-if="jobs.length" :loading="loading || selecting" :model-value="selectedJob?.id || ''" aria-label="生成记录" placeholder="生成记录" @change="selectJob">
         <el-option v-for="job in jobs" :key="job.id" :value="job.id" :label="`${formatDate(job.created_at)} · ${job.target_account?.name || job.target_account_id} · ${personaStatus[job.status]}`" /></el-select>
@@ -159,12 +163,15 @@ onBeforeUnmount(() => { disposed = true; sequence++; historySequence++; clearTim
           <el-button v-if="selectedJob.draft_text && index !== 'draft'" :disabled="disabled || busy || staleSource || !matchingAccount" @click="apply(selectedJob.draft_text)">恢复已存草稿</el-button></div></div>
       <small v-for="(usage, i) in selectedJob.usage" :key="i">{{ usage.model }} · Token {{ usage.total_tokens ?? '未返回' }}<template v-if="usage.cost !== null"> · {{ usage.cost }} {{ usage.currency }}</template></small>
     </template>
+    </section>
+    </Teleport>
     <AccountPersonaDialog v-if="personaVisible" :account-id="subjectId" :account-name="sourceName" @close="personaVisible = false" @confirmed="load" />
   </section>
 </template>
 
 <style scoped>
 .persona-creation { border-top: 1px solid var(--app-border); margin-top: 16px; padding-top: 14px; min-width: 0; }
+.creation-history { border-top: 0; margin-top: 0; padding-top: 0; }
 .creation-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
 .creation-toolbar .el-select { width: 240px; max-width: 100%; }
 .creation-toolbar :deep(.el-button) { margin-left: 0; }

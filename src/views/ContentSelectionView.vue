@@ -111,13 +111,14 @@ const publishBusy = ref(false)
 const aiBusy = ref(false)
 const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[], creation_job_id: undefined as string | undefined })
 watch(() => draft.account_id, () => { draft.creation_job_id = undefined })
-function applyCreation(text: string, jobId: string) { draft.text_body = text; draft.creation_job_id = jobId }
+function applyCreation(text: string, jobId: string) { draft.text_body = text; draft.creation_job_id = jobId; editTab.value = 'content' }
 const accounts = ref<AnyRecord[]>([])
 const selectedAccount = computed(() => accounts.value.find(account => String(account.id) === draft.account_id))
 const previousOrders = ref<SelectionOrder[]>([])
 const previousTotal = ref(0)
 const previousPage = ref(1)
 const editTab = ref('content')
+const creationTotal = ref(0)
 const historyLoading = ref(false)
 let historyRequestId = 0
 const orderVisible = ref(false)
@@ -182,6 +183,7 @@ async function toggleSource(source: SelectionSource) {
 }
 async function openPost(post: SelectionPost) {
   editTab.value = 'content'
+  creationTotal.value = 0
   historyRequestId++
   historyLoading.value = false
   aiBusy.value = false
@@ -378,10 +380,10 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
       <div v-loading="editLoading" class="publish-body" v-if="selected">
         <el-tabs v-model="editTab" class="publish-tabs">
           <el-tab-pane label="内容编辑" name="content" />
+          <el-tab-pane v-if="auth.can('operations.dispatch')" :label="`创作记录（${creationTotal}）`" name="creation" />
           <el-tab-pane :label="`发布记录（${previousTotal}）`" name="history" />
         </el-tabs>
-        <div v-show="editTab === 'content'">
-        <el-form class="publish-account" label-position="left" label-width="80px"><el-form-item label="发布账号" required>
+        <el-form v-show="editTab !== 'history'" class="publish-account" label-position="left" label-width="80px"><el-form-item label="发布账号" required>
           <el-select v-model="draft.account_id" filterable :disabled="publishBusy || !auth.can('accounts.view')" placeholder="选择账号">
             <template #prefix><el-avatar :size="26" :src="safeSelectionLink(String(selectedAccount?.avatar_url || ''))"><UserRound :size="16" /></el-avatar></template>
             <el-option v-for="account in accounts" :key="String(account.id)" :value="String(account.id)" :label="`${account.display_name || account.username} · @${account.username || ''} · ${label(String(account.business_platform))} · ID ${account.id}`">
@@ -389,6 +391,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
             </el-option>
           </el-select>
         </el-form-item></el-form>
+        <div v-show="editTab === 'content'">
         <el-alert v-if="duplicate" title="此账号已有发布工单，请查看原工单" type="warning" :closable="false" />
         <div class="publish-comparison">
         <section><h3 class="original-heading">原帖内容 <a :href="safeSelectionLink(selected.content_url)" target="_blank" rel="noopener noreferrer"><ExternalLink :size="15" />原帖</a></h3><p class="original-text publish-original">{{ selected.text_body || '无正文' }}</p></section>
@@ -399,7 +402,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
           <template v-else><h3 class="original-heading">发布稿</h3><el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" /></template>
           <PersonaCreationPanel v-if="editVisible && auth.can('operations.dispatch')" :key="`${selected.id}:${draft.account_id}:${selected.updated_at}`"
             :source-id="selected.source_id" :source-name="selected.author.display_name || selected.author.username || '原帖作者'"
-            :account-id="draft.account_id" :post-id="selected.id" :revision="selected.updated_at" :model-value="draft.text_body" :disabled="publishBusy || aiBusy" @apply="applyCreation" />
+            :account-id="draft.account_id" :post-id="selected.id" :revision="selected.updated_at" :model-value="draft.text_body" :disabled="publishBusy || aiBusy"
+            history-target="#selection-creation-history" @history-count="creationTotal = $event" @apply="applyCreation" />
         </section>
         </div>
         <section v-if="selected.media.length" class="publish-media"><h3>媒体 <small>已保留 {{ draft.media_indexes.length }} / {{ selected.media.length }} 项</small></h3>
@@ -409,6 +413,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
           </div></el-checkbox-group>
         </section>
         </div>
+        <div id="selection-creation-history" v-show="editTab === 'creation'" />
         <div v-show="editTab === 'history'" class="publish-history">
           <el-table v-loading="historyLoading" :data="previousOrders" class="selection-table" row-key="id" border stripe max-height="380" empty-text="暂无发布记录">
             <el-table-column label="发布账号" min-width="260"><template #default="{ row }"><div class="source-identity">
