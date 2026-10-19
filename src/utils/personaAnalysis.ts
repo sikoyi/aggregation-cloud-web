@@ -8,6 +8,14 @@ export function personaProgress(job: PersonaJob | null | undefined): string {
   return progress.label + (counts ? ` · 已完成 ${progress.completed_batches}/${progress.total_batches} 批` : '')
 }
 
+export function latestPersonaJob(jobs: PersonaJob[]): PersonaJob | null {
+  const analyzedAt = (job: PersonaJob) => {
+    const timestamp = Date.parse(job.result.analysis_reference?.analyzed_at || '')
+    return Number.isFinite(timestamp) ? timestamp : Date.parse(job.created_at)
+  }
+  return jobs.filter(job => !!jobPersonaAnalysis(job)).sort((a, b) => analyzedAt(b) - analyzedAt(a))[0] || null
+}
+
 export function jobPersonaAnalysis(job: PersonaJob | null | undefined): PersonaAnalysis | null {
   if (job?.account_id.startsWith('source:') && job.kind === 'generate' && job.result.author_analysis) return job.result.author_analysis
   if (job?.kind === 'analyze' && job.status === 'succeeded' && job.result.suggested_persona) {

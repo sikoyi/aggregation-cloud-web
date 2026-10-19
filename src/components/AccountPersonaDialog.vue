@@ -6,7 +6,7 @@ import { accountPersona, emptyPersona, personaFields, personaStatus, type Person
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { safeSelectionLink } from '@/utils/contentSelection'
-import { jobPersonaAnalysis, personaProgress } from '@/utils/personaAnalysis'
+import { jobPersonaAnalysis, latestPersonaJob, personaProgress } from '@/utils/personaAnalysis'
 
 const props = defineProps<{ accountId: string; accountName?: string }>()
 const emit = defineEmits<{ close: []; confirmed: [] }>()
@@ -36,16 +36,19 @@ const detailAnalysis = computed(() => jobPersonaAnalysis(detail.value))
 const evidencePosts = computed(() => {
   const input = detail.value?.input
   const post = input?.post
-  return [...(input?.posts || []), ...(post ? [{ id: post.id, content_url: post.content_url,
+  const rows = [...(detail.value?.result.analysis_reference?.posts || []), ...(input?.posts || []), ...(post ? [{ id: post.id, content_url: post.content_url,
     text_content: post.text_body.slice(0, 1500), truncated: post.text_body.length > 1500 }] : [])]
+  const seen = new Set<string>()
+  return rows.filter(row => { if (seen.has(row.id)) return false; seen.add(row.id); return true })
 })
 const fail = (e: unknown) => { error.value = e instanceof Error ? e.message : '加载失败，请重试' }
 function prefill(initial: boolean) {
   const version = versions.value[0]
-  const latest = jobs.value.find(j => !!jobPersonaAnalysis(j))
+  const latest = latestPersonaJob(jobs.value)
   const analysis = jobPersonaAnalysis(latest)
-  const preferAI = isSource.value && latest && analysis && (!version || new Date(latest.created_at).getTime() >= new Date(version.created_at).getTime())
-  const key = preferAI ? `analysis:${latest.id}` : version?.id || ''
+  const analysisTime = latest?.result.analysis_reference?.analyzed_at || latest?.created_at || ''
+  const preferAI = isSource.value && latest && analysis && (!version || new Date(analysisTime).getTime() >= new Date(version.created_at).getTime())
+  const key = preferAI ? `analysis:${latest.result.analysis_reference?.job_id || latest.id}` : version?.id || ''
   if (!key || (!initial && (!isSource.value || dirty.value || prefilledKey === key || (hasDocument.value && baseVersion.value !== (version?.version || 0))))) return
   Object.assign(document, emptyPersona(), preferAI ? analysis.suggested_persona : version!.document)
   analysisId.value = preferAI ? latest.id : version!.analysis_job_id
@@ -63,7 +66,13 @@ async function load(initial = false) {
     jobs.value = data.jobs
     if (detail.value) {
       const current = data.jobs.find(j => j.id === detail.value?.id)
-      if (current) detail.value = { ...detail.value, ...current }
+      if (current) {
+        const reference = detail.value.result.analysis_reference
+        detail.value = { ...detail.value, ...current }
+        if (reference && detail.value.result.analysis_reference?.job_id === reference.job_id) {
+          detail.value.result.analysis_reference = { ...detail.value.result.analysis_reference, posts: reference.posts }
+        }
+      }
     }
     prefill(initial)
   } catch (e) { if (!disposed) fail(e) }

@@ -15,6 +15,17 @@ describe('account persona API', () => {
     accountPersona.job('a/b', 'job?1')
     expect(http.get).toHaveBeenCalledWith('/api/account-personas/a%2Fb/jobs/job%3F1')
   })
+  it('pages original-post history without requiring a publishing account', () => {
+    const params = { post_id: 'post/1', page: 2, page_size: 20 }
+    accountPersona.history('source:author/1', params)
+    expect(http.get).toHaveBeenCalledExactlyOnceWith('/api/account-personas/source%3Aauthor%2F1/jobs', params)
+    expect(http.post).not.toHaveBeenCalled()
+  })
+  it('filters history by the selected publishing account', () => {
+    const params = { post_id: 'p', target_account_id: '5822', page: 1, page_size: 20 }
+    accountPersona.history('source:author', params)
+    expect(http.get).toHaveBeenCalledExactlyOnceWith('/api/account-personas/source%3Aauthor/jobs', params)
+  })
   it('requires explicit confirmation with expected version', () => {
     const data = { document: emptyPersona(), expected_version: 4, analysis_job_id: 'analysis' }
     accountPersona.confirm('a', data)

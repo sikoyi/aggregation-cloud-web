@@ -30,6 +30,7 @@ async function run() {
       let versions = []
       let refreshedJob = null
       let failedAnalysis = null
+      let pagedHistory = false
       const authorAnalysis = { observations: [{ dimension: '表达风格', finding: '生活观察、克制短句', confidence: 'low', evidence_ids: ['post1'] }],
         suggested_persona: { positioning: '生活观察与慢节奏记录', audience: '关注生活细节的读者', voice: '克制短句，平实自然',
           facts: '', boundaries: '不虚构个人身份与经历', preferences: '日常散步、自然景色' }, limitations: '仅依据已采集内容，样本有限', sample_count: 1, available_posts: 1 }
@@ -50,6 +51,15 @@ async function run() {
         else if (p === '/api/content-selection/posts/post1') data = post
         else if (p === '/api/accounts/selection-options') data = [{ id: '22', business_platform: 'x', username: 'operator', display_name: '发布账号', bound_slot_id: '6' }]
         else if (p === '/api/account-personas/source:source1') data = { versions, jobs: failedAnalysis ? [failedAnalysis] : generation ? [...(refreshedJob ? [refreshedJob] : []), job] : [] }
+        else if (p === '/api/account-personas/source:source1/jobs') {
+          const query = new URL(request.url()).searchParams
+          const records = generation ? [job, ...(pagedHistory ? Array.from({ length: 40 }, (_, i) => ({ ...job, id: `older-${i}`,
+            created_at: new Date(Date.parse(job.created_at) - (i + 1) * 86400000).toISOString(), draft_text: null,
+            result: { ...job.result, candidates: candidates.map((text_body, n) => ({ title: `候选 ${n + 1}`, text_body: `${text_body} 历史 ${i}`, review_notes: '' })) } })) : [])] : []
+          const visible = records.filter(j => !query.get('target_account_id') || j.target_account_id === query.get('target_account_id'))
+          const start = (Number(query.get('page') || 1) - 1) * 20
+          data = { items: visible.slice(start, start + 20).map(j => ({ ...j, target_account: { id: '22', name: '发布账号', platform: 'x' } })), total: visible.length, page: Number(query.get('page') || 1), page_size: 20 }
+        }
         else if (p.endsWith('/analyze')) forbiddenCalls++
         else if (p === '/api/account-personas/source:source1/confirm') {
           confirmation = request.postDataJSON()
@@ -66,6 +76,11 @@ async function run() {
           data = { ...job, status: 'queued', result: {} }
         } else if (p === '/api/account-personas/source:source1/jobs/analysis-failed') data = failedAnalysis
         else if (p === '/api/account-personas/source:source1/jobs/job1') data = job
+        else if (p.includes('/jobs/older-')) {
+          const i = Number(p.split('/jobs/older-')[1])
+          data = { ...job, id: `older-${i}`, draft_text: null,
+            result: { ...job.result, candidates: candidates.map((text_body, n) => ({ title: `候选 ${n + 1}`, text_body: `${text_body} 历史 ${i}`, review_notes: '' })) } }
+        }
         else if (p === '/api/account-personas/source:source1/jobs/job1/draft' && method === 'PUT') {
           saved = request.postDataJSON()
           Object.assign(job, { draft_text: saved.text_body, draft_version: saved.expected_version + 1 })
@@ -148,6 +163,10 @@ async function run() {
       await page.getByText('人设 v1 已确认', { exact: true }).waitFor()
       assert.equal(confirmation.analysis_job_id, 'job1')
       assert.equal(confirmation.document.positioning, '运营微调后的作者定位')
+      refreshedJob = null
+      job.created_at = '2026-10-19T04:00:00Z'
+      job.result.analysis_reference = { job_id: 'original-analysis', analyzed_at: post.updated_at,
+        posts: [{ id: post.id, text_content: post.text_body, content_url: post.content_url }] }
       await personaDialog.getByRole('button', { name: '关闭', exact: true }).click()
       assert.equal(await dialog.getByRole('textbox', { name: '发布正文', exact: true }).inputValue(), post.text_body)
       await dialog.getByRole('tab', { name: '候选 2', exact: true }).click()
@@ -159,6 +178,32 @@ async function run() {
       await page.getByText('人工草稿已保存', { exact: true }).waitFor()
       assert.deepEqual(saved, { text_body: '人工确认后的发布正文。', expected_version: 0 })
       await page.screenshot({ path: path.join(output, `source-author-${viewport.width}.png`), fullPage: true })
+      pagedHistory = true
+      await dialog.getByRole('button', { name: '关闭', exact: true }).click()
+      await page.getByRole('button', { name: '查看选题', exact: true }).click()
+      await dialog.getByRole('tab', { name: '人工稿', exact: true }).waitFor()
+      await dialog.getByText(saved.text_body, { exact: true }).waitFor()
+      assert.equal(await dialog.getByRole('textbox', { name: '发布正文', exact: true }).inputValue(), post.text_body)
+      assert(!(await dialog.getByRole('button', { name: '应用人工稿', exact: true }).isEnabled()))
+      assert.equal(generationCount, 1, 'reopening must not start another model call')
+      await dialog.getByRole('button', { name: '作者 AI 人设', exact: true }).click()
+      personaDialog = page.getByRole('dialog', { name: '原帖作者 AI 人设 · 原作者', exact: true })
+      await personaDialog.getByRole('textbox', { name: '账号定位', exact: true }).waitFor()
+      assert.equal(await personaDialog.getByRole('textbox', { name: '账号定位', exact: true }).inputValue(), confirmation.document.positioning,
+        'a newly created job reusing an older analysis must not override newer operator corrections')
+      await personaDialog.getByRole('button', { name: '关闭', exact: true }).click()
+      await dialog.getByText(saved.text_body, { exact: true }).scrollIntoViewIfNeeded()
+      await page.screenshot({ path: path.join(output, `creation-history-reopened-${viewport.width}.png`), fullPage: true })
+      await dialog.locator('.persona-creation .el-pagination .btn-next').click()
+      await dialog.getByText(`${candidates[0]} 历史 19`, { exact: true }).waitFor()
+      assert.equal(await dialog.getByRole('textbox', { name: '发布正文', exact: true }).inputValue(), post.text_body)
+      await dialog.locator('.persona-creation .el-pagination .btn-prev').click()
+      await dialog.getByText(saved.text_body, { exact: true }).waitFor()
+      await dialog.locator('.publish-account .el-select').click()
+      await page.getByRole('option').filter({ hasText: '发布账号' }).click()
+      await dialog.getByRole('button', { name: '应用人工稿', exact: true }).click()
+      await page.getByRole('button', { name: '确定', exact: true }).click()
+      assert.equal(await dialog.getByRole('textbox', { name: '发布正文', exact: true }).inputValue(), saved.text_body)
       await create.click()
       await dialog.getByText('AI 暂时不可用，原稿未变更', { exact: true }).waitFor()
       assert.equal(await dialog.getByRole('textbox', { name: '发布正文', exact: true }).inputValue(), saved.text_body)

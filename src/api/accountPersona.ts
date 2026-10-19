@@ -13,11 +13,13 @@ export interface PersonaAnalysis {
 }
 export interface PersonaJob {
   target_account_id?: string
+  target_account?: { id: string; name: string; platform: string }
   id: string; account_id: string; post_id: string | null; persona_id: string | null
   kind: 'analyze' | 'generate'; status: 'queued' | 'running' | 'succeeded' | 'failed'; created_at: string
   attempts: number; draft_text: string | null; draft_version: number; error_message: string | null
   result: { observations?: PersonaObservation[]; suggested_persona?: PersonaDocument; limitations?: string; sample_count?: number; available_posts?: number;
     progress?: { stage: string; label: string; completed_batches: number; total_batches: number };
+    analysis_reference?: { job_id: string; analyzed_at: string; posts?: { id: string; content_url: string; text_content: string; truncated?: boolean }[] };
     author_analysis?: PersonaAnalysis; candidates?: { title: string; text_body: string; review_notes: string }[] }
   usage: { model: string; input_tokens: number | null; output_tokens: number | null; total_tokens: number | null; cost: number | null; currency: string | null }[]
   input?: { prompt_version?: string; source_revision?: string; persona?: PersonaVersion;
@@ -33,6 +35,8 @@ export const personaStatus: Record<PersonaJob['status'], string> = { queued: 'чн
 const base = (account: string) => `/api/account-personas/${encodeURIComponent(account)}`
 export const accountPersona = {
   overview: (account: string) => http.get<{ versions: PersonaVersion[]; jobs: PersonaJob[] }>(base(account)),
+  history: (account: string, params: { post_id: string; target_account_id?: string; page: number; page_size: number }) =>
+    http.get<{ items: PersonaJob[]; total: number; page: number; page_size: number }>(`${base(account)}/jobs`, params),
   analyze: (account: string, requestKey: string) => http.post<PersonaJob>(`${base(account)}/analyze`, { request_key: requestKey }),
   confirm: (account: string, data: { expected_version: number; document: PersonaDocument; analysis_job_id: string | null }) => http.post<PersonaVersion>(`${base(account)}/confirm`, data),
   generate: (account: string, data: { request_key: string; post_id: string; persona_id?: string; language: string; direction: string; target_account_id?: string }) => http.post<PersonaJob>(`${base(account)}/generate`, data),

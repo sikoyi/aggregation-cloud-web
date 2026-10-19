@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPersona, type PersonaJob } from '@/api/accountPersona'
-import { jobPersonaAnalysis, personaProgress } from './personaAnalysis'
+import { jobPersonaAnalysis, latestPersonaJob, personaProgress } from './personaAnalysis'
 
 const profile = { suggested_persona: { ...emptyPersona(), positioning: 'AI 作者定位' }, observations: [], limitations: '样本有限' }
 const job = (values: Partial<PersonaJob>) => ({ account_id: 'source:s', kind: 'generate', status: 'running', result: {}, ...values }) as PersonaJob
@@ -29,5 +29,12 @@ describe('source author AI analysis', () => {
     expect(personaProgress(job({ status: 'succeeded', result: { progress: { stage: 'analysis_merge', label: '画像汇总', completed_batches: 3, total_batches: 3 } } }))).toBe('')
     expect(personaProgress(job({ result: { progress: { stage: 'author_analysis', label: '原作者人设分析', completed_batches: 0, total_batches: 0 } } }))).toBe('原作者人设分析')
     expect(personaProgress(job({ result: { progress: { stage: 'analysis_batch', label: '历史分析', completed_batches: 9, total_batches: 3 } } }))).toBe('历史分析')
+  })
+  it('does not make reused images newer than an explicit fresh author analysis', () => {
+    const reused = job({ id: 'reused', created_at: '2026-10-19T10:00:00Z', result: { author_analysis: profile,
+      analysis_reference: { job_id: 'old', analyzed_at: '2026-10-17T10:00:00Z' } } })
+    const fresh = job({ id: 'fresh', kind: 'analyze', status: 'succeeded', created_at: '2026-10-18T10:00:00Z', result: profile })
+    expect(latestPersonaJob([reused, fresh])?.id).toBe('fresh')
+    expect(latestPersonaJob([])).toBeNull()
   })
 })
