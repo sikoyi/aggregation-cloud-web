@@ -7,6 +7,8 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { safeSelectionLink } from '@/utils/contentSelection'
 import { jobPersonaAnalysis, latestPersonaJob, personaProgress } from '@/utils/personaAnalysis'
+import PersonaJobStatus from '@/components/PersonaJobStatus.vue'
+import { personaMetrics } from '@/utils/personaMetrics'
 
 const props = defineProps<{ accountId: string; accountName?: string }>()
 const emit = defineEmits<{ close: []; confirmed: [] }>()
@@ -33,6 +35,7 @@ const canEdit = computed(() => auth.can(isSource.value ? 'operations.dispatch' :
 const active = computed(() => jobs.value.some(j => (j.kind === 'analyze' || isSource.value) && ['queued', 'running'].includes(j.status)))
 const analysisJobs = computed(() => jobs.value.filter(j => j.kind === 'analyze' || !!jobPersonaAnalysis(j)))
 const detailAnalysis = computed(() => jobPersonaAnalysis(detail.value))
+const metrics = computed(() => personaMetrics(jobs.value))
 const evidencePosts = computed(() => {
   const input = detail.value?.input
   const post = input?.post
@@ -168,6 +171,7 @@ onBeforeUnmount(() => { disposed = true; detailSequence++; clearTimeout(timer) }
             <el-alert v-if="detail.error_message" :title="detail.error_message" :type="detail.status === 'failed' ? 'error' : 'warning'" :closable="false" />
             <p>{{ personaStatus[detail.status] }} · 已尝试 {{ detail.attempts }} 次</p>
             <p v-if="personaProgress(detail)" role="status">{{ personaProgress(detail) }}</p>
+            <PersonaJobStatus :key="detail.id" :job="detail" :can-resume="canEdit && !active" @resumed="detail = $event; load()" />
             <p v-if="detailAnalysis?.sample_count">分析样本 {{ detailAnalysis.sample_count }} 条 / 本次检索可用历史 {{ detailAnalysis.available_posts }} 条</p>
             <p>{{ detailAnalysis?.limitations }}</p>
             <section v-for="(item, index) in detailAnalysis?.observations" :key="index" class="persona-observation">
@@ -179,6 +183,17 @@ onBeforeUnmount(() => { disposed = true; detailSequence++; clearTimeout(timer) }
             </section>
             <p v-for="(usage, index) in detail.usage" :key="index">{{ usage.model }} · Token {{ usage.total_tokens ?? '未返回' }}</p>
           </template>
+        </el-tab-pane>
+        <el-tab-pane label="运行统计" name="metrics">
+          <p>最近 {{ jobs.length }} 条可见任务</p>
+          <el-table :data="metrics" size="small">
+            <el-table-column prop="stage" label="阶段" min-width="160" />
+            <el-table-column prop="attempts" label="次数" width="70" />
+            <el-table-column prop="succeeded" label="成功" width="70" />
+            <el-table-column prop="pending" label="未确认" width="80" />
+            <el-table-column prop="rate" label="成功率" width="90" />
+            <el-table-column prop="seconds" label="累计秒数" width="100" />
+          </el-table>
         </el-tab-pane>
         <el-tab-pane label="人设版本" name="versions">
           <div class="persona-tools"><el-select v-model="selectedVersion" placeholder="选择版本" aria-label="选择人设版本"><el-option v-for="v in versions" :key="v.id" :value="v.id" :label="`v${v.version} · ${formatDate(v.created_at)}`" /></el-select>

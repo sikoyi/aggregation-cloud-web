@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Save, Sparkles } from 'lucide-vue-next'
 import { accountPersona, personaStatus, type PersonaAnalysis, type PersonaJob, type PersonaVersion } from '@/api/accountPersona'
 import AccountPersonaDialog from '@/components/AccountPersonaDialog.vue'
+import PersonaJobStatus from '@/components/PersonaJobStatus.vue'
 import { languages } from '@/utils/benchmarkPostProcessing'
 import { formatDate } from '@/utils/format'
 import { jobPersonaAnalysis, latestPersonaJob, personaProgress } from '@/utils/personaAnalysis'
@@ -65,7 +66,7 @@ async function load() {
     if (selectedJob.value) {
       const fresh = jobs.value.find(j => j.id === selectedJob.value?.id)
       if (fresh) selectedJob.value = { ...selectedJob.value, status: fresh.status, result: fresh.result,
-        usage: fresh.usage, error_message: fresh.error_message, attempts: fresh.attempts,
+        usage: fresh.usage, budget: fresh.budget, error_message: fresh.error_message, attempts: fresh.attempts,
         draft_text: fresh.draft_text, draft_version: fresh.draft_version, target_account: fresh.target_account }
     }
     if (!selectedJob.value && !selecting.value && jobs.value[0]) await selectJob(jobs.value[0].id)
@@ -187,6 +188,7 @@ onBeforeUnmount(() => { disposed = true; sequence++; historySequence++; clearTim
       <small>发布账号：{{ selectedJob.target_account?.name || selectedJob.target_account_id }} · {{ formatDate(selectedJob.created_at) }}</small>
       <p role="status">{{ statusText }} · 第 {{ selectedJob.attempts }} 次处理</p>
       <p v-if="personaProgress(selectedJob)" role="status">{{ personaProgress(selectedJob) }}</p>
+      <PersonaJobStatus :key="selectedJob.id" :job="selectedJob" :can-resume="!disabled && !active" @resumed="selectedJob = $event; load()" />
       <el-tag v-if="selectedJob.result.analysis_reference && selectedJob.result.analysis_reference.job_id !== selectedJob.id" type="info">已复用作者画像</el-tag>
       <el-tag v-if="selectedJob.input?.persona" type="info">本次参考作者人设 v{{ selectedJob.input.persona.version }}</el-tag>
       <el-alert v-if="staleSource" title="原帖已更新，此记录仅供查看，请重新生成" type="warning" :closable="false" />

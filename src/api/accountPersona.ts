@@ -12,12 +12,15 @@ export interface PersonaAnalysis {
   sample_count?: number; available_posts?: number
 }
 export interface PersonaJob {
+  budget?: { limit_cny: number; known_cny: number; unknown_cost_calls: number; calls: number; max_calls: number; tokens: number; max_tokens: number; blocked_reason: string; legacy_unknown_calls?: number }
   target_account_id?: string
   target_account?: { id: string; name: string; platform: string }
   id: string; account_id: string; post_id: string | null; persona_id: string | null
   kind: 'analyze' | 'generate'; status: 'queued' | 'running' | 'succeeded' | 'failed'; created_at: string
   attempts: number; draft_text: string | null; draft_version: number; error_message: string | null
   result: { observations?: PersonaObservation[]; suggested_persona?: PersonaDocument; limitations?: string; sample_count?: number; available_posts?: number;
+    model_calls?: { id: string; stage: string; status: string; duration_ms?: number; error?: string }[];
+    stage_metrics?: Record<string, { attempts: number; succeeded: number; duration_ms: number }>;
     progress?: { stage: string; label: string; completed_batches: number; total_batches: number };
     analysis_reference?: { job_id: string; analyzed_at: string; posts?: { id: string; content_url: string; text_content: string; truncated?: boolean }[] };
     author_analysis?: PersonaAnalysis; candidates?: { title: string; text_body: string; review_notes: string }[] }
@@ -41,5 +44,6 @@ export const accountPersona = {
   confirm: (account: string, data: { expected_version: number; document: PersonaDocument; analysis_job_id: string | null }) => http.post<PersonaVersion>(`${base(account)}/confirm`, data),
   generate: (account: string, data: { request_key: string; post_id: string; persona_id?: string; language: string; direction: string; target_account_id?: string }) => http.post<PersonaJob>(`${base(account)}/generate`, data),
   job: (account: string, id: string) => http.get<PersonaJob>(`${base(account)}/jobs/${encodeURIComponent(id)}`),
+  resume: (account: string, id: string, requestKey: string) => http.post<PersonaJob>(`${base(account)}/jobs/${encodeURIComponent(id)}/resume`, { request_key: requestKey }),
   save: (account: string, id: string, text: string, version: number) => http.put<PersonaJob>(`${base(account)}/jobs/${encodeURIComponent(id)}/draft`, { text_body: text, expected_version: version }),
 }
