@@ -6,7 +6,7 @@ import { accountPersona, personaStatus, type PersonaAnalysis, type PersonaJob, t
 import AccountPersonaDialog from '@/components/AccountPersonaDialog.vue'
 import { languages } from '@/utils/benchmarkPostProcessing'
 import { formatDate } from '@/utils/format'
-import { jobPersonaAnalysis } from '@/utils/personaAnalysis'
+import { jobPersonaAnalysis, personaProgress } from '@/utils/personaAnalysis'
 
 const props = defineProps<{ accountId: string; sourceId: string; sourceName: string; postId: string; revision: string; modelValue: string; disabled: boolean }>()
 const subjectId = computed(() => `source:${props.sourceId}`)
@@ -107,9 +107,10 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
       <el-option v-for="job in jobs" :key="job.id" :value="job.id" :label="`${formatDate(job.created_at)} · ${personaStatus[job.status]}`" /></el-select></div>
     <template v-if="selectedJob">
       <p role="status">{{ statusText }} · 第 {{ selectedJob.attempts }} 次处理</p>
+      <p v-if="personaProgress(selectedJob)" role="status">{{ personaProgress(selectedJob) }}</p>
       <el-tag v-if="selectedJob.input?.persona" type="info">本次参考作者人设 v{{ selectedJob.input.persona.version }}</el-tag>
       <el-alert v-if="staleSource" title="原帖已更新，此记录仅供查看，请重新生成" type="warning" :closable="false" />
-      <el-alert v-if="selectedJob.error_message" :title="selectedJob.error_message" type="warning" :closable="false" />
+      <el-alert v-if="selectedJob.error_message" :title="selectedJob.error_message" :type="selectedJob.status === 'failed' ? 'error' : 'warning'" :closable="false" />
       <el-tabs v-if="candidates.length" v-model="index"><el-tab-pane v-for="(item, i) in candidates" :key="i" :name="String(i)" :label="item.title" /></el-tabs>
       <div v-if="candidate" class="candidate"><p>{{ candidate.text_body }}</p><el-alert v-if="candidate.review_notes" :title="candidate.review_notes" type="warning" :closable="false" />
         <div class="creation-toolbar"><el-button :icon="Check" :disabled="disabled || busy || staleSource" @click="apply(candidate.text_body)">应用候选稿</el-button>
@@ -130,4 +131,5 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
 .persona-summary { color: var(--app-text-muted); max-height: 70px; overflow: auto; }
 .candidate > p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; max-height: 280px; overflow: auto; }
 .persona-creation small { display: block; color: var(--app-text-muted); }
+.persona-creation :deep(.el-alert__title) { overflow-wrap: anywhere; }
 </style>

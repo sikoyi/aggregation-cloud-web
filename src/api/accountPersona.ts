@@ -17,6 +17,7 @@ export interface PersonaJob {
   kind: 'analyze' | 'generate'; status: 'queued' | 'running' | 'succeeded' | 'failed'; created_at: string
   attempts: number; draft_text: string | null; draft_version: number; error_message: string | null
   result: { observations?: PersonaObservation[]; suggested_persona?: PersonaDocument; limitations?: string; sample_count?: number; available_posts?: number;
+    progress?: { stage: string; label: string; completed_batches: number; total_batches: number };
     author_analysis?: PersonaAnalysis; candidates?: { title: string; text_body: string; review_notes: string }[] }
   usage: { model: string; input_tokens: number | null; output_tokens: number | null; total_tokens: number | null; cost: number | null; currency: string | null }[]
   input?: { prompt_version?: string; source_revision?: string; persona?: PersonaVersion;

@@ -29,6 +29,7 @@ async function run() {
       let confirmation = null
       let versions = []
       let refreshedJob = null
+      let failedAnalysis = null
       const authorAnalysis = { observations: [{ dimension: '表达风格', finding: '生活观察、克制短句', confidence: 'low', evidence_ids: ['post1'] }],
         suggested_persona: { positioning: '生活观察与慢节奏记录', audience: '关注生活细节的读者', voice: '克制短句，平实自然',
           facts: '', boundaries: '不虚构个人身份与经历', preferences: '日常散步、自然景色' }, limitations: '仅依据已采集内容，样本有限', sample_count: 1, available_posts: 1 }
@@ -48,7 +49,7 @@ async function run() {
         else if (p === '/api/content-selection/posts' || p === '/api/content-selection/posts/query') data = { items: [post], total: 1 }
         else if (p === '/api/content-selection/posts/post1') data = post
         else if (p === '/api/accounts/selection-options') data = [{ id: '22', business_platform: 'x', username: 'operator', display_name: '发布账号', bound_slot_id: '6' }]
-        else if (p === '/api/account-personas/source:source1') data = { versions, jobs: generation ? [...(refreshedJob ? [refreshedJob] : []), job] : [] }
+        else if (p === '/api/account-personas/source:source1') data = { versions, jobs: failedAnalysis ? [failedAnalysis] : generation ? [...(refreshedJob ? [refreshedJob] : []), job] : [] }
         else if (p.endsWith('/analyze')) forbiddenCalls++
         else if (p === '/api/account-personas/source:source1/confirm') {
           confirmation = request.postDataJSON()
@@ -63,7 +64,8 @@ async function run() {
           generation = request.postDataJSON()
           assert(!Object.hasOwn(generation, 'persona_id'))
           data = { ...job, status: 'queued', result: {} }
-        } else if (p === '/api/account-personas/source:source1/jobs/job1') data = job
+        } else if (p === '/api/account-personas/source:source1/jobs/analysis-failed') data = failedAnalysis
+        else if (p === '/api/account-personas/source:source1/jobs/job1') data = job
         else if (p === '/api/account-personas/source:source1/jobs/job1/draft' && method === 'PUT') {
           saved = request.postDataJSON()
           Object.assign(job, { draft_text: saved.text_body, draft_version: saved.expected_version + 1 })
@@ -91,6 +93,33 @@ async function run() {
       let personaDialog = page.getByRole('dialog', { name: '原帖作者 AI 人设 · 原作者', exact: true })
       await personaDialog.getByText('暂无作者 AI 分析结果', { exact: true }).waitFor()
       assert.equal(await personaDialog.getByRole('textbox', { name: '账号定位', exact: true }).count(), 0)
+      failedAnalysis = { ...job, id: 'analysis-failed', kind: 'analyze', status: 'failed', attempts: 4,
+        result: { progress: { stage: 'analysis_batch', label: '历史分析 · 第 2/3 批', completed_batches: 1, total_batches: 3 } },
+        error_message: '历史分析 · 第 2/3 批失败：OpenAI 请求失败：ReadTimeout；已完成 1/3 批，保留断点（已尝试 4 次），自动重试已停止' }
+      await Promise.all([
+        page.waitForResponse(response => decodeURIComponent(new URL(response.url()).pathname) === '/api/account-personas/source:source1'),
+        personaDialog.getByRole('button', { name: '刷新人设记录', exact: true }).click(),
+      ])
+      await personaDialog.getByRole('tab', { name: 'AI 画像', exact: true }).click()
+      await personaDialog.getByRole('combobox', { name: '选择分析记录', exact: true }).press('Enter')
+      await page.getByRole('option').filter({ hasText: '未完成' }).click()
+      await page.getByRole('option').filter({ hasText: '未完成' }).waitFor({ state: 'hidden' })
+      await personaDialog.getByText(failedAnalysis.error_message, { exact: true }).waitFor()
+      await personaDialog.getByRole('status').filter({ hasText: '历史分析 · 第 2/3 批 · 已完成 1/3 批' }).waitFor()
+      const failureAlert = personaDialog.locator('.el-alert--error')
+      assert.equal(await failureAlert.count(), 1)
+      const alertBounds = await failureAlert.boundingBox()
+      assert(alertBounds.x >= 0 && alertBounds.x + alertBounds.width <= viewport.width + 1)
+      await page.screenshot({ path: path.join(output, `analysis-checkpoint-error-${viewport.width}.png`), fullPage: true })
+      failedAnalysis.status = 'queued'
+      failedAnalysis.error_message = failedAnalysis.error_message.replace('自动重试已停止', '将自动重试')
+      await Promise.all([
+        page.waitForResponse(response => decodeURIComponent(new URL(response.url()).pathname) === '/api/account-personas/source:source1'),
+        personaDialog.getByRole('button', { name: '刷新人设记录', exact: true }).click(),
+      ])
+      await personaDialog.getByText(failedAnalysis.error_message, { exact: true }).waitFor()
+      assert.equal(await personaDialog.locator('.el-alert--warning').count(), 1)
+      failedAnalysis = null
       await personaDialog.getByRole('button', { name: '关闭', exact: true }).click()
       assert.equal(generationCount, 0)
       assert.equal(forbiddenCalls, 0)

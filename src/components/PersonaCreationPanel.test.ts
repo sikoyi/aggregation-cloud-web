@@ -33,4 +33,12 @@ describe('source author persona creation', () => {
     expect(dialog).toContain('@input="dirty = true"')
     expect(dialog).toContain("isSource ? '保存调整' : '确认新版本'")
   })
+  it('displays checkpoint progress and concrete failure reasons in both entry points', () => {
+    expect(dialog).toContain('personaProgress(detail)')
+    expect(panel).toContain('personaProgress(selectedJob)')
+    expect(dialog).toContain(':title="detail.error_message"')
+    expect(panel).toContain(':title="selectedJob.error_message"')
+    expect(dialog).not.toContain('v-html')
+    expect(panel).not.toContain('v-html')
+  })
 })

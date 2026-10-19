@@ -6,7 +6,7 @@ import { accountPersona, emptyPersona, personaFields, personaStatus, type Person
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { safeSelectionLink } from '@/utils/contentSelection'
-import { jobPersonaAnalysis } from '@/utils/personaAnalysis'
+import { jobPersonaAnalysis, personaProgress } from '@/utils/personaAnalysis'
 
 const props = defineProps<{ accountId: string; accountName?: string }>()
 const emit = defineEmits<{ close: []; confirmed: [] }>()
@@ -156,8 +156,9 @@ onBeforeUnmount(() => { disposed = true; detailSequence++; clearTimeout(timer) }
           </el-select><el-button v-if="canEdit && detailAnalysis" :icon="Check" @click="useAnalysis">采用画像建议</el-button></div>
           <el-empty v-if="!detail" description="暂无选中的画像" :image-size="72" />
           <template v-else>
-            <el-alert v-if="detail.error_message" :title="detail.error_message" type="warning" :closable="false" />
+            <el-alert v-if="detail.error_message" :title="detail.error_message" :type="detail.status === 'failed' ? 'error' : 'warning'" :closable="false" />
             <p>{{ personaStatus[detail.status] }} · 已尝试 {{ detail.attempts }} 次</p>
+            <p v-if="personaProgress(detail)" role="status">{{ personaProgress(detail) }}</p>
             <p v-if="detailAnalysis?.sample_count">分析样本 {{ detailAnalysis.sample_count }} 条 / 本次检索可用历史 {{ detailAnalysis.available_posts }} 条</p>
             <p>{{ detailAnalysis?.limitations }}</p>
             <section v-for="(item, index) in detailAnalysis?.observations" :key="index" class="persona-observation">
@@ -189,6 +190,7 @@ onBeforeUnmount(() => { disposed = true; detailSequence++; clearTimeout(timer) }
 .persona-observation { border-bottom: 1px solid var(--app-border); padding: 14px 0; }
 .persona-observation p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
 .persona-observation strong { margin-right: 12px; }
+.persona-dialog :deep(.el-alert__title) { overflow-wrap: anywhere; }
 summary { cursor: pointer; margin: 8px 0; }
 @media(max-width: 700px) { .persona-fields { grid-template-columns: minmax(0,1fr); } }
 </style>
