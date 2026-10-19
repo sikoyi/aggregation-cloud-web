@@ -56,11 +56,11 @@ async function selectJob(id: string) {
   catch (e) { if (!disposed && current === sequence) fail(e) }
 }
 async function generate() {
-  if (!persona.value || !props.accountId || busy.value || active.value || props.disabled) return
+  if (!props.accountId || busy.value || active.value || props.disabled) return
   busy.value = true; error.value = ''
   try {
     const job = await accountPersona.generate(subjectId.value, { request_key: crypto.randomUUID(), post_id: props.postId, target_account_id: props.accountId,
-      persona_id: persona.value.id, language: language.value, direction: direction.value })
+      persona_id: persona.value?.id, language: language.value, direction: direction.value })
     if (!disposed) { await selectJob(job.id); await load() }
   } catch (e) { if (!disposed) fail(e) } finally { busy.value = false }
 }
@@ -87,20 +87,20 @@ onBeforeUnmount(() => { disposed = true; sequence++; clearTimeout(timer) })
 
 <template>
   <section class="persona-creation">
-    <div class="creation-toolbar"><strong>原帖作者人设 · {{ sourceName }}</strong><el-tag :type="persona ? 'success' : 'info'">{{ persona ? `人设 v${persona.version}` : '未确认人设' }}</el-tag>
+    <div class="creation-toolbar"><strong>原帖作者 · {{ sourceName }}</strong><el-tag v-if="persona" type="info">参考人设 v{{ persona.version }}</el-tag>
       <el-button :icon="UserRound" :disabled="disabled" @click="personaVisible = true">作者画像 / 人设</el-button></div>
     <p v-if="persona" class="persona-summary">{{ persona.document.positioning }}</p>
     <el-form label-position="top" :disabled="disabled || busy">
       <el-form-item label="本次创作方向"><el-input v-model="direction" :maxlength="1000" type="textarea" :rows="2" /></el-form-item>
       <div class="creation-toolbar"><el-select v-model="language" aria-label="创作语言"><el-option v-for="(name, code) in languages" :key="code" :value="code" :label="name" /></el-select>
-        <el-button type="primary" :icon="Sparkles" :loading="busy" :disabled="!persona || !accountId || active" @click="generate">{{ active ? '创作处理中' : 'AI 创作' }}</el-button></div>
+        <el-button type="primary" :icon="Sparkles" :loading="busy" :disabled="!accountId || active" @click="generate">{{ active ? '创作处理中' : 'AI 创作' }}</el-button></div>
     </el-form>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-if="jobs.length" class="creation-toolbar"><el-select :model-value="selectedJob?.id || ''" aria-label="生成记录" placeholder="生成记录" @change="selectJob">
       <el-option v-for="job in jobs" :key="job.id" :value="job.id" :label="`${formatDate(job.created_at)} · ${personaStatus[job.status]}`" /></el-select></div>
     <template v-if="selectedJob">
       <p role="status">{{ personaStatus[selectedJob.status] }} · 第 {{ selectedJob.attempts }} 次处理</p>
-      <el-tag v-if="selectedJob.input?.persona" type="info">本次使用人设 v{{ selectedJob.input.persona.version }}</el-tag>
+      <el-tag v-if="selectedJob.input?.persona" type="info">本次参考作者人设 v{{ selectedJob.input.persona.version }}</el-tag>
       <el-alert v-if="staleSource" title="原帖已更新，此记录仅供查看，请重新生成" type="warning" :closable="false" />
       <el-alert v-if="selectedJob.error_message" :title="selectedJob.error_message" type="warning" :closable="false" />
       <el-tabs v-if="candidates.length" v-model="index"><el-tab-pane v-for="(item, i) in candidates" :key="i" :name="String(i)" :label="item.title" /></el-tabs>

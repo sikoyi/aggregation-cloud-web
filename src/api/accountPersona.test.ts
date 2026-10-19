@@ -36,4 +36,10 @@ describe('account persona API', () => {
     accountPersona.overview('source:author-1')
     expect(http.get).toHaveBeenCalledWith('/api/account-personas/source%3Aauthor-1')
   })
+  it('can generate directly from the source without a persona version', () => {
+    const data = { request_key: 'simple-request', post_id: 'p', language: 'zh-CN', direction: '', target_account_id: '5822' }
+    accountPersona.generate('source:author-1', data)
+    expect(http.post).toHaveBeenCalledExactlyOnceWith('/api/account-personas/source%3Aauthor-1/generate', data)
+    expect(data).not.toHaveProperty('persona_id')
+  })
 })

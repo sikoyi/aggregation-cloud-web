@@ -13,8 +13,15 @@ describe('source author persona creation', () => {
     expect(view).not.toContain('v-if="editVisible && draft.account_id &&')
   })
   it('shows an explicit original-author title and uses operations permissions', () => {
-    expect(panel).toContain('原帖作者人设')
+    expect(panel).toContain('原帖作者 ·')
     expect(panel).toContain(':account-id="subjectId" :account-name="sourceName"')
     expect(dialog).toContain("auth.can(isSource.value ? 'operations.dispatch' : 'accounts.edit')")
+  })
+  it('does not require a confirmed persona for manual creation', () => {
+    expect(panel).toContain('persona_id: persona.value?.id')
+    expect(panel).not.toContain('!persona.value ||')
+    expect(panel).not.toContain(':disabled="!persona ||')
+    expect(panel).not.toContain('未确认人设')
+    expect(panel).toContain('参考人设 v')
   })
 })

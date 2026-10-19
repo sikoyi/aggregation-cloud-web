@@ -29,7 +29,7 @@ export const accountPersona = {
   overview: (account: string) => http.get<{ versions: PersonaVersion[]; jobs: PersonaJob[] }>(base(account)),
   analyze: (account: string, requestKey: string) => http.post<PersonaJob>(`${base(account)}/analyze`, { request_key: requestKey }),
   confirm: (account: string, data: { expected_version: number; document: PersonaDocument; analysis_job_id: string | null }) => http.post<PersonaVersion>(`${base(account)}/confirm`, data),
-  generate: (account: string, data: { request_key: string; post_id: string; persona_id: string; language: string; direction: string; target_account_id?: string }) => http.post<PersonaJob>(`${base(account)}/generate`, data),
+  generate: (account: string, data: { request_key: string; post_id: string; persona_id?: string; language: string; direction: string; target_account_id?: string }) => http.post<PersonaJob>(`${base(account)}/generate`, data),
   job: (account: string, id: string) => http.get<PersonaJob>(`${base(account)}/jobs/${encodeURIComponent(id)}`),
   save: (account: string, id: string, text: string, version: number) => http.put<PersonaJob>(`${base(account)}/jobs/${encodeURIComponent(id)}/draft`, { text_body: text, expected_version: version }),
 }
