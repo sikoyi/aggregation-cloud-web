@@ -103,7 +103,7 @@ async function run() {
       const showEditor = () => dialog.getByRole('tab', { name: '内容编辑', exact: true }).click()
       await dialog.locator('.publish-account .el-select').click()
       await page.getByRole('option').filter({ hasText: '发布账号' }).click()
-      const create = dialog.getByRole('button', { name: 'AI 创作', exact: true })
+      const create = dialog.getByRole('button', { name: /^(AI 创作|重新生成)$/ })
       await create.waitFor()
       assert(await create.isEnabled(), 'no author persona must not block creation')
       await dialog.getByRole('button', { name: '作者 AI 人设', exact: true }).click()

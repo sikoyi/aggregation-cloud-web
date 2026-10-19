@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Save, Sparkles } from 'lucide-vue-next'
 import { accountPersona, personaStatus, type PersonaAnalysis, type PersonaJob, type PersonaVersion } from '@/api/accountPersona'
@@ -24,6 +24,10 @@ const error = ref('')
 const historyPage = ref(1)
 const historyTotal = ref(0)
 const sourceActive = ref(false)
+const notice = ref('')
+let editorVersion = 0
+watch(() => props.modelValue, () => { editorVersion++ }, { flush: 'sync' })
+const pending = ref<{ id: string; text: string; editorVersion: number; account: string; post: string; revision: string } | null>(null)
 let disposed = false
 let sequence = 0
 const loading = ref(false)
@@ -31,14 +35,14 @@ let reloadPending = false
 let historySequence = 0
 const selecting = ref(false)
 let timer: ReturnType<typeof setTimeout> | undefined
-const active = computed(() => sourceActive.value || jobs.value.some(j => ['queued', 'running'].includes(j.status)))
+const active = computed(() => !!pending.value || sourceActive.value || jobs.value.some(j => ['queued', 'running'].includes(j.status)))
 const candidates = computed(() => selectedJob.value?.result.candidates || [])
 const candidate = computed(() => index.value === 'draft' && selectedJob.value?.draft_text
   ? { title: '人工稿', text_body: selectedJob.value.draft_text, review_notes: '' } : candidates.value[Number(index.value)])
 const matchingAccount = computed(() => !!props.accountId && selectedJob.value?.target_account_id === props.accountId)
 const currentAnalysis = computed(() => jobPersonaAnalysis(selectedJob.value) || authorAnalysis.value)
-const statusText = computed(() => selectedJob.value?.status === 'running' && ['source-author-creation-v3', 'source-author-creation-v4'].includes(selectedJob.value.input?.prompt_version || '')
-  ? (selectedJob.value.result.author_analysis ? '生成候选稿中' : 'AI 分析原作者中') : selectedJob.value ? personaStatus[selectedJob.value.status] : '')
+const statusText = computed(() => selectedJob.value?.status === 'running' && ['source-author-creation-v3', 'source-author-creation-v4', 'source-author-creation-v5'].includes(selectedJob.value.input?.prompt_version || '')
+  ? (selectedJob.value.result.author_analysis ? '生成正文中' : 'AI 分析原作者中') : selectedJob.value ? personaStatus[selectedJob.value.status] : '')
 const staleSource = computed(() => !!selectedJob.value?.input?.source_revision && new Date(selectedJob.value.input.source_revision).getTime() !== new Date(props.revision).getTime())
 const fail = (e: unknown) => { error.value = e instanceof Error ? e.message : '创作请求未完成' }
 async function load() {
@@ -65,9 +69,38 @@ async function load() {
         draft_text: fresh.draft_text, draft_version: fresh.draft_version, target_account: fresh.target_account }
     }
     if (!selectedJob.value && !selecting.value && jobs.value[0]) await selectJob(jobs.value[0].id)
+    await fillGeneratedDraft()
   } catch (e) { if (!disposed) fail(e) }
   finally { loading.value = false
     if (reloadPending && !disposed) { reloadPending = false; void load() } else schedule() }
+}
+async function fillGeneratedDraft() {
+  const request = pending.value
+  if (!request) return
+  const result = await accountPersona.job(subjectId.value, request.id)
+  if (disposed || pending.value !== request) return
+  if (result.status === 'failed') {
+    pending.value = null
+    error.value = result.error_message || '正文生成失败，请查看创作记录'
+    return
+  }
+  if (result.status !== 'succeeded') return
+  pending.value = null
+  if (result.input?.prompt_version !== 'source-author-creation-v5') return
+  const text = result.result.candidates?.[0]?.text_body
+  if (result.id !== request.id || result.kind !== 'generate' || result.account_id !== subjectId.value ||
+      result.post_id !== request.post || result.target_account_id !== request.account || result.result.candidates?.length !== 1 || !text?.trim()) {
+    error.value = '生成记录与当前创作不一致，请查看创作记录'
+    return
+  }
+  if (props.disabled || editorVersion !== request.editorVersion || props.modelValue !== request.text ||
+      props.accountId !== request.account || props.postId !== request.post || props.revision !== request.revision ||
+      new Date(result.input.source_revision || '').getTime() !== new Date(props.revision).getTime()) {
+    notice.value = '正文已生成并保存；当前编辑内容或状态已变化，请在创作记录中查看并应用。'
+    return
+  }
+  emit('apply', text, result.id)
+  ElMessage.success('正文已生成并填入发布稿')
 }
 function changeHistoryPage(page: number) {
   historyPage.value = page
@@ -98,11 +131,12 @@ async function selectJob(id: string) {
 }
 async function generate() {
   if (!props.accountId || busy.value || active.value || props.disabled) return
-  busy.value = true; error.value = ''
+  busy.value = true; error.value = ''; notice.value = ''
+  const request = { text: props.modelValue, editorVersion, account: props.accountId, post: props.postId, revision: props.revision }
   try {
     const job = await accountPersona.generate(subjectId.value, { request_key: crypto.randomUUID(), post_id: props.postId, target_account_id: props.accountId,
       persona_id: persona.value?.id, language: language.value, direction: direction.value })
-    if (!disposed) { historyPage.value = 1; historySequence++; await selectJob(job.id); await load() }
+    if (!disposed) { pending.value = { ...request, id: job.id }; historyPage.value = 1; historySequence++; await selectJob(job.id); await load() }
   } catch (e) { if (!disposed) fail(e) } finally { busy.value = false }
 }
 async function apply(text: string) {
@@ -135,9 +169,10 @@ onBeforeUnmount(() => { disposed = true; sequence++; historySequence++; clearTim
     <el-form label-position="top" :disabled="disabled || busy">
       <el-form-item label="本次创作方向"><el-input v-model="direction" :maxlength="1000" type="textarea" :rows="2" /></el-form-item>
       <div class="creation-toolbar"><el-select v-model="language" aria-label="创作语言"><el-option v-for="(name, code) in languages" :key="code" :value="code" :label="name" /></el-select>
-        <el-button type="primary" :icon="Sparkles" :loading="busy" :disabled="!accountId || active" @click="generate">{{ active ? '创作处理中' : 'AI 创作' }}</el-button></div>
+        <el-button type="primary" :icon="Sparkles" :loading="busy" :disabled="!accountId || active" @click="generate">{{ active ? '创作处理中' : historyTotal ? '重新生成' : 'AI 创作' }}</el-button></div>
     </el-form>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
+    <el-alert v-if="notice" :title="notice" type="info" :closable="false" />
     <Teleport :to="historyTarget || 'body'" :disabled="!historyTarget" defer>
     <section class="persona-creation creation-history">
     <el-alert v-if="historyTarget && error" :title="error" type="error" :closable="false" />
@@ -156,9 +191,11 @@ onBeforeUnmount(() => { disposed = true; sequence++; historySequence++; clearTim
       <el-tag v-if="selectedJob.input?.persona" type="info">本次参考作者人设 v{{ selectedJob.input.persona.version }}</el-tag>
       <el-alert v-if="staleSource" title="原帖已更新，此记录仅供查看，请重新生成" type="warning" :closable="false" />
       <el-alert v-if="selectedJob.error_message" :title="selectedJob.error_message" :type="selectedJob.status === 'failed' ? 'error' : 'warning'" :closable="false" />
-      <el-tabs v-if="candidates.length || selectedJob.draft_text" v-model="index"><el-tab-pane v-for="(item, i) in candidates" :key="i" :name="String(i)" :label="item.title" /><el-tab-pane v-if="selectedJob.draft_text" name="draft" label="人工稿" /></el-tabs>
+      <el-tabs v-if="candidates.length > 1" v-model="index"><el-tab-pane v-for="(item, i) in candidates" :key="i" :name="String(i)" :label="item.title" /><el-tab-pane v-if="selectedJob.draft_text" name="draft" label="人工稿" /></el-tabs>
+      <div v-else-if="candidate" class="creation-toolbar"><strong>{{ index === 'draft' ? '人工稿' : '生成正文' }}</strong>
+        <el-button v-if="selectedJob.draft_text && candidates.length" link type="primary" @click="index = index === 'draft' ? '0' : 'draft'">{{ index === 'draft' ? '查看生成原稿' : '查看人工稿' }}</el-button></div>
       <div v-if="candidate" class="candidate"><p>{{ candidate.text_body }}</p><el-alert v-if="candidate.review_notes" :title="candidate.review_notes" type="warning" :closable="false" />
-        <div class="creation-toolbar"><el-button :icon="Check" :disabled="disabled || busy || staleSource || !matchingAccount || selectedJob.status !== 'succeeded'" @click="apply(candidate.text_body)">{{ index === 'draft' ? '应用人工稿' : '应用候选稿' }}</el-button>
+        <div class="creation-toolbar"><el-button :icon="Check" :disabled="disabled || busy || staleSource || !matchingAccount || selectedJob.status !== 'succeeded'" @click="apply(candidate.text_body)">{{ index === 'draft' ? '应用人工稿' : candidates.length === 1 ? '应用正文' : '应用候选稿' }}</el-button>
           <el-button :icon="Save" :disabled="disabled || busy || staleSource || !matchingAccount || selectedJob.status !== 'succeeded' || !modelValue.trim()" @click="save">保存当前发布稿</el-button>
           <el-button v-if="selectedJob.draft_text && index !== 'draft'" :disabled="disabled || busy || staleSource || !matchingAccount" @click="apply(selectedJob.draft_text)">恢复已存草稿</el-button></div></div>
       <small v-for="(usage, i) in selectedJob.usage" :key="i">{{ usage.model }} · Token {{ usage.total_tokens ?? '未返回' }}<template v-if="usage.cost !== null"> · {{ usage.cost }} {{ usage.currency }}</template></small>
