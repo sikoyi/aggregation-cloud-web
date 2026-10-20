@@ -190,6 +190,7 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
     business_platform: '',
     country: '',
     login_status: '',
+    export_status: '',
     tag_id: '',
     slot_group_id: '',
     runtime_platform: '',
@@ -1391,6 +1392,12 @@ onBeforeUnmount(() => {
               <el-form-item label="国家">
                 <el-select v-model="filters.country" clearable filterable placeholder="全部">
                   <el-option v-for="option in accountCountryOptions" :key="String(option.value)" :label="option.label" :value="String(option.value)" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="导出状态">
+                <el-select v-model="filters.export_status" clearable placeholder="未导出">
+                  <el-option label="未导出" value="unexported" />
+                  <el-option label="已导出" value="exported" />
                 </el-select>
               </el-form-item>
               <el-form-item label="登录状态">
