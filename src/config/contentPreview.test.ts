@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { resources } from './resources'
+import { buildFormState, buildPayload } from '@/utils/form'
 
 
 describe('内容库预览与类型约束', () => {
@@ -19,16 +20,35 @@ describe('内容库预览与类型约束', () => {
     expect(resources.contents.editPreview).toBeUndefined()
   })
 
-  it('文本隐藏并清空素材，图文视频和混合内容显示素材选择器', () => {
+  it('文本隐藏并清空素材，图片视频和混合内容显示素材选择器', () => {
     const createMaterialField = resources.contents.createFields?.find((field) => field.key === 'material_asset_ids')
     const editMaterialField = resources.contents.updateFields?.find((field) => field.key === 'material_asset_ids')
     const createTextField = resources.contents.createFields?.find((field) => field.key === 'text_body')
+    const editTextField = resources.contents.updateFields?.find((field) => field.key === 'text_body')
 
     expect(createMaterialField?.visibleWhen?.value).toEqual(['image', 'video', 'mixed'])
     expect(createMaterialField?.requiredWhen?.value).toEqual(['image', 'video', 'mixed'])
     expect(createMaterialField?.clearWhenHidden).toBe(true)
     expect(editMaterialField?.clearWhenHidden).toBe(true)
-    expect(createTextField?.requiredWhen?.value).toEqual(['text', 'image', 'video'])
+    expect(createTextField?.requiredWhen?.value).toEqual(['text'])
+    expect(editTextField?.requiredWhen?.value).toEqual(['text'])
+  })
+
+  it.each(['image', 'video'])('%s 内容创建可省略正文，编辑可以明确清空正文', (contentType) => {
+    const createFields = resources.contents.createFields!
+    const createState = buildFormState(createFields)
+    Object.assign(createState, { content_type: contentType, title: '媒体内容', material_asset_ids: ['asset-1'] })
+    expect(buildPayload(createFields, createState, 'create')).toMatchObject({
+      content_type: contentType, material_asset_ids: ['asset-1'],
+    })
+    expect(buildPayload(createFields, createState, 'create')).not.toHaveProperty('text_body')
+
+    const editFields = resources.contents.updateFields!
+    const editState = buildFormState(editFields, { ...createState, text_body: '原有正文' })
+    editState.text_body = ''
+    expect(buildPayload(editFields, editState, 'update')).toMatchObject({
+      content_type: contentType, material_asset_ids: ['asset-1'], text_body: '',
+    })
   })
 
   it('视频只能选择一个视频，混合内容可选择图片和视频', () => {

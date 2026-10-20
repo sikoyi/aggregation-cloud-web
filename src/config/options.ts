@@ -383,7 +383,7 @@ export const proxyUsageStatusFilterOptions: SelectOption[] = [
 
 export const contentTypeOptions: SelectOption[] = [
   { label: '文本内容', value: 'text' },
-  { label: '图文内容', value: 'image' },
+  { label: '图片内容', value: 'image' },
   { label: '视频内容', value: 'video' },
   { label: '混合内容', value: 'mixed' },
 ]
