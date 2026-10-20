@@ -90,7 +90,12 @@ async function preflight() { detailPage.value = 1; await check() }
           </div>
           <el-pagination v-if="result.selected_count > 20" v-model:current-page="detailPage" :page-size="20" :total="result.selected_count" layout="total, prev, pager, next" />
           <div class="export-preflight__confirm">
-            <el-checkbox v-model="acknowledgeLock" :disabled="busy || !allowed || !result.can_submit">确认 Instagram / Threads 按完整登录身份导出，包含全部关联平台；导出将锁定整个身份，不能重复导出或再次上号。</el-checkbox>
+            <el-alert class="export-preflight__lock-warning" type="warning" show-icon :closable="false">
+              <template #title>导出后将锁定整个登录身份</template>
+              <p>Instagram / Threads 按完整登录身份导出，包含全部关联平台。</p>
+              <strong>导出后不能重复导出，也不能再次上号。</strong>
+            </el-alert>
+            <el-checkbox v-model="acknowledgeLock" :disabled="busy || !allowed || !result.can_submit">我已知晓并确认导出后的身份锁定限制</el-checkbox>
             <el-checkbox v-if="result.email_check === 'unverified'" v-model="acknowledgeEmail" :disabled="busy || !allowed || !result.can_submit">已知邮箱尚未验证，正式提交仍可能因邮箱资料或验证记录缺失而失败。</el-checkbox>
           </div>
         </template>
@@ -119,6 +124,11 @@ async function preflight() { detailPage.value = 1; await check() }
 .export-preflight__blocking { color: var(--el-color-danger-dark-2); }
 .export-preflight__warning { color: var(--el-color-warning-dark-2); }
 .export-preflight__confirm { display: grid; gap: 8px; margin-top: 16px; }
+.export-preflight__confirm .export-preflight__lock-warning { margin-bottom: 0; padding: 14px 16px; border: 1px solid var(--el-color-warning); }
+.export-preflight__lock-warning :deep(.el-alert__title) { font-size: 16px; font-weight: 700; line-height: 1.5; color: var(--el-text-color-primary); }
+.export-preflight__lock-warning :deep(.el-alert__description) { margin-top: 6px; font-size: 14px; line-height: 1.7; color: var(--el-text-color-primary); overflow-wrap: anywhere; }
+.export-preflight__lock-warning p { margin: 0 0 4px; }
+.export-preflight__lock-warning strong { font-weight: 700; }
 .export-preflight__confirm .el-checkbox { height: auto; align-items: flex-start; margin-right: 0; }
 .export-preflight__confirm :deep(.el-checkbox__input) { margin-top: 4px; }
 .export-preflight__confirm :deep(.el-checkbox__label) { white-space: normal; line-height: 1.6; }
