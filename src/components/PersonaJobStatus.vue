@@ -14,12 +14,13 @@ let request: { id: string; key: string } | undefined
 let disposed = false
 onBeforeUnmount(() => { disposed = true })
 async function resume() {
-  if (busy.value || !props.canResume || props.job.status !== 'failed' || props.job.budget?.blocked_reason) return
+  if (busy.value || !props.canResume || props.job.status !== 'failed') return
   busy.value = true
   error.value = ''
   const job = props.job
   try {
-    try { await ElMessageBox.confirm('继续原任务的未完成阶段？保留已完成批次与累计用量，可能产生额外 AI 费用，不会自动发布。', '从断点继续', { confirmButtonText: '继续分析', cancelButtonText: '取消' }) }
+    const increment = job.budget?.resume_token_increment ?? 1000000
+    try { await ElMessageBox.confirm(`继续原任务的未完成阶段，并追加 ${increment.toLocaleString()} Token 额度？已完成批次与累计用量会保留，可能产生额外 AI 费用，不会自动发布。`, '从断点继续', { confirmButtonText: '继续分析', cancelButtonText: '取消' }) }
     catch { return }
     if (disposed || props.job.id !== job.id) return
     if (request?.id !== job.id) request = { id: job.id, key: crypto.randomUUID() }
@@ -35,16 +36,15 @@ async function resume() {
   <section class="job-health">
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div class="budget-row" v-if="job.budget">
-      <span>已报告费用 ¥{{ job.budget.known_cny.toFixed(2) }} / ¥{{ job.budget.limit_cny }}</span>
-      <span>费用未确认 {{ job.budget.unknown_cost_calls }} 次</span>
-      <span>调用保护计数 {{ job.budget.calls }} / {{ job.budget.max_calls }}</span>
-      <el-tooltip content="未返回 Token 的调用按保护额度计入；仅累计上游明确返回的人民币费用，非最终账单">
+      <span v-if="(job.budget.known_cost_calls ?? job.budget.calls - job.budget.unknown_cost_calls) > 0">上游已报告费用 ¥{{ job.budget.known_cny.toFixed(2) }}</span>
+      <span v-else>上游未提供可确认的人民币费用</span>
+      <el-tooltip content="未返回 Token 的调用按保护额度计入；费用仅供查看，不作为停止条件">
         <span>Token 保护计数 {{ job.budget.tokens.toLocaleString() }} / {{ job.budget.max_tokens.toLocaleString() }}</span>
       </el-tooltip>
     </div>
     <el-alert v-if="job.budget?.legacy_unknown_calls" :title="`历史未确认处理 ${job.budget.legacy_unknown_calls} 次，已按保护额度计入，并非实际账单`" type="info" :closable="false" />
     <el-alert v-if="job.budget?.blocked_reason" :title="`${job.budget.blocked_reason}，已保留断点`" type="warning" :closable="false" />
-    <el-button v-if="canResume && job.status === 'failed'" :icon="Play" :loading="busy" :disabled="!!job.budget?.blocked_reason" @click="resume">从断点继续</el-button>
+    <el-button v-if="canResume && job.status === 'failed'" :icon="Play" :loading="busy" @click="resume">从断点继续</el-button>
     <el-table v-if="metrics.length" :data="metrics" size="small">
       <el-table-column prop="stage" label="阶段" min-width="160" />
       <el-table-column prop="attempts" label="次数" width="65" />

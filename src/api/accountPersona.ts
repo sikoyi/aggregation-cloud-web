@@ -12,7 +12,7 @@ export interface PersonaAnalysis {
   sample_count?: number; available_posts?: number
 }
 export interface PersonaJob {
-  budget?: { limit_cny: number; known_cny: number; unknown_cost_calls: number; calls: number; max_calls: number; tokens: number; max_tokens: number; blocked_reason: string; legacy_unknown_calls?: number }
+  budget?: { limit_cny: number | null; known_cny: number; known_cost_calls?: number; unknown_cost_calls: number; calls: number; max_calls: number | null; tokens: number; max_tokens: number; resume_token_increment?: number; blocked_reason: string; legacy_unknown_calls?: number }
   target_account_id?: string
   target_account?: { id: string; name: string; platform: string }
   id: string; account_id: string; post_id: string | null; persona_id: string | null
