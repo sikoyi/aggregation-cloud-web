@@ -192,6 +192,7 @@ defineExpose({ loadRows })
         <el-table-column prop="password" label="密码" min-width="180" show-overflow-tooltip />
         <el-table-column prop="twofa" label="2FA" min-width="220" show-overflow-tooltip />
         <el-table-column v-if="previewRows.some(row => 'profile_url' in row)" prop="profile_url" label="主页链接" min-width="230" show-overflow-tooltip />
+        <el-table-column v-if="previewRows.some(row => 'environment_names' in row)" prop="environment_names" label="环境名称" min-width="220" show-overflow-tooltip />
         <template v-for="column in platformColumns" :key="column.account">
           <el-table-column :prop="column.account" :label="`${column.label} 账号`" min-width="200" show-overflow-tooltip />
           <el-table-column :prop="column.profile" :label="`${column.label} 主页`" min-width="230" show-overflow-tooltip />
