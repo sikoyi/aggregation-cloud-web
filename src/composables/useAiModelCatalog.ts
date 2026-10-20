@@ -9,6 +9,7 @@ export interface AiModelOption {
 }
 
 export interface AiModelTest {
+  mode?: 'text' | 'vision'
   model: string
   sample_content: string
   checked_at: string
@@ -28,9 +29,12 @@ export function useAiModelCatalog(connection: () => { endpoint: string; api_key:
   const models = ref<AiModelOption[] | null>(null)
   const loading = ref(false)
   const testing = ref('')
+  const testingMode = ref<'text' | 'vision'>('text')
   const error = ref('')
   const tests = ref<Record<string, AiModelTest>>({})
   const testErrors = ref<Record<string, string>>({})
+  const visionTests = ref<Record<string, AiModelTest>>({})
+  const visionTestErrors = ref<Record<string, string>>({})
   let revision = 0
   const context = computed(connection)
   function reset() {
@@ -38,9 +42,12 @@ export function useAiModelCatalog(connection: () => { endpoint: string; api_key:
     models.value = null
     loading.value = false
     testing.value = ''
+    testingMode.value = 'text'
     error.value = ''
     tests.value = {}
     testErrors.value = {}
+    visionTests.value = {}
+    visionTestErrors.value = {}
   }
   watch(context, reset, { deep: true, flush: 'sync' })
   onScopeDispose(() => { revision++ })
@@ -63,21 +70,25 @@ export function useAiModelCatalog(connection: () => { endpoint: string; api_key:
       if (version === revision) loading.value = false
     }
   }
-  async function testModel(model: string) {
+  async function testModel(model: string, mode: 'text' | 'vision' = 'text') {
     if (!model || testing.value) return
     const version = revision
     const { endpoint, body } = requestContext()
     testing.value = model
-    delete tests.value[model]
-    delete testErrors.value[model]
+    testingMode.value = mode
+    const results = mode === 'vision' ? visionTests : tests
+    const errors = mode === 'vision' ? visionTestErrors : testErrors
+    delete results.value[model]
+    delete errors.value[model]
     try {
-      const result = await http.post<AiModelTest>(`${endpoint}/test`, { ...body, model })
-      if (version === revision) tests.value[model] = result
+      const result = await http.post<AiModelTest>(`${endpoint}/test`, { ...body, model, ...(mode === 'vision' ? { mode } : {}) })
+      if (mode === 'vision' && result.mode !== 'vision') throw new Error('服务未返回图文验证结果，请确认后端已更新')
+      if (version === revision) results.value[model] = result
     } catch (err) {
-      if (version === revision) testErrors.value[model] = err instanceof Error ? err.message : '模型测试失败'
+      if (version === revision) errors.value[model] = err instanceof Error ? err.message : '模型测试失败'
     } finally {
       if (version === revision) testing.value = ''
     }
   }
-  return { models, loading, error, testing, tests, testErrors, fetchModels, testModel }
+  return { models, loading, error, testing, testingMode, tests, testErrors, visionTests, visionTestErrors, fetchModels, testModel }
 }

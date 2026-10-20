@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { CheckCircle2, CircleDollarSign, PlugZap, RefreshCw, Save } from 'lucide-vue-next'
-import { ElNotification } from 'element-plus'
+import { CheckCircle2, CircleDollarSign, Image as ImageIcon, PlugZap, RefreshCw, Save } from 'lucide-vue-next'
+import { ElMessageBox, ElNotification } from 'element-plus'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
@@ -109,6 +109,7 @@ const loading = ref(false)
 const saving = ref(false)
 const usageLoading = ref(false)
 const initialized = ref(false)
+const visionConfirming = ref(false)
 const configs = ref<ProviderConfig[]>([])
 const usage = ref<UsageSummary | null>(null)
 const keyConfigured = ref(false)
@@ -125,9 +126,33 @@ const form = reactive({
 })
 
 const { models, loading: modelsLoading, error: modelsError, testing: testingModel,
-  tests: modelTests, testErrors: modelTestErrors, fetchModels, testModel: testConnection } = useAiModelCatalog(() => ({
+  testingMode, tests: modelTests, testErrors: modelTestErrors, visionTests, visionTestErrors,
+  fetchModels, testModel: testConnection } = useAiModelCatalog(() => ({
   endpoint: activeEndpoint.value, api_key: form.api_key, base_url: form.base_url,
 }))
+const probeBusy = computed(() => Boolean(testingModel.value) || visionConfirming.value || loading.value || saving.value)
+const modelChecks = computed(() => [...new Set([form.primary_model, form.fallback_model])].flatMap(model => [
+  { key: `${model}:text`, model, label: '文本连接', result: modelTests.value[model], error: modelTestErrors.value[model] },
+  { key: `${model}:vision`, model, label: '图文识别', result: visionTests.value[model], error: visionTestErrors.value[model] },
+]).filter(check => check.result || check.error))
+
+async function testVision(model: string) {
+  if (!model || probeBusy.value) return
+  const context = JSON.stringify([activeEndpoint.value, form.api_key, form.base_url])
+  visionConfirming.value = true
+  try {
+    await ElMessageBox.confirm(`使用 ${model} 发送一次合成图片请求，按上游实际用量计费。是否继续？`, '图文能力验证', {
+      confirmButtonText: '开始验证', cancelButtonText: '取消', type: 'warning',
+    })
+    if (context !== JSON.stringify([activeEndpoint.value, form.api_key, form.base_url])
+      || ![form.primary_model, form.fallback_model].includes(model)) return
+    await testConnection(model, 'vision')
+  } catch {
+    // Cancellation sends no request; connection errors are shown alongside the model.
+  } finally {
+    visionConfirming.value = false
+  }
+}
 const modelOptions = computed(() => {
   const available = models.value === null
     ? providerSpec.value.models.map((item) => ({ label: item.label, value: item.value as string }))
@@ -432,9 +457,10 @@ watch(source, () => {
             </el-option>
           </el-select>
           <div class="model-price">{{ modelPrice(models?.find(item => item.id === form.primary_model)) }}</div>
-          <el-button text type="primary" :icon="PlugZap" :disabled="Boolean(testingModel) || loading" :loading="testingModel === form.primary_model" @click="testConnection(form.primary_model)">
-            最小测试主模型
-          </el-button>
+          <div class="model-probes">
+            <el-button text type="primary" :icon="PlugZap" :disabled="probeBusy" :loading="testingModel === form.primary_model && testingMode === 'text'" @click="testConnection(form.primary_model)">文本连接</el-button>
+            <el-button text type="primary" :icon="ImageIcon" :disabled="probeBusy" :loading="testingModel === form.primary_model && testingMode === 'vision'" @click="testVision(form.primary_model)">图文验证</el-button>
+          </div>
         </el-form-item>
 
         <el-form-item label="兜底模型">
@@ -445,16 +471,18 @@ watch(source, () => {
             </el-option>
           </el-select>
           <div class="model-price">{{ modelPrice(models?.find(item => item.id === form.fallback_model)) }}</div>
-          <el-button text type="primary" :icon="PlugZap" :disabled="Boolean(testingModel) || loading" :loading="testingModel === form.fallback_model" @click="testConnection(form.fallback_model)">
-            最小测试兜底模型
-          </el-button>
+          <div class="model-probes">
+            <el-button text type="primary" :icon="PlugZap" :disabled="probeBusy" :loading="testingModel === form.fallback_model && testingMode === 'text'" @click="testConnection(form.fallback_model)">文本连接</el-button>
+            <el-button text type="primary" :icon="ImageIcon" :disabled="probeBusy" :loading="testingModel === form.fallback_model && testingMode === 'vision'" @click="testVision(form.fallback_model)">图文验证</el-button>
+          </div>
         </el-form-item>
-        <div v-for="model in [...new Set([form.primary_model, form.fallback_model])]" :key="model" class="config-grid__full model-result">
-          <el-alert v-if="modelTestErrors[model]" type="error" :closable="false" :title="`${model}：${modelTestErrors[model]}`" show-icon />
-          <template v-else-if="modelTests[model]">
-            <strong>{{ model }} · 测试成功</strong>
-            <span>输入 {{ modelTests[model].input_tokens ?? '未返回' }} / 输出 {{ modelTests[model].output_tokens ?? '未返回' }} / 合计 {{ modelTests[model].total_tokens ?? '未返回' }} Token</span>
-            <span>本次费用：{{ modelTests[model].cost != null && modelTests[model].currency ? `${modelTests[model].currency} ${modelTests[model].cost}` : '未返回' }}</span>
+        <div v-for="check in modelChecks" :key="check.key" class="config-grid__full model-result">
+          <el-alert v-if="check.error" type="error" :closable="false" :title="`${check.model} · ${check.label}：${check.error}`" show-icon />
+          <template v-else-if="check.result">
+            <strong>{{ check.model }} · {{ check.label }}通过</strong>
+            <span>{{ formatDate(check.result.checked_at) }}</span>
+            <span>输入 {{ check.result.input_tokens ?? '未返回' }} / 输出 {{ check.result.output_tokens ?? '未返回' }} / 合计 {{ check.result.total_tokens ?? '未返回' }} Token</span>
+            <span>本次费用：{{ check.result.cost != null && check.result.currency ? `${check.result.currency} ${check.result.cost}` : '未返回' }}</span>
           </template>
         </div>
       </div>
@@ -530,6 +558,8 @@ watch(source, () => {
 .model-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 4px 0 16px; }
 .model-toolbar span, .model-price, .model-result { color: var(--app-text-muted, #718096); font-size: 12px; }
 .model-price { width: 100%; overflow-wrap: anywhere; line-height: 1.6; margin-top: 6px; }
+.model-probes { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.model-probes :deep(.el-button + .el-button) { margin-left: 0; }
 .model-option-price { margin-left: 12px; color: var(--app-text-muted, #718096); font-weight: 400; }
 .model-result { display: flex; flex-wrap: wrap; gap: 8px 16px; overflow-wrap: anywhere; }
 .model-result:has(strong) { padding: 8px 0; }
