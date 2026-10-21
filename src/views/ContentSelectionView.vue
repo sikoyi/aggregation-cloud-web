@@ -12,6 +12,7 @@ import { formatDate } from '@/utils/format'
 import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from '@/utils/contentSelection'
 import type { AnyRecord } from '@/types/api'
 import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
+import ExternalAccountTagSelect from '@/components/ExternalAccountTagSelect.vue'
 import PersonaCreationPanel from '@/components/PersonaCreationPanel.vue'
 import { parseSelectionMarks, selectionDateRange, selectionMarkQuery, selectionStorageKey, type SelectionMarks } from '@/utils/selectionLocalState'
 
@@ -96,15 +97,26 @@ watch(loadMoreAnchor, element => {
 watch(() => auth.user?.id, () => { storageKey.value = ''; marks.value = { read: [], saved: [] } })
 const countryOrder = ref<string[]>([])
 const tagOrder = ref<string[]>([])
+const configuredTags = ref<{ id: string; name: string }[]>([])
 function orderIndex(order: string[], value: string) { const index = order.indexOf(value); return index < 0 ? Number.MAX_SAFE_INTEGER : index }
-const sourceCountries = computed(() => [...new Set(sources.value.map(item => item.country).filter((value): value is string => !!value))]
+const sourceCountries = computed(() => [...new Set([...countryOrder.value, ...sources.value.map(item => item.country).filter((value): value is string => !!value)])]
   .sort((a, b) => orderIndex(countryOrder.value, a) - orderIndex(countryOrder.value, b)))
-const sourceTags = computed(() => [...new Map(sources.value.flatMap(item => item.tags || []).map(tag => [tag.id, tag])).values()]
+const sourceTags = computed(() => [...new Map([...sources.value.flatMap(item => item.tags || []), ...configuredTags.value].map(tag => [tag.id, tag])).values()]
   .sort((a, b) => orderIndex(tagOrder.value, a.id) - orderIndex(tagOrder.value, b.id)))
-const filters = reactive({ country: '', tag_id: '', platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
-const hasFilters = computed(() => !!(filters.country || filters.tag_id || reading.value !== 'all' || hideRead.value || filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
+const filters = reactive({ countries: [] as string[], tag_ids: [] as string[], country_unset: false, untagged: false, platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
+const hasFilters = computed(() => !!(filters.countries.length || filters.tag_ids.length || filters.country_unset || filters.untagged || reading.value !== 'all' || hideRead.value || filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
+function filterCountries(values: string[] = [], unset = false) {
+  filters.countries = unset ? [] : values
+  filters.country_unset = unset
+  void refresh(true)
+}
+function filterTags(values: string[] = [], unset = false) {
+  filters.tag_ids = unset ? [] : values
+  filters.untagged = unset
+  void refresh(true)
+}
 function resetFilters() {
-  Object.assign(filters, { country: '', tag_id: '', platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined, min_comments: undefined, sort_by: 'published_at' })
+  Object.assign(filters, { countries: [], tag_ids: [], country_unset: false, untagged: false, platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined, min_comments: undefined, sort_by: 'published_at' })
   dates.value = null
   reading.value = 'all'
   hideRead.value = false
@@ -289,10 +301,11 @@ onMounted(async () => {
   try {
     const [countries, tags] = await Promise.all([
       http.get<{ countries: string[] }>('/api/external-account-monitors/country-options'),
-      http.get<{ id: string }[]>('/api/external-account-monitors/tags'),
+      http.get<{ id: string; name: string }[]>('/api/external-account-monitors/tags'),
     ])
     countryOrder.value = countries.countries
     tagOrder.value = tags.map(tag => tag.id)
+    configuredTags.value = tags
   } catch (e) { showError(e) }
   if (typeof route.query.order_id === 'string') await openOrder(route.query.order_id)
 })
@@ -321,13 +334,21 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
         <el-input v-model="filters.keyword" placeholder="正文 / 作者" clearable @keyup.enter="refresh(true)" @clear="refresh(true)" />
         <el-button :icon="Search" type="primary" :loading="loading" @click="refresh(true)">查询</el-button>
       </div>
+      <el-form class="selection-option-filters" label-width="72px" @submit.prevent>
+        <el-form-item label="国家"><div class="selection-option-filter" role="group" aria-label="国家筛选">
+          <div><el-check-tag :checked="!filters.countries.length && !filters.country_unset" @change="filterCountries()">全部</el-check-tag><el-checkbox :model-value="filters.country_unset" @change="filterCountries([], Boolean($event))">未设置国家</el-checkbox></div>
+          <ExternalAccountTagSelect v-if="sourceCountries.length" :model-value="filters.countries" label="选题国家筛选" :options="sourceCountries.map(country => ({ value: country, label: country }))" @update:model-value="filterCountries($event)" />
+        </div></el-form-item>
+        <el-form-item label="账号标签"><div class="selection-option-filter" role="group" aria-label="账号标签筛选">
+          <div><el-check-tag :checked="!filters.tag_ids.length && !filters.untagged" @change="filterTags()">全部</el-check-tag><el-checkbox :model-value="filters.untagged" @change="filterTags([], Boolean($event))">未设置标签</el-checkbox></div>
+          <ExternalAccountTagSelect :model-value="filters.tag_ids" label="选题账号标签筛选" :options="sourceTags.map(tag => ({ value: tag.id, label: tag.name }))" @update:model-value="filterTags($event)" />
+        </div></el-form-item>
+      </el-form>
       <el-form v-show="expandedFilters" class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
         <div class="filter-grid">
       <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
       <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="`${item.profile?.display_name || sourceUsername(item)} · @${sourceUsername(item)}${item.remark ? ' · ' + item.remark : ''}`" /></el-select></el-form-item>
       <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
-      <el-form-item label="来源国家"><el-select v-model="filters.country" clearable filterable placeholder="全部"><el-option v-for="country in sourceCountries" :key="country" :label="country" :value="country" /></el-select></el-form-item>
-      <el-form-item label="账号标签"><el-select v-model="filters.tag_id" clearable filterable placeholder="全部"><el-option v-for="tag in sourceTags" :key="tag.id" :label="tag.name" :value="tag.id" /></el-select></el-form-item>
       <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" @change="quickTime = dates ? 'custom' : ''" /></el-form-item>
       <el-form-item label="最低点赞"><el-input-number v-model="filters.min_likes" :min="0" controls-position="right" /></el-form-item>
       <el-form-item label="最低评论"><el-input-number v-model="filters.min_comments" :min="0" controls-position="right" /></el-form-item>
@@ -528,6 +549,11 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .filter-title .el-button { margin-left: auto; }
 footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; flex-wrap: wrap; }
 footer > span > span { display: inline-flex; align-items: center; gap: 6px; }
+.selection-option-filters { margin-top: 12px; }
+.selection-option-filters :deep(.el-form-item) { margin-bottom: 12px; }
+.selection-option-filters :deep(.el-form-item__content) { min-width: 0; }
+.selection-option-filter { width: 100%; }
+.selection-option-filter > div:first-child { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
 .selection-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .selection-pagination--main { padding: 14px 16px; border: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }
 .editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; max-height: 65vh; overflow-y: auto; }
