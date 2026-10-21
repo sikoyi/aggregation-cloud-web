@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
+import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, Eye, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
 import { contentSelection, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
 import { http } from '@/api/http'
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
@@ -352,7 +352,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
               <el-image v-else :src="safeSelectionLink(url)" loading="lazy" fit="contain" :preview-src-list="post.media.filter(item => !selectionIsVideo(item)).map(item => safeSelectionLink(item))" :initial-index="post.media.slice(0, mediaIndex).filter(item => !selectionIsVideo(item)).length" preview-teleported><template #error>媒体暂不可用</template></el-image>
             </div></div>
             <small>{{ post.published_at ? formatDate(post.published_at) : '发布时间未知' }}<span v-if="post.media.length"> · {{ post.media.length }} 项媒体</span></small>
-            <footer><span><Heart :size="15" />{{ post.likes_count ?? '未知' }}<MessageCircle :size="15" />{{ post.comments_count ?? '未知' }}</span>
+            <footer><span><Eye :size="15" aria-label="浏览量" />浏览 {{ post.views_count == null ? '未知' : post.views_count.toLocaleString('zh-CN') }}<Heart :size="15" />{{ post.likes_count ?? '未知' }}<MessageCircle :size="15" />{{ post.comments_count ?? '未知' }}</span>
               <el-button @click="openPost(post)">查看选题<ExternalLink :size="14" /></el-button></footer>
           </article>
         </div>
@@ -522,7 +522,7 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .feed-controls .el-input { width: 220px; max-width: 100%; }
 .feed-controls + .el-form { margin-top: 16px; }
 .filter-title .el-button { margin-left: auto; }
-footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; }
+footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; flex-wrap: wrap; }
 .selection-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .selection-pagination--main { padding: 14px 16px; border: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }
 .editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; max-height: 65vh; overflow-y: auto; }

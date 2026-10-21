@@ -20,6 +20,7 @@ export interface SelectionPost {
   updated_at: string
   likes_count: number | null
   comments_count: number | null
+  views_count: number | null
 }
 export interface SelectionSource {
   external_monitor_id?: string | null
