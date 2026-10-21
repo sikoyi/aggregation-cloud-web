@@ -1,4 +1,5 @@
 import type { ApiResponse, AnyRecord, PageResult } from '@/types/api'
+import { deploymentBlocksWrites, deploymentState, deploymentWriteMessage, markDeploymentMaintenance } from '@/stores/deployment'
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL
@@ -58,6 +59,9 @@ async function request<T>(
   path: string,
   options: { params?: AnyRecord; body?: unknown; auth?: boolean; signal?: AbortSignal; responseType?: 'file'; cache?: RequestCache } = {},
 ) {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && deploymentBlocksWrites()) {
+    throw new ApiError(deploymentWriteMessage(), 503, undefined, { reason: 'deployment_draining' })
+  }
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: HeadersInit = {
     Accept: options.responseType === 'file' ? 'text/plain, application/json' : 'application/json',
@@ -67,13 +71,21 @@ async function request<T>(
   const body: BodyInit | undefined =
     options.body === undefined ? undefined : isFormData ? (options.body as FormData) : JSON.stringify(options.body)
 
-  const response = await fetch(buildUrl(path, options.params), {
-    method,
-    headers,
-    body,
-    signal: options.signal,
-    cache: options.cache,
-  })
+  let response: Response
+  try {
+    response = await fetch(buildUrl(path, options.params), {
+      method,
+      headers,
+      body,
+      signal: options.signal,
+      cache: options.cache,
+    })
+  } catch (error) {
+    if (deploymentState.maintenance && !options.signal?.aborted) {
+      throw new ApiError(deploymentWriteMessage(), 503)
+    }
+    throw error
+  }
   const disposition = response.headers.get('Content-Disposition') || ''
   const isFile = disposition.toLowerCase().includes('attachment')
     || response.headers.get('Content-Type')?.startsWith('text/plain')
@@ -87,6 +99,9 @@ async function request<T>(
     return { blob: await response.blob(), filename } as T
   }
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
+  if ((payload?.data as { reason?: string } | null)?.reason === 'deployment_draining') {
+    markDeploymentMaintenance()
+  }
   if (!response.ok || !payload || payload.code !== 0 || options.responseType === 'file') {
     const error = new ApiError(
       options.responseType === 'file' && response.ok && (!payload || payload.code === 0)
@@ -96,8 +111,11 @@ async function request<T>(
       payload?.code,
       payload?.data,
     )
-    if (response.status === 401 && token() && !path.includes('/api/auth/login')) {
+    if (response.status === 401 && token() && !path.includes('/api/auth/login') && !deploymentBlocksWrites()) {
       unauthorizedHandler?.(error)
+    }
+    if (deploymentState.maintenance && response.status >= 500) {
+      error.message = deploymentWriteMessage()
     }
     throw error
   }
