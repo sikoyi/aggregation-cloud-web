@@ -65,7 +65,7 @@ describe('监听关联账号提示', () => {
     expect(tags).toContain(':disabled="disabled"')
     expect(tags).toContain('overflow-wrap: anywhere')
     expect(external).toContain('v-model="filters.tag_ids" label="外部账号标签筛选"')
-    expect(external).toContain('v-model="form.tag_ids" label="账号标签"')
+    expect(external).toMatch(/<ExternalAccountTagEditor\s+v-model="form.tag_ids"/)
     expect(internal).toContain('<el-select v-model="filters.slot_group_id"')
   })
 })
