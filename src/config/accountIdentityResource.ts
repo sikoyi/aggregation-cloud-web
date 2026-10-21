@@ -60,42 +60,28 @@ function identityPlatformOnboardingAction(accounts: ResourceConfig): RowActionCo
     batchBody: (payload, records) => {
       const targetPlatform = String(payload.business_platform || '').trim()
       if (!targetPlatform) throw new Error('请选择本次上号的业务 App')
-      if (records.some((record) => record.filtered_business_platform && record.filtered_business_platform !== targetPlatform)) {
-        throw new Error('目标业务 App 与当前平台筛选不一致，请调整筛选后重新选择')
-      }
 
       const exportedCount = records.filter((record) => Boolean(record.credentials_exported_at)).length
       if (exportedCount) {
         throw new Error(`所选登录身份中有 ${exportedCount} 个已导出，不能再次上号`)
       }
 
-      const missingCount = records.filter((record) => (
-        !matchedPlatformSummaries(record).some(
-          (summary: AnyRecord) => String(summary?.business_platform || '') === targetPlatform,
-        )
-      )).length
-      if (missingCount) {
-        const platformLabel = businessPlatformOptions.find((option) => option.value === targetPlatform)?.label
-          || targetPlatform
-        throw new Error(`所选登录身份中有 ${missingCount} 个没有 ${platformLabel} 平台账号，请调整选择后重试`)
-      }
-
       const seen = new Set<string>()
       const accountRows: AnyRecord[] = []
       for (const record of records) {
-        for (const summary of matchedPlatformSummaries(record)) {
-          if (String(summary?.business_platform || '') !== targetPlatform) continue
-          const id = String(summary?.account_id || '').trim()
-          if (!id || seen.has(id)) continue
-          seen.add(id)
-          accountRows.push({
-            id,
-            business_platform: targetPlatform,
-            credentials_exported_at: record.credentials_exported_at,
-          })
-        }
+        const summaries = matchedPlatformSummaries(record)
+        const source = summaries.find((summary) => summary.business_platform === targetPlatform) || summaries[0]
+        const id = String(source?.account_id || '').trim()
+        if (!id) throw new Error('所选登录身份的账号范围已失效，请刷新后重新选择')
+        if (seen.has(id)) continue
+        seen.add(id)
+        accountRows.push({
+          id,
+          business_platform: targetPlatform,
+          credentials_exported_at: record.credentials_exported_at,
+        })
       }
-      return action.batchBody!(payload, accountRows)
+      return { ...(action.batchBody!(payload, accountRows) as AnyRecord), resolve_identity_platform: true }
     },
   }
 }

@@ -48,7 +48,7 @@ describe('account identity resource', () => {
     }
     expect(records[0].platform_summaries).toHaveLength(2)
     const onboarding = config.batchActions?.find((action) => action.key === 'batch-account-onboarding')
-    expect(() => onboarding?.batchBody?.({ business_platform: 'instagram' }, records)).toThrow('当前平台筛选不一致')
+    expect(() => onboarding?.batchBody?.({ business_platform: 'instagram' }, records)).not.toThrow()
     expect(crudSource).toContain(':business-platform="row.filtered_business_platform || undefined"')
     expect(platformDetailsSource).toContain('business_platform: props.businessPlatform')
   })
@@ -177,6 +177,7 @@ describe('account identity resource', () => {
       proxy_allocation_mode: 'none',
     }, selectedIdentities)).toEqual({
       account_ids: ['threads-1', 'threads-2'],
+      resolve_identity_platform: true,
       business_platform: 'threads',
       provider: 'morelogin',
       target_runtime_instance_id: 'runtime-1',
@@ -185,9 +186,9 @@ describe('account identity resource', () => {
       proxy_group_id: undefined,
       dynamic_proxy_id: undefined,
     })
-    expect(() => action?.batchBody?.({ business_platform: 'instagram' }, selectedIdentities)).toThrow(
-      '有 1 个没有 Instagram 平台账号',
-    )
+    expect(action?.batchBody?.({ business_platform: 'instagram' }, selectedIdentities)).toMatchObject({
+      account_ids: ['instagram-1', 'threads-2'], business_platform: 'instagram', resolve_identity_platform: true,
+    })
     expect(() => action?.batchBody?.({ business_platform: 'threads' }, [
       { ...selectedIdentities[0], credentials_exported_at: '2026-09-05T08:00:00Z' },
     ])).toThrow('有 1 个已导出')
