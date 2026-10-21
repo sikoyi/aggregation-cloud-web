@@ -12,7 +12,7 @@ import { formatDate } from '@/utils/format'
 import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from '@/utils/contentSelection'
 import type { AnyRecord } from '@/types/api'
 import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
-import ExternalAccountTagSelect from '@/components/ExternalAccountTagSelect.vue'
+import SelectionOptionFilter from '@/components/SelectionOptionFilter.vue'
 import PersonaCreationPanel from '@/components/PersonaCreationPanel.vue'
 import { parseSelectionMarks, selectionDateRange, selectionMarkQuery, selectionStorageKey, type SelectionMarks } from '@/utils/selectionLocalState'
 
@@ -335,14 +335,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
         <el-button :icon="Search" type="primary" :loading="loading" @click="refresh(true)">查询</el-button>
       </div>
       <el-form class="selection-option-filters" label-width="72px" @submit.prevent>
-        <el-form-item label="国家"><div class="selection-option-filter" role="group" aria-label="国家筛选">
-          <div><el-check-tag :checked="!filters.countries.length && !filters.country_unset" @change="filterCountries()">全部</el-check-tag><el-checkbox :model-value="filters.country_unset" @change="filterCountries([], Boolean($event))">未设置国家</el-checkbox></div>
-          <ExternalAccountTagSelect v-if="sourceCountries.length" :model-value="filters.countries" label="选题国家筛选" :options="sourceCountries.map(country => ({ value: country, label: country }))" @update:model-value="filterCountries($event)" />
-        </div></el-form-item>
-        <el-form-item label="账号标签"><div class="selection-option-filter" role="group" aria-label="账号标签筛选">
-          <div><el-check-tag :checked="!filters.tag_ids.length && !filters.untagged" @change="filterTags()">全部</el-check-tag><el-checkbox :model-value="filters.untagged" @change="filterTags([], Boolean($event))">未设置标签</el-checkbox></div>
-          <ExternalAccountTagSelect :model-value="filters.tag_ids" label="选题账号标签筛选" :options="sourceTags.map(tag => ({ value: tag.id, label: tag.name }))" @update:model-value="filterTags($event)" />
-        </div></el-form-item>
+        <el-form-item label="国家"><SelectionOptionFilter :model-value="filters.countries" :unset="filters.country_unset" unset-label="未设置国家" label="国家筛选" :options="sourceCountries.map(country => ({ value: country, label: country }))" @change="filterCountries" /></el-form-item>
+        <el-form-item label="账号标签"><SelectionOptionFilter :model-value="filters.tag_ids" :unset="filters.untagged" unset-label="未设置标签" label="账号标签筛选" :options="sourceTags.map(tag => ({ value: tag.id, label: tag.name }))" @change="filterTags" /></el-form-item>
       </el-form>
       <el-form v-show="expandedFilters" class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
         <div class="filter-grid">
@@ -552,8 +546,6 @@ footer > span > span { display: inline-flex; align-items: center; gap: 6px; }
 .selection-option-filters { margin-top: 12px; }
 .selection-option-filters :deep(.el-form-item) { margin-bottom: 12px; }
 .selection-option-filters :deep(.el-form-item__content) { min-width: 0; }
-.selection-option-filter { width: 100%; }
-.selection-option-filter > div:first-child { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
 .selection-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .selection-pagination--main { padding: 14px 16px; border: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }
 .editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; max-height: 65vh; overflow-y: auto; }
