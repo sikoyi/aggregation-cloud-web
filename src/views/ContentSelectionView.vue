@@ -129,12 +129,21 @@ const sourceForm = reactive({ business_platform: 'threads', profile_url: '', rem
 const selected = ref<SelectionPost | null>(null)
 const editVisible = ref(false)
 const editLoading = ref(false)
+const editError = ref('')
+const accountsLoading = ref(false)
+const accountsError = ref('')
+const historyError = ref('')
 const publishBusy = ref(false)
 const aiBusy = ref(false)
 const draft = reactive({ account_id: '', text_body: '', media_indexes: [] as number[], creation_job_id: undefined as string | undefined })
 watch(() => draft.account_id, () => { draft.creation_job_id = undefined })
 function applyCreation(text: string, jobId: string) { draft.text_body = text; draft.creation_job_id = jobId; editTab.value = 'content' }
 const accounts = ref<AnyRecord[]>([])
+const accountOptions = computed(() => accounts.value.map(account => ({
+  value: String(account.id),
+  label: `${account.display_name || account.username || account.login_username || ''} · @${account.username || ''} · ${label(String(account.business_platform))} · ID ${account.id}`,
+  avatar: safeSelectionLink(String(account.avatar_url || '')),
+})))
 const selectedAccount = computed(() => accounts.value.find(account => String(account.id) === draft.account_id))
 const previousOrders = ref<SelectionOrder[]>([])
 const previousTotal = ref(0)
@@ -212,11 +221,18 @@ async function openPost(post: SelectionPost) {
   const id = ++editRequestId
   selected.value = null
   previousOrders.value = []
+  previousTotal.value = 0
+  accounts.value = []
+  accountsError.value = ''
+  historyError.value = ''
+  editError.value = ''
   draft.account_id = ''
   draft.creation_job_id = undefined
   editVisible.value = true
   editLoading.value = true
   previousPage.value = 1
+  void loadPrevious(post.id)
+  void loadPublishAccounts()
   try {
     const current = await contentSelection.post(post.id)
     if (id !== editRequestId) return
@@ -224,35 +240,44 @@ async function openPost(post: SelectionPost) {
     setMark(current.id, 'read', true)
     draft.text_body = current.text_body
     draft.media_indexes = current.media.map((_, index) => index)
-    const history = await contentSelection.orders({ post_id: post.id, page: 1, page_size: 20 })
-    if (id !== editRequestId) return
-    previousOrders.value = history.items
-    previousTotal.value = history.total
-    if (auth.can('operations.dispatch') && auth.can('accounts.view')) {
-      const result = await loadAccountSelectionOptions({}, { associationOnly: true })
-      if (id === editRequestId) accounts.value = result.filter(a => ['threads', 'x', 'instagram'].includes(String(a.business_platform)) && a.bound_slot_id)
-    }
-  } catch (e) { if (id === editRequestId) showError(e) }
+  } catch (e) { if (id === editRequestId) editError.value = e instanceof Error ? e.message : '帖子加载失败，请关闭后重新打开' }
   finally { if (id === editRequestId) editLoading.value = false }
 }
-async function loadPrevious() {
+async function loadPublishAccounts() {
+  const id = editRequestId
+  accountsError.value = ''
+  if (!auth.can('operations.dispatch') || !auth.can('accounts.view')) {
+    accountsLoading.value = false
+    return
+  }
+  accountsLoading.value = true
+  try {
+    const result = await loadAccountSelectionOptions({}, { associationOnly: true })
+    if (id === editRequestId) accounts.value = result.filter(a => ['threads', 'x', 'instagram'].includes(String(a.business_platform)) && a.bound_slot_id)
+  } catch (e) {
+    if (id === editRequestId) accountsError.value = e instanceof Error ? e.message : '发布账号加载失败'
+  } finally { if (id === editRequestId) accountsLoading.value = false }
+}
+async function loadPrevious(postId = selected.value?.id) {
   const id = editRequestId
   const request = ++historyRequestId
-  if (!selected.value) return
+  if (!postId) return
   historyLoading.value = true
+  historyError.value = ''
   try {
-    const result = await contentSelection.orders({ post_id: selected.value.id, page: previousPage.value, page_size: 20 })
+    const result = await contentSelection.orders({ post_id: postId, page: previousPage.value, page_size: 20 })
     if (id === editRequestId && request === historyRequestId) {
       previousOrders.value = result.items
       previousTotal.value = result.total
     }
-  } catch (e) { if (id === editRequestId && request === historyRequestId) showError(e) }
+  } catch (e) { if (id === editRequestId && request === historyRequestId) historyError.value = e instanceof Error ? e.message : '发布记录加载失败' }
   finally { if (id === editRequestId && request === historyRequestId) historyLoading.value = false }
 }
 async function publish() {
-  if (!selected.value || !draft.account_id || publishBusy.value || aiBusy.value) return
+  if (!selected.value || !draft.account_id || publishBusy.value || aiBusy.value || editLoading.value || accountsLoading.value || historyLoading.value || editError.value || accountsError.value || historyError.value || duplicate.value) return
+  const request = editRequestId
   try { await ElMessageBox.confirm('将发布到所选账号，确认提交？', '确认发布', { type: 'warning' }) } catch { return }
-  if (publishBusy.value || aiBusy.value || !selected.value) return
+  if (request !== editRequestId || publishBusy.value || aiBusy.value || !selected.value || historyLoading.value || historyError.value || duplicate.value) return
   publishBusy.value = true
   try {
     const order = await contentSelection.publish(selected.value.id, { ...draft, media_indexes: [...draft.media_indexes], source_revision: selected.value.updated_at })
@@ -409,21 +434,23 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
         <el-form-item label="增量采集间隔（分钟）"><el-input-number v-model="sourceForm.interval_minutes" :min="1" :max="1440" /></el-form-item></el-form>
       <template #footer><el-button :disabled="sourceBusy" @click="sourceVisible = false">取消</el-button><el-button type="primary" :loading="sourceBusy" @click="createSource">开始采集</el-button></template>
     </el-dialog>
-    <el-dialog v-model="editVisible" class="selection-publish-dialog" title="选题发布" width="1140px" align-center :close-on-click-modal="false" :close-on-press-escape="!publishBusy" :show-close="!publishBusy" @closed="editRequestId++">
-      <div v-loading="editLoading" class="publish-body" v-if="selected">
+    <el-dialog v-model="editVisible" class="selection-publish-dialog" title="选题发布" width="1140px" align-center :close-on-click-modal="false" :close-on-press-escape="!publishBusy" :show-close="!publishBusy" @close="editRequestId++; historyRequestId++">
+      <el-skeleton v-if="editLoading" :rows="8" animated />
+      <el-alert v-else-if="editError" :title="editError" type="error" :closable="false" />
+      <div class="publish-body" v-else-if="selected">
         <el-tabs v-model="editTab" class="publish-tabs">
           <el-tab-pane label="内容编辑" name="content" />
           <el-tab-pane v-if="auth.can('operations.dispatch')" :label="`创作记录（${creationTotal}）`" name="creation" />
           <el-tab-pane :label="`发布记录（${previousTotal}）`" name="history" />
         </el-tabs>
         <el-form v-show="editTab !== 'history'" class="publish-account" label-position="left" label-width="80px"><el-form-item label="发布账号" required>
-          <el-select v-model="draft.account_id" filterable :disabled="publishBusy || !auth.can('accounts.view')" placeholder="选择账号">
+          <el-select-v2 v-model="draft.account_id" :options="accountOptions" filterable :loading="accountsLoading" :disabled="publishBusy || accountsLoading || !auth.can('accounts.view')" placeholder="选择账号">
             <template #prefix><el-avatar :size="26" :src="safeSelectionLink(String(selectedAccount?.avatar_url || ''))"><UserRound :size="16" /></el-avatar></template>
-            <el-option v-for="account in accounts" :key="String(account.id)" :value="String(account.id)" :label="`${account.display_name || account.username} · @${account.username || ''} · ${label(String(account.business_platform))} · ID ${account.id}`">
-              <div class="account-option"><el-avatar :size="28" :src="safeSelectionLink(String(account.avatar_url || ''))"><UserRound :size="16" /></el-avatar><span>{{ account.display_name || account.username }} · @{{ account.username }} · {{ label(String(account.business_platform)) }} · ID {{ account.id }}</span></div>
-            </el-option>
-          </el-select>
+            <template #default="{ item }"><div class="account-option"><el-avatar :size="28" :src="item.avatar"><UserRound :size="16" /></el-avatar><span>{{ item.label }}</span></div></template>
+          </el-select-v2>
         </el-form-item></el-form>
+        <el-alert v-if="accountsError" :title="accountsError" type="error" :closable="false"><el-button :icon="RefreshCw" :loading="accountsLoading" @click="loadPublishAccounts">重试加载账号</el-button></el-alert>
+        <el-alert v-if="historyError" :title="historyError" type="error" :closable="false"><el-button :icon="RefreshCw" :loading="historyLoading" @click="loadPrevious()">重试加载发布记录</el-button></el-alert>
         <div v-show="editTab === 'content'">
         <el-alert v-if="duplicate" title="此账号已有发布工单，请查看原工单" type="warning" :closable="false" />
         <div class="publish-comparison">
@@ -457,10 +484,10 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
             <el-table-column label="提交时间" min-width="175"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
             <el-table-column label="操作" width="110" fixed="right"><template #default="{ row }"><el-button link type="primary" @click="openOrder(row.id)">查看工单</el-button></template></el-table-column>
           </el-table>
-          <div class="selection-pagination"><el-pagination v-model:current-page="previousPage" :total="previousTotal" :page-size="20" :pager-count="5" :disabled="historyLoading || editLoading" background layout="total, prev, pager, next" @current-change="loadPrevious" /></div>
+          <div class="selection-pagination"><el-pagination v-model:current-page="previousPage" :total="previousTotal" :page-size="20" :pager-count="5" :disabled="historyLoading || editLoading" background layout="total, prev, pager, next" @current-change="loadPrevious()" /></div>
         </div>
       </div>
-      <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || aiBusy || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
+      <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || accountsLoading || historyLoading || !!editError || !!accountsError || !!historyError || aiBusy || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
     </el-dialog>
     <el-dialog v-model="orderVisible" title="选题发布工单" width="980px" align-center :close-on-click-modal="false" @closed="detailRequestId++">
       <div v-loading="orderBusy" class="order-body" v-if="detail"><p class="order-id">工单 ID：{{ detail.id }}</p><p>{{ detail.account.display_name || detail.account.username }} · {{ label(detail.business_platform) }} · {{ selectionStatus[detail.status] || detail.status }}</p>
