@@ -9,7 +9,7 @@ import { loadAccountSelectionOptions } from '@/api/selectionOptions'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import { formatDate } from '@/utils/format'
-import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus } from '@/utils/contentSelection'
+import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus, selectionDisplayText } from '@/utils/contentSelection'
 import type { AnyRecord } from '@/types/api'
 import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
 import SelectionOptionFilter from '@/components/SelectionOptionFilter.vue'
@@ -401,8 +401,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
               <a :href="safeSelectionLink(post.author.profile_url)" target="_blank" rel="noopener noreferrer">{{ post.author.display_name || post.author.username }}</a>
               <small>{{ label(post.business_platform) }} · @{{ post.author.username }}</small>
             </div><div class="post-marks"><small v-if="readIds.has(post.id)">已读</small><el-tooltip :content="savedIds.has(post.id) ? '取消收藏' : '收藏'"><el-button :icon="Star" :type="savedIds.has(post.id) ? 'warning' : 'default'" :aria-label="savedIds.has(post.id) ? '取消收藏' : '收藏'" :aria-pressed="savedIds.has(post.id)" :disabled="!storageKey" circle @click="setMark(post.id, 'saved', !savedIds.has(post.id))" /></el-tooltip><el-tooltip v-if="readIds.has(post.id)" content="标为未读"><el-button :icon="Check" aria-label="标为未读" circle @click="setMark(post.id, 'read', false)" /></el-tooltip></div></header>
-            <p class="post-text">{{ expandedPosts.has(post.id) ? post.text_body : post.text_body.slice(0, 400).split('\n').slice(0, 8).join('\n') }}</p>
-            <el-button v-if="post.text_body.length > 400 || post.text_body.split('\n').length > 8" link type="primary" class="expand-post" @click="expandedPosts.has(post.id) ? expandedPosts.delete(post.id) : expandedPosts.add(post.id)">{{ expandedPosts.has(post.id) ? '收起正文' : '展开全文' }}</el-button>
+            <p class="post-text">{{ expandedPosts.has(post.id) ? selectionDisplayText(post) : selectionDisplayText(post).slice(0, 400).split('\n').slice(0, 8).join('\n') }}</p>
+            <el-button v-if="selectionDisplayText(post).length > 400 || selectionDisplayText(post).split('\n').length > 8" link type="primary" class="expand-post" @click="expandedPosts.has(post.id) ? expandedPosts.delete(post.id) : expandedPosts.add(post.id)">{{ expandedPosts.has(post.id) ? '收起正文' : '展开全文' }}</el-button>
             <div v-if="post.media.length" class="feed-media"><div v-for="(url, mediaIndex) in post.media" :key="`${mediaIndex}:${url}`">
               <video v-if="selectionIsVideo(url)" :src="safeSelectionLink(url)" controls preload="none" />
               <el-image v-else :src="safeSelectionLink(url)" loading="lazy" fit="contain" :preview-src-list="post.media.filter(item => !selectionIsVideo(item)).map(item => safeSelectionLink(item))" :initial-index="post.media.slice(0, mediaIndex).filter(item => !selectionIsVideo(item)).length" preview-teleported><template #error>媒体暂不可用</template></el-image>
@@ -466,7 +466,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
         <div v-show="editTab === 'content'">
         <el-alert v-if="duplicate" title="此账号已有发布工单，请查看原工单" type="warning" :closable="false" />
         <div class="publish-comparison">
-        <section><h3 class="original-heading">原帖内容 <a :href="safeSelectionLink(selected.content_url)" target="_blank" rel="noopener noreferrer"><ExternalLink :size="15" />原帖</a></h3><p class="original-text publish-original">{{ selected.text_body || '无正文' }}</p></section>
+        <section><h3 class="original-heading">原帖内容 <a :href="safeSelectionLink(selected.content_url)" target="_blank" rel="noopener noreferrer"><ExternalLink :size="15" />原帖</a></h3><p class="original-text publish-original">{{ selectionDisplayText(selected) || '无正文' }}</p></section>
         <section>
           <SelectionAiEditor v-if="editVisible && auth.can('operations.dispatch')" v-model="draft.text_body" :post-id="selected.id" :revision="selected.updated_at" :account-id="draft.account_id" :platform="String(selectedAccount?.business_platform || '')" :disabled="publishBusy" @busy="aiBusy = $event">
             <el-input v-model="draft.text_body" class="publish-text" aria-label="发布正文" type="textarea" :rows="8" :maxlength="20000" :disabled="publishBusy" resize="none" />
