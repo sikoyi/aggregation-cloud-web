@@ -181,11 +181,12 @@ const behaviorStartDayMax = computed(() => (
   form.plan_type === 'full' ? Math.max(1, Number(form.target_days || 1)) : 365
 ))
 const selectorFilters = computed(() => ({
+  include_identity_platform: true,
   business_platform: form.business_platform,
   runtime_platform: form.runtime_platform,
   provider: form.provider,
 }))
-const cloudAccountFilters = computed(() => ({ business_platform: form.business_platform }))
+const cloudAccountFilters = computed(() => ({ business_platform: form.business_platform, include_identity_platform: true }))
 const cloudSlotFilters = computed(() => ({ runtime_platform: 'cloud_phone', provider: 'vmos' }))
 
 function optionLabel(options: { label: string; value: string }[], value: string) {

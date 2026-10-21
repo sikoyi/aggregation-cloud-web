@@ -243,6 +243,8 @@ export function loadAccountSelectionOptions(
     runtime_platform: options.publishPool ? undefined : normalized.runtime_platform,
     provider: options.publishPool ? undefined : normalized.provider,
     login_status: loginStatus,
+    ...(options.publishPool || filters.include_identity_platform
+      ? { include_identity_platform: true } : {}),
   }
   return loadCached(
     accountCache,
