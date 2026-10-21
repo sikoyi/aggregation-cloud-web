@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Eye, Search, Trash2, UserPlus } from 'lucide-vue-next'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { http } from '@/api/http'
 import RemoteSelect from '@/components/RemoteSelect.vue'
@@ -25,7 +25,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const keyword = ref('')
 const contentType = ref('')
-const status = ref('unused')
+const status = ref('')
 const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -41,6 +41,7 @@ const selectedContentIds = ref<string[]>([])
 const contentDetailVisible = ref(false)
 const contentDetailLoading = ref(false)
 const contentDetail = ref<AnyRecord | null>(null)
+let membersRequestId = 0
 
 const groupId = computed(() => String(props.group?.id || ''))
 const selectedContentIdValues = computed(() => selectedMembers.value.map((item) => String(item.id)))
@@ -56,16 +57,20 @@ const availableContentSelect = computed<RemoteSelectConfig>(() => ({
   multiple: true,
   params: {
     business_platform: props.group?.business_platform || undefined,
-    status: 'unused',
   },
 }))
 
 async function loadMembers() {
-  if (!groupId.value) return
+  const requestId = ++membersRequestId
+  const requestedGroupId = groupId.value
+  if (!requestedGroupId) {
+    loading.value = false
+    return
+  }
   loading.value = true
   try {
     const data = await http.get<PageResult<AnyRecord>>(
-      `/api/content-center/content-groups/${groupId.value}/contents`,
+      `/api/content-center/content-groups/${requestedGroupId}/contents`,
       {
         keyword: keyword.value || undefined,
         content_type: contentType.value || undefined,
@@ -74,32 +79,42 @@ async function loadMembers() {
         page_size: pageSize.value,
       },
     )
+    if (requestId !== membersRequestId || requestedGroupId !== groupId.value) return
     members.value = data.items
     total.value = data.total
     await restorePageSelection()
   } catch (err) {
+    if (requestId !== membersRequestId || requestedGroupId !== groupId.value) return
     notifyError(err, '加载组内内容失败', '加载组内内容失败')
   } finally {
-    loading.value = false
+    if (requestId === membersRequestId) loading.value = false
   }
 }
 
 async function addMembers() {
+  if (submitting.value) return
   if (!selectedContentIds.value.length) {
     ElMessage.warning('请选择要添加的内容')
     return
   }
 
+  const requestedGroupId = groupId.value
+  const contentIds = [...selectedContentIds.value]
   submitting.value = true
   try {
-    const data = await http.post<AnyRecord>(`/api/content-center/content-groups/${groupId.value}/contents`, {
-      content_ids: selectedContentIds.value,
+    const data = await http.post<AnyRecord>(`/api/content-center/content-groups/${requestedGroupId}/contents`, {
+      content_ids: contentIds,
     })
-    selectedContentIds.value = []
     ElMessage.success(`已添加 ${Number(data.added_count || 0)} 条内容`)
-    page.value = 1
-    await loadMembers()
     emit('changed')
+    if (requestedGroupId !== groupId.value) return
+    selectedContentIds.value = []
+    keyword.value = ''
+    contentType.value = ''
+    status.value = ''
+    page.value = 1
+    clearMemberSelection()
+    await loadMembers()
   } catch (err) {
     notifyError(err, '添加内容失败', '添加内容失败')
   } finally {
@@ -221,7 +236,7 @@ function materialAssetCount(value: unknown) {
 function resetSearch() {
   keyword.value = ''
   contentType.value = ''
-  status.value = 'unused'
+  status.value = ''
   searchMembers()
 }
 
@@ -231,7 +246,9 @@ watch(
     page.value = 1
     keyword.value = ''
     contentType.value = ''
-    status.value = 'unused'
+    status.value = ''
+    members.value = []
+    total.value = 0
     selectedContentIds.value = []
     clearMemberSelection()
     loadMembers()
@@ -239,6 +256,7 @@ watch(
 )
 
 onMounted(loadMembers)
+onBeforeUnmount(() => { ++membersRequestId })
 </script>
 
 <template>
