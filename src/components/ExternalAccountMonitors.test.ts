@@ -18,6 +18,8 @@ function setup() {
     detailError: { value: '' }, detail: { value: null as unknown },
     batchBusy: { value: false }, selected: { value: [] as unknown[] }, table: { value: { clearSelection: vi.fn(), sort: vi.fn() } },
     countries: { value: [] as string[] },
+    configuredCountries: { value: [] as string[] }, countryOrderVersion: { value: null as number | null },
+    orderSaving: { value: false }, orderDisabled: { value: false },
     managedCountries: { countries: [] as string[], version: 1 },
     summary: { value: null as unknown }, groups: { value: [] as { id: string; name: string; member_count: number }[] },
     http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : path.endsWith('/countries') ? ['日本', '韩国'] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
@@ -110,7 +112,7 @@ describe('外部账号只读监听', () => {
     expect(s.appliedFilters).toMatchObject({ countries: ['加蓬'] })
     expect(s.http.get).toHaveBeenCalledTimes(4)
     expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', expect.objectContaining({ countries: ['加蓬'] }))
-    expect(source).toContain(':disabled="batchBusy" @changed="load()"')
+    expect(source).toContain(':disabled="batchBusy || orderSaving" @changed="load()"')
   })
   it('移除常用国家保留历史已使用国家，未使用的移除后清理筛选', async () => {
     const s = setup()

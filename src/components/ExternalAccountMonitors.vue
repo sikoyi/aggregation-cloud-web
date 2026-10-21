@@ -46,6 +46,10 @@ const rows = ref<ExternalMonitor[]>([])
 const total = ref(0)
 const groups = ref<{ id: string; name: string; version: number; member_count: number }[]>([])
 const countries = ref<string[]>([])
+const countryOrderVersion = ref<number | null>(null)
+const configuredCountries = ref<string[]>([])
+const orderSaving = ref(false)
+const orderDisabled = computed(() => batchBusy.value || loading.value || refreshing.value || orderSaving.value || saving.value || tagEditingBusy.value)
 const selected = ref<ExternalMonitor[]>([])
 const table = ref<{ clearSelection: () => void; sort: (prop: string, order: 'ascending' | 'descending') => void } | null>(null)
 const metricSort = ref<{ prop: string; order: 'asc' | 'desc' } | null>(null)
@@ -106,10 +110,10 @@ function metricDelta(value: number | null | undefined, key: string) {
 }
 function backgroundRefreshBlocked() {
   return disposed || document.hidden || loading.value || saving.value || !!busy.value || !!deleting.value
-    || batchBusy.value || selected.value.length > 0 || formVisible.value || detailVisible.value
+    || batchBusy.value || orderSaving.value || selected.value.length > 0 || formVisible.value || detailVisible.value
 }
 async function load(background = false) {
-  if (batchBusy.value || (background && (refreshing.value || backgroundRefreshBlocked()))) return
+  if (batchBusy.value || orderSaving.value || (background && (refreshing.value || backgroundRefreshBlocked()))) return
   const id = ++sequence
   if (background) refreshing.value = true
   else {
@@ -123,12 +127,14 @@ async function load(background = false) {
       http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, ...(metricSort.value ? { sort_by: metricSort.value.prop, sort_order: metricSort.value.order } : {}), page: page.value, page_size: pageSize.value }),
       http.get<Record<string, number>>('/api/external-account-monitors/summary', { platform: appliedFilters.platform, countries: appliedFilters.countries, country_unset: appliedFilters.country_unset, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
       http.get<string[]>('/api/external-account-monitors/countries'),
-      http.get<{ countries: string[] }>('/api/external-account-monitors/country-options'),
+      http.get<{ countries: string[]; version: number }>('/api/external-account-monitors/country-options'),
     ])
     if (disposed || id !== sequence) return
     if (background && backgroundRefreshBlocked()) return
     const countryOptions = [...new Set([...countryConfig.countries, ...usedCountries])]
     countries.value = countryOptions
+    countryOrderVersion.value = countryConfig.version
+    configuredCountries.value = countryConfig.countries
     filters.countries = filters.countries.filter(country => countryOptions.includes(country))
     const activeCountries = appliedFilters.countries.filter(country => countryOptions.includes(country))
     if (activeCountries.length !== appliedFilters.countries.length) {
@@ -197,6 +203,42 @@ async function loadGroups() {
 async function groupsChanged() {
   if (!await loadGroups()) void load()
 }
+async function moveFilterOption(kind: 'country' | 'tag', from: number, to: number) {
+  const items = kind === 'country' ? countries.value : groups.value.map(group => group.id)
+  if (!canEdit.value || orderDisabled.value || from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return
+  if (kind === 'country' && countryOrderVersion.value === null) return
+  const ordered = [...items]
+  ordered.splice(to, 0, ordered.splice(from, 1)[0])
+  orderSaving.value = true
+  try {
+    if (kind === 'country') {
+      // Persist only the prefix needed for this move; untouched historical countries stay outside the common list.
+      const retained = new Set([...configuredCountries.value, items[from]])
+      const lastConfigured = ordered.reduce((last, country, index) => retained.has(country) ? index : last, -1)
+      const result = await http.put<{ countries: string[]; version: number }>('/api/external-account-monitors/country-options', {
+        countries: ordered.slice(0, lastConfigured + 1), expected_version: countryOrderVersion.value,
+      })
+      if (disposed) return
+      countries.value = [...new Set([...result.countries, ...ordered])]
+      countryOrderVersion.value = result.version
+      configuredCountries.value = result.countries
+    } else {
+      const versions = new Map(groups.value.map(group => [group.id, group.version]))
+      const result = await http.put<typeof groups.value>('/api/external-account-monitors/tags/order', {
+        items: ordered.map(id => ({ id, expected_version: versions.get(id) })),
+      })
+      if (disposed) return
+      ++groupsSequence
+      groups.value = result
+    }
+  } catch (e) {
+    if (disposed) return
+    ElNotification.error({ title: kind === 'country' ? '保存国家顺序失败' : '保存标签顺序失败', message: message(e) })
+    orderSaving.value = false
+    if (kind === 'country') await load()
+    else await loadGroups()
+  } finally { orderSaving.value = false }
+}
 function batchCompleted() {
   void loadGroups()
   batchBusy.value = false
@@ -206,6 +248,7 @@ function batchCompleted() {
   else void load()
 }
 function openForm(row?: ExternalMonitor) {
+  if (orderSaving.value) return
   editing.value = row || null
   form.tag_ids = [...(row?.tag_ids || [])]
   form.country = row?.country || ''
@@ -297,7 +340,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       <h2><Activity :size="20" />外部账号监听</h2>
       <div class="external-monitors__actions">
         <ExternalMonitorGroups v-if="canEdit" :groups="groups" @changed="groupsChanged" @refresh="loadGroups" />
-        <ExternalMonitorCountries v-if="canEdit" :disabled="batchBusy" @changed="load()" />
+        <ExternalMonitorCountries v-if="canEdit" :disabled="batchBusy || orderSaving" @changed="load()" />
         <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" :disabled="batchBusy" @click="load()" /></el-tooltip>
         <el-button v-if="canEdit" type="primary" :icon="Plus" :disabled="!platforms.length" @click="openForm()">添加外部账号</el-button>
       </div>
@@ -310,17 +353,17 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
     </div>
     <div class="external-monitors__filters">
       <strong><Search :size="15" />筛选条件</strong>
-      <el-form inline label-width="72px" :disabled="batchBusy">
+      <el-form inline label-width="72px" :disabled="batchBusy || orderSaving">
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
         <el-form-item label="国家" class="external-monitors__group-filter"><div class="external-monitors__tag-filter" role="group" aria-label="国家筛选">
           <div><el-check-tag :checked="!filters.countries.length && !filters.country_unset" :disabled="batchBusy" @change="filterCountries()">全部</el-check-tag><el-checkbox :model-value="filters.country_unset" :disabled="batchBusy" @change="filterCountries([], Boolean($event))">未设置国家</el-checkbox></div>
-          <ExternalAccountTagSelect v-if="countries.length" :model-value="filters.countries" label="外部账号国家筛选" :disabled="batchBusy" :options="countries.map(country => ({ value: country, label: country }))" @update:model-value="filterCountries($event)" />
+          <ExternalAccountTagSelect v-if="countries.length" :model-value="filters.countries" label="外部账号国家筛选" :disabled="orderDisabled" :reorderable="canEdit" :options="countries.map(country => ({ value: country, label: country }))" @update:model-value="filterCountries($event)" @move="(from, to) => moveFilterOption('country', from, to)" />
         </div></el-form-item>
         <el-form-item label="账号标签" class="external-monitors__group-filter"><div class="external-monitors__tag-filter">
           <div><el-check-tag :checked="!filters.tag_ids.length && !filters.untagged" :disabled="batchBusy" @change="allTags">全部</el-check-tag><el-checkbox v-model="filters.untagged" :disabled="batchBusy" @change="filterUntagged">未设置标签</el-checkbox></div>
-          <ExternalAccountTagSelect v-model="filters.tag_ids" label="外部账号标签筛选" :disabled="batchBusy" :options="groups.map(group => ({ value: group.id, label: group.name }))" @update:model-value="filterTags" />
+          <ExternalAccountTagSelect v-model="filters.tag_ids" label="外部账号标签筛选" :disabled="orderDisabled" :reorderable="canEdit" :options="groups.map(group => ({ value: group.id, label: group.name }))" @update:model-value="filterTags" @move="(from, to) => moveFilterOption('tag', from, to)" />
         </div></el-form-item>
       </el-form>
       <el-button :icon="RotateCcw" :disabled="batchBusy" @click="reset">清空</el-button><el-button :icon="Search" type="primary" :disabled="batchBusy" @click="search">查询</el-button>
