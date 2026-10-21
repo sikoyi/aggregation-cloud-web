@@ -25,6 +25,10 @@ const posts = ref<SelectionPost[]>([])
 const sources = ref<SelectionSource[]>([])
 const orders = ref<SelectionOrder[]>([])
 const total = ref(0)
+function metricLabel(value: number | null) {
+  if (value == null || !Number.isFinite(value) || value < 0) return '未知'
+  return value > 1000 ? `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1, useGrouping: false })}k` : String(value)
+}
 const page = ref(1)
 const pageSize = ref(20)
 const dates = ref<[string, string] | null>(null)
@@ -352,7 +356,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
               <el-image v-else :src="safeSelectionLink(url)" loading="lazy" fit="contain" :preview-src-list="post.media.filter(item => !selectionIsVideo(item)).map(item => safeSelectionLink(item))" :initial-index="post.media.slice(0, mediaIndex).filter(item => !selectionIsVideo(item)).length" preview-teleported><template #error>媒体暂不可用</template></el-image>
             </div></div>
             <small>{{ post.published_at ? formatDate(post.published_at) : '发布时间未知' }}<span v-if="post.media.length"> · {{ post.media.length }} 项媒体</span></small>
-            <footer><span><Eye :size="15" aria-label="浏览量" />浏览 {{ post.views_count == null ? '未知' : post.views_count.toLocaleString('zh-CN') }}<Heart :size="15" />{{ post.likes_count ?? '未知' }}<MessageCircle :size="15" />{{ post.comments_count ?? '未知' }}</span>
+            <footer><span><span :title="post.views_count?.toLocaleString('zh-CN')"><Eye :size="15" aria-label="浏览量" />浏览 {{ metricLabel(post.views_count) }}</span><span :title="post.likes_count?.toLocaleString('zh-CN')"><Heart :size="15" aria-label="点赞数" />{{ metricLabel(post.likes_count) }}</span><span :title="post.comments_count?.toLocaleString('zh-CN')"><MessageCircle :size="15" aria-label="评论数" />{{ metricLabel(post.comments_count) }}</span></span>
               <el-button @click="openPost(post)">查看选题<ExternalLink :size="14" /></el-button></footer>
           </article>
         </div>
@@ -523,6 +527,7 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .feed-controls + .el-form { margin-top: 16px; }
 .filter-title .el-button { margin-left: auto; }
 footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; flex-wrap: wrap; }
+footer > span > span { display: inline-flex; align-items: center; gap: 6px; }
 .selection-pagination { display: flex; justify-content: flex-end; padding-top: 16px; overflow-x: auto; }
 .selection-pagination--main { padding: 14px 16px; border: 1px solid var(--app-border, #e6edf3); background: var(--app-surface, #fff); }
 .editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; max-height: 65vh; overflow-y: auto; }
