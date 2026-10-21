@@ -249,10 +249,11 @@ describe('selection options cache', () => {
     )
   })
 
-  it('keeps logged-in candidates separate and reuses all-status account candidates', async () => {
+  it('keeps logged-in, identity-platform and ordinary all-status candidates separate', async () => {
     vi.mocked(http.get)
       .mockResolvedValueOnce([{ id: 'logged-in' }])
       .mockResolvedValueOnce([{ id: 'all' }])
+      .mockResolvedValueOnce([{ id: 'ordinary-all' }])
 
     await loadAccountSelectionOptions({ business_platform: 'threads' })
     await loadAccountSelectionOptions(
@@ -268,12 +269,13 @@ describe('selection options cache', () => {
       { associationOnly: true },
     )
 
-    expect(http.get).toHaveBeenCalledTimes(2)
+    expect(http.get).toHaveBeenCalledTimes(3)
     expect(http.get).toHaveBeenNthCalledWith(2, '/api/accounts/selection-options', {
       business_platform: 'threads',
       runtime_platform: undefined,
       provider: undefined,
       login_status: undefined,
+      include_identity_platform: true,
     })
   })
 })

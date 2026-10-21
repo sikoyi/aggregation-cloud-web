@@ -42,7 +42,7 @@ describe('云手机养号计划', () => {
     expect(s.normalizedPayload().target_rules).toEqual({slot_ids:[],account_ids:[],account_tag_ids:['tag'],slot_group_ids:[]})
   })
   it('云手机账号选择不按绑定设备或登录状态排除账号', () => {
-    expect(script).toContain('const cloudAccountFilters = computed(() => ({ business_platform: form.business_platform }))')
+    expect(script).toContain('const cloudAccountFilters = computed(() => ({ business_platform: form.business_platform, include_identity_platform: true }))')
     expect(source).toContain(':filters="cloudAccountFilters" multiple association-only tag-filter')
     expect(source).toContain(':filters="cloudSlotFilters" account-presence="all"')
   })
