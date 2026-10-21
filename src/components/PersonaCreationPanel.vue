@@ -9,7 +9,9 @@ import { languages } from '@/utils/benchmarkPostProcessing'
 import { formatDate } from '@/utils/format'
 import { jobPersonaAnalysis, latestPersonaJob, personaProgress } from '@/utils/personaAnalysis'
 
-const props = defineProps<{ accountId: string; sourceId: string; sourceName: string; postId: string; revision: string; modelValue: string; disabled: boolean; historyTarget?: string }>()
+const props = defineProps<{ accountId: string; sourceId: string; sourceName: string; postId: string; revision: string; modelValue: string; disabled: boolean; historyTarget?: string; historyActive?: boolean }>()
+const historyVisible = computed(() => props.historyActive !== false)
+watch(historyVisible, () => { historySequence++; void load() })
 const subjectId = computed(() => `source:${props.sourceId}`)
 const emit = defineEmits<{ apply: [text: string, jobId: string]; historyCount: [count: number] }>()
 const persona = ref<PersonaVersion | null>(null)
@@ -36,7 +38,7 @@ let reloadPending = false
 let historySequence = 0
 const selecting = ref(false)
 let timer: ReturnType<typeof setTimeout> | undefined
-const active = computed(() => !!pending.value || sourceActive.value || jobs.value.some(j => ['queued', 'running'].includes(j.status)))
+const active = computed(() => !!pending.value || (historyVisible.value && (sourceActive.value || jobs.value.some(j => ['queued', 'running'].includes(j.status)))))
 const candidates = computed(() => selectedJob.value?.result.candidates || [])
 const candidate = computed(() => index.value === 'draft' && selectedJob.value?.draft_text
   ? { title: '人工稿', text_body: selectedJob.value.draft_text, review_notes: '' } : candidates.value[Number(index.value)])
@@ -52,6 +54,15 @@ async function load() {
   loading.value = true
   const request = historySequence
   try {
+    if (!historyVisible.value) {
+      const history = await accountPersona.history(subjectId.value, { post_id: props.postId,
+        target_account_id: props.accountId || undefined, page: 1, page_size: 20, count_only: true })
+      if (disposed || request !== historySequence) return
+      historyTotal.value = history.total
+      emit('historyCount', history.total)
+      await fillGeneratedDraft()
+      return
+    }
     const data = await accountPersona.overview(subjectId.value)
     if (disposed) return
     persona.value = data.versions[0] || null
@@ -113,7 +124,7 @@ function changeHistoryPage(page: number) {
 }
 function schedule() {
   clearTimeout(timer)
-  if (!disposed) timer = setTimeout(() => { if (document.hidden) schedule(); else void load() }, 5000)
+  if (!disposed && (pending.value || (historyVisible.value && active.value))) timer = setTimeout(() => { if (document.hidden) schedule(); else void load() }, 5000)
 }
 async function selectJob(id: string) {
   const current = ++sequence
@@ -137,7 +148,7 @@ async function generate() {
   try {
     const job = await accountPersona.generate(subjectId.value, { request_key: crypto.randomUUID(), post_id: props.postId, target_account_id: props.accountId,
       persona_id: persona.value?.id, language: language.value, direction: direction.value })
-    if (!disposed) { pending.value = { ...request, id: job.id }; historyPage.value = 1; historySequence++; await selectJob(job.id); await load() }
+    if (!disposed) { pending.value = { ...request, id: job.id }; historyPage.value = 1; historySequence++; if (historyVisible.value) await selectJob(job.id); await load() }
   } catch (e) { if (!disposed) fail(e) } finally { busy.value = false }
 }
 async function apply(text: string) {
@@ -175,7 +186,7 @@ onBeforeUnmount(() => { disposed = true; sequence++; historySequence++; clearTim
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <el-alert v-if="notice" :title="notice" type="info" :closable="false" />
     <Teleport :to="historyTarget || 'body'" :disabled="!historyTarget" defer>
-    <section class="persona-creation creation-history">
+    <section v-if="historyVisible" class="persona-creation creation-history">
     <el-alert v-if="historyTarget && error" :title="error" type="error" :closable="false" />
     <div class="creation-toolbar"><strong>创作记录<span v-if="historyTotal">（{{ historyTotal }}）</span></strong>
       <el-select v-if="jobs.length" :loading="loading || selecting" :model-value="selectedJob?.id || ''" aria-label="生成记录" placeholder="生成记录" @change="selectJob">

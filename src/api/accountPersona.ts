@@ -38,7 +38,7 @@ export const personaStatus: Record<PersonaJob['status'], string> = { queued: 'чн
 const base = (account: string) => `/api/account-personas/${encodeURIComponent(account)}`
 export const accountPersona = {
   overview: (account: string) => http.get<{ versions: PersonaVersion[]; jobs: PersonaJob[] }>(base(account)),
-  history: (account: string, params: { post_id: string; target_account_id?: string; page: number; page_size: number }) =>
+  history: (account: string, params: { post_id: string; target_account_id?: string; page: number; page_size: number; count_only?: boolean }) =>
     http.get<{ items: PersonaJob[]; total: number; page: number; page_size: number }>(`${base(account)}/jobs`, params),
   analyze: (account: string, requestKey: string) => http.post<PersonaJob>(`${base(account)}/analyze`, { request_key: requestKey }),
   confirm: (account: string, data: { expected_version: number; document: PersonaDocument; analysis_job_id: string | null }) => http.post<PersonaVersion>(`${base(account)}/confirm`, data),
