@@ -4,6 +4,7 @@ import { Layers3, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import ExternalOrderControls from './ExternalOrderControls.vue'
+import { useExternalOrderDrag } from '@/composables/useExternalOrderDrag'
 
 interface Group { id: string; name: string; version: number; member_count: number }
 const props = defineProps<{ groups: Group[] }>()
@@ -14,15 +15,15 @@ const visible = ref(false)
 const busy = ref(false)
 const name = ref('')
 const editing = ref<Group | null>(null)
+const drag = useExternalOrderDrag(() => ordered.value.map(group => group.id), () => busy.value || !!editing.value, move)
 function edit(group?: Group) { editing.value = group || null; name.value = group?.name || '' }
 async function move(from: number, to: number) {
-  if (busy.value || from === to) return
+  if (busy.value || editing.value || from === to || from < 0 || to < 0 || from >= ordered.value.length || to >= ordered.value.length) return
   const groups = [...ordered.value]
   groups.splice(to, 0, groups.splice(from, 1)[0])
   busy.value = true
   try {
     ordered.value = await http.put('/api/external-account-monitors/tags/order', { items: groups.map(group => ({ id: group.id, expected_version: group.version })) })
-    edit()
     emit('changed')
   } catch (e) {
     ElNotification.error({ title: '保存标签顺序失败', message: e instanceof Error ? e.message : '请刷新重试' })
@@ -63,8 +64,8 @@ async function remove(group: Group) {
       <el-button type="primary" :icon="editing ? Pencil : Plus" :disabled="!name.trim()" :loading="busy" @click="save">{{ editing ? '保存' : '新建' }}</el-button>
       <el-button v-if="editing" :disabled="busy" @click="edit()">取消编辑</el-button>
     </el-form>
-    <el-table :data="ordered" max-height="380" empty-text="暂无标签">
-      <el-table-column label="排序" width="120"><template #default="{ $index }"><ExternalOrderControls :index="$index" :count="ordered.length" scope="external-tags" :disabled="busy" @move="move" /></template></el-table-column>
+    <el-table :data="ordered" row-key="id" :row-class-name="drag.rowClass" max-height="380" empty-text="暂无标签" @dragover="drag.rowOver" @drop="drag.rowDrop" @dragend="drag.end">
+      <el-table-column label="排序" width="120"><template #default="{ $index }"><ExternalOrderControls :index="$index" :count="ordered.length" scope="external-tags" :disabled="busy || !!editing" @move="move" @start="drag.start" @end="drag.end" /></template></el-table-column>
       <el-table-column prop="name" label="标签名称" min-width="140" show-overflow-tooltip />
       <el-table-column prop="member_count" label="成员数量" width="100" align="center" />
       <el-table-column label="操作" width="100"><template #default="{ row }">
@@ -75,3 +76,7 @@ async function remove(group: Group) {
     <template #footer><el-button @click="visible = false">关闭</el-button></template>
   </el-dialog>
 </template>
+
+<style scoped>
+:deep(.external-order-target > td) { background: var(--el-color-primary-light-9) !important; box-shadow: inset 0 2px var(--el-color-primary); }
+</style>

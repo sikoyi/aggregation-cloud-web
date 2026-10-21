@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ExternalAccountTagSelect from './ExternalAccountTagSelect.vue'
+import ExternalAccountTagEditor from './ExternalAccountTagEditor.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Activity, ArrowDown, ArrowUp, Minus, Clock3, Eye, Layers3, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, Search, Trash2, TriangleAlert, UserRound, Users } from 'lucide-vue-next'
 import ExternalMonitorGroups from '@/components/ExternalMonitorGroups.vue'
@@ -67,6 +68,7 @@ const appliedFilters = reactive({ ...filters, countries: [] as string[], tag_ids
 const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
 const saving = ref(false)
+const tagEditingBusy = ref(false)
 const busy = ref('')
 const deleting = ref('')
 const form = reactive({ business_platform: 'threads', profile_url: '', country: '', remark: '', interval_minutes: 360, enabled: true, tag_ids: [] as string[] })
@@ -361,17 +363,17 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++detailSequence; clearInte
       </template></el-table-column>
     </el-table>
     <div class="external-monitors__pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :disabled="batchBusy" :total="total" :page-sizes="[20, 50, 100]" background layout="total, sizes, prev, pager, next" @size-change="page = 1" /></div>
-    <el-dialog v-model="formVisible" :title="editing ? '外部账号监听设置' : '添加外部账号'" width="min(520px, 96vw)" align-center :close-on-click-modal="false">
-      <el-form label-position="top" @submit.prevent="save">
+    <el-dialog v-model="formVisible" :title="editing ? '外部账号监听设置' : '添加外部账号'" width="min(520px, 96vw)" align-center :close-on-click-modal="false" :close-on-press-escape="!tagEditingBusy && !saving" :show-close="!tagEditingBusy && !saving">
+      <el-form label-position="top" @submit.prevent="!tagEditingBusy && save()">
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
-        <el-form-item label="账号标签"><ExternalAccountTagSelect v-model="form.tag_ids" label="账号标签" :disabled="saving" :options="groups.map(group => ({ value: group.id, label: group.name }))" /></el-form-item>
+        <el-form-item label="账号标签"><ExternalAccountTagEditor v-model="form.tag_ids" :groups="groups" :disabled="saving || !canEdit" @changed="loadGroups" @busy="tagEditingBusy = $event" /></el-form-item>
         <el-form-item label="国家"><ExternalCountrySelect :key="editing?.id || 'new'" v-model="form.country" :retained-country="editing?.country" :disabled="saving" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>
       </el-form>
-      <template #footer><el-button :disabled="saving" @click="formVisible = false">关闭</el-button><el-button type="primary" :loading="saving" @click="save">{{ editing ? '保存' : '添加并继续' }}</el-button></template>
+      <template #footer><el-button :disabled="saving || tagEditingBusy" @click="formVisible = false">关闭</el-button><el-button type="primary" :loading="saving" :disabled="tagEditingBusy" @click="!tagEditingBusy && save()">{{ editing ? '保存' : '添加并继续' }}</el-button></template>
     </el-dialog>
     <el-dialog v-model="detailVisible" title="外部账号数据" width="min(1240px, 96vw)" align-center class="external-monitor-detail" destroy-on-close>
       <div v-loading="detailLoading" class="external-monitors__detail">

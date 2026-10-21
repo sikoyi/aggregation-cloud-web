@@ -5,6 +5,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { accountCountryOptions } from '@/config/options'
 import { http } from '@/api/http'
 import ExternalOrderControls from './ExternalOrderControls.vue'
+import { useExternalOrderDrag } from '@/composables/useExternalOrderDrag'
 
 defineProps<{ disabled?: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -15,6 +16,7 @@ const error = ref('')
 const selected = ref('')
 const config = ref<{ countries: string[]; version: number } | null>(null)
 const available = computed(() => accountCountryOptions.filter(option => !config.value?.countries.includes(String(option.value))))
+const drag = useExternalOrderDrag(() => config.value?.countries || [], () => busy.value || loading.value, move)
 async function load() {
   if (loading.value) return
   loading.value = true
@@ -25,7 +27,7 @@ async function load() {
 }
 async function open() { visible.value = true; selected.value = ''; await load() }
 async function move(from: number, to: number) {
-  if (busy.value || loading.value || !config.value || from === to) return
+  if (busy.value || loading.value || !config.value || from === to || from < 0 || to < 0 || from >= config.value.countries.length || to >= config.value.countries.length) return
   const countries = [...config.value.countries]
   countries.splice(to, 0, countries.splice(from, 1)[0])
   busy.value = true
@@ -65,8 +67,8 @@ async function save(remove?: string) {
       <el-button type="primary" :icon="Plus" :disabled="busy || loading || !config || !selected" @click="save()">添加</el-button>
       <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新常用国家" :disabled="busy || loading" @click="load" /></el-tooltip>
     </el-form>
-    <el-table v-loading="loading" :data="config?.countries.map(country => ({ country })) || []" max-height="380" empty-text="暂无常用国家">
-      <el-table-column label="排序" width="120"><template #default="{ $index }"><ExternalOrderControls :index="$index" :count="config?.countries.length || 0" scope="external-countries" :disabled="busy || loading" @move="move" /></template></el-table-column>
+    <el-table v-loading="loading" :data="config?.countries.map(country => ({ country })) || []" row-key="country" :row-class-name="drag.rowClass" max-height="380" empty-text="暂无常用国家" @dragover="drag.rowOver" @drop="drag.rowDrop" @dragend="drag.end">
+      <el-table-column label="排序" width="120"><template #default="{ $index }"><ExternalOrderControls :index="$index" :count="config?.countries.length || 0" scope="external-countries" :disabled="busy || loading" @move="move" @start="drag.start" @end="drag.end" /></template></el-table-column>
       <el-table-column prop="country" label="国家" min-width="160" />
       <el-table-column label="操作" width="80" align="center"><template #default="{ row }"><el-tooltip content="移出常用国家"><el-button :icon="Trash2" text circle type="danger" :aria-label="`移除${row.country}`" :disabled="busy || loading" @click="save(row.country)" /></el-tooltip></template></el-table-column>
     </el-table>
@@ -78,4 +80,5 @@ async function save(remove?: string) {
 .external-countries__form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
 .external-countries__form :deep(.el-form-item) { flex: 1 1 240px; margin: 0; }
 .external-countries__form :deep(.el-button) { margin-left: 0; }
+:deep(.external-order-target > td) { background: var(--el-color-primary-light-9) !important; box-shadow: inset 0 2px var(--el-color-primary); }
 </style>
