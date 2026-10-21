@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
 import { contentSelection, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
+import { http } from '@/api/http'
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
@@ -89,8 +90,13 @@ watch(loadMoreAnchor, element => {
   if (element) observer?.observe(element)
 })
 watch(() => auth.user?.id, () => { storageKey.value = ''; marks.value = { read: [], saved: [] } })
-const sourceCountries = computed(() => [...new Set(sources.value.map(item => item.country).filter((value): value is string => !!value))].sort())
-const sourceTags = computed(() => [...new Map(sources.value.flatMap(item => item.tags || []).map(tag => [tag.id, tag])).values()])
+const countryOrder = ref<string[]>([])
+const tagOrder = ref<string[]>([])
+function orderIndex(order: string[], value: string) { const index = order.indexOf(value); return index < 0 ? Number.MAX_SAFE_INTEGER : index }
+const sourceCountries = computed(() => [...new Set(sources.value.map(item => item.country).filter((value): value is string => !!value))]
+  .sort((a, b) => orderIndex(countryOrder.value, a) - orderIndex(countryOrder.value, b)))
+const sourceTags = computed(() => [...new Map(sources.value.flatMap(item => item.tags || []).map(tag => [tag.id, tag])).values()]
+  .sort((a, b) => orderIndex(tagOrder.value, a.id) - orderIndex(tagOrder.value, b.id)))
 const filters = reactive({ country: '', tag_id: '', platform: '', source_id: '', keyword: '', media_type: '', min_likes: undefined as number | undefined, min_comments: undefined as number | undefined, sort_by: 'published_at' })
 const hasFilters = computed(() => !!(filters.country || filters.tag_id || reading.value !== 'all' || hideRead.value || filters.platform || filters.source_id || filters.keyword || filters.media_type || dates.value || filters.min_likes !== undefined || filters.min_comments !== undefined || filters.sort_by !== 'published_at'))
 function resetFilters() {
@@ -276,6 +282,14 @@ onMounted(async () => {
   await nextTick()
   if (loadMoreAnchor.value) observer.observe(loadMoreAnchor.value)
   try { sources.value = await contentSelection.sources() } catch (e) { showError(e) }
+  try {
+    const [countries, tags] = await Promise.all([
+      http.get<{ countries: string[] }>('/api/external-account-monitors/country-options'),
+      http.get<{ id: string }[]>('/api/external-account-monitors/tags'),
+    ])
+    countryOrder.value = countries.countries
+    tagOrder.value = tags.map(tag => tag.id)
+  } catch (e) { showError(e) }
   if (typeof route.query.order_id === 'string') await openOrder(route.query.order_id)
 })
 onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observer?.disconnect(); window.removeEventListener('storage', syncMarks) })

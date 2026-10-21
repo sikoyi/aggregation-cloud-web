@@ -4,6 +4,7 @@ import { Globe, Plus, RefreshCw, Trash2 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { accountCountryOptions } from '@/config/options'
 import { http } from '@/api/http'
+import ExternalOrderControls from './ExternalOrderControls.vue'
 
 defineProps<{ disabled?: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -23,6 +24,19 @@ async function load() {
   finally { loading.value = false }
 }
 async function open() { visible.value = true; selected.value = ''; await load() }
+async function move(from: number, to: number) {
+  if (busy.value || loading.value || !config.value || from === to) return
+  const countries = [...config.value.countries]
+  countries.splice(to, 0, countries.splice(from, 1)[0])
+  busy.value = true
+  try {
+    config.value = await http.put('/api/external-account-monitors/country-options', { countries, expected_version: config.value.version })
+    emit('changed')
+  } catch (e) {
+    ElNotification.error({ title: '保存国家顺序失败', message: e instanceof Error ? e.message : '请刷新重试' })
+    await load()
+  } finally { busy.value = false }
+}
 async function save(remove?: string) {
   if (busy.value || loading.value || !config.value || (!remove && !selected.value)) return
   busy.value = true
@@ -52,6 +66,7 @@ async function save(remove?: string) {
       <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新常用国家" :disabled="busy || loading" @click="load" /></el-tooltip>
     </el-form>
     <el-table v-loading="loading" :data="config?.countries.map(country => ({ country })) || []" max-height="380" empty-text="暂无常用国家">
+      <el-table-column label="排序" width="120"><template #default="{ $index }"><ExternalOrderControls :index="$index" :count="config?.countries.length || 0" scope="external-countries" :disabled="busy || loading" @move="move" /></template></el-table-column>
       <el-table-column prop="country" label="国家" min-width="160" />
       <el-table-column label="操作" width="80" align="center"><template #default="{ row }"><el-tooltip content="移出常用国家"><el-button :icon="Trash2" text circle type="danger" :aria-label="`移除${row.country}`" :disabled="busy || loading" @click="save(row.country)" /></el-tooltip></template></el-table-column>
     </el-table>
