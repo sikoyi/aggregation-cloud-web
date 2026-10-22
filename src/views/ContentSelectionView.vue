@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, Eye, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
-import { contentSelection, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
+import { contentSelection, type SelectionFeedCursor, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
 import { http } from '@/api/http'
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
 import { useAuthStore } from '@/stores/auth'
@@ -46,6 +46,12 @@ const loadMoreAnchor = ref<HTMLElement | null>(null)
 const moreLoading = ref(false)
 const moreError = ref('')
 const hasMore = ref(false)
+const indexPending = ref(false)
+const sourceOptionsLoading = ref(false)
+const filterOptionsError = ref('')
+let sourceOptionsLoaded = false
+let nextCursor: SelectionFeedCursor | null = null
+let feedController: AbortController | null = null
 const expandedPosts = reactive(new Set<string>())
 let postQuery: AnyRecord = {}
 let feedPage = 1
@@ -80,13 +86,15 @@ async function loadMore() {
   moreLoading.value = true
   moreError.value = ''
   try {
-    const result = await contentSelection.queryPosts({ ...postQuery, page: feedPage + 1, page_size: 20 })
+    const result = await contentSelection.queryPosts({ ...postQuery, include_total: false,
+      page: nextCursor ? 1 : feedPage + 1, cursor: nextCursor, page_size: 20 }, feedController?.signal)
     if (id !== requestId) return
     const existing = new Set(posts.value.map(item => item.id))
     posts.value.push(...result.items.filter(item => !existing.has(item.id)))
     feedPage++
-    total.value = result.total
-    hasMore.value = result.items.length > 0 && feedPage * 20 < result.total
+    nextCursor = result.next_cursor
+    indexPending.value = result.index_pending
+    hasMore.value = result.has_more ?? (result.items.length > 0 && feedPage * 20 < (result.total || 0))
   } catch (e) { if (id === requestId) moreError.value = e instanceof Error ? e.message : '加载失败，请重试' }
   finally { if (id === requestId) moreLoading.value = false }
 }
@@ -98,6 +106,23 @@ watch(() => auth.user?.id, () => { storageKey.value = ''; marks.value = { read: 
 const countryOrder = ref<string[]>([])
 const tagOrder = ref<string[]>([])
 const configuredTags = ref<{ id: string; name: string }[]>([])
+async function loadFilterOptions() {
+  filterOptionsError.value = ''
+  try {
+    const result = await contentSelection.filterOptions()
+    countryOrder.value = result.countries
+    configuredTags.value = result.tags
+    tagOrder.value = result.tags.map(tag => tag.id)
+  } catch (e) { filterOptionsError.value = e instanceof Error ? e.message : '筛选选项加载失败' }
+}
+async function loadSourceOptions(visible: boolean) {
+  if (!visible || sourceOptionsLoaded || sourceOptionsLoading.value) return
+  sourceOptionsLoading.value = true
+  try {
+    const result = await contentSelection.sources(true)
+    if (tab.value === 'posts') { sources.value = result; sourceOptionsLoaded = true }
+  } catch (e) { showError(e) } finally { sourceOptionsLoading.value = false }
+}
 function orderIndex(order: string[], value: string) { const index = order.indexOf(value); return index < 0 ? Number.MAX_SAFE_INTEGER : index }
 const sourceCountries = computed(() => [...new Set([...countryOrder.value, ...sources.value.map(item => item.country).filter((value): value is string => !!value)])]
   .sort((a, b) => orderIndex(countryOrder.value, a) - orderIndex(countryOrder.value, b)))
@@ -173,6 +198,8 @@ function sourceUsername(source: SelectionSource) {
 async function refresh(reset = false) {
   if (reset) page.value = 1
   const id = ++requestId
+  feedController?.abort()
+  feedController = new AbortController()
   moreLoading.value = false
   moreError.value = ''
   loading.value = true
@@ -182,15 +209,21 @@ async function refresh(reset = false) {
   try {
     if (current === 'sources') {
       const result = await contentSelection.sources()
-      if (id === requestId) { sources.value = result; total.value = result.length }
+      if (id === requestId) { sources.value = result; total.value = result.length; sourceOptionsLoaded = true }
     } else if (current === 'orders') {
       const result = await contentSelection.orders({ page: page.value, page_size: pageSize.value })
       if (id === requestId) { orders.value = result.items; total.value = result.total }
     } else {
       postQuery = Object.fromEntries(Object.entries({ ...filters, published_from: dates.value?.[0], published_to: dates.value?.[1] }).filter(([, value]) => value !== '' && value !== undefined))
       Object.assign(postQuery, selectionMarkQuery(marks.value, reading.value, hideRead.value))
-      const result = await contentSelection.queryPosts({ ...postQuery, page: 1, page_size: 20 })
-      if (id === requestId) { posts.value = result.items; total.value = result.total; feedPage = 1; hasMore.value = result.items.length > 0 && result.total > 20 }
+      const result = await contentSelection.queryPosts({ ...postQuery, include_total: false, page: 1, page_size: 20 }, feedController.signal)
+      if (id === requestId) {
+        posts.value = result.items
+        nextCursor = result.next_cursor
+        indexPending.value = result.index_pending
+        feedPage = 1
+        hasMore.value = result.has_more ?? (result.items.length > 0 && (result.total || 0) > 20)
+      }
     }
   } catch (e) { if (id === requestId) error.value = e instanceof Error ? e.message : '加载失败' }
   finally { if (id === requestId) loading.value = false }
@@ -334,19 +367,10 @@ onMounted(async () => {
   await refresh()
   await nextTick()
   if (loadMoreAnchor.value) observer.observe(loadMoreAnchor.value)
-  try { sources.value = await contentSelection.sources() } catch (e) { showError(e) }
-  try {
-    const [countries, tags] = await Promise.all([
-      http.get<{ countries: string[] }>('/api/external-account-monitors/country-options'),
-      http.get<{ id: string; name: string }[]>('/api/external-account-monitors/tags'),
-    ])
-    countryOrder.value = countries.countries
-    tagOrder.value = tags.map(tag => tag.id)
-    configuredTags.value = tags
-  } catch (e) { showError(e) }
+  await loadFilterOptions()
   if (typeof route.query.order_id === 'string') await openOrder(route.query.order_id)
 })
-onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observer?.disconnect(); window.removeEventListener('storage', syncMarks) })
+onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; feedController?.abort(); observer?.disconnect(); window.removeEventListener('storage', syncMarks) })
 </script>
 
 <template>
@@ -378,7 +402,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
       <el-form v-show="expandedFilters" class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
         <div class="filter-grid">
       <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
-      <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="`${item.profile?.display_name || sourceUsername(item)} · @${sourceUsername(item)}${item.remark ? ' · ' + item.remark : ''}`" /></el-select></el-form-item>
+      <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部" :loading="sourceOptionsLoading" @visible-change="loadSourceOptions"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="`${item.profile?.display_name || sourceUsername(item)} · @${sourceUsername(item)}${item.remark ? ' · ' + item.remark : ''}`" /></el-select></el-form-item>
       <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
       <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" @change="quickTime = dates ? 'custom' : ''" /></el-form-item>
       <el-form-item label="最低点赞"><el-input-number v-model="filters.min_likes" :min="0" controls-position="right" /></el-form-item>
@@ -391,6 +415,8 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
       </el-form>
     </div>
     <el-alert v-if="storageWarning" :title="storageWarning" type="warning" :closable="false" />
+    <el-alert v-if="tab === 'posts' && filterOptionsError" :title="filterOptionsError" type="error" :closable="false"><el-button :icon="RefreshCw" @click="loadFilterOptions">重试加载筛选选项</el-button></el-alert>
+    <el-alert v-if="tab === 'posts' && indexPending" title="帖子数据正在同步，稍后刷新可查看最新结果" type="info" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-loading="loading" class="selection-content">
       <template v-if="tab === 'posts'">
@@ -412,7 +438,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; observe
               <el-button @click="openPost(post)">查看选题<ExternalLink :size="14" /></el-button></footer>
           </article>
         </div>
-        <div v-if="hasMore" ref="loadMoreAnchor" class="feed-more"><el-alert v-if="moreError" :title="moreError" type="error" :closable="false" /><el-button :loading="moreLoading" :disabled="loading" @click="loadMore">{{ moreError ? '重试加载' : '加载更多' }}</el-button><small>已加载 {{ posts.length }} / {{ total }} 条</small></div>
+        <div v-if="hasMore" ref="loadMoreAnchor" class="feed-more"><el-alert v-if="moreError" :title="moreError" type="error" :closable="false" /><el-button :loading="moreLoading" :disabled="loading" @click="loadMore">{{ moreError ? '重试加载' : '加载更多' }}</el-button><small>已加载 {{ posts.length }} 条</small></div>
         <small v-else-if="posts.length" class="feed-more">已加载全部 {{ posts.length }} 条</small>
       </template>
       <el-table v-else-if="tab === 'sources'" :data="sources" class="selection-table" row-key="id" border stripe empty-text="暂无来源账号">
