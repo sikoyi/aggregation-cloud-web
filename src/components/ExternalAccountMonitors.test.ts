@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import ts from 'typescript'
 import source from './ExternalAccountMonitors.vue?raw'
+import detailSource from './ExternalMonitorPersonaDetail.vue?raw'
 import routes from '../router/accountDataRoutes.ts?raw'
 
 const ast = ts.createSourceFile('ExternalMonitor.ts', source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!, ts.ScriptTarget.Latest, true)
 const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => node.getText(ast)).join('\n')
+const detailAst = ts.createSourceFile('ExternalDetail.ts', detailSource.split('<script setup lang="ts">')[1]!.split('</script>')[0]!, ts.ScriptTarget.Latest, true)
+const detailFunction = detailAst.statements.filter(ts.isFunctionDeclaration).find(node => node.name?.text === 'loadDetail')!.getText(detailAst)
 function setup() {
   const state = {
     platforms: { value: [{ value: 'x' }] },
@@ -30,16 +33,19 @@ function setup() {
   const get = state.http.get.getMockImplementation()!
   state.http.get.mockImplementation(async (path: string) => path.endsWith('/folders') ? [] : path.endsWith('/country-options') ? state.managedCountries : get(path))
   const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let foldersSequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics, filterCountries};`)(...Object.values(state)) as {
+  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, search, reset, sortMetrics, filterCountries};`)(...Object.values(state)) as {
     filterCountries: (countries?: string[], unset?: boolean) => void
     openForm: (row?: Record<string, unknown>) => void
     loadGroups: () => Promise<void>
     sortMetrics: (value: { prop: string | null; order: 'ascending' | 'descending' | null }) => void
     search: () => void; reset: () => void
     save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: (background?: boolean) => Promise<void>
-    remove: (row: Record<string, unknown>) => Promise<void>; loadDetail: () => Promise<void>
+    remove: (row: Record<string, unknown>) => Promise<void>
   }
-  return { ...state, ...actions }
+  const detailState = { selected: state.detailId, page: state.detailPage, loading: state.detailLoading, error: state.detailError, detail: state.detail, http: state.http }
+  const detailCompiled = ts.transpileModule(`let disposed = false; let detailSequence = 0; ${detailFunction}`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  const loadDetail = new Function(...Object.keys(detailState), `${detailCompiled}; return loadDetail;`)(...Object.values(detailState)) as () => Promise<void>
+  return { ...state, ...actions, loadDetail }
 }
 
 describe('外部账号只读监听', () => {
@@ -327,7 +333,7 @@ describe('外部账号只读监听', () => {
     s.metricSort.value = { prop, order: 'asc' }
     Object.assign(s.appliedFilters, { platform: 'x', status: 'active', tag_ids: ['one','two'] })
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { platform: 'x', countries: [], status: 'active', tag_ids: ['one','two'], sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { overview: true, platform: 'x', countries: [], status: 'active', tag_ids: ['one','two'], sort_by: prop, sort_order: 'asc', page: 1, page_size: 20 })
     s.reset()
     expect(s.metricSort.value).toBeNull()
     expect(s.table.value.sort).toHaveBeenCalledWith('created_at', 'descending')
@@ -400,7 +406,7 @@ describe('外部账号只读监听', () => {
     Object.assign(s.appliedFilters, { platform: 'x', tag_ids: ['one'], untagged: false, status: 'paused', keyword: 'source' })
     s.selected.value = [{ id: 'old' }]
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', { platform: 'x', countries: [], tag_ids: ['one'], untagged: false, keyword: 'source' })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors/summary', { overview: true, platform: 'x', countries: [], tag_ids: ['one'], untagged: false, keyword: 'source' })
     expect(s.selected.value).toEqual([])
     expect(s.table.value.clearSelection).toHaveBeenCalled()
     s.http.get.mockClear()
@@ -415,7 +421,7 @@ describe('外部账号只读监听', () => {
     s.search()
     expect(s.page.value).toBe(1)
     await s.load()
-    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { sort_order: 'asc', countries: [], tag_ids: [], page: 1, page_size: 20 })
+    expect(s.http.get).toHaveBeenCalledWith('/api/external-account-monitors', { overview: true, sort_order: 'asc', countries: [], tag_ids: [], page: 1, page_size: 20 })
     s.reset()
     expect(s.filters).toMatchObject({ sort_order: 'desc' })
     expect(s.appliedFilters).toMatchObject({ sort_order: 'desc' })
@@ -437,13 +443,13 @@ describe('外部账号只读监听', () => {
     expect(s.http.get).toHaveBeenLastCalledWith('/api/external-account-monitors/external', { page: 2, page_size: 20 })
     expect(s.detailLoading.value).toBe(false)
   })
-  it('详情加载失败显示错误并保留当前数据供重试', async () => {
+  it('详情加载失败显示错误且不展示上个账号的旧数据', async () => {
     const s = setup()
     s.detail.value = { posts: [] }
     s.http.get.mockRejectedValueOnce(new Error('加载失败'))
     await s.loadDetail()
     expect(s.detailError.value).toBe('加载失败')
-    expect(s.detail.value).toEqual({ posts: [] })
+    expect(s.detail.value).toBeNull()
     expect(s.detailLoading.value).toBe(false)
   })
   it('独立入口，不使用账号管理或任务接口', () => {

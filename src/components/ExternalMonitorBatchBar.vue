@@ -53,7 +53,7 @@ async function run(action: Action) {
       <el-button :icon="Pause" :disabled="disabled" @click="run('disable')">批量关闭监听</el-button>
       <el-button :icon="Clock3" :disabled="disabled" @click="dialog = 'interval'">批量修改间隔</el-button>
       <el-button :icon="Layers3" :disabled="disabled" @click="tags = []; dialog = 'tags'">批量设置标签</el-button>
-      <el-button :icon="FolderInput" :disabled="disabled" @click="folder = 'ungrouped'; dialog = 'folder'">批量移组</el-button>
+      <el-button v-if="folders" :icon="FolderInput" :disabled="disabled" @click="folder = 'ungrouped'; dialog = 'folder'">批量移组</el-button>
       <el-button :icon="Globe" :disabled="disabled" @click="country = ''; countryMode = 'set'; dialog = 'country'">批量修改国家</el-button>
       <el-button :icon="Trash2" type="danger" plain :disabled="disabled" @click="run('delete')">批量删除</el-button>
     </div>
