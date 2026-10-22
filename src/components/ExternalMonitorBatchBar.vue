@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Clock3, Globe, Layers3, Pause, Play, Trash2 } from 'lucide-vue-next'
+import { Clock3, FolderInput, Globe, Layers3, Pause, Play, Trash2 } from 'lucide-vue-next'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import ExternalCountrySelect from './ExternalCountrySelect.vue'
 import ExternalAccountTagSelect from './ExternalAccountTagSelect.vue'
 
-type Action = 'enable' | 'disable' | 'interval' | 'tags' | 'country' | 'delete'
+type Action = 'enable' | 'disable' | 'interval' | 'tags' | 'country' | 'folder' | 'delete'
 interface Result { succeeded: number; skipped: number; failed: number; items: { id: string; status: string; message: string }[] }
-const props = defineProps<{ selected: { id: string; version: number }[]; groups: { id: string; name: string }[]; disabled: boolean }>()
+const props = defineProps<{ selected: { id: string; version: number }[]; groups: { id: string; name: string }[]; folders?: { id: string; name: string }[]; disabled: boolean }>()
 const emit = defineEmits<{ completed: []; busy: [value: boolean] }>()
 const busy = ref(false)
-const dialog = ref<'interval' | 'tags' | 'country' | null>(null)
+const dialog = ref<'interval' | 'tags' | 'country' | 'folder' | null>(null)
+const folder = ref('ungrouped')
 const interval = ref(60)
 const tags = ref<string[]>([])
 const country = ref('')
@@ -31,6 +32,7 @@ async function run(action: Action) {
     result.value = await http.post<Result>('/api/external-account-monitors/batch', { action, items,
       ...(action === 'interval' ? { interval_minutes: interval.value } : {}),
       ...(action === 'tags' ? { tag_ids: [...tags.value] } : {}),
+      ...(action === 'folder' ? { folder_id: folder.value === 'ungrouped' ? null : folder.value } : {}),
       ...(action === 'country' ? { country: countryMode.value === 'clear' ? '' : country.value } : {}),
     })
     dialog.value = null
@@ -51,13 +53,15 @@ async function run(action: Action) {
       <el-button :icon="Pause" :disabled="disabled" @click="run('disable')">批量关闭监听</el-button>
       <el-button :icon="Clock3" :disabled="disabled" @click="dialog = 'interval'">批量修改间隔</el-button>
       <el-button :icon="Layers3" :disabled="disabled" @click="tags = []; dialog = 'tags'">批量设置标签</el-button>
+      <el-button :icon="FolderInput" :disabled="disabled" @click="folder = 'ungrouped'; dialog = 'folder'">批量移组</el-button>
       <el-button :icon="Globe" :disabled="disabled" @click="country = ''; countryMode = 'set'; dialog = 'country'">批量修改国家</el-button>
       <el-button :icon="Trash2" type="danger" plain :disabled="disabled" @click="run('delete')">批量删除</el-button>
     </div>
   </div>
-  <el-dialog :model-value="!!dialog" :title="dialog === 'interval' ? '批量修改监听间隔' : dialog === 'country' ? '批量修改国家' : '批量设置标签'" width="min(440px, 96vw)" append-to-body :close-on-click-modal="false" :close-on-press-escape="!busy" :show-close="!busy" @update:model-value="value => { if (!value && !busy) dialog = null }">
+  <el-dialog :model-value="!!dialog" :title="dialog === 'interval' ? '批量修改监听间隔' : dialog === 'country' ? '批量修改国家' : dialog === 'folder' ? '批量移组' : '批量设置标签'" width="min(440px, 96vw)" append-to-body :close-on-click-modal="false" :close-on-press-escape="!busy" :show-close="!busy" @update:model-value="value => { if (!value && !busy) dialog = null }">
     <el-form label-position="top">
       <el-form-item v-if="dialog === 'interval'" label="监听间隔（分钟）"><el-input-number v-model="interval" :min="1" :max="1440" :disabled="busy" /></el-form-item>
+      <el-form-item v-else-if="dialog === 'folder'" label="目标分组"><el-select v-model="folder" :disabled="busy" filterable><el-option label="未分组" value="ungrouped" /><el-option v-for="item in folders || []" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
       <template v-else-if="dialog === 'country'">
         <el-form-item label="修改方式"><el-radio-group v-model="countryMode" :disabled="busy"><el-radio-button value="set">设置国家</el-radio-button><el-radio-button value="clear">清空国家</el-radio-button></el-radio-group></el-form-item>
         <el-form-item v-if="countryMode === 'set'" label="国家"><ExternalCountrySelect v-model="country" :disabled="busy" /></el-form-item>

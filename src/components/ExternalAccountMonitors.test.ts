@@ -9,7 +9,7 @@ function setup() {
   const state = {
     platforms: { value: [{ value: 'x' }] },
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
-    form: { business_platform: 'x', profile_url: 'https://x.com/source', country: '', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[] },
+    form: { folder_id: '', business_platform: 'x', profile_url: 'https://x.com/source', country: '', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[] },
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     metricSort: { value: null as { prop: string; order: string } | null },
@@ -22,13 +22,14 @@ function setup() {
     orderSaving: { value: false }, orderDisabled: { value: false },
     managedCountries: { countries: [] as string[], version: 1 },
     summary: { value: null as unknown }, groups: { value: [] as { id: string; name: string; member_count: number }[] },
+    folders: { value: [] as { id: string; name: string; member_count: number }[] },
     http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : path.endsWith('/countries') ? ['日本', '韩国'] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
   const get = state.http.get.getMockImplementation()!
-  state.http.get.mockImplementation(async (path: string) => path.endsWith('/country-options') ? state.managedCountries : get(path))
-  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  state.http.get.mockImplementation(async (path: string) => path.endsWith('/folders') ? [] : path.endsWith('/country-options') ? state.managedCountries : get(path))
+  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let foldersSequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
   const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadDetail, search, reset, sortMetrics, filterCountries};`)(...Object.values(state)) as {
     filterCountries: (countries?: string[], unset?: boolean) => void
     openForm: (row?: Record<string, unknown>) => void
@@ -456,7 +457,7 @@ describe('外部账号只读监听', () => {
   it('添加后继续输入下一账号，保留平台与间隔', async () => {
     const s = setup()
     await s.save()
-    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { business_platform: 'x', country: '', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, tag_ids: [] })
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', { folder_id: null, business_platform: 'x', country: '', profile_url: 'https://x.com/source', remark: 'note', interval_minutes: 60, tag_ids: [] })
     expect(s.form.profile_url).toBe('')
     expect(s.formVisible.value).toBe(true)
     expect(s.form.business_platform).toBe('x')
@@ -476,7 +477,7 @@ describe('外部账号只读监听', () => {
     const s = setup()
     s.editing.value = { id: 'external', version: 1 }
     await s.save()
-    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { country: '', remark: 'note', interval_minutes: 60, enabled: true, expected_version: 1, tag_ids: [] })
+    expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { folder_id: null, country: '', remark: 'note', interval_minutes: 60, enabled: true, expected_version: 1, tag_ids: [] })
     expect(s.editing.value?.version).toBe(2)
     expect(s.http.post).not.toHaveBeenCalled()
   })
