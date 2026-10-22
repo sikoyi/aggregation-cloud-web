@@ -67,6 +67,7 @@ const deleting = ref('')
 const form = reactive({ folder_id: '', business_platform: 'threads', profile_url: '', country: '', remark: '', interval_minutes: 360, enabled: true, tag_ids: [] as string[] })
 const detailVisible = ref(false)
 const detailId = ref('')
+const detailView = ref<'overview' | 'account'>('overview')
 let sequence = 0
 let groupsSequence = 0
 let disposed = false
@@ -299,6 +300,7 @@ async function remove(row: ExternalMonitor) {
 function openDetail(row: AnyRecord) {
   const account = row as ExternalMonitor
   detailId.value = account.is_persona ? account.children![0].id : account.id
+  detailView.value = account.is_persona ? 'overview' : 'account'
   detailVisible.value = true
 }
 watch([page, pageSize], () => { void load() })
@@ -382,7 +384,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
     <div class="external-monitors__pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :disabled="batchBusy" :total="total" :page-sizes="[20, 50, 100]" background layout="total, sizes, prev, pager, next" @size-change="page = 1" /></div>
     <el-dialog v-model="detailVisible" title="外部账号数据" width="min(1280px, 96vw)" top="5vh" append-to-body :close-on-click-modal="false" destroy-on-close>
       <div class="external-monitors__detail">
-        <ExternalMonitorPersonaDetail v-if="detailVisible" ref="personaDetail" :monitor-id="detailId" :can-edit="canEdit" :revision="personaRevision" @link="personaLink?.open($event)" @edit="openForm($event as ExternalMonitor)" @changed="load()" />
+        <ExternalMonitorPersonaDetail v-if="detailVisible" ref="personaDetail" :monitor-id="detailId" :initial-view="detailView" :can-edit="canEdit" :revision="personaRevision" @link="personaLink?.open($event)" @edit="openForm($event as ExternalMonitor)" @changed="load()" />
       </div>
       <template #footer><el-button @click="detailVisible = false">关闭</el-button></template>
     </el-dialog>
