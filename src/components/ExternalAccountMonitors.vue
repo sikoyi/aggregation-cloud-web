@@ -64,7 +64,7 @@ const saving = ref(false)
 const tagEditingBusy = ref(false)
 const busy = ref('')
 const deleting = ref('')
-const form = reactive({ folder_id: '', business_platform: 'threads', profile_url: '', country: '', remark: '', interval_minutes: 360, enabled: true, tag_ids: [] as string[] })
+const form = reactive({ folder_id: '', business_platform: 'threads', profile_url: '', country: '', remark: '', interval_minutes: 720, enabled: true, tag_ids: [] as string[] })
 const detailVisible = ref(false)
 const detailId = ref('')
 const detailView = ref<'overview' | 'account'>('overview')
@@ -240,7 +240,7 @@ function openForm(row?: ExternalMonitor) {
   form.folder_id = row?.folder_id || ''
   void loadGroups()
   Object.assign(form, row ? { business_platform: row.business_platform, profile_url: row.profile_url, remark: row.remark, interval_minutes: row.interval_minutes, enabled: row.enabled }
-    : { business_platform: platforms.value[0]?.value || 'threads', profile_url: '', remark: '', interval_minutes: 360, enabled: true })
+    : { business_platform: platforms.value[0]?.value || 'threads', profile_url: '', remark: '', interval_minutes: 720, enabled: true })
   formVisible.value = true
 }
 async function save() {

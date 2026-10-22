@@ -227,14 +227,14 @@ describe('外部账号只读监听', () => {
     s.reset()
     expect(s.appliedFilters).toEqual(expect.objectContaining({ countries: [] }))
   })
-  it('新增及重新打开默认六小时，编辑和连续添加保留自定义间隔', async () => {
+  it('新增及重新打开默认十二小时，编辑和连续添加保留自定义间隔', async () => {
     const s = setup()
-    expect(source).toContain("remark: '', interval_minutes: 360, enabled: true, tag_ids:")
+    expect(source).toContain("remark: '', interval_minutes: 720, enabled: true, tag_ids:")
     s.openForm()
-    expect(s.form.interval_minutes).toBe(360)
+    expect(s.form.interval_minutes).toBe(720)
     s.form.profile_url = 'https://x.com/source'
     await s.save()
-    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ interval_minutes: 360 }))
+    expect(s.http.post).toHaveBeenCalledWith('/api/external-account-monitors', expect.objectContaining({ interval_minutes: 720 }))
 
     s.form.interval_minutes = 45
     s.form.profile_url = 'https://x.com/second'
@@ -245,7 +245,7 @@ describe('外部账号只读监听', () => {
     await s.save()
     expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', expect.objectContaining({ interval_minutes: 60 }))
     s.openForm()
-    expect(s.form.interval_minutes).toBe(360)
+    expect(s.form.interval_minutes).toBe(720)
   })
   it('标签旧响应不能覆盖最新成员数量', async () => {
     const s = setup()

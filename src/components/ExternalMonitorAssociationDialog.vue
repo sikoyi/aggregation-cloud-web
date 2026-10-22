@@ -15,7 +15,7 @@ const error = ref('')
 const anchor = ref<ExternalMonitor | null>(null)
 const association = ref<ExternalPersona | null>(null)
 const mode = ref('existing')
-const form = reactive({ name: '', platform: 'threads', profile_url: '', interval_minutes: 360 })
+const form = reactive({ name: '', platform: 'threads', profile_url: '', interval_minutes: 720 })
 const keyword = ref('')
 const candidates = ref<ExternalMonitor[]>([])
 const selected = ref<ExternalMonitor[]>([])
@@ -54,7 +54,7 @@ async function open(row: AnyRecord) {
   candidates.value = []
   selected.value = []
   page.value = 1
-  Object.assign(form, { name: '', platform: platforms.value[0]?.value || 'threads', profile_url: '', interval_minutes: 360 })
+  Object.assign(form, { name: '', platform: platforms.value[0]?.value || 'threads', profile_url: '', interval_minutes: 720 })
   try {
     const result = await http.get<{ association: ExternalPersona | null; accounts: ExternalMonitor[] }>(`/api/external-account-monitors/${anchor.value!.id}/persona`)
     if (current !== sequence || !visible.value) return
