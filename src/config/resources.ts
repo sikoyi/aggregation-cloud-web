@@ -777,6 +777,10 @@ function buildPublishedContentDispatchBody(payload: AnyRecord) {
     }
   }
   const rawComments = Array.isArray(payload.comments) ? payload.comments : [];
+  if (body.business_platform === "instagram" && body.runtime_platform === "cloud_phone"
+    && body.provider === "vmos" && rawComments.length > 0) {
+    throw new Error("Instagram 云手机暂不支持发布后评论，请先移除评论");
+  }
   if (rawComments.length > 20) {
     throw new Error("每个发布任务最多添加 20 条评论");
   }
