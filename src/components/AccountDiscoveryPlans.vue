@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed,onBeforeUnmount,onMounted,reactive,ref,watch } from 'vue'
 import { ElMessage,ElMessageBox } from 'element-plus'
-import { Check,ChevronRight,Eye,FileSearch,Pause,Play,Plus,RefreshCw,Save,Search,Trash2,X } from 'lucide-vue-next'
-import { accountDiscovery,discoveryDefaults,discoveryPlatforms,discoveryStatus,type DiscoveryCapability,type DiscoveryKeyword,type DiscoveryPlan,type DiscoveryPlanDetail,type DiscoveryConfig,type DiscoverySeed,type DiscoveryVersionOption,type DiscoveryKeywordVersion,type DiscoveryRun,type DiscoverySearch,type DiscoveryEvidence,type DiscoverySample } from '@/api/accountDiscovery'
+import { Check,ChevronRight,Copy,Eye,FileSearch,Pause,Play,Plus,RefreshCw,Save,Search,Trash2,X } from 'lucide-vue-next'
+import { accountDiscovery,discoveryDefaults,discoveryInstagramTag,discoveryPlatforms,discoveryStatus,type DiscoveryCapability,type DiscoveryKeyword,type DiscoveryPlan,type DiscoveryPlanDetail,type DiscoveryConfig,type DiscoverySeed,type DiscoveryVersionOption,type DiscoveryKeywordVersion,type DiscoveryRun,type DiscoverySearch,type DiscoveryEvidence,type DiscoverySample } from '@/api/accountDiscovery'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { safeSelectionLink } from '@/utils/contentSelection'
@@ -16,6 +16,7 @@ const visible=ref(false),detailLoading=ref(false),busy=ref(false),detailError=re
 const form=reactive<{name:string;config:DiscoveryConfig}>({name:'',config:discoveryDefaults()})
 const baseline=ref(''),planVersion=ref(1),seedOptions=ref<DiscoverySeed[]>([]),seedLoading=ref(false)
 const creationKey=ref('')
+const copyKey=ref('')
 const sections=ref(['scope','rules'])
 const keywordVersions=ref<DiscoveryVersionOption[]>([]),keywordTotal=ref(0),versionPage=ref(1),keywordId=ref(''),keywordLoading=ref(false),keywordError=ref('')
 const keywordVersion=ref<DiscoveryKeywordVersion|null>(null),words=ref<KeywordRow[]>([]),keywordPage=ref(1),wordInput=ref(''),wordBaseline=ref('[]')
@@ -25,6 +26,7 @@ const evidenceVisible=ref(false),evidencePosts=ref<DiscoveryEvidence[]>([])
 const sampleRows=ref<DiscoverySample[]>([]),sampleSkipped=ref(false)
 let request=0,detailRequest=0,wordRequest=0,seedRequest=0,searchRequest=0,runRequest=0,versionRequest=0,disposed=false
 let timer:ReturnType<typeof setInterval>|undefined
+const startKeys=new Map<string,string>()
 const label=(value:string)=>discoveryStatus[value]||value
 const dirty=computed(()=>JSON.stringify({name:form.name,config:form.config})!==baseline.value)
 const wordPayload=()=>words.value.map(({_key,...row})=>row)
@@ -33,6 +35,7 @@ const editableKeywords=computed(()=>canEdit.value&&keywordVersion.value?.status=
 const pageWords=computed(()=>words.value.slice((keywordPage.value-1)*50,keywordPage.value*50))
 const enabledWords=computed(()=>words.value.filter(row=>row.enabled).length)
 const unavailable=computed(()=>capabilities.value.filter(row=>form.config.platforms.includes(row.platform)&&!row.enabled).map(row=>discoveryPlatforms[row.platform]))
+const currentSearchVersion=computed(()=>!!detail.value?.plan.approved_keywords_id&&(activeTab.value!=='keywords'||(keywordVersion.value?.status==='approved'&&keywordVersion.value.id===detail.value.plan.approved_keywords_id)))
 function showError(e:unknown){return e instanceof Error?e.message:'请求失败'}
 async function load(reset=false){
   if(reset)page.value=1
@@ -77,9 +80,13 @@ async function reloadDetail(){
 }
 async function start(action:'analyze'|'search'){
   if(!planId.value||busy.value||dirty.value||wordsDirty.value)return
+  if(action==='search'&&!currentSearchVersion.value)return
   try{await ElMessageBox.confirm(action==='analyze'?'将使用已采集样本分析关键词，会消耗 AI Token，确认开始？':'将使用已审核关键词调用协议搜索，会消耗协议额度，确认开始？',action==='analyze'?'分析关键词':'开始搜索',{type:'warning'})}catch{return}
   busy.value=true;detailError.value=''
-  try{await accountDiscovery.start(planId.value,{action,expected_version:planVersion.value,request_key:crypto.randomUUID()});await openPlan({id:planId.value},'runs');await load()}
+  const expectedKeywords=action==='search'?detail.value?.plan.approved_keywords_id:undefined
+  const fingerprint=JSON.stringify([auth.user?.id,planId.value,planVersion.value,action,expectedKeywords])
+  const requestKey=startKeys.get(fingerprint)||crypto.randomUUID();startKeys.set(fingerprint,requestKey)
+  try{await accountDiscovery.start(planId.value,{action,expected_version:planVersion.value,expected_keywords_id:expectedKeywords,request_key:requestKey});startKeys.delete(fingerprint);ElMessage.success('运行已登记，进度见运行记录');await openPlan({id:planId.value},'runs');await load()}
   catch(e){detailError.value=showError(e)}finally{busy.value=false}
 }
 async function control(value:unknown,action:'pause'|'resume'|'cancel'){
@@ -114,7 +121,7 @@ async function loadKeyword(){
   if(!keywordId.value)keywordId.value=keywordVersions.value[0]?.id||''
   if(!keywordId.value)return
   const id=++wordRequest;keywordLoading.value=true;keywordError.value=''
-  try{const result=await accountDiscovery.keyword(planId.value,keywordId.value);if(id!==wordRequest)return;keywordVersion.value=result;words.value=result.items.map((row:DiscoveryKeyword)=>({...row,_key:crypto.randomUUID()}));keywordPage.value=1;wordBaseline.value=JSON.stringify(wordPayload())}
+  try{const result=await accountDiscovery.keyword(planId.value,keywordId.value);if(id!==wordRequest)return;keywordVersion.value=result;words.value=result.items.map((row:DiscoveryKeyword)=>({...row,_key:crypto.randomUUID()}));keywordPage.value=1;wordBaseline.value=JSON.stringify(wordPayload());copyKey.value=crypto.randomUUID()}
   catch(e){if(id===wordRequest)keywordError.value=showError(e)}finally{if(id===wordRequest)keywordLoading.value=false}
 }
 async function changeKeyword(value:string){
@@ -129,7 +136,21 @@ watch(activeTab,value=>{if(value==='keywords'&&!keywordVersion.value)void loadKe
 watch(()=>words.value.length,length=>{keywordPage.value=Math.max(1,Math.min(keywordPage.value,Math.ceil(length/50)))})
 function addWord(){
   if(!wordInput.value.trim()||!editableKeywords.value)return
-  words.value.push({_key:crypto.randomUUID(),text:wordInput.value.trim(),language:'',evidence_ids:[],enabled:true,source:'manual'});wordInput.value='';keywordPage.value=Math.ceil(words.value.length/50)
+  const targets=form.config.platforms.filter(platform=>platform!=='instagram'||!!discoveryInstagramTag(wordInput.value))
+  words.value.push({_key:crypto.randomUUID(),text:wordInput.value.trim(),language:'',evidence_ids:[],enabled:!!targets.length,source:'manual',platforms:targets});wordInput.value='';keywordPage.value=Math.ceil(words.value.length/50)
+}
+async function copyWords(){
+  if(!planId.value||!keywordVersion.value||busy.value||dirty.value||wordsDirty.value)return
+  try{await ElMessageBox.confirm('复用已保存的词和样本依据创建新草案，不重新调用 AI。新草案仍需人工审核，当前已审核版本保持不变。确认复制？','复制为草案',{type:'warning'})}catch{return}
+  const current=planId.value;const source=keywordVersion.value.id
+  busy.value=true;keywordError.value=''
+  try{
+    if(!copyKey.value)copyKey.value=crypto.randomUUID()
+    const result=await accountDiscovery.copyKeywords(current,source,{expected_version:planVersion.value,request_key:copyKey.value})
+    if(disposed||planId.value!==current)return
+    keywordId.value=result.id;keywordVersion.value=result;words.value=result.items.map(row=>({...row,_key:crypto.randomUUID()}));keywordPage.value=1;wordBaseline.value=JSON.stringify(wordPayload());copyKey.value=crypto.randomUUID();versionPage.value=1
+    await loadVersions();await load();ElMessage.success('新草案已创建，未重新调用 AI')
+  }catch(e){keywordError.value=showError(e)}finally{busy.value=false}
 }
 function showEvidence(value:unknown){
   const word=value as KeywordRow
@@ -186,7 +207,7 @@ onBeforeUnmount(()=>{disposed=true;clearInterval(timer);request++;detailRequest+
     <el-dialog v-model="visible" class="discovery-plan-dialog" :title="planId?form.name||'发现计划':'新增发现计划'" width="min(1140px,calc(100vw - 32px))" align-center :close-on-click-modal="false" :before-close="closePlan">
       <div v-loading="detailLoading" class="plan-detail">
         <el-alert v-if="detailError" :title="detailError" type="error" :closable="false"><el-button v-if="planId" link type="primary" :icon="RefreshCw" @click="reloadDetail">重新加载</el-button></el-alert>
-        <el-tabs v-model="activeTab"><el-tab-pane label="计划配置" name="config" /><el-tab-pane label="关键词审核" name="keywords" :disabled="!planId" /><el-tab-pane label="运行记录" name="runs" :disabled="!planId" /><el-tab-pane label="候选作者" name="candidates" :disabled="!planId" /></el-tabs>
+        <el-tabs v-model="activeTab" :before-leave="()=>!busy"><el-tab-pane label="计划配置" name="config" /><el-tab-pane label="关键词审核" name="keywords" :disabled="!planId" /><el-tab-pane label="运行记录" name="runs" :disabled="!planId" /><el-tab-pane label="候选作者" name="candidates" :disabled="!planId" /></el-tabs>
         <el-form v-if="activeTab==='config'&&!detailLoading" label-width="132px" @submit.prevent="save" :disabled="!canEdit||busy">
           <el-form-item label="计划名称" required><el-input v-model="form.name" maxlength="100" /></el-form-item>
           <el-collapse v-model="sections">
@@ -238,13 +259,27 @@ onBeforeUnmount(()=>{disposed=true;clearInterval(timer);request++;detailRequest+
         </el-form>
 
         <section v-if="activeTab==='keywords'">
-          <div class="keyword-toolbar"><el-select :model-value="keywordId" placeholder="选择关键词版本" @change="changeKeyword"><el-option v-for="item in keywordVersions" :key="item.id" :value="item.id" :label="`${formatDate(item.created_at)} · ${label(item.status)} · ${item.total} 词`" /></el-select><el-button :icon="RefreshCw" :loading="keywordLoading" @click="reloadKeyword">重新加载</el-button><span v-if="keywordVersion">共 {{ words.length }} 个，启用 {{ enabledWords }} 个 / 本轮上限 {{ form.config.max_keywords }}</span></div>
+          <div class="keyword-toolbar"><el-select :model-value="keywordId" placeholder="选择关键词版本" :disabled="busy||keywordLoading" @change="changeKeyword"><el-option v-for="item in keywordVersions" :key="item.id" :value="item.id" :label="`${formatDate(item.created_at)} · ${label(item.status)} · ${item.total} 词`" /></el-select><el-button :icon="RefreshCw" :loading="keywordLoading" :disabled="busy" @click="reloadKeyword">重新加载</el-button><el-button v-if="keywordVersion&&canEdit" :icon="Copy" :disabled="busy||dirty||wordsDirty" @click="copyWords">复制为草案</el-button><span v-if="keywordVersion">共 {{ words.length }} 个，启用 {{ enabledWords }} 个 / 本轮上限 {{ form.config.max_keywords }}</span></div>
           <el-pagination v-if="keywordTotal>20" v-model:current-page="versionPage" :page-size="20" :total="keywordTotal" layout="total,prev,next" @current-change="loadVersions" />
           <el-alert v-if="keywordError" :title="keywordError" type="error" :closable="false" />
           <el-empty v-if="!keywordVersions.length&&!keywordLoading" description="尚无关键词草案" />
           <template v-if="keywordVersion">
+            <el-alert v-if="keywordVersion.copied_from" title="已复用旧版词和样本依据，未重新调用 AI；当前草案仍需人工审核" type="info" :closable="false" />
+            <el-alert v-if="keywordVersion.status==='approved'&&keywordVersion.id!==detail?.plan.approved_keywords_id" title="当前查看的是历史已审核版本，不是本计划生效版本；可复制为草案后复审" type="info" :closable="false" />
             <div v-if="editableKeywords" class="keyword-toolbar"><el-checkbox :model-value="enabledWords===words.length&&!!words.length" :indeterminate="enabledWords>0&&enabledWords<words.length" :disabled="busy" @change="words.forEach(item=>item.enabled=Boolean($event))">全部启用</el-checkbox><el-input v-model="wordInput" placeholder="新增关键词" maxlength="100" @keyup.enter="addWord" /><el-button :icon="Plus" :disabled="!wordInput.trim()||words.length>=5000" @click="addWord">新增</el-button></div>
-            <el-table :data="pageWords" v-loading="keywordLoading" row-key="_key"><el-table-column label="启用" width="72"><template #default="{row}"><el-checkbox v-model="row.enabled" :disabled="!editableKeywords||busy" :aria-label="`启用${row.text}`" /></template></el-table-column><el-table-column label="关键词" min-width="200"><template #default="{row}"><el-input v-if="editableKeywords" v-model="row.text" maxlength="100" :disabled="busy" /><span v-else>{{ row.text }}</span></template></el-table-column><el-table-column label="语言" width="120"><template #default="{row}"><el-input v-if="editableKeywords" v-model="row.language" maxlength="30" :disabled="busy" /><span v-else>{{ row.language||'未标注' }}</span></template></el-table-column><el-table-column label="来源" width="90"><template #default="{row}">{{ row.source==='ai'?'AI 提取':'运营新增' }}</template></el-table-column><el-table-column label="样本依据" width="120"><template #default="{row}"><el-button v-if="row.evidence_ids.length" link type="primary" @click="showEvidence(row)">{{ row.evidence_ids.length }} 篇 <ChevronRight :size="13" /></el-button><span v-else>运营新增</span></template></el-table-column><el-table-column v-if="editableKeywords" label="移除" width="70"><template #default="{row}"><el-tooltip content="移除关键词"><el-button :icon="Trash2" circle aria-label="移除关键词" :disabled="busy" @click="words=words.filter(item=>item._key!==row._key)" /></el-tooltip></template></el-table-column></el-table>
+            <el-table :data="pageWords" v-loading="keywordLoading" row-key="_key">
+              <el-table-column label="启用" width="72"><template #default="{row}"><el-checkbox v-model="row.enabled" :disabled="!editableKeywords||busy" :aria-label="`启用${row.text}`" /></template></el-table-column>
+              <el-table-column label="关键词" min-width="190"><template #default="{row}"><el-input v-if="editableKeywords" v-model="row.text" maxlength="100" :disabled="busy" /><span v-else>{{ row.text }}</span></template></el-table-column>
+              <el-table-column label="适用平台" min-width="240"><template #default="{row}">
+                <el-select v-if="editableKeywords" v-model="row.platforms" multiple :disabled="busy" :aria-label="`${row.text}适用平台`"><el-option v-for="platform in form.config.platforms" :key="platform" :value="platform" :label="discoveryPlatforms[platform]" /></el-select>
+                <span v-else>{{ row.platforms.map((platform:string)=>discoveryPlatforms[platform]).join('、')||'未选择' }}</span>
+                <small v-if="form.config.platforms.includes('instagram')">Instagram：{{ discoveryInstagramTag(row.text)?'#'+discoveryInstagramTag(row.text):'需明确标签，不自动拼词' }}</small>
+              </template></el-table-column>
+              <el-table-column label="语言" width="100"><template #default="{row}"><el-input v-if="editableKeywords" v-model="row.language" maxlength="30" :disabled="busy" /><span v-else>{{ row.language||'未标注' }}</span></template></el-table-column>
+              <el-table-column label="来源" width="90"><template #default="{row}">{{ row.source==='ai'?'AI 提取':'运营新增' }}</template></el-table-column>
+              <el-table-column label="样本依据" width="120"><template #default="{row}"><el-button v-if="row.evidence_ids.length" link type="primary" @click="showEvidence(row)">{{ row.evidence_ids.length }} 篇 <ChevronRight :size="13" /></el-button><span v-else>运营新增</span></template></el-table-column>
+              <el-table-column v-if="editableKeywords" label="移除" width="70"><template #default="{row}"><el-tooltip content="移除关键词"><el-button :icon="Trash2" circle aria-label="移除关键词" :disabled="busy" @click="words=words.filter(item=>item._key!==row._key)" /></el-tooltip></template></el-table-column>
+            </el-table>
             <el-pagination v-model:current-page="keywordPage" :page-size="50" :total="words.length" background layout="total,prev,pager,next" />
             <div v-if="editableKeywords" class="keyword-toolbar"><el-button :icon="Save" :loading="busy" @click="saveWords(false)">保存草案</el-button><el-button v-if="canReview" :icon="Check" type="primary" :loading="busy" :disabled="!enabledWords||enabledWords>form.config.max_keywords" @click="saveWords(true)">审核通过</el-button></div>
           </template>
@@ -258,7 +293,8 @@ onBeforeUnmount(()=>{disposed=true;clearInterval(timer);request++;detailRequest+
               <p>{{ row.result.stage||row.phase }}</p><small v-if="row.result.limited">搜索范围受本轮页数、作者评估上限或协议能力限制</small>
             </template></el-table-column>
             <el-table-column label="进度 / Token" min-width="220"><template #default="{row}">
-              <template v-if="row.kind==='analyze'">样本 {{ row.result.counters?.analyzed_posts||0 }} / {{ row.result.counters?.selected_posts||0 }} · 已完成 {{ row.result.completed_batches||0 }} / {{ row.result.total_batches||0 }} 批</template>
+              <template v-if="row.result.operation==='keyword_copy'">复用关键词与样本依据，未调用 AI</template>
+              <template v-else-if="row.kind==='analyze'">样本 {{ row.result.counters?.analyzed_posts||0 }} / {{ row.result.counters?.selected_posts||0 }} · 已完成 {{ row.result.completed_batches||0 }} / {{ row.result.total_batches||0 }} 批</template>
               <template v-else-if="row.result.operation==='refresh'">仅刷新作者资料与条件重判</template>
               <template v-else>搜索 {{ row.result.counters?.search_pages||0 }} 页 · 返回 {{ row.result.counters?.returned_posts||0 }} 帖 · 纳入评估 {{ row.result.counters?.discovered_authors||0 }} 位作者</template>
               <small v-if="row.kind==='analyze'">Token {{ Number(row.budget.tokens).toLocaleString('zh-CN') }} / {{ Number(row.budget.max_tokens).toLocaleString('zh-CN') }}</small>
@@ -278,7 +314,7 @@ onBeforeUnmount(()=>{disposed=true;clearInterval(timer);request++;detailRequest+
         </section>
         <AccountDiscoveryCandidates v-if="activeTab==='candidates'&&planId" :plan-id="planId" />
       </div>
-      <template #footer><el-button :disabled="busy" @click="closePlan(()=>visible=false)">关闭</el-button><el-button v-if="canEdit&&activeTab==='config'" :icon="Save" type="primary" :loading="busy" :disabled="!form.name.trim()||detailLoading" @click="save">保存计划</el-button><el-button v-if="canEdit&&planId" :icon="FileSearch" :disabled="busy||dirty||wordsDirty||detailLoading" @click="start('analyze')">分析关键词</el-button><el-button v-if="canEdit&&planId" :icon="Play" type="primary" :disabled="busy||dirty||wordsDirty||!detail?.plan.approved_keywords_id||detailLoading" @click="start('search')">开始搜索</el-button></template>
+      <template #footer><el-button :disabled="busy" @click="closePlan(()=>visible=false)">关闭</el-button><el-button v-if="canEdit&&activeTab==='config'" :icon="Save" type="primary" :loading="busy" :disabled="!form.name.trim()||detailLoading" @click="save">保存计划</el-button><el-button v-if="canEdit&&planId" :icon="FileSearch" :disabled="busy||dirty||wordsDirty||detailLoading" @click="start('analyze')">分析关键词</el-button><el-button v-if="canEdit&&planId" :icon="Play" type="primary" :disabled="busy||dirty||wordsDirty||!currentSearchVersion||detailLoading" @click="start('search')">开始搜索</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="searchesVisible" :title="searchRun?.kind==='analyze'?'分析样本明细':'关键词搜索进度'" width="min(900px,calc(100vw - 32px))" align-center @closed="searchRequest++">

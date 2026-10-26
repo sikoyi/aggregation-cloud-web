@@ -118,6 +118,7 @@ onBeforeUnmount(()=>{disposed=true;request++;detailRequest++;previewRequest++})
           <article v-for="post in detail.posts" :key="post.platform_post_id" class="candidate-post">
             <div><el-tag v-for="word in post.keywords" :key="word" size="small">{{ word }}</el-tag><a :href="safeSelectionLink(post.content_url)" target="_blank" rel="noopener noreferrer">原帖 <ExternalLink :size="12" /></a></div>
             <p>{{ post.text_content }}</p>
+            <small v-if="post.retrieval_mode==='hashtag'">检索来源标签：{{ (post.retrieval_tags||(post.retrieval_tag?[post.retrieval_tag]:[])).map(tag=>'#'+tag).join('、')||'未确认' }}（不代表正文必然包含该词）</small>
             <el-tag v-if="post.verdict" :type="post.verdict==='qualified'?'success':'warning'">{{ label(post.verdict) }}</el-tag><small v-if="post.reasons?.length">{{ post.reasons.join('；') }}</small>
             <small>{{ post.published_at?formatDate(post.published_at):'发布时间未知' }} · 浏览 {{ post.views_count??'未知' }} · 点赞 {{ post.likes_count??'未知' }} · 评论 {{ post.comments_count??'未知' }}</small>
             <div v-if="post.media_urls.length" class="candidate-media"><template v-for="url in post.media_urls" :key="url"><video v-if="selectionIsVideo(url)" :src="safeSelectionLink(url)" controls preload="none" /><el-image v-else :src="safeSelectionLink(url)" fit="contain" loading="lazy" :preview-src-list="post.media_urls.filter((item:string)=>!selectionIsVideo(item))" preview-teleported /></template></div>

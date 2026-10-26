@@ -3,7 +3,7 @@ import type { AnyRecord } from '@/types/api'
 
 export interface DiscoveryPage<T> { items: T[]; total: number }
 export interface DiscoveryCapability { platform: string; enabled: boolean; cursor: boolean; note: string }
-export interface DiscoveryKeyword { text: string; language: string; evidence_ids: string[]; enabled: boolean; source: 'ai' | 'manual' }
+export interface DiscoveryKeyword { text: string; language: string; evidence_ids: string[]; enabled: boolean; source: 'ai' | 'manual'; platforms:string[] }
 export interface DiscoveryRules {
   min_views?:number|null; min_likes?:number|null; min_comments?:number|null; min_followers?:number|null; max_followers?:number|null
   min_hits:number; active_days?:number|null; public_only:boolean; original_only:boolean; require_keyword_text:boolean
@@ -24,7 +24,7 @@ export interface DiscoveryPlan {
   summary:{pending_review?:number;pending_metadata?:number;filtered?:number;rejected?:number;monitored?:number;existing?:number;schedule_error?:string};latest_run?:(Pick<DiscoveryRun,'id'|'status'|'phase'|'error_message'>&{partial?:boolean|null})|null
 }
 export interface DiscoveryEvidence {id:string;monitor_id?:string;platform?:string;content_url?:string;text_content?:string;truncated?:boolean}
-export interface DiscoveryKeywordVersion {id:string;version:number;status:string;created_at:string;reviewed_at?:string|null;items:DiscoveryKeyword[];evidence:DiscoveryEvidence[]}
+export interface DiscoveryKeywordVersion {id:string;version:number;status:string;created_at:string;reviewed_at?:string|null;copied_from?:string|null;items:DiscoveryKeyword[];evidence:DiscoveryEvidence[]}
 export interface DiscoveryVersionOption {id:string;version:number;status:string;total:number;created_at:string;reviewed_at:string|null}
 export interface DiscoveryPlanDetail {plan:DiscoveryPlan;keyword_versions:DiscoveryVersionOption[];keyword_total:number;runs:DiscoveryPage<DiscoveryRun>}
 export interface DiscoverySearch {id:string;platform:string;keyword:string;status:string;pages:number;posts_count:number;error_message:string|null}
@@ -42,6 +42,7 @@ export interface DiscoveryPost {
   platform_post_id:string;content_url:string;text_content:string;published_at:string|null;media_urls:string[];media_pending:number
   keywords:string[];views_count:number|null;likes_count:number|null;comments_count:number|null
   verdict?:string;reasons?:string[]
+  retrieval_mode?:string;retrieval_tag?:string;retrieval_tags?:string[]
 }
 export interface DiscoveryCandidateDetail {candidate:DiscoveryCandidate;posts:DiscoveryPost[];plan:{id:string;name:string;version:number};stale_rules:boolean}
 export interface DiscoveryPreview {allowed:boolean;items:{id:string;username:string;platform:string;allowed:boolean;existing:boolean;monitor_id:string|null;reasons:string[]}[]}
@@ -63,6 +64,7 @@ export const accountDiscovery = {
   keyword: (id: string, keywordId: string) => http.get<DiscoveryKeywordVersion>(`${planPath(id)}/keywords/${encodeURIComponent(keywordId)}`),
   keywordVersions: (id: string, params: AnyRecord) => http.get<DiscoveryPage<DiscoveryVersionOption>>(`${planPath(id)}/keywords`, params),
   saveKeywords: (id: string, keywordId: string, data: AnyRecord) => http.put<DiscoveryKeywordVersion>(`${planPath(id)}/keywords/${encodeURIComponent(keywordId)}`, data),
+  copyKeywords: (id: string, keywordId: string, data: AnyRecord) => http.post<DiscoveryKeywordVersion>(`${planPath(id)}/keywords/${encodeURIComponent(keywordId)}/copy`, data),
   candidates: (params: AnyRecord) => http.get<DiscoveryPage<DiscoveryCandidate>>(`${base}/candidates`, params),
   candidate: (id: string) => http.get<DiscoveryCandidateDetail>(`${base}/candidates/${encodeURIComponent(id)}`),
   preview: (data: AnyRecord) => http.post<DiscoveryPreview>(`${base}/candidates/preview`, data),
@@ -74,6 +76,10 @@ export const discoveryStatus: Record<string,string> = {
   pending_metadata:'待补资料',pending_review:'待审核',filtered:'条件不符',monitored:'已加入监听',existing:'已存在监听',rejected:'已拒绝',
   limited:'达到本轮上限',unsupported:'协议待配置',draft:'待审核',approved:'已审核',
   qualified:'帖子条件符合',
+}
+export function discoveryInstagramTag(text:string) {
+  const tag=text.trim().replace(/^#/,'')
+  return tag&&Array.from(tag).length<=100&&/^[\p{L}\p{N}_]+$/u.test(tag)?tag:null
 }
 export function discoveryDefaults(): DiscoveryConfig {
   return { platforms:['x','threads','instagram'], tag_ids:[], countries:[], exclude_monitor_ids:[], sample_days:30,
