@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, Eye, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Save, Search, Send, Settings2, UserRound, Users } from 'lucide-vue-next'
@@ -15,6 +15,11 @@ import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
 import SelectionOptionFilter from '@/components/SelectionOptionFilter.vue'
 import PersonaCreationPanel from '@/components/PersonaCreationPanel.vue'
 import { parseSelectionMarks, selectionDateRange, selectionMarkQuery, selectionStorageKey, type SelectionMarks } from '@/utils/selectionLocalState'
+
+const AccountDiscoveryPlans = defineAsyncComponent(() => import('@/components/AccountDiscoveryPlans.vue'))
+const AccountDiscoveryCandidates = defineAsyncComponent(() => import('@/components/AccountDiscoveryCandidates.vue'))
+const discoveryPlansRef = ref<{refresh:()=>Promise<void>}|null>(null)
+const discoveryCandidatesRef = ref<{refresh:()=>Promise<void>}|null>(null)
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -276,6 +281,11 @@ async function refresh(reset = false) {
   loading.value = true
   error.value = ''
   const current = tab.value
+  if (current === 'discovery' || current === 'candidates') {
+    try { await (current === 'discovery' ? discoveryPlansRef.value : discoveryCandidatesRef.value)?.refresh() }
+    finally { if (id === requestId) loading.value = false }
+    return
+  }
   if (current === 'posts') { hasMore.value = false; feedRefreshPending.value = false }
   try {
     if (current === 'sources') {
@@ -466,8 +476,12 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
       <el-tab-pane name="posts"><template #label><span class="selection-tab-label"><FileText :size="16" />帖子选题</span></template></el-tab-pane>
       <el-tab-pane name="sources"><template #label><span class="selection-tab-label"><Users :size="16" />来源账号</span></template></el-tab-pane>
       <el-tab-pane name="orders"><template #label><span class="selection-tab-label"><ClipboardList :size="16" />发布工单</span></template></el-tab-pane>
+      <el-tab-pane name="discovery"><template #label><span class="selection-tab-label"><Search :size="16" />发现计划</span></template></el-tab-pane>
+      <el-tab-pane name="candidates"><template #label><span class="selection-tab-label"><Users :size="16" />作者候选</span></template></el-tab-pane>
     </el-tabs>
-    <div class="selection-body">
+    <div v-if="tab==='discovery'" class="selection-body"><AccountDiscoveryPlans ref="discoveryPlansRef" /></div>
+    <div v-if="tab==='candidates'" class="selection-body"><AccountDiscoveryCandidates ref="discoveryCandidatesRef" /></div>
+    <div v-if="tab!=='discovery'&&tab!=='candidates'" class="selection-body">
     <div v-if="tab === 'posts'" class="selection-filters">
       <div class="filter-title"><Search :size="14" /><span>筛选条件</span><el-button link :icon="expandedFilters ? ChevronUp : ChevronDown" @click="expandedFilters = !expandedFilters">{{ expandedFilters ? '收起筛选' : '更多筛选' }}</el-button></div>
       <div class="feed-threshold">
