@@ -75,6 +75,12 @@ const rawNavGroups = [
     ],
   },
   {
+    label: '设备中心',
+    index: 'device',
+    icon: Boxes,
+    children: [{ label: '设备管理', to: '/slots', icon: Boxes, permission: 'devices.view' }],
+  },
+  {
     label: '账号中心',
     index: 'account',
     icon: Users,
@@ -85,10 +91,14 @@ const rawNavGroups = [
     ],
   },
   {
-    label: '设备中心',
-    index: 'device',
-    icon: Boxes,
-    children: [{ label: '设备管理', to: '/slots', icon: Boxes, permission: 'devices.view' }],
+    label: '内容中心',
+    index: 'content',
+    icon: FileText,
+    children: [
+      { label: '内容库', to: '/contents', icon: FileText, permission: 'content.view' },
+      { label: '选题池', to: '/content-selection', icon: FileCheck2, permission: 'operations.view' },
+      { label: '素材库', to: '/media-assets', icon: Image, permission: 'media.view' },
+    ],
   },
   {
     label: '资源中心',
@@ -97,16 +107,6 @@ const rawNavGroups = [
     children: [
       { label: '代理资源', to: '/proxies', icon: ShieldCheck, permission: 'proxies.view' },
       { label: '注册资源', to: '/registration-resources', icon: Database, permission: 'registration_resources.view' },
-    ],
-  },
-  {
-    label: '内容中心',
-    index: 'content',
-    icon: FileText,
-    children: [
-      { label: '内容库', to: '/contents', icon: FileText, permission: 'content.view' },
-      { label: '选题池', to: '/content-selection', icon: FileCheck2, permission: 'operations.view' },
-      { label: '素材库', to: '/media-assets', icon: Image, permission: 'media.view' },
     ],
   },
   {
