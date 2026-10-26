@@ -53,6 +53,7 @@ async function openPlan(value?:unknown,tab='config'){
   const row=value as {id:string}|undefined
   const id=++detailRequest;wordRequest++;runRequest++;versionRequest++;detailError.value='';visible.value=true;activeTab.value=tab
   planId.value=row?.id;detail.value=null;keywordId.value='';keywordVersion.value=null;words.value=[];wordBaseline.value='[]';keywordVersions.value=[];runs.value=[];versionPage.value=1;runPage.value=1
+  detailLoading.value=!!row
   if(!row){creationKey.value=crypto.randomUUID();setForm();return}
   detailLoading.value=true
   try{const result=await accountDiscovery.plan(row.id);if(id!==detailRequest)return;detail.value=result;setForm(result.plan);keywordVersions.value=result.keyword_versions;keywordTotal.value=result.keyword_total;runs.value=result.runs.items;runTotal.value=result.runs.total;if(tab==='keywords')await loadKeyword()}
@@ -186,7 +187,7 @@ onBeforeUnmount(()=>{disposed=true;clearInterval(timer);request++;detailRequest+
       <div v-loading="detailLoading" class="plan-detail">
         <el-alert v-if="detailError" :title="detailError" type="error" :closable="false"><el-button v-if="planId" link type="primary" :icon="RefreshCw" @click="reloadDetail">重新加载</el-button></el-alert>
         <el-tabs v-model="activeTab"><el-tab-pane label="计划配置" name="config" /><el-tab-pane label="关键词审核" name="keywords" :disabled="!planId" /><el-tab-pane label="运行记录" name="runs" :disabled="!planId" /><el-tab-pane label="候选作者" name="candidates" :disabled="!planId" /></el-tabs>
-        <el-form v-if="activeTab==='config'" label-width="132px" @submit.prevent="save" :disabled="!canEdit||busy||detailLoading">
+        <el-form v-if="activeTab==='config'&&!detailLoading" label-width="132px" @submit.prevent="save" :disabled="!canEdit||busy">
           <el-form-item label="计划名称" required><el-input v-model="form.name" maxlength="100" /></el-form-item>
           <el-collapse v-model="sections">
             <el-collapse-item title="种子账号与采样" name="scope"><div class="plan-form-grid">
@@ -296,5 +297,6 @@ onBeforeUnmount(()=>{disposed=true;clearInterval(timer);request++;detailRequest+
 :global(.discovery-plan-dialog .el-dialog__body){min-height:0;overflow-y:auto}
 :global(.discovery-plan-dialog .el-dialog__header),:global(.discovery-plan-dialog .el-dialog__footer){flex-shrink:0}
 :global(.discovery-plan-dialog .el-dialog__title){display:block;overflow-wrap:anywhere;padding-right:24px}
+@media(max-width:600px){.plan-form-grid :deep(.el-form-item){display:block}.plan-form-grid :deep(.el-form-item__label){display:block;width:auto!important;height:auto;line-height:22px;text-align:left;padding:0 0 6px}.plan-form-grid :deep(.el-form-item__content){margin-left:0!important}}
 .discovery-toolbar,.keyword-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px}.discovery-toolbar>.el-input,.keyword-toolbar>.el-input{width:230px;max-width:100%}.create-plan{margin-left:auto}.el-pagination{margin-top:16px;overflow-x:auto}.el-tag+.el-tag{margin-left:5px}small{display:block;color:var(--app-text-muted,#687786);font-size:12px;margin-top:4px;overflow-wrap:anywhere}.plan-detail{min-height:180px;max-height:68vh;overflow-y:auto;overflow-wrap:anywhere}.plan-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px;padding:8px 0}.plan-form-grid :deep(.el-form-item){min-width:0}.plan-form-grid :deep(.el-form-item__content){min-width:0;gap:6px}.el-form :deep(.el-select){width:100%}.plan-form-grid :deep(.el-input-number){width:180px;max-width:100%}.plan-form-grid :deep(.el-date-editor){width:160px;max-width:100%}.unit{color:var(--app-text-muted,#687786);font-size:12px}.protocol-notes{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--app-text-muted,#687786);padding-top:12px}.keyword-toolbar .el-select{width:370px;max-width:100%}.keyword-toolbar>span{font-size:13px}.keyword-evidence{max-height:65vh;overflow-y:auto;overflow-wrap:anywhere}.keyword-evidence article{padding:12px 0;border-bottom:1px solid var(--app-border,#dce3eb)}.keyword-evidence p{white-space:pre-wrap;line-height:1.65}.keyword-evidence a{color:var(--el-color-primary)}:deep(.el-button>span){gap:5px}@media(max-width:800px){.plan-form-grid{grid-template-columns:minmax(0,1fr)}.create-plan{margin-left:0}.discovery-toolbar>.el-input{flex:1;min-width:150px}}
 </style>
