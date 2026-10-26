@@ -55,13 +55,22 @@ export interface SelectionOrder {
   attempts?: { task_id: string; status: string; error_message?: string; created_at: string }[]
 }
 export interface SelectionPage<T> { items: T[]; total: number }
-export interface SelectionFeedCursor { id: string; sort_by: string; value: string | null; as_of: string }
+export interface SelectionFeedSettings {
+  min_views: number
+  version: number
+  updated_at: string | null
+  scan_pending: boolean
+  scan_phase: 'scanning' | 'refreshing' | 'idle'
+  scanned_count: number
+}
+export interface SelectionFeedCursor { id: string; sort_by: string; value: string | null; as_of: string; settings_version?: number }
 export interface SelectionFeedPage {
   items: SelectionPost[]
   total: number | null
   has_more: boolean
   next_cursor: SelectionFeedCursor | null
   index_pending: boolean
+  feed_settings: SelectionFeedSettings
 }
 export interface SelectionAiRequest {
   account_id: string
@@ -73,6 +82,9 @@ export interface SelectionAiRequest {
 export interface SelectionAiResult { text_body: string; changed: boolean; message?: string | null }
 const base = '/api/content-selection'
 export const contentSelection = {
+  feedSettings: () => http.get<SelectionFeedSettings>(`${base}/feed-settings`),
+  updateFeedSettings: (data: { min_views: number; expected_version: number }) =>
+    http.put<SelectionFeedSettings>(`${base}/feed-settings`, data),
   localScope: () => http.get<{ tenant_id: string; user_id: string }>(`${base}/local-state-scope`),
   queryPosts: (data: AnyRecord, signal?: AbortSignal) => signal
     ? http.postWithSignal<SelectionFeedPage>(`${base}/posts/query`, data, signal)

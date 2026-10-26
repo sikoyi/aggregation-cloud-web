@@ -2,9 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, Eye, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Search, Send, UserRound, Users } from 'lucide-vue-next'
-import { contentSelection, type SelectionFeedCursor, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
-import { http } from '@/api/http'
+import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, Eye, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Save, Search, Send, Settings2, UserRound, Users } from 'lucide-vue-next'
+import { contentSelection, type SelectionFeedCursor, type SelectionFeedSettings, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
+import { ApiError, http } from '@/api/http'
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
@@ -47,6 +47,70 @@ const moreLoading = ref(false)
 const moreError = ref('')
 const hasMore = ref(false)
 const indexPending = ref(false)
+const feedSettings = ref<SelectionFeedSettings | null>(null)
+const settingsError = ref('')
+const settingsLoading = ref(false)
+const thresholdVisible = ref(false)
+const thresholdSaving = ref(false)
+const thresholdDraft = ref<number | undefined>(undefined)
+const thresholdVersion = ref(1)
+const thresholdError = ref('')
+const feedRefreshPending = ref(false)
+let settingsTimer: ReturnType<typeof setInterval> | undefined
+let disposed = false
+function applyFeedSettings(value: SelectionFeedSettings | undefined) {
+  if (!value || (feedSettings.value && value.version < feedSettings.value.version)) return false
+  const changed = !!feedSettings.value && value.version !== feedSettings.value.version
+  feedSettings.value = value
+  indexPending.value = value.scan_pending
+  return changed
+}
+async function checkFeedSettings(force = false) {
+  if (settingsLoading.value || disposed || (!force && document.hidden)) return
+  settingsLoading.value = true
+  try {
+    const value = await contentSelection.feedSettings()
+    if (disposed) return
+    settingsError.value = ''
+    if (applyFeedSettings(value)) {
+      feedRefreshPending.value = true
+      if (tab.value === 'posts' && !editVisible.value && !loading.value) void refresh(true)
+    }
+  } catch (e) {
+    if (!disposed) settingsError.value = e instanceof Error ? e.message : '门槛状态加载失败'
+  } finally { settingsLoading.value = false }
+}
+function resetThresholdDraft() {
+  if (!feedSettings.value) return
+  thresholdDraft.value = feedSettings.value.min_views
+  thresholdVersion.value = feedSettings.value.version
+  thresholdError.value = ''
+}
+function openThreshold() {
+  resetThresholdDraft()
+  thresholdVisible.value = true
+}
+async function saveThreshold() {
+  if (thresholdSaving.value || !feedSettings.value || thresholdVersion.value !== feedSettings.value.version) return
+  if (thresholdDraft.value === undefined || !Number.isSafeInteger(thresholdDraft.value) || thresholdDraft.value < 0) {
+    thresholdError.value = '请输入有效的非负整数'
+    return
+  }
+  thresholdSaving.value = true
+  thresholdError.value = ''
+  try {
+    const value = await contentSelection.updateFeedSettings({ min_views: thresholdDraft.value, expected_version: thresholdVersion.value })
+    if (disposed) return
+    applyFeedSettings(value)
+    thresholdVisible.value = false
+    ElMessage.success('选题池门槛已保存')
+    await refresh(true)
+  } catch (e) {
+    if (disposed) return
+    thresholdError.value = e instanceof Error ? e.message : '保存失败，请重试'
+    if (e instanceof ApiError && e.status === 409) await checkFeedSettings(true)
+  } finally { thresholdSaving.value = false }
+}
 const sourceOptionsLoading = ref(false)
 const filterOptionsError = ref('')
 let sourceOptionsLoaded = false
@@ -95,7 +159,11 @@ async function loadMore() {
     nextCursor = result.next_cursor
     indexPending.value = result.index_pending
     hasMore.value = result.has_more ?? (result.items.length > 0 && feedPage * 20 < (result.total || 0))
-  } catch (e) { if (id === requestId) moreError.value = e instanceof Error ? e.message : '加载失败，请重试' }
+  } catch (e) {
+    if (id === requestId && e instanceof ApiError && (e.data as { reason?: string })?.reason === 'selection_feed_settings_changed') {
+      await refresh(true)
+    } else if (id === requestId) moreError.value = e instanceof Error ? e.message : '加载失败，请重试'
+  }
   finally { if (id === requestId) moreLoading.value = false }
 }
 watch(loadMoreAnchor, element => {
@@ -153,6 +221,9 @@ const sourceBusy = ref(false)
 const sourceForm = reactive({ business_platform: 'threads', profile_url: '', remark: '', interval_minutes: 60 })
 const selected = ref<SelectionPost | null>(null)
 const editVisible = ref(false)
+watch(editVisible, visible => {
+  if (!visible && feedRefreshPending.value && tab.value === 'posts') void refresh(true)
+})
 const editLoading = ref(false)
 const editError = ref('')
 const accountsLoading = ref(false)
@@ -205,7 +276,7 @@ async function refresh(reset = false) {
   loading.value = true
   error.value = ''
   const current = tab.value
-  if (current === 'posts') hasMore.value = false
+  if (current === 'posts') { hasMore.value = false; feedRefreshPending.value = false }
   try {
     if (current === 'sources') {
       const result = await contentSelection.sources()
@@ -218,6 +289,12 @@ async function refresh(reset = false) {
       Object.assign(postQuery, selectionMarkQuery(marks.value, reading.value, hideRead.value))
       const result = await contentSelection.queryPosts({ ...postQuery, include_total: false, page: 1, page_size: 20 }, feedController.signal)
       if (id === requestId) {
+        if (feedSettings.value && result.feed_settings && result.feed_settings.version < feedSettings.value.version) {
+          feedRefreshPending.value = true
+          return
+        }
+        applyFeedSettings(result.feed_settings)
+        feedRefreshPending.value = false
         posts.value = result.items
         nextCursor = result.next_cursor
         indexPending.value = result.index_pending
@@ -226,7 +303,12 @@ async function refresh(reset = false) {
       }
     }
   } catch (e) { if (id === requestId) error.value = e instanceof Error ? e.message : '加载失败' }
-  finally { if (id === requestId) loading.value = false }
+  finally {
+    if (id === requestId) {
+      loading.value = false
+      if (feedRefreshPending.value && current === 'posts' && !editVisible.value && !disposed) void refresh(true)
+    }
+  }
 }
 async function createSource() {
   if (sourceBusy.value || !sourceForm.profile_url.trim()) return
@@ -368,9 +450,10 @@ onMounted(async () => {
   await nextTick()
   if (loadMoreAnchor.value) observer.observe(loadMoreAnchor.value)
   await loadFilterOptions()
+  settingsTimer = setInterval(() => { void checkFeedSettings() }, 15000)
   if (typeof route.query.order_id === 'string') await openOrder(route.query.order_id)
 })
-onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; feedController?.abort(); observer?.disconnect(); window.removeEventListener('storage', syncMarks) })
+onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId++; editRequestId++; detailRequestId++; feedController?.abort(); observer?.disconnect(); window.removeEventListener('storage', syncMarks) })
 </script>
 
 <template>
@@ -387,6 +470,13 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; feedCon
     <div class="selection-body">
     <div v-if="tab === 'posts'" class="selection-filters">
       <div class="filter-title"><Search :size="14" /><span>筛选条件</span><el-button link :icon="expandedFilters ? ChevronUp : ChevronDown" @click="expandedFilters = !expandedFilters">{{ expandedFilters ? '收起筛选' : '更多筛选' }}</el-button></div>
+      <div class="feed-threshold">
+        <span v-if="feedSettings">浏览量 &gt; <strong>{{ feedSettings.min_views.toLocaleString('zh-CN') }}</strong></span>
+        <el-button v-if="auth.can('operations.edit')" :icon="Settings2" link type="primary" :disabled="!feedSettings" @click="openThreshold">门槛设置</el-button>
+        <span v-if="feedSettings?.scan_pending" class="threshold-progress" role="status">{{ feedSettings.scan_phase === 'scanning' ? `历史补扫中 · 已扫描 ${feedSettings.scanned_count.toLocaleString('zh-CN')} 条` : '帖子索引更新中' }}</span>
+        <span v-if="settingsError" class="threshold-error" role="alert">{{ settingsError }}</span>
+        <el-tooltip v-if="settingsError" content="重试加载门槛状态"><el-button :icon="RefreshCw" link :loading="settingsLoading" aria-label="重试加载门槛状态" @click="checkFeedSettings(true)" /></el-tooltip>
+      </div>
       <div class="feed-controls">
         <el-radio-group v-model="reading" :disabled="!storageKey" aria-label="阅读状态" @change="refresh(true)"><el-radio-button value="all">全部</el-radio-button><el-radio-button value="unread">未读</el-radio-button><el-radio-button value="saved">收藏</el-radio-button><el-radio-button value="read">已读</el-radio-button></el-radio-group>
         <el-checkbox v-model="hideRead" :disabled="!storageKey || reading === 'read'" @change="refresh(true)">隐藏已读</el-checkbox>
@@ -416,7 +506,7 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; feedCon
     </div>
     <el-alert v-if="storageWarning" :title="storageWarning" type="warning" :closable="false" />
     <el-alert v-if="tab === 'posts' && filterOptionsError" :title="filterOptionsError" type="error" :closable="false"><el-button :icon="RefreshCw" @click="loadFilterOptions">重试加载筛选选项</el-button></el-alert>
-    <el-alert v-if="tab === 'posts' && indexPending" title="帖子数据正在同步，稍后刷新可查看最新结果" type="info" :closable="false" />
+    <el-alert v-if="tab === 'posts' && indexPending && !feedSettings?.scan_pending" title="帖子数据正在同步，稍后刷新可查看最新结果" type="info" :closable="false" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-loading="loading" class="selection-content">
       <template v-if="tab === 'posts'">
@@ -527,6 +617,15 @@ onBeforeUnmount(() => { requestId++; editRequestId++; detailRequestId++; feedCon
       </div>
       <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || accountsLoading || !!editError || !!accountsError || aiBusy || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
     </el-dialog>
+    <el-dialog v-model="thresholdVisible" title="选题池门槛" width="min(440px, calc(100vw - 32px))" align-center :close-on-click-modal="false" :close-on-press-escape="!thresholdSaving" :show-close="!thresholdSaving">
+      <el-form label-width="100px" @submit.prevent="saveThreshold">
+        <el-form-item label="生效范围">当前租户全体运营</el-form-item>
+        <el-form-item label="浏览量大于"><el-input-number v-model="thresholdDraft" aria-label="浏览量门槛" :min="0" :max="Number.MAX_SAFE_INTEGER" :precision="0" :step="1000" controls-position="right" :disabled="thresholdSaving" /></el-form-item>
+        <el-alert v-if="feedSettings && thresholdVersion !== feedSettings.version" :title="`门槛已被其他运营更新为 ${feedSettings.min_views.toLocaleString('zh-CN')}`" type="warning" :closable="false"><el-button :icon="RefreshCw" link type="primary" @click="resetThresholdDraft">加载最新配置</el-button></el-alert>
+        <el-alert v-if="thresholdError" :title="thresholdError" type="error" :closable="false" />
+      </el-form>
+      <template #footer><el-button :disabled="thresholdSaving" @click="thresholdVisible = false">取消</el-button><el-button type="primary" :icon="Save" :loading="thresholdSaving" :disabled="!feedSettings || thresholdVersion !== feedSettings.version" @click="saveThreshold">保存</el-button></template>
+    </el-dialog>
     <el-dialog v-model="orderVisible" title="选题发布工单" width="980px" align-center :close-on-click-modal="false" @closed="detailRequestId++">
       <div v-loading="orderBusy" class="order-body" v-if="detail"><p class="order-id">工单 ID：{{ detail.id }}</p><p>{{ detail.account.display_name || detail.account.username }} · {{ label(detail.business_platform) }} · {{ selectionStatus[detail.status] || detail.status }}</p>
         <a :href="safeSelectionLink(detail.original.content_url)" target="_blank" rel="noopener noreferrer">打开原帖</a>
@@ -606,6 +705,9 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .feed-controls .el-input { width: 220px; max-width: 100%; }
 .feed-controls + .el-form { margin-top: 16px; }
 .filter-title .el-button { margin-left: auto; }
+.feed-threshold { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 12px; font-size: 13px; overflow-wrap: anywhere; }
+.threshold-progress { color: var(--app-text-muted, #627285); }
+.threshold-error { color: var(--el-color-danger); }
 footer { justify-content: space-between; margin-top: auto; flex-wrap: wrap; } footer > span { font-size: 13px; gap: 6px; flex-wrap: wrap; }
 footer > span > span { display: inline-flex; align-items: center; gap: 6px; }
 .selection-option-filters { margin-top: 12px; }
