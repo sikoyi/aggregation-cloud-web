@@ -83,7 +83,7 @@ export function discoveryInstagramTag(text:string) {
 }
 export function discoveryDefaults(): DiscoveryConfig {
   return { platforms:['x','threads','instagram'], tag_ids:[], countries:[], exclude_monitor_ids:[], sample_days:30,
-    per_account:20, max_accounts:200, max_samples:500, visual:true, ai_provider:'openai', max_tokens:1000000,
+    per_account:20, max_accounts:100, max_samples:500, visual:true, ai_provider:'openai', max_tokens:1000000,
     search_days:30, max_pages:3, max_keywords:30, max_candidates:200, schedule_time:'06:30',
     monitor_interval:720, monitor_tag_ids:[], monitor_country:'',
     rules:{ min_views:undefined,min_likes:undefined,min_comments:undefined,min_followers:undefined,max_followers:undefined,

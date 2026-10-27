@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, Eye, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Save, Search, Send, Settings2, UserRound, Users } from 'lucide-vue-next'
+import { ArrowUp, Check, ChevronDown, ChevronUp, Star, ClipboardList, ExternalLink, Eye, EyeOff, FileText, Heart, MessageCircle, Pause, Play, Plus, RefreshCw, RotateCcw, Save, Search, Send, Settings2, UserRound, Users } from 'lucide-vue-next'
 import { contentSelection, type SelectionFeedCursor, type SelectionFeedSettings, type SelectionOrder, type SelectionPost, type SelectionSource } from '@/api/contentSelection'
 import { ApiError, http } from '@/api/http'
 import { loadAccountSelectionOptions } from '@/api/selectionOptions'
@@ -25,6 +25,8 @@ const auth = useAuthStore()
 const route = useRoute()
 const platforms = useScopedBusinessPlatformOptions([{ label: 'Threads', value: 'threads' }, { label: 'X(Twitter)', value: 'x' }, { label: 'Instagram', value: 'instagram' }])
 const tab = ref('posts')
+const feedUnlocked = ref(false)
+let pendingOrderId = typeof route.query.order_id === 'string' ? route.query.order_id : ''
 const loading = ref(false)
 const error = ref('')
 const posts = ref<SelectionPost[]>([])
@@ -42,6 +44,37 @@ const reading = ref('all')
 const hideRead = ref(false)
 const quickTime = ref('')
 const expandedFilters = ref(false)
+const filterPanel = ref<HTMLElement | null>(null)
+const filterHidden = ref(false)
+const showBackTop = ref(false)
+let lastScrollPosition = 0
+function handleFeedScroll() {
+  const position = Math.max(0, window.scrollY)
+  showBackTop.value = position > 400
+  if (position <= 8) {
+    filterHidden.value = false
+    lastScrollPosition = position
+    return
+  }
+  const delta = position - lastScrollPosition
+  if (Math.abs(delta) < 8) return
+  lastScrollPosition = position
+  if (tab.value !== 'posts') return
+  if (delta < 0) {
+    filterHidden.value = false
+    return
+  }
+  const panel = filterPanel.value
+  const focused = document.activeElement
+  if (!panel || (focused instanceof HTMLElement && panel.contains(focused)
+    && focused.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"]'))) return
+  const stickyTop = Number.parseFloat(getComputedStyle(panel).top) || 0
+  if (panel.getBoundingClientRect().top <= stickyTop + 1) filterHidden.value = true
+}
+function backToTop() {
+  window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+}
+watch(tab, () => { filterHidden.value = false; lastScrollPosition = window.scrollY })
 const storageKey = ref('')
 const storageWarning = ref('')
 const marks = ref<SelectionMarks>({ read: [], saved: [] })
@@ -150,7 +183,7 @@ function applyQuickTime() {
   void refresh(true)
 }
 async function loadMore() {
-  if (tab.value !== 'posts' || loading.value || moreLoading.value || !hasMore.value || editVisible.value) return
+  if (tab.value !== 'posts' || !feedUnlocked.value || loading.value || moreLoading.value || !hasMore.value || editVisible.value) return
   const id = requestId
   moreLoading.value = true
   moreError.value = ''
@@ -272,6 +305,12 @@ function sourceUsername(source: SelectionSource) {
 }
 
 async function refresh(reset = false) {
+  if (tab.value === 'posts' && !feedUnlocked.value) {
+    requestId++
+    feedController?.abort()
+    loading.value = false
+    return
+  }
   if (reset) page.value = 1
   const id = ++requestId
   feedController?.abort()
@@ -318,6 +357,16 @@ async function refresh(reset = false) {
       loading.value = false
       if (feedRefreshPending.value && current === 'posts' && !editVisible.value && !disposed) void refresh(true)
     }
+  }
+}
+async function enterFeed() {
+  if (feedUnlocked.value) return
+  feedUnlocked.value = true
+  await refresh(true)
+  if (pendingOrderId && !disposed) {
+    const id = pendingOrderId
+    pendingOrderId = ''
+    await openOrder(id)
   }
 }
 async function createSource() {
@@ -445,6 +494,9 @@ async function retryOrder() {
 }
 onMounted(async () => {
   window.addEventListener('storage', syncMarks)
+  lastScrollPosition = window.scrollY
+  showBackTop.value = lastScrollPosition > 400
+  window.addEventListener('scroll', handleFeedScroll, { passive: true })
   observer = new IntersectionObserver(entries => {
     if (entries.some(entry => entry.isIntersecting) && !moreError.value) void loadMore()
   }, { rootMargin: '200px' })
@@ -461,13 +513,13 @@ onMounted(async () => {
   if (loadMoreAnchor.value) observer.observe(loadMoreAnchor.value)
   await loadFilterOptions()
   settingsTimer = setInterval(() => { void checkFeedSettings() }, 15000)
-  if (typeof route.query.order_id === 'string') await openOrder(route.query.order_id)
 })
-onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId++; editRequestId++; detailRequestId++; feedController?.abort(); observer?.disconnect(); window.removeEventListener('storage', syncMarks) })
+onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId++; editRequestId++; detailRequestId++; feedController?.abort(); observer?.disconnect(); window.removeEventListener('storage', syncMarks); window.removeEventListener('scroll', handleFeedScroll) })
 </script>
 
 <template>
   <section class="selection-view">
+    <el-tooltip v-if="showBackTop" content="回到顶部" placement="left"><el-button class="selection-back-top" :icon="ArrowUp" circle aria-label="回到顶部" @click="backToTop" /></el-tooltip>
     <header class="selection-heading"><div class="selection-title"><span class="selection-icon"><ClipboardList :size="20" /></span><h1>选题池</h1></div><div class="selection-actions">
       <el-tooltip content="刷新" placement="bottom"><el-button :disabled="loading" :icon="RefreshCw" circle aria-label="刷新" @click="refresh()" /></el-tooltip>
       <el-button v-if="auth.can('operations.edit')" type="primary" @click="sourceVisible = true"><Plus :size="16" />添加来源账号</el-button>
@@ -481,8 +533,16 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
     </el-tabs>
     <div v-if="tab==='discovery'" class="selection-body"><AccountDiscoveryPlans ref="discoveryPlansRef" /></div>
     <div v-if="tab==='candidates'" class="selection-body"><AccountDiscoveryCandidates ref="discoveryCandidatesRef" /></div>
-    <div v-if="tab!=='discovery'&&tab!=='candidates'" class="selection-body">
-    <div v-if="tab === 'posts'" class="selection-filters">
+    <div v-if="tab === 'posts' && !feedUnlocked" class="selection-body">
+      <section class="feed-entry" aria-labelledby="feed-entry-title">
+        <span class="feed-entry-icon"><EyeOff :size="22" aria-hidden="true" /></span>
+        <h2 id="feed-entry-title">帖子选题</h2>
+        <p>部分帖子可能包含不适合公开场合查看的内容。</p>
+        <el-button type="primary" :icon="Eye" @click="enterFeed">查看帖子</el-button>
+      </section>
+    </div>
+    <div v-else-if="tab!=='discovery'&&tab!=='candidates'" class="selection-body">
+    <div v-if="tab === 'posts'" ref="filterPanel" class="selection-filters" :class="{ 'is-hidden': filterHidden }" :inert="filterHidden">
       <div class="filter-title"><Search :size="14" /><span>筛选条件</span><el-button link :icon="expandedFilters ? ChevronUp : ChevronDown" @click="expandedFilters = !expandedFilters">{{ expandedFilters ? '收起筛选' : '更多筛选' }}</el-button></div>
       <div class="feed-threshold">
         <span v-if="feedSettings">浏览量 &gt; <strong>{{ feedSettings.min_views.toLocaleString('zh-CN') }}</strong></span>
@@ -673,6 +733,7 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
 .publish-history { min-width: 0; }
 @media (max-width: 760px) { .publish-comparison { grid-template-columns: minmax(0, 1fr); gap: 16px; } .publish-original { height: auto; max-height: 212px; } }
 .selection-view { min-width: 0; border: 1px solid var(--app-border, #d9e2ec); border-radius: 8px; overflow: clip; background: var(--app-surface, #fff); }
+.selection-back-top { position: fixed; right: 24px; bottom: 24px; z-index: 25; width: 44px; height: 44px; box-shadow: 0 2px 8px rgb(0 0 0 / 14%); }
 .selection-heading, .selection-heading > div, .author, footer, footer > span { display: flex; align-items: center; gap: 12px; }
 .selection-heading { justify-content: space-between; gap: 16px; min-height: 70px; padding: 13px 16px; border-bottom: 1px solid var(--app-border, #e6edf3); }
 .selection-title { min-width: 0; gap: 10px; }
@@ -685,10 +746,16 @@ h1 { margin: 0; color: var(--app-text, #1f2933); font-size: 18px; font-weight: 7
 .selection-tabs :deep(.el-tabs__item.is-active) { color: var(--app-blue, #1f668f); }
 .selection-tab-label { display: inline-flex; align-items: center; gap: 6px; }
 .selection-body { padding: 14px 16px 16px; background: var(--app-surface-muted, #f8fafc); }
+.feed-entry { display: flex; min-height: 320px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; max-width: 480px; margin: 0 auto; padding: 32px 12px; }
+.feed-entry-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 6px; color: var(--app-blue, #1f668f); background: var(--app-surface, #fff); }
+.feed-entry h2 { margin: 0; color: var(--app-text, #26384a); font-size: 18px; line-height: 1.4; }
+.feed-entry p { margin: 0 0 4px; color: var(--app-text-muted, #697786); font-size: 14px; line-height: 1.6; }
 h3 a { float: right; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; } a { color: var(--app-blue, #28678d); overflow-wrap: anywhere; }
 small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; line-height: 1.7; }
 /* Match the shell navigation, including its extra mobile navigation row. */
-.selection-filters { --filter-top: 73px; position: sticky; top: var(--filter-top); z-index: 20; max-height: calc(100dvh - var(--filter-top) - 120px); overflow-y: auto; box-sizing: border-box; margin-bottom: 12px; padding: 12px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); }
+.selection-filters { --filter-top: 73px; position: sticky; top: var(--filter-top); z-index: 20; max-height: calc(100dvh - var(--filter-top) - 120px); overflow-y: auto; box-sizing: border-box; margin-bottom: 12px; padding: 12px; border: 1px solid var(--app-border, #dbe4ed); border-radius: 6px; background: var(--app-surface, #fff); transition: transform 180ms ease; }
+.selection-filters.is-hidden { transform: translateY(calc(-100% - var(--filter-top) - 16px)); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .selection-filters { transition: none; } }
 .filter-title { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--app-text, #26384a); font-size: 13px; font-weight: 700; }
 .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; }
 .filter-grid :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; min-width: 0; }
