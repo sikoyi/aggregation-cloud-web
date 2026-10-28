@@ -64,6 +64,16 @@ export interface SelectionFeedSettings {
   scanned_count: number
 }
 export interface SelectionFeedCursor { id: string; sort_by: string; value: string | null; as_of: string; settings_version?: number }
+export interface SelectionSyncProgress {
+  snapshot_at: string
+  min_views: number
+  settings_version: number
+  scope: { monitor_count: number; source_count: number }
+  collected_posts: number
+  metrics: { pending: number; running: number; retry: number; failed: number; unavailable: number; no_views: number }
+  index: { originals: number; indexed: number; over_threshold: number; pending: number; unplanned: number | null; ready: boolean }
+  daily: { pending: number; state: 'running' | 'overdue' | 'scheduled'; next_run_at: string; last_completed_at: string | null }
+}
 export interface SelectionFeedPage {
   items: SelectionPost[]
   total: number | null
@@ -82,6 +92,8 @@ export interface SelectionAiRequest {
 export interface SelectionAiResult { text_body: string; changed: boolean; message?: string | null }
 const base = '/api/content-selection'
 export const contentSelection = {
+  syncProgress: (data: AnyRecord, signal: AbortSignal) =>
+    http.postWithSignal<SelectionSyncProgress>(`${base}/sync-progress/query`, data, signal),
   feedSettings: () => http.get<SelectionFeedSettings>(`${base}/feed-settings`),
   updateFeedSettings: (data: { min_views: number; expected_version: number }) =>
     http.put<SelectionFeedSettings>(`${base}/feed-settings`, data),

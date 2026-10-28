@@ -13,6 +13,7 @@ import { canRetrySelection, safeSelectionLink, selectionIsVideo, selectionStatus
 import type { AnyRecord } from '@/types/api'
 import SelectionAiEditor from '@/components/SelectionAiEditor.vue'
 import SelectionOptionFilter from '@/components/SelectionOptionFilter.vue'
+import SelectionSyncProgress from '@/components/SelectionSyncProgress.vue'
 import PersonaCreationPanel from '@/components/PersonaCreationPanel.vue'
 import { parseSelectionMarks, selectionDateRange, selectionMarkQuery, selectionStorageKey, type SelectionMarks } from '@/utils/selectionLocalState'
 
@@ -84,7 +85,6 @@ const loadMoreAnchor = ref<HTMLElement | null>(null)
 const moreLoading = ref(false)
 const moreError = ref('')
 const hasMore = ref(false)
-const indexPending = ref(false)
 const feedSettings = ref<SelectionFeedSettings | null>(null)
 const settingsError = ref('')
 const settingsLoading = ref(false)
@@ -100,7 +100,6 @@ function applyFeedSettings(value: SelectionFeedSettings | undefined) {
   if (!value || (feedSettings.value && value.version < feedSettings.value.version)) return false
   const changed = !!feedSettings.value && value.version !== feedSettings.value.version
   feedSettings.value = value
-  indexPending.value = value.scan_pending
   return changed
 }
 async function checkFeedSettings(force = false) {
@@ -156,6 +155,7 @@ let nextCursor: SelectionFeedCursor | null = null
 let feedController: AbortController | null = null
 const expandedPosts = reactive(new Set<string>())
 let postQuery: AnyRecord = {}
+const progressQuery = ref<AnyRecord>({})
 let feedPage = 1
 let observer: IntersectionObserver | null = null
 function setMark(id: string, field: 'read' | 'saved', enabled: boolean) {
@@ -195,7 +195,6 @@ async function loadMore() {
     posts.value.push(...result.items.filter(item => !existing.has(item.id)))
     feedPage++
     nextCursor = result.next_cursor
-    indexPending.value = result.index_pending
     hasMore.value = result.has_more ?? (result.items.length > 0 && feedPage * 20 < (result.total || 0))
   } catch (e) {
     if (id === requestId && e instanceof ApiError && (e.data as { reason?: string })?.reason === 'selection_feed_settings_changed') {
@@ -336,6 +335,7 @@ async function refresh(reset = false) {
     } else {
       postQuery = Object.fromEntries(Object.entries({ ...filters, published_from: dates.value?.[0], published_to: dates.value?.[1] }).filter(([, value]) => value !== '' && value !== undefined))
       Object.assign(postQuery, selectionMarkQuery(marks.value, reading.value, hideRead.value))
+      progressQuery.value = { ...postQuery }
       const result = await contentSelection.queryPosts({ ...postQuery, include_total: false, page: 1, page_size: 20 }, feedController.signal)
       if (id === requestId) {
         if (feedSettings.value && result.feed_settings && result.feed_settings.version < feedSettings.value.version) {
@@ -346,7 +346,6 @@ async function refresh(reset = false) {
         feedRefreshPending.value = false
         posts.value = result.items
         nextCursor = result.next_cursor
-        indexPending.value = result.index_pending
         feedPage = 1
         hasMore.value = result.has_more ?? (result.items.length > 0 && (result.total || 0) > 20)
       }
@@ -580,7 +579,7 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
     </div>
     <el-alert v-if="storageWarning" :title="storageWarning" type="warning" :closable="false" />
     <el-alert v-if="tab === 'posts' && filterOptionsError" :title="filterOptionsError" type="error" :closable="false"><el-button :icon="RefreshCw" @click="loadFilterOptions">重试加载筛选选项</el-button></el-alert>
-    <el-alert v-if="tab === 'posts' && indexPending && !feedSettings?.scan_pending" title="帖子数据正在同步，稍后刷新可查看最新结果" type="info" :closable="false" />
+    <SelectionSyncProgress v-if="tab === 'posts'" :query="progressQuery" :settings-version="feedSettings?.version || 1" :active="feedUnlocked && !editVisible && !loading" />
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <div v-loading="loading" class="selection-content">
       <template v-if="tab === 'posts'">

@@ -59,7 +59,8 @@ async function request<T>(
   path: string,
   options: { params?: AnyRecord; body?: unknown; auth?: boolean; signal?: AbortSignal; responseType?: 'file'; cache?: RequestCache } = {},
 ) {
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && deploymentBlocksWrites()) {
+  const readProgress = method === 'POST' && path === '/api/content-selection/sync-progress/query'
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !readProgress && deploymentBlocksWrites()) {
     throw new ApiError(deploymentWriteMessage(), 503, undefined, { reason: 'deployment_draining' })
   }
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
@@ -81,7 +82,7 @@ async function request<T>(
       cache: options.cache,
     })
   } catch (error) {
-    if (deploymentState.maintenance && !options.signal?.aborted) {
+    if (deploymentState.maintenance && !readProgress && !options.signal?.aborted) {
       throw new ApiError(deploymentWriteMessage(), 503)
     }
     throw error
@@ -114,7 +115,7 @@ async function request<T>(
     if (response.status === 401 && token() && !path.includes('/api/auth/login') && !deploymentBlocksWrites()) {
       unauthorizedHandler?.(error)
     }
-    if (deploymentState.maintenance && response.status >= 500) {
+    if (deploymentState.maintenance && !readProgress && response.status >= 500) {
       error.message = deploymentWriteMessage()
     }
     throw error
