@@ -23,6 +23,8 @@ export interface SelectionPost {
   views_count: number | null
 }
 export interface SelectionSource {
+  next_run_at?: string
+  protocol_cadence?: 'weekly' | 'external_monitor'
   external_monitor_id?: string | null
   country?: string
   tags?: { id: string; name: string }[]
@@ -73,6 +75,7 @@ export interface SelectionSyncProgress {
   metrics: { pending: number; running: number; retry: number; failed: number; unavailable: number; no_views: number }
   index: { originals: number; indexed: number; over_threshold: number; pending: number; unplanned: number | null; ready: boolean }
   daily: { pending: number; state: 'running' | 'overdue' | 'scheduled'; next_run_at: string; last_completed_at: string | null }
+  protocol_sync?: { cadence: 'weekly'; waiting_metrics: number; next_run_at: string }
 }
 export interface SelectionFeedPage {
   items: SelectionPost[]
