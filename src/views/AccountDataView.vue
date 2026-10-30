@@ -44,7 +44,7 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import MonitorErrorStatus from '@/components/MonitorErrorStatus.vue'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
-import { benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
+import { benchmarkCollectionNotice, benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
 import { REALTIME_EVENT_NAME, type RealtimeEventPayload } from '@/composables/useRealtimeEvents'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
 import {
@@ -248,6 +248,10 @@ const { tracker: monitorBenchmark, error: benchmarkCollectionError, refresh: ref
   () => monitorVisible.value && monitorFeature.value === 'benchmark' && Boolean(monitorTargetAccount.value?.benchmark_tracker_id),
 )
 const benchmarkCollection = computed(() => benchmarkCollectionStatus(monitorBenchmark.value))
+const benchmarkNotice = computed(() => benchmarkCollectionNotice(
+  monitorBenchmark.value, benchmarkCollectionError.value,
+  benchmarkForm.source_profile_url, benchmarkForm.source_business_platform,
+))
 const benchmarkMappingCount = computed(() => {
   const counts = monitorBenchmark.value?.mapping_counts
   return counts && typeof counts === 'object'
@@ -2395,13 +2399,21 @@ onBeforeUnmount(() => {
               show-icon
             />
             <el-alert
-              v-if="benchmarkCollectionError || monitorBenchmark?.collection_run?.error_message || monitorBenchmark?.last_error_message"
-              :title="String(benchmarkCollectionError || monitorBenchmark?.collection_run?.error_message || monitorBenchmark?.last_error_message)"
-              type="error"
+              v-if="benchmarkNotice"
+              :title="benchmarkNotice.title"
+              :type="benchmarkNotice.type"
               :closable="false"
               show-icon
               class="benchmark-error"
-            />
+            >
+              <div class="benchmark-error-context">
+                <span v-if="benchmarkNotice.time">{{ formatDate(String(benchmarkNotice.time)) }}</span>
+                <span v-else-if="benchmarkNotice.source">时间未记录</span>
+                <span v-if="benchmarkNotice.source">来源：{{ benchmarkNotice.source }}</span>
+                <span v-if="benchmarkNotice.runId">采集记录 {{ benchmarkNotice.runId }}</span>
+              </div>
+              <p class="benchmark-error-message">{{ benchmarkNotice.message }}</p>
+            </el-alert>
           </template>
         </el-form>
       </div>
@@ -3020,6 +3032,8 @@ onBeforeUnmount(() => {
 .benchmark-source strong { color: var(--app-text, #203346); font-size: 14px; }
 .benchmark-source small { color: var(--app-text-muted, #718096); font-size: 11px; }
 .benchmark-error { margin-top: 12px; }
+.benchmark-error-context { display: flex; flex-wrap: wrap; gap: 4px 12px; overflow-wrap: anywhere; }
+.benchmark-error-message { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @media (max-width: 1280px) {
   .account-data__split { grid-template-columns: 286px minmax(0, 1fr); }

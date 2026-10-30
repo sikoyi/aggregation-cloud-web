@@ -1,4 +1,5 @@
 import type { AnyRecord } from '@/types/api'
+import { safeMonitorError } from './monitorError'
 
 export type BenchmarkCollectionTracker = AnyRecord & { collection_run?: AnyRecord | null }
 
@@ -17,4 +18,37 @@ export function benchmarkCollectionStatus(tracker: BenchmarkCollectionTracker | 
   if (run?.status === 'canceled') return { label: '采集已取消', type: 'info' }
   if (run?.status === 'succeeded' || tracker.last_success_at) return { label: '采集已完成', type: 'success' }
   return { label: '暂无采集记录', type: 'info' }
+}
+
+export function benchmarkCollectionNotice(
+  tracker: BenchmarkCollectionTracker | null,
+  readError: string,
+  sourceUrl: string,
+  sourcePlatform: string,
+) {
+  if (readError) return { title: '读取对标状态失败', message: safeMonitorError(readError), type: 'error' as const, time: null, runId: null, source: null }
+  if (!tracker) return null
+  const run = tracker.collection_run
+  const failedRun = run?.status === 'failed'
+  const message = (failedRun ? run.error_message : null) || tracker.last_error_message
+  if (!message) return null
+  const profileKey = (value: unknown) => {
+    try {
+      const url = new URL(String(value))
+      const host = url.hostname.toLowerCase().replace(/^www\./, '').replace(/^threads\.net$/, 'threads.com').replace(/^(mobile\.)?twitter\.com$/, 'x.com')
+      return `${host}${url.pathname.toLowerCase().replace(/\/+$/, '')}`
+    } catch { return String(value || '').trim().toLowerCase() }
+  }
+  const sourceChanged = sourcePlatform !== tracker.source_business_platform || profileKey(sourceUrl) !== profileKey(tracker.source_profile_url)
+  const time = (failedRun ? run.finished_at : null) || tracker.last_failed_at || null
+  const recovered = !!(time && tracker.last_success_at && Date.parse(String(tracker.last_success_at)) >= Date.parse(String(time)))
+  const historical = sourceChanged || !tracker.enabled || tracker.status === 'paused' || isBenchmarkCollecting(tracker) || recovered
+  return {
+    title: historical ? '历史采集失败' : '当前采集失败',
+    message: safeMonitorError(message),
+    type: historical ? 'info' as const : 'error' as const,
+    time,
+    runId: failedRun ? run.id || null : null,
+    source: tracker.source_username || tracker.source_profile_url || null,
+  }
 }
