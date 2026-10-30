@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { http } from '@/api/http'
-import { formatDate } from '@/utils/format'
-import { monitorErrorDetails, safeMonitorError } from '@/utils/monitorError'
+import { monitorErrorDetails, monitorErrorTime, safeMonitorError } from '@/utils/monitorError'
 import type { AnyRecord } from '@/types/api'
 
 const props = defineProps<{ label: string; data: AnyRecord; endpoint?: string }>()
@@ -32,7 +31,7 @@ async function open() {
       <el-alert v-if="loadError" :title="loadError" type="warning" :closable="false" />
       <dl>
         <dt>详细原因</dt><dd class="reason">{{ details.reason }}</dd>
-        <dt>失败时间</dt><dd>{{ details.time ? formatDate(String(details.time)) : '未记录' }}</dd>
+        <dt>失败时间</dt><dd>{{ monitorErrorTime(details.time) }}<template v-if="details.time">（北京时间）</template></dd>
         <dt>失败阶段</dt><dd>{{ details.phase ? safeMonitorError(details.phase) : '未记录' }}</dd>
         <dt>采集记录 ID</dt><dd>{{ details.runId ? safeMonitorError(details.runId) : '未记录' }}</dd>
         <template v-if="details.taskId"><dt>任务 ID</dt><dd>{{ safeMonitorError(details.taskId) }}</dd></template>

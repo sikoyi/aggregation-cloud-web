@@ -42,6 +42,8 @@ import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
 import { formatCompactSignedCount } from '@/utils/compactCount'
 import StatusBadge from '@/components/StatusBadge.vue'
 import MonitorErrorStatus from '@/components/MonitorErrorStatus.vue'
+import AccountMonitorStatus from '@/components/AccountMonitorStatus.vue'
+import { monitorCollectionResult, monitorErrorTime } from '@/utils/monitorError'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
 import { benchmarkCollectionNotice, benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
@@ -108,7 +110,7 @@ type AccountMonitorMode = 'system' | 'custom'
 
 const monitorStateOptions = [
   { label: '未开启', value: 'not_configured' },
-  { label: '监听中', value: 'monitoring' },
+  { label: '已开启', value: 'monitoring' },
   { label: '已关闭', value: 'paused' },
   { label: '监听异常', value: 'abnormal' },
 ]
@@ -260,6 +262,7 @@ const benchmarkMappingCount = computed(() => {
 })
 const detailTab = ref('overview')
 const selectedAccount = ref<AnyRecord | null>(null)
+const selectedMonitorResult = computed(() => monitorCollectionResult(selectedAccount.value || {}))
 const selectedAccountGroup = computed(() => rows.value.find(
   account => accountGroupKey(account) === accountGroupKey(selectedAccount.value),
 ))
@@ -1398,7 +1401,7 @@ onBeforeUnmount(() => {
           </button>
           <button type="button" class="summary-item summary-item--active" :class="{ 'is-active': filters.monitor_state === 'monitoring' }" :aria-pressed="filters.monitor_state === 'monitoring'" @click="useMonitorFilter('monitoring')">
             <span class="summary-item__icon"><Activity :size="20" /></span>
-            <span><small>监听中</small><strong>{{ formatNumber(summary.monitoring_accounts) }}</strong></span>
+            <span><small>监听已开启</small><strong>{{ formatNumber(summary.monitoring_accounts) }}</strong></span>
           </button>
           <button type="button" class="summary-item summary-item--paused" :class="{ 'is-active': filters.monitor_state === 'paused' }" :aria-pressed="filters.monitor_state === 'paused'" @click="useMonitorFilter('paused')">
             <span class="summary-item__icon"><Clock :size="20" /></span>
@@ -1732,13 +1735,13 @@ onBeforeUnmount(() => {
             <el-table-column label="监听 / 采集" width="170" align="center" header-align="center">
               <template #default="scope">
                 <div v-if="scope.row.is_identity_group" class="account-overview__monitor">
-                  <el-tag v-for="state in [...new Set(accountPlatforms(scope.row).map(account => String(account.monitor_state)))]" :key="state" size="small" :type="monitorStateType(state)" effect="light">{{ monitorStateLabel(state) }}</el-tag>
+                  <span v-for="account in accountPlatforms(scope.row)" :key="String(account.account_id)">
+                    <small>{{ optionLabel(businessPlatformOptions, account.business_platform) }}</small>
+                    <AccountMonitorStatus :account="account" />
+                  </span>
                 </div>
                 <div v-else class="account-overview__monitor">
-                  <MonitorErrorStatus v-if="scope.row.monitor_state === 'abnormal'" label="监听异常" :data="scope.row" />
-                  <el-tag v-else size="small" :type="monitorStateType(scope.row.monitor_state)" effect="light">
-                    {{ monitorStateLabel(scope.row.monitor_state) }}
-                  </el-tag>
+                  <AccountMonitorStatus :account="scope.row" />
                   <small>{{ formatDate(scope.row.metrics_captured_at) }}</small>
                 </div>
               </template>
@@ -1875,10 +1878,10 @@ onBeforeUnmount(() => {
                       <small v-if="account.username" :title="'@' + account.username">@{{ account.username }}</small>
                       <small v-else>{{ account.login_username || '暂无公开用户名' }}</small>
                       <span class="account-directory__tags">
-                        <el-tag v-for="platformAccount in accountPlatforms(account)" :key="String(platformAccount.account_id)" size="small" effect="plain">{{ optionLabel(businessPlatformOptions, platformAccount.business_platform) }}</el-tag>
-                        <el-tag size="small" :type="monitorStateType(account.monitor_state)" effect="light">
-                          {{ monitorStateLabel(account.monitor_state) }}
-                        </el-tag>
+                        <span v-for="platformAccount in accountPlatforms(account)" :key="String(platformAccount.account_id)">
+                          <el-tag size="small" effect="plain">{{ optionLabel(businessPlatformOptions, platformAccount.business_platform) }}</el-tag>
+                          <AccountMonitorStatus :account="platformAccount" :details="false" />
+                        </span>
                       </span>
                     </span>
                   </button>
@@ -1944,9 +1947,7 @@ onBeforeUnmount(() => {
                     <el-tag effect="plain">{{ optionLabel(businessPlatformOptions, selectedAccount.business_platform) }}</el-tag>
                     <el-tag v-if="selectedAccount.country" type="info" effect="plain">{{ selectedAccount.country }}</el-tag>
                     <el-tag v-if="selectedAccount.slot_group_name" type="primary" effect="plain">{{ selectedAccount.slot_group_name }}</el-tag>
-                    <el-tag :type="monitorStateType(selectedAccount.monitor_state)" effect="light">
-                      数据{{ monitorStateLabel(selectedAccount.monitor_state) }}
-                    </el-tag>
+                    <AccountMonitorStatus :account="selectedAccount" />
                     <el-tag :type="monitorStateType(selectedAccount.benchmark_state)" effect="light">
                       对标{{ monitorStateLabel(selectedAccount.benchmark_state) }}
                     </el-tag>
@@ -2011,10 +2012,8 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="profile-info-grid">
                       <div>
-                        <small>数据监听</small>
-                        <el-tag :type="monitorStateType(selectedAccount.monitor_state)" effect="light">
-                          {{ monitorStateLabel(selectedAccount.monitor_state) }}
-                        </el-tag>
+                        <small>监听规则 / 最近采集</small>
+                        <AccountMonitorStatus :account="selectedAccount" />
                       </div>
                       <div><small>监听间隔</small><strong>{{ selectedAccount.monitor_interval_minutes ? selectedAccount.monitor_interval_minutes + ' 分钟' : '-' }}</strong></div>
                       <div><small>新评论回复</small><strong>{{ replyModeLabel(resolveReplyState(selectedAccount)) }}</strong></div>
@@ -2023,13 +2022,16 @@ onBeforeUnmount(() => {
                       <div><small>指标采集</small><strong>{{ formatDate(selectedAccount.metrics_captured_at) }}</strong></div>
                     </div>
                     <el-alert
-                      v-if="selectedAccount.last_error_message"
-                      :title="String(selectedAccount.last_error_message)"
+                      v-if="selectedMonitorResult.failed"
+                      title="最近采集失败"
                       type="error"
                       :closable="false"
                       show-icon
                       class="profile-section__alert"
-                    />
+                    >
+                      <p>发生时间：{{ monitorErrorTime(selectedMonitorResult.time) }}<template v-if="selectedMonitorResult.time">（北京时间）</template></p>
+                      <p class="monitor-failure-reason">{{ selectedMonitorResult.reason }}</p>
+                    </el-alert>
                     <MonitorContentConflict :account-id="String(selectedAccount.account_id)" :error-message="String(selectedAccount.last_error_message || '')" />
                   </section>
 
@@ -3034,6 +3036,7 @@ onBeforeUnmount(() => {
 .benchmark-error { margin-top: 12px; }
 .benchmark-error-context { display: flex; flex-wrap: wrap; gap: 4px 12px; overflow-wrap: anywhere; }
 .benchmark-error-message { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.monitor-failure-reason { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 @media (max-width: 1280px) {
   .account-data__split { grid-template-columns: 286px minmax(0, 1fr); }
