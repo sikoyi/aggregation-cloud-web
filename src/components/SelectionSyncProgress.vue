@@ -18,27 +18,21 @@ const scope = computed(() => ({
   source_id: props.query.source_id || null,
 }))
 const scopeKey = computed(() => JSON.stringify([scope.value, props.settingsVersion]))
-const percent = computed(() => {
-  const index = progress.value?.index
-  if (!index?.originals) return 0
-  return index.indexed >= index.originals ? 100 : Math.min(99.9, Math.floor(index.indexed / index.originals * 1000) / 10)
-})
+const localPending = computed(() => progress.value?.daily.current_pending ?? progress.value?.daily.pending ?? 0)
+const nextLocalOverdue = computed(() => !!progress.value
+  && Date.parse(progress.value.daily.next_run_at) <= Date.parse(progress.value.snapshot_at))
 const status = computed(() => {
   const p = progress.value
   if (!p) return '等待进度'
   if (!p.scope.monitor_count && !p.scope.source_count) return '当前范围没有来源账号'
   if (!p.index.ready) return '全库索引初始化中'
-  if (p.index.pending) return '索引更新中'
-  if (p.protocol_sync?.waiting_metrics && p.protocol_sync.waiting_metrics === p.metrics.pending + p.metrics.retry + p.metrics.running) return '等待每周补采'
-  if (p.metrics.running) return '浏览量补采中'
-  if (p.metrics.pending || p.metrics.retry) return '补采排队中'
-  if (p.daily.pending) return p.daily.state === 'running' ? '本地入池执行中' : '等待本地入池'
-  if (p.metrics.failed || p.metrics.unavailable || p.metrics.no_views || p.index.unplanned) return '部分数据未就绪'
-  return '当前范围无待处理任务'
+  if (localPending.value) return p.daily.state === 'running' ? '本地入池执行中' : '等待本地入池'
+  if (p.index.pending) return '本地索引更新中'
+  if (!p.daily.scheduled_at && p.daily.pending) return '等待首次本地入池'
+  return '当前范围本地同步已完成'
 })
 const attention = computed(() => {
-  const p = progress.value
-  return !!(error.value || p && (p.metrics.failed || p.metrics.unavailable || p.metrics.no_views || p.index.unplanned))
+  return !!error.value
 })
 const number = (value: number) => value.toLocaleString('zh-CN')
 function time(value: string) {
@@ -112,9 +106,9 @@ onBeforeUnmount(() => {
     <header class="sync-header">
       <div class="sync-heading">
         <strong>来源同步</strong>
-        <span class="sync-status" :class="{ 'is-warning': attention }" role="status">
+        <span class="sync-status" :class="{ 'is-warning': attention, 'is-complete': status === '当前范围本地同步已完成' && !error }" role="status">
           <AlertTriangle v-if="attention" :size="14" />
-          <Clock3 v-else-if="!progress || status !== '当前范围无待处理任务'" :size="14" />
+          <Clock3 v-else-if="!progress || status !== '当前范围本地同步已完成'" :size="14" />
           <CheckCircle2 v-else :size="14" />
           {{ status }}
         </span>
@@ -129,20 +123,22 @@ onBeforeUnmount(() => {
     <template v-if="progress">
       <div class="sync-overview">
         <div class="sync-index">
-          <div class="sync-index-label"><span>原帖索引就绪</span><strong>{{ number(progress.index.indexed) }} / {{ number(progress.index.originals) }}</strong><span v-if="progress.index.originals" class="sync-muted">{{ percent }}%</span></div>
-          <el-progress :percentage="percent" :show-text="false" :stroke-width="5" />
+          <div class="sync-index-label"><span>本轮待本地入池</span><strong>{{ number(localPending) }} 篇</strong></div>
+          <p v-if="progress.daily.cutoff_at" class="sync-muted">本轮截止 {{ time(progress.daily.cutoff_at) }}（北京时间）</p>
         </div>
         <dl class="sync-totals">
           <div><dt>已达门槛</dt><dd>{{ number(progress.index.over_threshold) }}</dd></div>
-          <div><dt>待补采</dt><dd>{{ number(progress.metrics.pending) }}</dd></div>
-          <div><dt>处理中</dt><dd>{{ number(progress.metrics.running) }}</dd></div>
-          <div><dt>待重试</dt><dd>{{ number(progress.metrics.retry) }}</dd></div>
+          <div><dt>浏览量待补采</dt><dd>{{ number(progress.metrics.pending) }}</dd></div>
+          <div><dt>浏览量处理中</dt><dd>{{ number(progress.metrics.running) }}</dd></div>
+          <div><dt>浏览量待重试</dt><dd>{{ number(progress.metrics.retry) }}</dd></div>
         </dl>
       </div>
-      <p v-if="progress.protocol_sync?.waiting_metrics" class="sync-muted sync-notice">
-        {{ number(progress.protocol_sync.waiting_metrics) }} 篇等待周批次；下轮 {{ time(progress.protocol_sync.next_run_at) }}（北京时间）。
+      <p v-if="progress.daily.next_pending" class="sync-muted sync-notice">
+        另有 {{ number(progress.daily.next_pending) }} 篇等待下轮本地入池；计划 {{ time(progress.daily.next_run_at) }}（北京时间）。<span v-if="nextLocalOverdue">本轮结束后补执行。</span>
       </p>
-      <p v-if="progress.index.unplanned" class="sync-notice">{{ number(progress.index.unplanned) }} 篇原帖尚未就绪且暂无处理任务，不在同步队列中。</p>
+      <p v-if="progress.protocol_sync?.waiting_metrics" class="sync-muted sync-notice">
+        浏览量补采：{{ number(progress.protocol_sync.waiting_metrics) }} 篇等待周批次；下轮 {{ time(progress.protocol_sync.next_run_at) }}（北京时间）。
+      </p>
       <p v-if="progress.metrics.failed || progress.metrics.unavailable || progress.metrics.no_views" class="sync-notice">
         <span v-if="progress.metrics.failed">补采失败 {{ number(progress.metrics.failed) }} 篇</span>
         <span v-if="progress.metrics.unavailable">帖子不可用 {{ number(progress.metrics.unavailable) }} 篇</span>
@@ -152,11 +148,14 @@ onBeforeUnmount(() => {
         <dl>
           <div><dt>当前来源范围</dt><dd>{{ number(progress.scope.monitor_count) }} 个监听账号 · {{ number(progress.scope.source_count) }} 个选题来源</dd></div>
           <div><dt>外部已采集</dt><dd>{{ number(progress.collected_posts) }} 篇</dd></div>
+          <div><dt>已入池原帖</dt><dd>{{ number(progress.index.originals) }} 篇</dd></div>
+          <div><dt>可按浏览量筛选</dt><dd>{{ number(progress.index.indexed) }} 篇</dd></div>
           <div><dt>待本地入池</dt><dd>{{ number(progress.daily.pending) }} 篇</dd></div>
           <div><dt>索引待更新</dt><dd>{{ number(progress.index.pending) }} 篇</dd></div>
           <div v-if="progress.protocol_sync"><dt>独立采集和补采</dt><dd>每周一 06:00（北京时间）</dd></div>
-          <div v-if="progress.index.unplanned === null"><dt>未就绪且无待办</dt><dd>待办量较大，暂不统计</dd></div>
-          <div v-if="progress.scope.monitor_count || progress.scope.source_count"><dt>本地入池同步</dt><dd>{{ progress.daily.state === 'running' ? '正在执行' : progress.daily.state === 'overdue' ? '等待补执行' : '下次 ' + time(progress.daily.next_run_at) }}（每天北京时间 06:00）</dd></div>
+          <div v-if="progress.index.unplanned"><dt>未进入可筛选索引且无待办</dt><dd>{{ number(progress.index.unplanned) }} 篇，可能无浏览量或不符合索引条件</dd></div>
+          <div v-if="progress.index.unplanned === null"><dt>未进入索引且无待办</dt><dd>待办量较大，暂不统计</dd></div>
+          <div v-if="progress.scope.monitor_count || progress.scope.source_count"><dt>租户本地日同步</dt><dd>{{ progress.daily.state === 'running' ? '正在执行' : progress.daily.state === 'overdue' ? '等待补执行' : '下次 ' + time(progress.daily.next_run_at) }}（每天北京时间 06:00）</dd></div>
           <div v-if="progress.daily.last_completed_at"><dt>最近本地入池完成</dt><dd>{{ time(progress.daily.last_completed_at) }}</dd></div>
         </dl>
       </div>
@@ -170,6 +169,7 @@ onBeforeUnmount(() => {
 .sync-header, .sync-heading, .sync-actions, .sync-index-label { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
 .sync-header { justify-content: space-between; gap: 8px; }
 .sync-status { display: inline-flex; align-items: center; gap: 5px; color: var(--el-color-primary); }
+.sync-status.is-complete { color: var(--el-color-success); }
 .sync-status.is-warning, .sync-notice { color: var(--el-color-warning); }
 .sync-actions { gap: 4px; }
 .sync-actions :deep(.el-button + .el-button) { margin-left: 0; }
@@ -193,5 +193,6 @@ dd { margin: 0; overflow-wrap: anywhere; }
   .sync-details dl { grid-template-columns: minmax(0, 1fr); }
   .sync-actions { justify-content: flex-end; width: 100%; }
   .sync-totals { gap: 6px; }
+  .sync-totals dt { min-height: 2.4em; line-height: 1.2; }
 }
 </style>

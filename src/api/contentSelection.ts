@@ -74,7 +74,7 @@ export interface SelectionSyncProgress {
   collected_posts: number
   metrics: { pending: number; running: number; retry: number; failed: number; unavailable: number; no_views: number }
   index: { originals: number; indexed: number; over_threshold: number; pending: number; unplanned: number | null; ready: boolean }
-  daily: { pending: number; state: 'running' | 'overdue' | 'scheduled'; next_run_at: string; last_completed_at: string | null }
+  daily: { pending: number; current_pending?: number; next_pending?: number; scheduled_at?: string | null; cutoff_at?: string | null; state: 'running' | 'overdue' | 'scheduled'; next_run_at: string; last_completed_at: string | null }
   protocol_sync?: { cadence: 'weekly'; waiting_metrics: number; next_run_at: string }
 }
 export interface SelectionFeedPage {
