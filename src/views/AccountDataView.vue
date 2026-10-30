@@ -153,6 +153,8 @@ const overviewTableRef = ref<{
 } | null>(null)
 const selectedAccounts = ref<AnyRecord[]>([])
 const batchUpdating = ref(false)
+const batchBenchmarkResumeResult = ref<ProfileSyncBatchRetryResult | null>(null)
+const batchBenchmarkResumeResultVisible = ref(false)
 const batchIntervalVisible = ref(false)
 const replyQuietSettingsVisible = ref(false)
 const replyScheduleVisible = ref(false)
@@ -1052,6 +1054,38 @@ async function submitBatchMonitorState(command: string) {
   }
 }
 
+async function batchResumeBenchmark() {
+  if (batchActionsDisabled.value) return
+  const accountIds = [...new Set(selectedAccountIds.value)]
+  batchUpdating.value = true
+  try {
+    await ElMessageBox.confirm(
+      `将检查 ${accountIds.length} 个所选账号，仅恢复异常停用的对标。正常、手动暂停、未配置或正在采集的账号会跳过。保留各账号原设置，新内容继续按原同步方式处理，不重跑历史失败的发布、删除或资料同步任务。`,
+      '确认批量恢复对标',
+      { confirmButtonText: '确认恢复', cancelButtonText: '取消', type: 'warning' },
+    )
+    const data = await http.post<ProfileSyncBatchRetryResult>('/api/benchmark-trackers/resume/batch', {
+      account_ids: accountIds,
+    })
+    const message = `已恢复 ${data.processed_count} 个，跳过 ${data.skipped_count} 个，失败 ${data.failed_count} 个`
+    if (data.failed_count) {
+      batchBenchmarkResumeResult.value = data
+      batchBenchmarkResumeResultVisible.value = true
+    }
+    if (data.processed_count > 0 && !data.failed_count) {
+      ElNotification.success({ title: '对标恢复完成', message })
+    } else {
+      ElNotification.warning({ title: '对标恢复结果', message })
+    }
+    clearOverviewSelection()
+    await loadRows()
+  } catch (err) {
+    if (err !== 'cancel' && err !== 'close') notifyError(err, '批量恢复失败', '异常对标未能恢复')
+  } finally {
+    batchUpdating.value = false
+  }
+}
+
 async function batchRetryProfileSync() {
   const accountIds = selectedAccountIds.value
   if (!accountIds.length || batchUpdating.value) return
@@ -1488,6 +1522,7 @@ onBeforeUnmount(() => {
             <div class="account-overview__batch-actions">
               <el-button v-if="auth.can('system_settings.edit')" :icon="Clock" :disabled="batchActionsDisabled" @click="replyScheduleMode = ''; replyScheduleAccounts = selectedAccounts.map(account => ({ ...account })); replyScheduleVisible = true">设置回复时间</el-button>
               <el-button v-if="auth.can('operations.edit')" :icon="GitCompareArrows" :disabled="batchActionsDisabled" @click="openBatchBenchmark">批量对标跟踪</el-button>
+              <el-button v-if="auth.can('operations.edit')" :icon="RotateCcw" :loading="batchUpdating" :disabled="batchActionsDisabled" @click="batchResumeBenchmark">批量恢复对标</el-button>
               <el-dropdown trigger="click" :disabled="batchActionsDisabled" @command="batchSetMonitors">
                 <el-button
                   type="primary"
@@ -2040,6 +2075,23 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </el-card>
+
+    <el-dialog v-model="batchBenchmarkResumeResultVisible" title="对标恢复结果" width="min(680px, calc(100vw - 32px))" destroy-on-close>
+      <template v-if="batchBenchmarkResumeResult">
+        <el-space wrap class="mb-4">
+          <el-tag type="success">已恢复 {{ batchBenchmarkResumeResult.processed_count }}</el-tag>
+          <el-tag type="info">已跳过 {{ batchBenchmarkResumeResult.skipped_count }}</el-tag>
+          <el-tag type="danger">失败 {{ batchBenchmarkResumeResult.failed_count }}</el-tag>
+        </el-space>
+        <el-table :data="batchBenchmarkResumeResult.failures" row-key="account_id" max-height="320">
+          <el-table-column prop="account_id" label="账号 ID" width="110" />
+          <el-table-column prop="message" label="失败原因" min-width="220" />
+        </el-table>
+      </template>
+      <template #footer>
+        <el-button @click="batchBenchmarkResumeResultVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="batchEnableVisible" title="批量开启监听" width="min(480px, calc(100vw - 32px))"
       :close-on-click-modal="!batchUpdating" :close-on-press-escape="!batchUpdating" :show-close="!batchUpdating">
