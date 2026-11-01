@@ -1648,7 +1648,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="设备分组" min-width="190">
+            <el-table-column label="设备分组" min-width="190" align="center" header-align="center">
               <template #default="scope">
                 <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
                 <div v-else class="account-overview__device">
@@ -2700,11 +2700,16 @@ onBeforeUnmount(() => {
 .account-overview__account strong { color: var(--app-text, #20364b); font-size: 16px; line-height: 1.5; }
 .account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; line-height: 1.5; }
 .account-overview__account:hover strong { color: var(--app-blue, #1f6f9f); }
-.account-overview__device { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; max-width: 100%; }
+.account-overview__device { display: flex; width: 100%; flex-direction: column; align-items: center; gap: 6px; min-width: 0; max-width: 100%; text-align: center; }
 .account-overview__device-id { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-text-muted, #718096); font-size: 12px; line-height: 1.5; user-select: text; }
 .account-overview__group {
   display: inline-flex;
+  height: 28px;
   max-width: 100%;
+  padding: 0 8px;
+  font-size: 14px;
+  line-height: 26px;
+  font-weight: 500;
   vertical-align: middle;
 }
 .account-overview__group :deep(.el-tag__content) {
@@ -2713,14 +2718,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 5px;
 }
-.account-overview__group-icon { width: 13px; height: 13px; flex: 0 0 13px; }
+.account-overview__group-icon { width: 16px; height: 16px; flex: 0 0 16px; }
 .account-overview__group-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.account-overview__group--empty { opacity: 0.78; }
+.account-overview__group--empty { color: var(--el-text-color-regular); }
 .account-overview__attributes,
 .account-overview__metric,
 .account-overview__monitor {
