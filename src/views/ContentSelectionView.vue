@@ -140,7 +140,7 @@ async function saveThreshold() {
     if (disposed) return
     applyFeedSettings(value)
     thresholdVisible.value = false
-    ElMessage.success('选题池门槛已保存')
+    ElMessage.success('选题库门槛已保存')
     await refresh(true)
   } catch (e) {
     if (disposed) return
@@ -519,7 +519,7 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
 <template>
   <section class="selection-view">
     <el-tooltip v-if="showBackTop" content="回到顶部" placement="left"><el-button class="selection-back-top" :icon="ArrowUp" circle aria-label="回到顶部" @click="backToTop" /></el-tooltip>
-    <header class="selection-heading"><div class="selection-title"><span class="selection-icon"><ClipboardList :size="20" /></span><h1>选题池</h1></div><div class="selection-actions">
+    <header class="selection-heading"><div class="selection-title"><span class="selection-icon"><ClipboardList :size="20" /></span><h1>选题库</h1></div><div class="selection-actions">
       <el-tooltip content="刷新" placement="bottom"><el-button :disabled="loading" :icon="RefreshCw" circle aria-label="刷新" @click="refresh()" /></el-tooltip>
       <el-button v-if="auth.can('operations.edit')" type="primary" @click="sourceVisible = true"><Plus :size="16" />添加来源账号</el-button>
     </div></header>
@@ -691,7 +691,7 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
       </div>
       <template #footer><el-button :disabled="publishBusy" @click="editVisible = false">关闭</el-button><el-button v-if="auth.can('operations.dispatch')" type="primary" :loading="publishBusy" :disabled="editLoading || accountsLoading || !!editError || !!accountsError || aiBusy || !selected || !draft.account_id || !!duplicate || (!draft.text_body.trim() && !draft.media_indexes.length)" @click="publish"><Send :size="15" />确认发布</el-button></template>
     </el-dialog>
-    <el-dialog v-model="thresholdVisible" title="选题池门槛" width="min(440px, calc(100vw - 32px))" align-center :close-on-click-modal="false" :close-on-press-escape="!thresholdSaving" :show-close="!thresholdSaving">
+    <el-dialog v-model="thresholdVisible" title="选题库门槛" width="min(440px, calc(100vw - 32px))" align-center :close-on-click-modal="false" :close-on-press-escape="!thresholdSaving" :show-close="!thresholdSaving">
       <el-form label-width="100px" @submit.prevent="saveThreshold">
         <el-form-item label="生效范围">当前租户全体运营</el-form-item>
         <el-form-item label="浏览量大于"><el-input-number v-model="thresholdDraft" aria-label="浏览量门槛" :min="0" :max="Number.MAX_SAFE_INTEGER" :precision="0" :step="1000" controls-position="right" :disabled="thresholdSaving" /></el-form-item>
