@@ -8,14 +8,20 @@ import ExternalAccountDetail from './ExternalAccountDetail.vue'
 import CompactFollowerCount from './CompactFollowerCount.vue'
 import { formatDate } from '@/utils/format'
 import { externalMonitorStatus } from '@/utils/externalMonitorProgress'
+import { useAuthStore } from '@/stores/auth'
+import { canMaintainExternalMonitor, externalMonitorOperatorLabel } from '@/utils/externalMonitorOperator'
 import type { AnyRecord } from '@/types/api'
-import type { ExternalMonitor, ExternalPersona } from '@/types/externalMonitor'
+import type { ExternalMonitor, ExternalMonitorContext, ExternalPersona } from '@/types/externalMonitor'
 
 const props = defineProps<{ monitorId: string; canEdit: boolean; revision: number; initialView?: 'overview' | 'account' }>()
 const emit = defineEmits<{ link: [row: ExternalMonitor]; edit: [row: ExternalMonitor]; changed: [] }>()
+const auth = useAuthStore()
 const accounts = ref<ExternalMonitor[]>([])
 const persona = ref<ExternalPersona | null>(null)
+const manageAllowed = ref<boolean | undefined>(undefined)
 const selected = ref('')
+const selectedAccount = computed(() => accounts.value.find(row => row.id === selected.value))
+const canManagePersona = computed(() => props.canEdit && (auth.isSuperAdmin || (manageAllowed.value !== false && accounts.value.length > 0 && accounts.value.every(canMaintain))))
 const view = ref(props.initialView || 'overview')
 const metricSort = ref<{ prop: string; order: string | null }>({ prop: 'posts_count', order: 'descending' })
 const metrics = [{ key: 'posts_count', label: '帖子总数' }]
@@ -45,6 +51,17 @@ let detailSequence = 0
 let disposed = false
 function name(row: { profile?: AnyRecord; profile_url: string }) { return row.profile?.display_name || row.profile?.username || row.profile_url }
 function platform(value: string) { return value === 'x' ? 'X(Twitter)' : value === 'instagram' ? 'Instagram' : 'Threads' }
+function canMaintain(row: ExternalMonitor) { return props.canEdit && canMaintainExternalMonitor(row, auth) }
+function editAccount() {
+  const row = selectedAccount.value
+  if (busy.value || loading.value || contextLoading.value || !row || !canMaintain(row)) return
+  emit('edit', row)
+}
+function linkAccount() {
+  const row = selectedAccount.value
+  if (busy.value || loading.value || contextLoading.value || !row || !canManagePersona.value || !canMaintain(row)) return
+  emit('link', { ...row, persona: persona.value || undefined, can_manage_persona: canManagePersona.value })
+}
 async function loadDetail() {
   const request = ++detailSequence
   loading.value = true
@@ -75,10 +92,11 @@ async function refresh() {
   loading.value = false
   error.value = ''
   try {
-    const result = await http.get<{ persona: ExternalPersona | null; accounts: ExternalMonitor[] }>(`/api/external-account-monitors/${props.monitorId}/persona`)
+    const result = await http.get<ExternalMonitorContext>(`/api/external-account-monitors/${props.monitorId}/persona`)
     if (disposed || request !== contextSequence) return
-    persona.value = result.persona
+    persona.value = result.persona || result.association || null
     accounts.value = result.accounts
+    manageAllowed.value = result.can_manage_persona
     selected.value = result.accounts.some(row => row.id === selected.value) ? selected.value : props.monitorId
     page.value = 1
     if (view.value === 'account') await loadDetail()
@@ -86,11 +104,12 @@ async function refresh() {
   finally { if (request === contextSequence) contextLoading.value = false }
 }
 async function rename() {
-  if (busy.value || !persona.value) return
+  if (busy.value || contextLoading.value || !persona.value || !canManagePersona.value) return
   const current = persona.value
   busy.value = true
   try {
     const { value } = await ElMessageBox.prompt('形象名称', '修改形象名称', { inputValue: current.name, inputValidator: value => !!value?.trim() && value.trim().length <= 80 || '请输入 1 到 80 个字符', confirmButtonText: '保存', cancelButtonText: '取消' })
+    if (!canManagePersona.value) return
     await http.put(`/api/external-account-monitors/${props.monitorId}/persona`, { name: value.trim(), expected_version: current.version })
     await refresh()
     emit('changed')
@@ -98,11 +117,12 @@ async function rename() {
   finally { busy.value = false }
 }
 async function detach() {
-  const row = detail.value?.monitor
-  if (busy.value || !row) return
+  const row = selectedAccount.value
+  if (busy.value || loading.value || contextLoading.value || !persona.value || !row || !canMaintain(row) || !canManagePersona.value) return
   busy.value = true
   try {
     await ElMessageBox.confirm(`将“${name(row)}”恢复为独立账号？监听、标签、国家和采集数据均保留。`, '解除形象关联', { type: 'warning', confirmButtonText: '解除关联', cancelButtonText: '取消' })
+    if (!canManagePersona.value || !canMaintain(row)) return
     const version = accounts.value.find(account => account.id === row.id)?.version
     if (!version) throw new Error('账号版本已变化，请刷新后重试')
     await http.delete(`/api/external-account-monitors/${row.id}/association?expected_version=${version}`)
@@ -112,7 +132,7 @@ async function detach() {
   } catch (e) { if (e !== 'cancel' && e !== 'close') ElNotification.error({ title: '解除关联失败', message: e instanceof Error ? e.message : '请刷新重试' }) }
   finally { busy.value = false }
 }
-watch(() => [props.monitorId, props.revision], () => { selected.value = ''; detail.value = null; accounts.value = []; persona.value = null; void refresh() }, { immediate: true })
+watch(() => [props.monitorId, props.revision], () => { selected.value = ''; detail.value = null; accounts.value = []; persona.value = null; manageAllowed.value = undefined; void refresh() }, { immediate: true })
 onBeforeUnmount(() => { disposed = true; ++contextSequence; ++detailSequence })
 defineExpose({ refresh })
 </script>
@@ -122,7 +142,7 @@ defineExpose({ refresh })
     <header class="persona-header">
       <h2 v-if="persona">{{ persona.name }}</h2>
       <span v-if="persona">{{ accounts.length }} 个账号</span>
-      <el-tooltip v-if="persona && canEdit" content="修改形象名称"><el-button :icon="Pencil" circle aria-label="修改形象名称" :disabled="busy || contextLoading" @click="rename" /></el-tooltip>
+      <el-tooltip v-if="persona && canEdit" content="修改形象名称"><el-button :icon="Pencil" circle aria-label="修改形象名称" :disabled="busy || contextLoading || !canManagePersona" @click="rename" /></el-tooltip>
       <el-button :icon="RefreshCw" :loading="contextLoading || loading" :disabled="busy" @click="refresh">刷新</el-button>
     </header>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
@@ -136,6 +156,7 @@ defineExpose({ refresh })
           </button>
         </template></el-table-column>
         <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platform(row.business_platform) }}</el-tag></template></el-table-column>
+        <el-table-column label="操作员" min-width="160" show-overflow-tooltip><template #default="{ row }">{{ externalMonitorOperatorLabel(row as ExternalMonitor) }}</template></el-table-column>
         <el-table-column v-for="metric in metrics" :key="metric.key" :prop="metric.key" :label="metric.label" :min-width="115" align="center" sortable="custom"><template #default="{ row }">
           <CompactFollowerCount :value="metricValue(row as ExternalMonitor, metric.key)" :label="metric.label" />
         </template></el-table-column>
@@ -151,10 +172,11 @@ defineExpose({ refresh })
         </button>
       </nav>
       <main v-loading="loading" class="persona-content">
+        <div v-if="selectedAccount" class="persona-operator">操作员 <strong>{{ externalMonitorOperatorLabel(selectedAccount) }}</strong></div>
         <div v-if="canEdit && detail" class="persona-actions">
-          <el-button :icon="Plus" :disabled="busy || loading" @click="emit('link', accounts.find(row => row.id === selected)!)">添加关联账号</el-button>
-          <el-button :icon="Pencil" :disabled="busy || loading" @click="emit('edit', accounts.find(row => row.id === selected)!)">监听设置</el-button>
-          <el-button v-if="persona" :icon="Unlink" :disabled="busy || loading" @click="detach">解除关联</el-button>
+          <el-button :icon="Plus" :disabled="busy || loading || contextLoading || !selectedAccount || !canManagePersona" @click="linkAccount">添加关联账号</el-button>
+          <el-button :icon="Pencil" :disabled="busy || loading || contextLoading || !selectedAccount || !canMaintain(selectedAccount)" @click="editAccount">监听设置</el-button>
+          <el-button v-if="persona" :icon="Unlink" :disabled="busy || loading || contextLoading || !canManagePersona" @click="detach">解除关联</el-button>
         </div>
         <ExternalAccountDetail v-if="detail" :detail="detail" :page="page" @update:page="page = $event; loadDetail()" />
       </main>
@@ -178,6 +200,8 @@ defineExpose({ refresh })
 .persona-accounts strong, .persona-accounts small { display: block; overflow-wrap: anywhere; }
 .persona-accounts small { color: var(--el-text-color-secondary); font-size: 12px; margin-top: 4px; }
 .persona-content { min-width: 0; }
+.persona-operator { margin-bottom: 12px; font-size: 13px; color: var(--el-text-color-secondary); overflow-wrap: anywhere; }
+.persona-operator strong { color: var(--el-text-color-primary); margin-left: 8px; }
 .persona-overview { min-height: 180px; }
 .overview-account { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; padding: 6px 0; background: transparent; text-align: left; color: var(--el-text-color-primary); cursor: pointer; }
 .overview-account .el-avatar { flex-shrink: 0; }

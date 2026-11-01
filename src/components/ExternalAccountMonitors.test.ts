@@ -3,6 +3,7 @@ import ts from 'typescript'
 import source from './ExternalAccountMonitors.vue?raw'
 import detailSource from './ExternalMonitorPersonaDetail.vue?raw'
 import routes from '../router/accountDataRoutes.ts?raw'
+import { canMaintainExternalMonitor, canManageExternalPersona, hasExternalMonitorOperator } from '../utils/externalMonitorOperator'
 
 const ast = ts.createSourceFile('ExternalMonitor.ts', source.split('<script setup lang="ts">')[1]!.split('</script>')[0]!, ts.ScriptTarget.Latest, true)
 const functions = ast.statements.filter(ts.isFunctionDeclaration).map(node => node.getText(ast)).join('\n')
@@ -10,9 +11,15 @@ const detailAst = ts.createSourceFile('ExternalDetail.ts', detailSource.split('<
 const detailFunction = detailAst.statements.filter(ts.isFunctionDeclaration).find(node => node.name?.text === 'loadDetail')!.getText(detailAst)
 function setup() {
   const state = {
+    auth: { user: { id: 'operator-self' }, isSuperAdmin: false },
+    canMaintainExternalMonitor, canManageExternalPersona, hasExternalMonitorOperator,
+    operatorsSupported: { value: true }, operatorsLoading: { value: false }, operatorsError: { value: '' },
+    operators: { value: [{ id: 'operator-self', username: 'self', display_name: 'Self', status: 'active', assignable: true }] },
+    assignableOperators: { value: [{ id: 'operator-self', username: 'self', display_name: 'Self', status: 'active', assignable: true }] },
+    canAssignOperator: { get value(): boolean { return state.auth.isSuperAdmin && state.canEdit.value && state.operatorsSupported.value } },
     platforms: { value: [{ value: 'x' }] },
     canEdit: { value: true }, saving: { value: false }, editing: { value: null as Record<string, unknown> | null },
-    form: { folder_id: '', business_platform: 'x', profile_url: 'https://x.com/source', country: '', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[] },
+    form: { folder_id: '', business_platform: 'x', profile_url: 'https://x.com/source', country: '', remark: 'note', interval_minutes: 60, enabled: true, tag_ids: [] as string[], operator_id: 'operator-self' },
     formVisible: { value: true }, rows: { value: [] as Record<string, unknown>[] }, total: { value: 0 }, page: { value: 1 }, pageSize: { value: 20 },
     refreshing: { value: false }, detailVisible: { value: false }, document: { hidden: false },
     metricSort: { value: null as { prop: string; order: string } | null },
@@ -26,17 +33,18 @@ function setup() {
     managedCountries: { countries: [] as string[], version: 1 },
     summary: { value: null as unknown }, groups: { value: [] as { id: string; name: string; member_count: number }[] },
     folders: { value: [] as { id: string; name: string; member_count: number }[] },
-    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2 }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : path.endsWith('/countries') ? ['日本', '韩国'] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
+    http: { post: vi.fn().mockResolvedValue({}), put: vi.fn().mockResolvedValue({ id: 'external', version: 2, operator_id: 'operator-self' }), get: vi.fn().mockImplementation(async (path: string) => path.endsWith('/tags') ? [] : path.endsWith('/countries') ? ['日本', '韩国'] : { items: [], total: 0 }), delete: vi.fn().mockResolvedValue({}) },
     ElMessageBox: { confirm: vi.fn().mockResolvedValue('confirm') },
     ElNotification: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
   }
   const get = state.http.get.getMockImplementation()!
   state.http.get.mockImplementation(async (path: string) => path.endsWith('/folders') ? [] : path.endsWith('/country-options') ? state.managedCountries : get(path))
-  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let foldersSequence = 0; let groupsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, search, reset, sortMetrics, filterCountries};`)(...Object.values(state)) as {
+  const compiled = ts.transpileModule(`let disposed = false; let sequence = 0; let foldersSequence = 0; let groupsSequence = 0; let operatorsSequence = 0; let detailSequence = 0; ${functions};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
+  const actions = new Function(...Object.keys(state), `${compiled}; return {openForm, save, toggle, remove, safeUrl, load, loadGroups, loadOperators, search, reset, sortMetrics, filterCountries};`)(...Object.values(state)) as {
     filterCountries: (countries?: string[], unset?: boolean) => void
     openForm: (row?: Record<string, unknown>) => void
     loadGroups: () => Promise<void>
+    loadOperators: () => Promise<void>
     sortMetrics: (value: { prop: string | null; order: 'ascending' | 'descending' | null }) => void
     search: () => void; reset: () => void
     save: () => Promise<void>; toggle: (row: Record<string, unknown>) => Promise<void>; safeUrl: (url: string) => string; load: (background?: boolean) => Promise<void>
@@ -208,7 +216,7 @@ describe('外部账号只读监听', () => {
     expect(s.form.country).toBe('日本')
     s.openForm()
     expect(s.form.country).toBe('')
-    s.openForm({ id: 'one', country: '韩国', version: 2, profile_url: 'https://x.com/source' })
+    s.openForm({ id: 'one', operator_id: 'operator-self', country: '韩国', version: 2, profile_url: 'https://x.com/source' })
     expect(s.form.country).toBe('韩国')
     s.form.country = ''
     await s.save()
@@ -240,7 +248,7 @@ describe('外部账号只读监听', () => {
     s.form.profile_url = 'https://x.com/second'
     await s.save()
     expect(s.form.interval_minutes).toBe(45)
-    s.openForm({ id: 'external', version: 1, business_platform: 'x', profile_url: 'https://x.com/source', remark: '', interval_minutes: 60, enabled: true })
+    s.openForm({ id: 'external', operator_id: 'operator-self', version: 1, business_platform: 'x', profile_url: 'https://x.com/source', remark: '', interval_minutes: 60, enabled: true })
     expect(s.form.interval_minutes).toBe(60)
     await s.save()
     expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', expect.objectContaining({ interval_minutes: 60 }))
@@ -346,9 +354,9 @@ describe('外部账号只读监听', () => {
   it('后台刷新不显示遮罩、不清除选择、未变化的行保持引用', async () => {
     const s = setup()
     s.formVisible.value = false
-    s.rows.value = [{ id: 'one', version: 1 }]
+    s.rows.value = [{ id: 'one', version: 1, operator_id: 'operator-other' }]
     const previous = s.rows.value
-    s.http.get.mockResolvedValueOnce({ items: [{ id: 'one', version: 1 }], total: 1 } as never)
+    s.http.get.mockResolvedValueOnce({ items: [{ id: 'one', version: 1, operator_id: 'operator-other' }], total: 1 } as never)
     const pending = s.load(true)
     expect(s.loading.value).toBe(false)
     expect(s.refreshing.value).toBe(true)
@@ -469,18 +477,26 @@ describe('外部账号只读监听', () => {
     expect(s.form.business_platform).toBe('x')
     expect(s.form.interval_minutes).toBe(60)
   })
-  it('只读权限和重复点击不会提交', async () => {
+  it('其他操作员的账号只读，重复点击不会提交', async () => {
     const s = setup()
-    s.canEdit.value = false
+    s.editing.value = { id: 'external', version: 1, operator_id: 'operator-other' }
     await s.save()
     expect(s.http.post).not.toHaveBeenCalled()
-    s.canEdit.value = true
+    expect(s.http.put).not.toHaveBeenCalled()
+    s.editing.value = { id: 'external', version: 1, operator_id: 'operator-self' }
     s.saving.value = true
     await s.save()
     expect(s.http.post).not.toHaveBeenCalled()
+    expect(s.http.put).not.toHaveBeenCalled()
   })
-  it('编辑提交版本，不允许更换采集主体', async () => {
+  it('旧版操作员接口缺失时管理员编辑仍提交版本，不更换主体或发送操作员', async () => {
     const s = setup()
+    s.auth.isSuperAdmin = true
+    s.http.get.mockRejectedValueOnce(Object.assign(new Error('Not Found'), { status: 404 }))
+    await s.loadOperators()
+    expect(s.operatorsSupported.value).toBe(false)
+    expect(s.operatorsLoading.value).toBe(false)
+    expect(s.operatorsError.value).toBe('')
     s.editing.value = { id: 'external', version: 1 }
     await s.save()
     expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { folder_id: null, country: '', remark: 'note', interval_minutes: 60, enabled: true, expected_version: 1, tag_ids: [] })
@@ -493,12 +509,12 @@ describe('外部账号只读监听', () => {
     await s.save()
     expect(s.form.profile_url).toBe('https://x.com/source')
     expect(s.ElNotification.error).toHaveBeenCalled()
-    await s.toggle({ id: 'external', version: 4, remark: 'note', enabled: true, interval_minutes: 60 })
+    await s.toggle({ id: 'external', operator_id: 'operator-self', version: 4, remark: 'note', enabled: true, interval_minutes: 60 })
     expect(s.http.put).toHaveBeenCalledWith('/api/external-account-monitors/external', { enabled: false, interval_minutes: 60, remark: 'note', expected_version: 4 })
   })
   it('删除前确认并携带当前版本，取消时不调用接口', async () => {
     const s = setup()
-    const row = { id: 'external', version: 4, profile_url: 'https://x.com/source', profile: { display_name: 'Source' } }
+    const row = { id: 'external', operator_id: 'operator-self', version: 4, profile_url: 'https://x.com/source', profile: { display_name: 'Source' } }
     await s.remove(row)
     expect(s.ElMessageBox.confirm).toHaveBeenCalledWith(
       expect.stringContaining('已采集帖子和历史指标快照'),

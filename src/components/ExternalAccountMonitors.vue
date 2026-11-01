@@ -19,13 +19,20 @@ import ExternalCountrySelect from './ExternalCountrySelect.vue'
 import ExternalMonitorCountries from './ExternalMonitorCountries.vue'
 import { externalAvatarUrl } from '@/utils/externalAvatar'
 import { externalMonitorProgress, externalMonitorStatus } from '@/utils/externalMonitorProgress'
+import { canMaintainExternalMonitor, canManageExternalPersona, externalMonitorOperatorLabel, externalOperatorOptionLabel, hasExternalMonitorOperator } from '@/utils/externalMonitorOperator'
 import type { AnyRecord } from '@/types/api'
 
-import type { ExternalMonitor } from '@/types/externalMonitor'
+import type { ExternalMonitor, ExternalMonitorOperator } from '@/types/externalMonitor'
 
 const auth = useAuthStore()
 const platforms = useScopedBusinessPlatformOptions([{ label: 'Threads', value: 'threads' }, { label: 'X(Twitter)', value: 'x' }, { label: 'Instagram', value: 'instagram' }])
 const canEdit = computed(() => auth.can('operations.edit'))
+const operators = ref<ExternalMonitorOperator[]>([])
+const operatorsSupported = ref(false)
+const operatorsLoading = ref(true)
+const operatorsError = ref('')
+const canAssignOperator = computed(() => canEdit.value && auth.isSuperAdmin && operatorsSupported.value)
+const assignableOperators = computed(() => operators.value.filter(operator => operator.assignable))
 const labels: Record<string, string> = { pending: '等待采集', collecting: '采集中', active: '监听中', retrying: '等待重试', paused: '已暂停' }
 const rows = ref<ExternalMonitor[]>([])
 const personaLink = ref<InstanceType<typeof ExternalMonitorAssociationDialog> | null>(null)
@@ -56,7 +63,7 @@ const pageSize = ref(20)
 const loading = ref(false)
 const refreshing = ref(false)
 const error = ref('')
-const filters = reactive({ folder_id: '', platform: '', status: '', keyword: '', countries: [] as string[], country_unset: false, sort_order: 'desc', tag_ids: [] as string[], untagged: false })
+const filters = reactive({ folder_id: '', platform: '', status: '', keyword: '', operator: '', countries: [] as string[], country_unset: false, sort_order: 'desc', tag_ids: [] as string[], untagged: false })
 const appliedFilters = reactive({ ...filters, countries: [] as string[], tag_ids: [] as string[] })
 const editing = ref<ExternalMonitor | null>(null)
 const formVisible = ref(false)
@@ -64,15 +71,68 @@ const saving = ref(false)
 const tagEditingBusy = ref(false)
 const busy = ref('')
 const deleting = ref('')
-const form = reactive({ folder_id: '', business_platform: 'threads', profile_url: '', country: '', remark: '', interval_minutes: 720, enabled: true, tag_ids: [] as string[] })
+const form = reactive({ folder_id: '', business_platform: 'threads', profile_url: '', country: '', remark: '', interval_minutes: 720, enabled: true, tag_ids: [] as string[], operator_id: undefined as string | undefined })
 const detailVisible = ref(false)
 const detailId = ref('')
 const detailView = ref<'overview' | 'account'>('overview')
 let sequence = 0
 let groupsSequence = 0
+let operatorsSequence = 0
 let disposed = false
 let timer: ReturnType<typeof setInterval> | undefined
 function message(e: unknown) { return e instanceof Error ? e.message : '操作失败，请重试' }
+function canMaintain(row: ExternalMonitor) { return canEdit.value && !row.is_persona && canMaintainExternalMonitor(row, auth) }
+function canAssociate(row: ExternalMonitor) {
+  const parent = rows.value.find(item => item.is_persona && item.children?.some(member => member.id === row.id))
+  return canEdit.value && canManageExternalPersona(parent || row, auth)
+}
+function openAssociation(row: ExternalMonitor) {
+  if (batchBusy.value || personaBusy.value || !canAssociate(row)) return
+  void personaLink.value?.open({ ...row, can_manage_persona: true })
+}
+function selectAccounts(accounts: ExternalMonitor[]) { selected.value = accounts.filter(canMaintain) }
+function operatorFilters() {
+  if (!operatorsSupported.value) return {}
+  if (appliedFilters.operator === '__unassigned__') return { operator_unset: true }
+  return appliedFilters.operator ? { operator_id: appliedFilters.operator } : {}
+}
+function operatorAssignment() {
+  if (!canAssignOperator.value || form.operator_id === undefined) return {}
+  if (editing.value && form.operator_id === (hasExternalMonitorOperator(editing.value) ? editing.value.operator_id || '' : undefined)) return {}
+  if (!editing.value && !form.operator_id) return {}
+  return { operator_id: form.operator_id || null }
+}
+function validOperatorAssignment() {
+  if (!canAssignOperator.value || form.operator_id === undefined) return true
+  if (editing.value && form.operator_id === (editing.value.operator_id || '')) return true
+  return Boolean(editing.value && !form.operator_id) || assignableOperators.value.some(operator => operator.id === form.operator_id)
+}
+async function loadOperators() {
+  const request = ++operatorsSequence
+  operatorsLoading.value = true
+  operatorsError.value = ''
+  try {
+    const result = await http.get<ExternalMonitorOperator[]>('/api/external-account-monitors/operators')
+    if (disposed || request !== operatorsSequence) return
+    if (!Array.isArray(result)) throw new Error('操作员数据无效')
+    operators.value = result
+    operatorsSupported.value = true
+  } catch (e) {
+    if (disposed || request !== operatorsSequence) return
+    if ((e as { status?: number } | null)?.status === 404) {
+      operatorsSupported.value = false
+      operators.value = []
+      const hadOperatorFilter = Boolean(filters.operator || appliedFilters.operator)
+      filters.operator = ''
+      appliedFilters.operator = ''
+      if (hadOperatorFilter) {
+        if (page.value === 1) void load()
+        else page.value = 1
+      }
+    } else operatorsError.value = `加载操作员失败：${message(e)}`
+  } finally { if (request === operatorsSequence) operatorsLoading.value = false }
+}
+function refreshAll() { void loadOperators(); void load() }
 function safeUrl(value: unknown) {
   try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '' } catch { return '' }
 }
@@ -105,9 +165,11 @@ async function load(background = false) {
     error.value = ''
   }
   try {
+    const { operator: _operator, ...accountFilters } = appliedFilters
+    const ownershipFilters = operatorFilters()
     const [result, counts, usedCountries, countryConfig] = await Promise.all([
-      http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...appliedFilters, overview: true, ...(metricSort.value ? { sort_by: metricSort.value.prop, sort_order: metricSort.value.order } : {}), page: page.value, page_size: pageSize.value }),
-      http.get<Record<string, number>>('/api/external-account-monitors/summary', { overview: true, folder_id: appliedFilters.folder_id, platform: appliedFilters.platform, countries: appliedFilters.countries, country_unset: appliedFilters.country_unset, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
+      http.get<{ items: ExternalMonitor[]; total: number }>('/api/external-account-monitors', { ...accountFilters, ...ownershipFilters, overview: true, ...(metricSort.value ? { sort_by: metricSort.value.prop, sort_order: metricSort.value.order } : {}), page: page.value, page_size: pageSize.value }),
+      http.get<Record<string, number>>('/api/external-account-monitors/summary', { overview: true, ...ownershipFilters, folder_id: appliedFilters.folder_id, platform: appliedFilters.platform, countries: appliedFilters.countries, country_unset: appliedFilters.country_unset, keyword: appliedFilters.keyword, tag_ids: appliedFilters.tag_ids, untagged: appliedFilters.untagged }),
       http.get<string[]>('/api/external-account-monitors/countries'),
       http.get<{ countries: string[]; version: number }>('/api/external-account-monitors/country-options'),
     ])
@@ -162,7 +224,7 @@ function sortMetrics({ prop, order }: { prop: string | null; order: 'ascending' 
   search()
 }
 function sortByCreated() { metricSort.value = null; table.value?.sort('created_at', 'descending'); search() }
-function reset() { Object.assign(filters, { folder_id: '', platform: '', status: '', keyword: '', countries: [], country_unset: false, sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
+function reset() { Object.assign(filters, { folder_id: '', platform: '', status: '', keyword: '', operator: '', countries: [], country_unset: false, sort_order: 'desc', tag_ids: [], untagged: false }); sortByCreated() }
 function filterStatus(status: string) { filters.status = status; search() }
 function groupName(id: string) { return groups.value.find(group => group.id === id)?.name || '标签已变更' }
 async function loadGroups() {
@@ -230,8 +292,9 @@ function batchCompleted() {
   else void load()
 }
 function openForm(row?: ExternalMonitor) {
-  if (orderSaving.value) return
+  if (orderSaving.value || batchBusy.value || !canEdit.value || (row && !canMaintain(row))) return
   editing.value = row || null
+  form.operator_id = row ? (hasExternalMonitorOperator(row) ? row.operator_id || '' : undefined) : auth.user?.id
   form.tag_ids = [...(row?.tag_ids || [])]
   form.country = row?.country || ''
   form.folder_id = row?.folder_id || ''
@@ -241,19 +304,22 @@ function openForm(row?: ExternalMonitor) {
   formVisible.value = true
 }
 async function save() {
-  if (saving.value || batchBusy.value || !canEdit.value) return
+  if (saving.value || batchBusy.value || !canEdit.value || (editing.value && !canMaintain(editing.value)) || operatorsLoading.value) return
+  if (!validOperatorAssignment()) { ElNotification.warning({ title: '请选择可分配的操作员' }); return }
   if (!safeUrl(form.profile_url)) { ElNotification.warning({ title: '请填写有效账号主页链接' }); return }
   saving.value = true
   try {
     if (editing.value) {
-      const updated = await http.put<ExternalMonitor>(`/api/external-account-monitors/${editing.value.id}`, { folder_id: form.folder_id || null, country: form.country, remark: form.remark, interval_minutes: form.interval_minutes, enabled: form.enabled, expected_version: editing.value.version, tag_ids: form.tag_ids })
+      const updated = await http.put<ExternalMonitor>(`/api/external-account-monitors/${editing.value.id}`, { folder_id: form.folder_id || null, country: form.country, remark: form.remark, interval_minutes: form.interval_minutes, enabled: form.enabled, expected_version: editing.value.version, tag_ids: form.tag_ids, ...operatorAssignment() })
       if (disposed) return
       editing.value = updated
+      form.operator_id = hasExternalMonitorOperator(updated) ? updated.operator_id || '' : undefined
     } else {
-      await http.post('/api/external-account-monitors', { folder_id: form.folder_id || null, business_platform: form.business_platform, country: form.country, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes, tag_ids: form.tag_ids })
+      await http.post('/api/external-account-monitors', { folder_id: form.folder_id || null, business_platform: form.business_platform, country: form.country, profile_url: form.profile_url.trim(), remark: form.remark, interval_minutes: form.interval_minutes, tag_ids: form.tag_ids, ...operatorAssignment() })
       if (disposed) return
       form.profile_url = ''
       form.remark = ''
+      form.operator_id = auth.user?.id
     }
     ElNotification.success({ title: editing.value ? '监听配置已保存' : '已添加，等待首次采集' })
     void loadGroups()
@@ -262,7 +328,7 @@ async function save() {
   finally { saving.value = false }
 }
 async function toggle(row: ExternalMonitor) {
-  if (busy.value || deleting.value || batchBusy.value || !canEdit.value) return
+  if (busy.value || deleting.value || batchBusy.value || !canMaintain(row)) return
   busy.value = row.id
   try {
     await http.put(`/api/external-account-monitors/${row.id}`, { remark: row.remark, interval_minutes: row.interval_minutes, enabled: !row.enabled, expected_version: row.version })
@@ -271,7 +337,7 @@ async function toggle(row: ExternalMonitor) {
   finally { busy.value = '' }
 }
 async function remove(row: ExternalMonitor) {
-  if (busy.value || deleting.value || batchBusy.value || !canEdit.value) return
+  if (busy.value || deleting.value || batchBusy.value || !canMaintain(row)) return
   deleting.value = row.id
   const accountName = row.profile.display_name || row.profile.username || row.profile_url
   try {
@@ -301,8 +367,8 @@ function openDetail(row: AnyRecord) {
   detailVisible.value = true
 }
 watch([page, pageSize], () => { void load() })
-onMounted(() => { void load(); void loadGroups(); timer = setInterval(() => { if (!personaBusy.value) void load(true) }, 30000) })
-onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
+onMounted(() => { void loadOperators(); void load(); void loadGroups(); timer = setInterval(() => { if (!personaBusy.value) void load(true) }, 30000) })
+onBeforeUnmount(() => { disposed = true; ++sequence; ++operatorsSequence; clearInterval(timer) })
 </script>
 
 <template>
@@ -312,7 +378,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
       <div class="external-monitors__actions">
         <ExternalMonitorGroups v-if="canEdit" :groups="groups" @changed="groupsChanged" @refresh="loadGroups" />
         <ExternalMonitorCountries v-if="canEdit" :disabled="batchBusy || orderSaving" @changed="load()" />
-        <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading" :disabled="batchBusy" @click="load()" /></el-tooltip>
+        <el-tooltip content="刷新"><el-button :icon="RefreshCw" circle aria-label="刷新外部账号监听" :loading="loading || operatorsLoading" :disabled="batchBusy" @click="refreshAll" /></el-tooltip>
         <el-button v-if="canEdit" type="primary" :icon="Plus" :disabled="!platforms.length" @click="openForm()">添加外部账号</el-button>
       </div>
     </header>
@@ -327,6 +393,12 @@ onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
       <el-form inline label-width="72px" :disabled="batchBusy || orderSaving">
         <el-form-item label="业务 App"><el-select v-model="filters.platform" placeholder="全部" clearable><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="监听状态"><el-select v-model="filters.status" placeholder="全部" clearable><el-option v-for="(label, value) in labels" :key="value" :label="label" :value="value" /></el-select></el-form-item>
+        <el-form-item label="操作员"><el-select v-model="filters.operator" aria-label="操作员筛选" :empty-values="[undefined, null]" :disabled="!operatorsSupported || operatorsLoading" :loading="operatorsLoading" filterable>
+          <el-option label="全部" value="" />
+          <el-option v-if="auth.user" label="我" :value="auth.user.id" />
+          <el-option label="未分配" value="__unassigned__" />
+          <el-option v-for="operator in operators.filter(item => item.id !== auth.user?.id)" :key="operator.id" :label="externalOperatorOptionLabel(operator)" :value="operator.id" />
+        </el-select></el-form-item>
         <el-form-item label="关键词"><el-input v-model="filters.keyword" placeholder="形象 / 账号 / 主页 / 备注" clearable @keyup.enter="search" /></el-form-item>
         <el-form-item label="国家" class="external-monitors__group-filter"><div class="external-monitors__tag-filter" role="group" aria-label="国家筛选">
           <div><el-check-tag :checked="!filters.countries.length && !filters.country_unset" :disabled="batchBusy" @change="filterCountries()">全部</el-check-tag><el-checkbox :model-value="filters.country_unset" :disabled="batchBusy" @change="filterCountries([], Boolean($event))">未设置国家</el-checkbox></div>
@@ -340,11 +412,13 @@ onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
       <el-button :icon="RotateCcw" :disabled="batchBusy" @click="reset">清空</el-button><el-button :icon="Search" type="primary" :disabled="batchBusy" @click="search">查询</el-button>
     </div>
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
-    <ExternalMonitorBatchBar v-if="canEdit" :selected="selected" :groups="groups" :disabled="loading || saving || !!busy || !!deleting || personaBusy" @busy="batchBusy = $event" @completed="batchCompleted" />
-    <el-table ref="table" v-loading="loading" :data="rows" :tree-props="{ children: 'children', checkStrictly: true }" :expand-row-keys="appliedFilters.keyword ? rows.filter(row => row.is_persona).map(row => row.id) : undefined" :default-sort="{ prop: 'created_at', order: 'descending' }" row-key="id" stripe border table-layout="fixed" empty-text="暂无外部账号" @selection-change="selected = $event.filter((row: ExternalMonitor) => !row.is_persona)" @sort-change="sortMetrics">
-      <el-table-column v-if="canEdit" type="selection" width="44" fixed="left" :selectable="(row: ExternalMonitor) => !batchBusy && !row.is_persona" />
+    <el-alert v-if="operatorsError" :title="operatorsError" type="warning" :closable="false" />
+    <ExternalMonitorBatchBar v-if="canEdit" :selected="selected" :groups="groups" :operators="operators" :can-assign-operator="auth.isSuperAdmin" :operators-supported="operatorsSupported && !operatorsLoading" :disabled="loading || saving || !!busy || !!deleting || personaBusy || selected.some(row => !canMaintain(row))" @busy="batchBusy = $event" @completed="batchCompleted" />
+    <el-table ref="table" v-loading="loading" :data="rows" :tree-props="{ children: 'children', checkStrictly: true }" :expand-row-keys="appliedFilters.keyword ? rows.filter(row => row.is_persona).map(row => row.id) : undefined" :default-sort="{ prop: 'created_at', order: 'descending' }" row-key="id" stripe border table-layout="fixed" empty-text="暂无外部账号" @selection-change="selectAccounts" @sort-change="sortMetrics">
+      <el-table-column v-if="canEdit" type="selection" width="44" fixed="left" :selectable="(row: ExternalMonitor) => !batchBusy && canMaintain(row)" />
       <el-table-column label="外部账号 / 形象" min-width="290" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="externalAvatarUrl(row.profile.avatar_url)"><Users v-if="row.is_persona" :size="22" /><UserRound v-else :size="22" /></el-avatar><div><button class="external-monitors__name" @click="openDetail(row)">{{ row.is_persona ? row.persona.name : row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</button><small v-if="row.is_persona">{{ row.persona.member_count }} 个账号<span v-if="row.children.length < row.persona.member_count"> · 当前匹配 {{ row.children.length }} 个</span></small><a v-else :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="130"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-for="value in row.is_persona ? row.platforms : [row.business_platform]" :key="value" effect="plain">{{ platformLabel(value) }}</el-tag></div></template></el-table-column>
+      <el-table-column label="操作员" min-width="180" show-overflow-tooltip><template #default="{ row }">{{ externalMonitorOperatorLabel(row as ExternalMonitor) }}</template></el-table-column>
       <el-table-column label="账号标签" min-width="200"><template #default="{ row }"><span v-if="row.is_persona">--</span><div v-else class="external-monitors__tags"><el-tag v-for="id in row.tag_ids" :key="id" effect="plain">{{ groupName(id) }}</el-tag><span v-if="!row.tag_ids?.length">未设置标签</span></div></template></el-table-column>
       <el-table-column label="国家" min-width="160"><template #default="{ row }"><span v-if="row.is_persona">--</span><div v-else class="external-monitors__tags"><el-tag v-if="row.country" type="info" effect="plain">{{ row.country }}</el-tag><span v-else>未设置</span></div></template></el-table-column>
       <el-table-column v-for="metric in [{ key: 'posts_count', label: '帖子总数' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="132" align="center" sortable="custom">
@@ -372,31 +446,39 @@ onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
       <el-table-column prop="last_error" label="异常原因" min-width="200" show-overflow-tooltip />
       <el-table-column label="操作" :width="canEdit ? 190 : 64" fixed="right" align="center"><template #default="{ row }">
         <el-tooltip content="查看数据"><el-button link :icon="Eye" aria-label="查看外部账号数据" @click="openDetail(row as ExternalMonitor)" /></el-tooltip>
-        <el-tooltip v-if="canEdit" content="添加关联账号"><el-button link :icon="Plus" aria-label="添加关联账号" :disabled="batchBusy || personaBusy" @click="personaLink?.open(row)" /></el-tooltip>
-        <el-tooltip v-if="canEdit && !row.is_persona" content="监听设置"><el-button link :icon="Pencil" aria-label="编辑外部账号监听" @click="openForm(row as ExternalMonitor)" /></el-tooltip>
-        <el-tooltip v-if="canEdit && !row.is_persona" :content="row.enabled ? '暂停监听' : '恢复监听'"><el-button link :icon="row.enabled ? Pause : Play" :aria-label="row.enabled ? '暂停监听' : '恢复监听'" :loading="busy === row.id" :disabled="!!busy || !!deleting" @click="toggle(row as ExternalMonitor)" /></el-tooltip>
-        <el-tooltip v-if="canEdit && !row.is_persona" content="删除监听"><el-button link type="danger" :icon="Trash2" aria-label="删除外部账号监听" :loading="deleting === row.id" :disabled="!!busy || !!deleting" @click="remove(row as ExternalMonitor)" /></el-tooltip>
+        <el-tooltip v-if="canEdit" content="添加关联账号"><el-button link :icon="Plus" aria-label="添加关联账号" :disabled="batchBusy || personaBusy || !canAssociate(row as ExternalMonitor)" @click="openAssociation(row as ExternalMonitor)" /></el-tooltip>
+        <el-tooltip v-if="canEdit && !row.is_persona" content="监听设置"><el-button link :icon="Pencil" aria-label="编辑外部账号监听" :disabled="batchBusy || !canMaintain(row as ExternalMonitor)" @click="openForm(row as ExternalMonitor)" /></el-tooltip>
+        <el-tooltip v-if="canEdit && !row.is_persona" :content="row.enabled ? '暂停监听' : '恢复监听'"><el-button link :icon="row.enabled ? Pause : Play" :aria-label="row.enabled ? '暂停监听' : '恢复监听'" :loading="busy === row.id" :disabled="!!busy || !!deleting || batchBusy || !canMaintain(row as ExternalMonitor)" @click="toggle(row as ExternalMonitor)" /></el-tooltip>
+        <el-tooltip v-if="canEdit && !row.is_persona" content="删除监听"><el-button link type="danger" :icon="Trash2" aria-label="删除外部账号监听" :loading="deleting === row.id" :disabled="!!busy || !!deleting || batchBusy || !canMaintain(row as ExternalMonitor)" @click="remove(row as ExternalMonitor)" /></el-tooltip>
       </template></el-table-column>
     </el-table>
     <div class="external-monitors__pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" :disabled="batchBusy" :total="total" :page-sizes="[20, 50, 100]" background layout="total, sizes, prev, pager, next" @size-change="page = 1" /></div>
     <el-dialog v-model="detailVisible" title="外部账号数据" width="min(1280px, 96vw)" top="5vh" append-to-body :close-on-click-modal="false" destroy-on-close>
       <div class="external-monitors__detail">
-        <ExternalMonitorPersonaDetail v-if="detailVisible" ref="personaDetail" :monitor-id="detailId" :initial-view="detailView" :can-edit="canEdit" :revision="personaRevision" @link="personaLink?.open($event)" @edit="openForm($event as ExternalMonitor)" @changed="load()" />
+        <ExternalMonitorPersonaDetail v-if="detailVisible" ref="personaDetail" :monitor-id="detailId" :initial-view="detailView" :can-edit="canEdit" :revision="personaRevision" @link="openAssociation" @edit="openForm($event as ExternalMonitor)" @changed="load()" />
       </div>
       <template #footer><el-button @click="detailVisible = false">关闭</el-button></template>
     </el-dialog>
     <ExternalMonitorAssociationDialog v-if="canEdit" ref="personaLink" @busy="personaBusy = $event" @changed="personaRevision++; load()" />
     <el-dialog v-model="formVisible" :title="editing ? '外部账号监听设置' : '添加外部账号'" width="min(520px, 96vw)" append-to-body align-center :close-on-click-modal="false" :close-on-press-escape="!tagEditingBusy && !saving" :show-close="!tagEditingBusy && !saving" @closed="personaDetail?.refresh()">
-      <el-form label-position="top" @submit.prevent="!tagEditingBusy && save()">
+      <el-form label-position="top" :disabled="saving || (!!editing && !canMaintain(editing))" @submit.prevent="!tagEditingBusy && save()">
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
         <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
+        <el-form-item label="操作员">
+          <el-select v-if="canAssignOperator" v-model="form.operator_id" :empty-values="[undefined, null]" :placeholder="editing ? '未知' : auth.displayName" :disabled="saving || operatorsLoading" filterable class="external-monitors__full" aria-label="账号操作员">
+            <el-option v-if="editing" label="未分配" value="" />
+            <el-option v-if="editing?.operator_id && !assignableOperators.some(operator => operator.id === editing?.operator_id)" :label="externalMonitorOperatorLabel(editing)" :value="editing.operator_id" disabled />
+            <el-option v-for="operator in assignableOperators" :key="operator.id" :label="externalOperatorOptionLabel(operator)" :value="operator.id" />
+          </el-select>
+          <el-input v-else :model-value="editing ? externalMonitorOperatorLabel(editing) : auth.displayName" disabled />
+        </el-form-item>
         <el-form-item label="监听间隔（分钟）"><el-input-number v-model="form.interval_minutes" :min="1" :max="1440" :disabled="saving" /></el-form-item>
         <el-form-item label="账号标签"><ExternalAccountTagEditor v-model="form.tag_ids" :groups="groups" :disabled="saving || !canEdit" @changed="loadGroups" @busy="tagEditingBusy = $event" /></el-form-item>
         <el-form-item label="国家"><ExternalCountrySelect :key="editing?.id || 'new'" v-model="form.country" :retained-country="editing?.country" :disabled="saving" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" :disabled="saving" /></el-form-item>
         <el-form-item v-if="editing" label="开启监听"><el-switch v-model="form.enabled" :disabled="saving" /></el-form-item>
       </el-form>
-      <template #footer><el-button :disabled="saving || tagEditingBusy" @click="formVisible = false">关闭</el-button><el-button type="primary" :loading="saving" :disabled="tagEditingBusy" @click="!tagEditingBusy && save()">{{ editing ? '保存' : '添加并继续' }}</el-button></template>
+      <template #footer><el-button :disabled="saving || tagEditingBusy" @click="formVisible = false">关闭</el-button><el-button type="primary" :loading="saving" :disabled="tagEditingBusy || operatorsLoading || (!!editing && !canMaintain(editing)) || !validOperatorAssignment()" @click="!tagEditingBusy && save()">{{ editing ? '保存' : '添加并继续' }}</el-button></template>
     </el-dialog>
   </section>
 </template>

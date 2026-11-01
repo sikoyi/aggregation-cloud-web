@@ -3,7 +3,29 @@ import type { ExternalCollectionProgress } from '@/utils/externalMonitorProgress
 
 export interface ExternalPersona { id: string; name: string; version: number; member_count?: number }
 
-export interface ExternalMonitor extends AnyRecord {
+export interface ExternalMonitorOperator {
+  id: string
+  username: string
+  display_name: string
+  status: string
+  assignable: boolean
+}
+
+export interface ExternalMonitorOwnership {
+  operator_id?: string | null
+  operator_name?: string | null
+  operator_username?: string | null
+  operator_status?: string | null
+}
+
+export interface ExternalMonitorContext {
+  persona?: ExternalPersona | null
+  association?: ExternalPersona | null
+  accounts: ExternalMonitor[]
+  can_manage_persona?: boolean
+}
+
+export interface ExternalMonitor extends AnyRecord, ExternalMonitorOwnership {
   id: string
   business_platform: string
   profile_url: string
@@ -19,6 +41,7 @@ export interface ExternalMonitor extends AnyRecord {
   tag_ids: string[]
   folder_id?: string | null
   is_persona?: boolean
+  can_manage_persona?: boolean
   persona?: ExternalPersona
   children?: ExternalMonitor[]
   platforms?: string[]
