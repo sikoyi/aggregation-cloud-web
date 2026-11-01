@@ -39,6 +39,10 @@ onBeforeUnmount(() => observer?.disconnect())
 <style scoped>
 .selection-options { display: flex; align-items: flex-start; gap: 8px; width: 100%; min-width: 0; }
 .selection-options__rail { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: thin; }
+@supports selector(::-webkit-scrollbar) {
+  .selection-options__rail { scrollbar-width: auto; scrollbar-color: auto; }
+  .selection-options__rail::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+}
 .selection-options__rail:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
 .selection-options__defaults { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
 .selection-options__defaults :deep(.el-checkbox) { margin: 0; }
