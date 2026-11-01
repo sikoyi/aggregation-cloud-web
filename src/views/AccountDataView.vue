@@ -1735,13 +1735,13 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="监听 / 采集" width="170" align="center" header-align="center">
+            <el-table-column label="监听 / 采集" width="230" align="center" header-align="center">
               <template #default="scope">
                 <div v-if="scope.row.is_identity_group" class="account-overview__monitor">
-                  <span v-for="account in accountPlatforms(scope.row)" :key="String(account.account_id)">
+                  <div v-for="account in accountPlatforms(scope.row)" :key="String(account.account_id)" class="account-overview__monitor-platform">
                     <small>{{ optionLabel(businessPlatformOptions, account.business_platform) }}</small>
                     <AccountMonitorStatus :account="account" />
-                  </span>
+                  </div>
                 </div>
                 <div v-else class="account-overview__monitor">
                   <AccountMonitorStatus :account="scope.row" />
@@ -2742,13 +2742,16 @@ onBeforeUnmount(() => {
 .account-overview__metric span.is-up { color: var(--app-red, #cf4f4f); }
 .account-overview__metric span.is-down { color: var(--app-green, #238457); }
 .account-overview__monitor { gap: 6px; }
+.account-overview__monitor-platform { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: center; gap: 4px; }
+.account-overview__monitor :deep(.account-monitor-status) { width: 100%; justify-content: center; }
+.account-overview__monitor :deep(.monitor-error-status) { height: 20px; padding: 0 7px; line-height: 18px; white-space: nowrap; }
 .account-overview__platforms { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
 .account-overview__platforms :deep(.el-button) { margin-left: 0; }
 .account-overview__table :deep(.account-overview__tree-cell .cell) { display: flex; align-items: center; min-width: 0; }
 .account-overview__table :deep(.account-overview__tree-cell .el-table__indent),
 .account-overview__table :deep(.account-overview__tree-cell .el-table__expand-icon),
 .account-overview__table :deep(.account-overview__tree-cell .el-table__placeholder) { flex-shrink: 0; }
-.account-overview__monitor small { color: var(--app-text-muted, #718096); font-size: 10px; white-space: nowrap; }
+.account-overview__monitor small { color: var(--app-text-muted, #718096); font-size: 12px; line-height: 18px; white-space: normal; overflow-wrap: anywhere; }
 .account-overview__pagination {
   display: flex;
   min-height: 52px;
