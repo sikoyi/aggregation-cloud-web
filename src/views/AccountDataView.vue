@@ -132,9 +132,7 @@ const viewModeOptions = [
   { label: '账号详情', value: 'detail' },
 ]
 const overviewMetricColumns = [
-  { label: '粉丝', valueKey: 'followers_count', deltaKey: 'followers_day_delta' },
-  { label: '帖子总浏览量', valueKey: 'total_post_views_count', deltaKey: 'total_post_views_day_delta', deltaMode: 'views', hint: '' },
-  { label: '总点赞', valueKey: 'total_likes_count', deltaKey: 'total_likes_day_delta' },
+  { label: '粉丝', valueKey: 'followers_count', deltaKey: 'followers_day_delta', deltaMode: 'previous', hint: '' },
 ]
 
 const auth = useAuthStore()
@@ -208,6 +206,10 @@ const { filters, resetFilters: resetCachedFilters } = usePersistentFilters(
     keyword: '',
   },
 )
+if (['total_post_views_count', 'total_likes_count'].includes(filters.sort_by)) {
+  filters.sort_by = 'monitor_created_at'
+  filters.sort_order = 'desc'
+}
 watch(availableBusinessPlatformOptions, (options) => {
   const value = String(filters.business_platform || '')
   const allowedValues = options.map((option) => String(option.value))
@@ -1673,7 +1675,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="平台 / 国家" width="156" align="center" header-align="center">
+            <el-table-column label="平台 / 国家" width="200" align="center" header-align="center">
               <template #default="scope">
                 <div class="account-overview__attributes">
                   <div class="account-overview__platforms">
@@ -1702,7 +1704,7 @@ onBeforeUnmount(() => {
               :prop="metric.valueKey"
               sortable="custom"
               :sort-orders="['descending', 'ascending', null]"
-              :width="metric.valueKey === 'total_post_views_count' ? 164 : 132"
+              width="132"
               align="center"
               header-align="center"
               header-class-name="account-overview__sortable-header"
@@ -1736,7 +1738,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="监听 / 采集" width="230" align="center" header-align="center">
+            <el-table-column label="监听 / 采集" width="260" align="center" header-align="center">
               <template #default="scope">
                 <div v-if="scope.row.is_identity_group" class="account-overview__monitor">
                   <button type="button" class="account-overview__monitor-summary" :title="expandedAccountKeys.includes(accountOverviewRowKey(scope.row)) ? '收起平台账号' : '展开平台账号'" :aria-expanded="expandedAccountKeys.includes(accountOverviewRowKey(scope.row))" :aria-label="`${expandedAccountKeys.includes(accountOverviewRowKey(scope.row)) ? '收起' : '展开'} ${accountPlatforms(scope.row).length} 个平台账号的监听采集明细`" @click.stop="openOverviewRow(scope.row)">
@@ -2727,7 +2729,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   flex-direction: column;
 }
-.account-overview__attributes { gap: 5px; color: var(--app-text-muted, #718096); font-size: 11px; }
+.account-overview__attributes { gap: 6px; color: var(--el-text-color-regular); font-size: 14px; line-height: 22px; }
 .account-overview__metric { gap: 5px; }
 .account-overview :deep(.account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }
 .account-overview :deep(.account-overview__sortable-header .caret-wrapper) { flex: 0 0 auto; }
@@ -2746,22 +2748,29 @@ onBeforeUnmount(() => {
 .account-overview__metric span.is-up { color: var(--app-red, #cf4f4f); }
 .account-overview__metric span.is-down { color: var(--app-green, #238457); }
 .account-overview__monitor { gap: 6px; }
-.account-overview__monitor-summary { position: relative; display: flex; width: 100%; min-width: 0; flex-direction: column; gap: 4px; padding: 4px 20px 4px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.account-overview__monitor-summary { position: relative; display: flex; width: 100%; min-width: 0; flex-direction: column; gap: 6px; padding: 4px 20px 4px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .account-overview__monitor-summary:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
-.account-overview__monitor-summary-line { display: flex; align-items: flex-start; gap: 6px; }
-.account-overview__monitor-summary-line > small { flex: 0 0 24px; line-height: 20px; }
-.account-overview__monitor-summary-items { display: flex; min-width: 0; flex: 1; flex-wrap: wrap; gap: 4px; }
+.account-overview__monitor-summary-line { display: flex; align-items: flex-start; gap: 8px; }
+.account-overview__monitor .account-overview__monitor-summary-line > small { flex: 0 0 28px; line-height: 28px; font-weight: 500; }
+.account-overview__monitor-summary-items { display: flex; min-width: 0; flex: 1; flex-wrap: wrap; gap: 6px; }
 .account-overview__monitor-summary-icon { position: absolute; top: calc(50% - 7px); right: 0; color: var(--el-text-color-secondary); }
 .account-overview__monitor-summary-icon.is-expanded { transform: rotate(180deg); }
 .account-overview__monitor :deep(.account-monitor-status) { width: 100%; justify-content: center; }
-.account-overview__monitor :deep(.monitor-error-status) { height: 20px; padding: 0 7px; line-height: 18px; white-space: nowrap; }
-.account-overview__platforms { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
-.account-overview__platforms :deep(.el-button) { height: 20px; margin-left: 0; padding: 0; border: 0; }
+.account-overview__monitor :deep(.el-tag),
+.account-overview__platforms :deep(.el-tag) { height: 28px; padding: 0 8px; font-size: 14px; line-height: 26px; font-weight: 500; }
+.account-overview__monitor :deep(.el-tag--info) { color: var(--el-text-color-regular); }
+.account-overview__monitor :deep(.el-tag--primary),
+.account-overview__platforms :deep(.el-tag--primary) { color: var(--app-blue, #1f668f); }
+.account-overview__monitor :deep(.el-tag--success) { color: var(--app-green, #237347); }
+.account-overview__monitor :deep(.el-tag--danger) { color: var(--app-red, #b6383b); }
+.account-overview__monitor :deep(.monitor-error-status) { height: 28px; padding: 0 8px; font-size: 14px; line-height: 26px; font-weight: 500; white-space: nowrap; color: var(--app-red, #b6383b); }
+.account-overview__platforms { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.account-overview__platforms :deep(.el-button) { height: 28px; margin-left: 0; padding: 0; border: 0; }
 .account-overview__table :deep(.account-overview__tree-cell .cell) { display: flex; align-items: center; min-width: 0; }
 .account-overview__table :deep(.account-overview__tree-cell .el-table__indent),
 .account-overview__table :deep(.account-overview__tree-cell .el-table__expand-icon),
 .account-overview__table :deep(.account-overview__tree-cell .el-table__placeholder) { flex-shrink: 0; }
-.account-overview__monitor small { color: var(--app-text-muted, #718096); font-size: 12px; line-height: 18px; white-space: normal; overflow-wrap: anywhere; }
+.account-overview__monitor small { color: var(--el-text-color-regular); font-size: 14px; line-height: 22px; white-space: normal; overflow-wrap: anywhere; }
 .account-overview__pagination {
   display: flex;
   min-height: 52px;

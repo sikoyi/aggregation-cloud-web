@@ -105,8 +105,8 @@ describe('账号数据聚合总览', () => {
     expect(deltaStyle).toContain('line-height: 18px;')
     expect(source).not.toContain('.account-overview__metric span {')
   })
-  it('浏览量在总览和详情展示日增量，缺失与异常回落不伪装成持平', () => {
-    expect(source).toContain("deltaKey: 'total_post_views_day_delta'")
+  it('总览移除浏览量列，详情保留日增量，缺失与异常回落不伪装成持平', () => {
+    expect(source).not.toContain("deltaKey: 'total_post_views_day_delta'")
     expect(source).toContain('delta: account.total_post_views_day_delta')
     expect(source).toContain("value === null || value === undefined || value === ''")
     expect(source).toContain("if (mode === 'views') return { icon: AlertTriangle, label: '数据待核对'")
@@ -167,7 +167,7 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('@sort-change="handleOverviewSortChange"')
     expect(source).toContain(':default-sort="overviewDefaultSort"')
     expect(source).toContain('prop="last_post_published_at" sortable="custom"')
-    expect(source).toContain("metric.valueKey === 'total_post_views_count' ? 164 : 132")
+    expect(source).toContain('width="132"')
     expect(source).toContain('header-class-name="account-overview__sortable-header"')
     expect(source).toContain('white-space: nowrap;')
     expect(source).toContain('account-overview__sortable-header .cell) { display: flex; align-items: center; justify-content: center; white-space: nowrap; }')
@@ -175,7 +175,7 @@ describe('账号数据聚合总览', () => {
     expect(source).toContain('.account-overview__metric strong,\n.account-overview__last-post { color: var(--app-text, #20384d); font-size: 16px; line-height: 24px; font-variant-numeric: tabular-nums; }')
   })
   it('点击表头升降序和取消排序均保留联合筛选并重新查询', () => {
-    const fields = ['followers_count', 'total_post_views_count', 'total_likes_count', 'last_post_published_at']
+    const fields = ['followers_count', 'last_post_published_at']
     const original = { business_platform: 'threads', slot_group_id: '12', monitor_state: 'monitoring', keyword: 'test' }
     const filters = { ...original, sort_by: 'monitor_created_at', sort_order: 'desc' }
     const searchRows = vi.fn()
@@ -190,9 +190,9 @@ describe('账号数据聚合总览', () => {
     }
     handleSort({ prop: fields[0], order: null })
     expect(filters).toEqual({ ...original, sort_by: 'monitor_created_at', sort_order: 'desc' })
-    expect(searchRows).toHaveBeenCalledTimes(9)
+    expect(searchRows).toHaveBeenCalledTimes(5)
     handleSort({ prop: 'unsupported', order: 'descending' })
-    expect(searchRows).toHaveBeenCalledTimes(9)
+    expect(searchRows).toHaveBeenCalledTimes(5)
   })
   it('监听弹窗账号选择器自然撑高，仅保留树列表内部滚动', () => {
     expect(source).toMatch(/:width="addingPlatformMonitor[^\n]+min\(92vw, 860px\)'"\r?\n\s+align-center/)
@@ -233,13 +233,9 @@ describe('账号数据聚合总览', () => {
 
   it('横向展示账号的核心监听指标', () => {
     const overviewMetrics = source.split('const overviewMetricColumns = [')[1]?.split(']')[0] || ''
-    for (const key of [
-      'followers_count',
-      'total_post_views_count',
-      'total_likes_count',
-    ]) {
-      expect(overviewMetrics).toContain(`valueKey: '${key}'`)
-    }
+    expect(overviewMetrics).toContain("valueKey: 'followers_count'")
+    expect(overviewMetrics).not.toContain("valueKey: 'total_post_views_count'")
+    expect(overviewMetrics).not.toContain("valueKey: 'total_likes_count'")
     expect(overviewMetrics).not.toContain('total_replies_count')
     expect(overviewMetrics).not.toContain("valueKey: 'following_count'")
     expect(overviewMetrics).not.toContain("valueKey: 'posts_count'")
