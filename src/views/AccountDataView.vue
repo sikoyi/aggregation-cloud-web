@@ -1728,6 +1728,13 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
+            <el-table-column label="帖子总数" prop="posts_count" width="132" align="center" header-align="center">
+              <template #default="scope">
+                <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
+                <div v-else class="account-overview__metric"><strong><CompactFollowerCount :key="scope.row.account_id" :value="scope.row.posts_count" label="帖子总数" /></strong></div>
+              </template>
+            </el-table-column>
+
             <el-table-column label="距上次发帖" prop="last_post_published_at" sortable="custom" :sort-orders="['descending', 'ascending', null]" width="148" align="center" header-align="center" header-class-name="account-overview__sortable-header">
               <template #default="scope">
                 <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
