@@ -551,6 +551,10 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
         <el-tooltip v-if="settingsError" content="重试加载门槛状态"><el-button :icon="RefreshCw" link :loading="settingsLoading" aria-label="重试加载门槛状态" @click="checkFeedSettings(true)" /></el-tooltip>
       </div>
       <div class="feed-controls">
+        <div class="feed-scope-filters" role="group" aria-label="平台与媒体筛选">
+          <div class="feed-control-field"><span>来源平台</span><el-select v-model="filters.platform" aria-label="来源平台" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></div>
+          <div class="feed-control-field"><span>媒体</span><el-select v-model="filters.media_type" aria-label="媒体" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></div>
+        </div>
         <el-radio-group v-model="reading" :disabled="!storageKey" aria-label="阅读状态" @change="refresh(true)"><el-radio-button value="all">全部</el-radio-button><el-radio-button value="unread">未读</el-radio-button><el-radio-button value="saved">收藏</el-radio-button><el-radio-button value="read">已读</el-radio-button></el-radio-group>
         <el-checkbox v-model="hideRead" :disabled="!storageKey || reading === 'read'" @change="refresh(true)">隐藏已读</el-checkbox>
         <el-select v-model="quickTime" placeholder="时间不限" aria-label="快捷时间" @change="applyQuickTime"><el-option label="时间不限" value="" /><el-option label="今天" value="1" /><el-option label="昨天" value="yesterday" /><el-option label="近 3 天" value="3" /><el-option label="近 7 天" value="7" /><el-option label="近 30 天" value="30" /><el-option v-if="quickTime === 'custom'" label="自定义时间" value="custom" /></el-select>
@@ -564,9 +568,7 @@ onBeforeUnmount(() => { disposed = true; clearInterval(settingsTimer); requestId
       </el-form>
       <el-form v-show="expandedFilters" class="compact-filter-form" inline label-position="right" label-suffix=":" @submit.prevent="refresh(true)">
         <div class="filter-grid">
-      <el-form-item label="来源平台"><el-select v-model="filters.platform" clearable placeholder="全部"><el-option v-for="item in platforms" :key="String(item.value)" v-bind="item" /></el-select></el-form-item>
       <el-form-item label="来源账号"><el-select v-model="filters.source_id" filterable clearable placeholder="全部" :loading="sourceOptionsLoading" @visible-change="loadSourceOptions"><el-option v-for="item in sources" :key="item.id" :value="item.id" :label="`${item.profile?.display_name || sourceUsername(item)} · @${sourceUsername(item)}${item.remark ? ' · ' + item.remark : ''}`" /></el-select></el-form-item>
-      <el-form-item label="媒体"><el-select v-model="filters.media_type" clearable placeholder="全部"><el-option label="图片" value="image" /><el-option label="视频" value="video" /><el-option label="纯文字" value="text" /></el-select></el-form-item>
       <el-form-item label="发布时间" class="filter-grid__item--wide"><el-date-picker v-model="dates" type="datetimerange" value-format="YYYY-MM-DDTHH:mm:ssZ" range-separator="至" start-placeholder="开始时间" end-placeholder="结束时间" @change="quickTime = dates ? 'custom' : ''" /></el-form-item>
       <el-form-item label="最低点赞"><el-input-number v-model="filters.min_likes" :min="0" controls-position="right" /></el-form-item>
       <el-form-item label="最低评论"><el-input-number v-model="filters.min_comments" :min="0" controls-position="right" /></el-form-item>
@@ -782,6 +784,9 @@ small { display: block; color: var(--app-text-muted, #697786); font-size: 12px; 
 .feed-media video, .feed-media .el-image { width: 100%; height: 320px; object-fit: contain; background: var(--app-surface-muted, #f8fafc); }
 .feed-more { text-align: center; padding: 20px; }
 .feed-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.feed-scope-filters { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.feed-control-field { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.feed-control-field > span { flex-shrink: 0; color: var(--el-text-color-regular); font-size: 13px; white-space: nowrap; }
 .feed-controls .el-select { width: 132px; }
 .feed-controls .el-input { width: 220px; max-width: 100%; }
 .feed-controls + .el-form { margin-top: 16px; }
@@ -808,4 +813,5 @@ footer > span > span { display: inline-flex; align-items: center; gap: 6px; }
 @media (max-width: 1023px) { .selection-filters { --filter-top: 122px; } }
 @media (max-width: 760px) { .editor { grid-template-columns: minmax(0, 1fr); } .selection-heading { flex-direction: column; align-items: flex-start; } .selection-actions { width: 100%; } .selection-body { padding: 12px; } .selection-filters :deep(.el-date-editor) { width: 100%; min-width: 0; } }
 @media (max-width: 640px) { .filter-grid { grid-template-columns: minmax(0, 1fr); } .filter-grid__item--wide { grid-column: auto; } .selection-pagination { justify-content: flex-start; } }
+@media (max-width: 640px) { .feed-scope-filters { flex: 0 0 100%; width: 100%; } .feed-control-field { flex: 1; } .feed-controls .feed-control-field .el-select { flex: 1; width: 0; min-width: 0; } }
 </style>
