@@ -1645,27 +1645,30 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="设备分组" min-width="145">
+            <el-table-column label="设备分组" min-width="190">
               <template #default="scope">
                 <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
-                <el-tooltip
-                  v-else
-                  :content="String(scope.row.slot_group_name || '未分组')"
-                  :disabled="!scope.row.slot_group_name"
-                  placement="top"
-                  :show-after="400"
-                >
-                  <el-tag
-                    size="small"
-                    effect="plain"
-                    :type="scope.row.slot_group_name ? 'primary' : 'info'"
-                    class="account-overview__group"
-                    :class="{ 'account-overview__group--empty': !scope.row.slot_group_name }"
+                <div v-else class="account-overview__device">
+                  <el-tooltip
+                    :content="String(scope.row.slot_group_name || '未分组')"
+                    :disabled="!scope.row.slot_group_name"
+                    placement="top"
+                    :show-after="400"
                   >
-                    <Layers3 v-if="scope.row.slot_group_name" class="account-overview__group-icon" />
-                    <span class="account-overview__group-label">{{ scope.row.slot_group_name || '未分组' }}</span>
-                  </el-tag>
-                </el-tooltip>
+                    <el-tag
+                      size="small"
+                      effect="plain"
+                      :type="scope.row.slot_group_name ? 'primary' : 'info'"
+                      class="account-overview__group"
+                      :class="{ 'account-overview__group--empty': !scope.row.slot_group_name }"
+                    >
+                      <Layers3 v-if="scope.row.slot_group_name" class="account-overview__group-icon" />
+                      <span class="account-overview__group-label">{{ scope.row.slot_group_name || '未分组' }}</span>
+                    </el-tag>
+                  </el-tooltip>
+                  <code v-if="scope.row.bound_slot_provider_id" class="account-overview__device-id" :title="String(scope.row.bound_slot_provider_id)">设备 ID：{{ scope.row.bound_slot_provider_id }}</code>
+                  <small v-else class="text-muted">{{ scope.row.bound_slot_name ? '设备 ID 未记录' : '未绑定设备' }}</small>
+                </div>
               </template>
             </el-table-column>
 
@@ -2691,6 +2694,8 @@ onBeforeUnmount(() => {
 .account-overview__account strong { color: var(--app-text, #20364b); font-size: 16px; line-height: 1.5; }
 .account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; line-height: 1.5; }
 .account-overview__account:hover strong { color: var(--app-blue, #1f6f9f); }
+.account-overview__device { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; max-width: 100%; }
+.account-overview__device-id { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-text-muted, #718096); font-size: 12px; line-height: 1.5; user-select: text; }
 .account-overview__group {
   display: inline-flex;
   max-width: 100%;
