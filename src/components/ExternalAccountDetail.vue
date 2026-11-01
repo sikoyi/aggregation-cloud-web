@@ -21,9 +21,7 @@ const emit = defineEmits<{ 'update:page': [value: number] }>()
 const tab = ref('posts')
 const profile = computed<AnyRecord>(() => props.detail.monitor.profile || {})
 const metrics = computed(() => [
-  { label: '粉丝', value: profile.value.followers_count },
-  { label: '关注', value: profile.value.following_count },
-  { label: '帖子', value: profile.value.posts_count },
+  { label: '帖子总数', value: profile.value.posts_count },
 ])
 function safeUrl(value: unknown) {
   try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '' } catch { return '' }
@@ -63,7 +61,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
       <el-link v-if="safeUrl(detail.monitor.profile_url)" class="external-detail-link" :href="safeUrl(detail.monitor.profile_url)" target="_blank" rel="noopener noreferrer" type="primary" :icon="ExternalLink">打开主页</el-link>
     </header>
     <div class="external-profile__metrics">
-      <div v-for="metric in metrics" :key="metric.label"><small>{{ metric.label }}</small><strong><CompactFollowerCount v-if="metric.label === '粉丝'" :key="detail.monitor.id" :value="metric.value" /><template v-else>{{ count(metric.value) }}</template></strong></div>
+      <div v-for="metric in metrics" :key="metric.label"><small>{{ metric.label }}</small><strong><CompactFollowerCount :key="detail.monitor.id" :value="metric.value" :label="metric.label" /></strong></div>
     </div>
     <div class="external-profile__metadata">
       <span>最近整轮成功 <strong>{{ formatDate(detail.monitor.last_success_at) }}</strong></span>
@@ -100,12 +98,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
       <el-tab-pane label="最近采集记录" name="snapshots">
         <el-table :data="detail.snapshots" border stripe table-layout="fixed" empty-text="暂无采集记录">
           <el-table-column label="采集时间" width="180"><template #default="{ row }">{{ formatDate(row.captured_at) }}</template></el-table-column>
-          <el-table-column label="粉丝" min-width="100" align="right"><template #default="{ row }"><CompactFollowerCount :key="row.captured_at" :value="row.metrics?.followers_count" /></template></el-table-column>
-          <el-table-column label="关注" min-width="100" align="right"><template #default="{ row }">{{ count(row.metrics?.following_count) }}</template></el-table-column>
-          <el-table-column label="账号帖子数" min-width="110" align="right"><template #default="{ row }">{{ count(row.metrics?.posts_count) }}</template></el-table-column>
-          <el-table-column label="本轮采集帖子" min-width="125" align="right"><template #default="{ row }">{{ count(row.metrics?.collected_post_count) }}</template></el-table-column>
-          <el-table-column label="本轮帖子点赞合计" min-width="150" align="right"><template #default="{ row }">{{ count(row.metrics?.collected_like_count) }}</template></el-table-column>
-          <el-table-column label="本轮帖子评论合计" min-width="150" align="right"><template #default="{ row }">{{ count(row.metrics?.collected_comment_count) }}</template></el-table-column>
+          <el-table-column label="帖子总数" min-width="110" align="right"><template #default="{ row }"><CompactFollowerCount :key="row.captured_at" :value="row.metrics?.posts_count" label="帖子总数" /></template></el-table-column>
         </el-table>
       </el-tab-pane>
     </el-tabs>
@@ -124,7 +117,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
 .external-profile__tags { display: flex; gap: 8px; flex-wrap: wrap; }
 .external-detail-link { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 5px; white-space: nowrap; }
 .external-detail-link :deep(.el-link__inner) { display: inline-flex; align-items: center; gap: 5px; }
-.external-profile__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--app-surface-muted, #f6f9fc); border-block: 1px solid var(--app-border, #dce5ed); }
+.external-profile__metrics { display: grid; grid-template-columns: minmax(0, 1fr); background: var(--app-surface-muted, #f6f9fc); border-block: 1px solid var(--app-border, #dce5ed); }
 .external-profile__metrics > div { padding: 16px 20px; border-right: 1px solid var(--app-border, #dce5ed); min-width: 0; }
 .external-profile__metrics > div:last-child { border: 0; }
 .external-profile__metrics small { display: block; color: var(--app-text-muted, #718096); font-size: 12px; }

@@ -78,11 +78,8 @@ function safeUrl(value: unknown) {
 }
 function number(value: unknown) { return value == null ? '--' : Number(value).toLocaleString() }
 function platformLabel(value: string) { return value === 'x' ? 'X(Twitter)' : value === 'instagram' ? 'Instagram' : 'Threads' }
-function metricDelta(value: number | null | undefined, key: string) {
+function metricDelta(value: number | null | undefined, _key: string) {
   if (value == null) return { icon: Minus, label: '暂无前日数据', fullLabel: '暂无前日数据', tone: 'flat' }
-  if (key === 'total_post_views_count' && value < 0) {
-    return { icon: TriangleAlert, label: '数据待核对', fullLabel: '数据待核对', tone: 'flat' }
-  }
   if (!value) return { icon: Minus, label: '较前一日 持平', fullLabel: '较前一日 持平', tone: 'flat' }
 
   const delta = formatCompactSignedCount(value)
@@ -156,7 +153,7 @@ function filterTags() { filters.untagged = false; search() }
 function filterUntagged() { filters.tag_ids = []; search() }
 function allTags() { filters.tag_ids = []; filters.untagged = false; search() }
 function sortMetrics({ prop, order }: { prop: string | null; order: 'ascending' | 'descending' | null }) {
-  if (order && !['created_at', 'followers_count', 'posts_count', 'total_likes_count'].includes(prop || '')) return
+  if (order && !['created_at', 'posts_count'].includes(prop || '')) return
   const next = order && prop && !(prop === 'created_at' && order === 'descending') ? { prop, order: order === 'ascending' ? 'asc' as const : 'desc' as const } : null
   const changed = JSON.stringify(next) !== JSON.stringify(metricSort.value)
   metricSort.value = next
@@ -350,7 +347,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; clearInterval(timer) })
       <el-table-column label="平台" width="130"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-for="value in row.is_persona ? row.platforms : [row.business_platform]" :key="value" effect="plain">{{ platformLabel(value) }}</el-tag></div></template></el-table-column>
       <el-table-column label="账号标签" min-width="200"><template #default="{ row }"><span v-if="row.is_persona">--</span><div v-else class="external-monitors__tags"><el-tag v-for="id in row.tag_ids" :key="id" effect="plain">{{ groupName(id) }}</el-tag><span v-if="!row.tag_ids?.length">未设置标签</span></div></template></el-table-column>
       <el-table-column label="国家" min-width="160"><template #default="{ row }"><span v-if="row.is_persona">--</span><div v-else class="external-monitors__tags"><el-tag v-if="row.country" type="info" effect="plain">{{ row.country }}</el-tag><span v-else>未设置</span></div></template></el-table-column>
-      <el-table-column v-for="metric in [{ key: 'followers_count', label: '粉丝' }, { key: 'posts_count', label: '帖子总数' }, { key: 'total_likes_count', label: '总点赞' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="132" align="center" sortable="custom">
+      <el-table-column v-for="metric in [{ key: 'posts_count', label: '帖子总数' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="132" align="center" sortable="custom">
         <template #default="{ row }">
           <div class="external-metric-cell">
             <strong class="external-metric"><CompactFollowerCount :key="row.id" :value="row.profile[metric.key]" :label="metric.label" /></strong>

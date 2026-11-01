@@ -27,11 +27,12 @@ describe('外部账号详情展示', () => {
     expect(postPreview({})).toEqual({ text_body: '无文字内容', material_assets: [] })
     expect(postPreview({report: {media_urls: 'invalid'}}).material_assets).toEqual([])
   })
-  it('账号指标与本轮采集统计分开，不展示内部绑定或回复操作', () => {
+  it('账号统计仅展示帖子总数，不展示内部绑定或回复操作', () => {
     const metricBlock = source.slice(source.indexOf('const metrics'), source.indexOf('function safeUrl'))
     expect(metricBlock).not.toContain('collected_')
-    expect(source).toContain('本轮帖子点赞合计')
-    expect(source).toContain('本轮采集帖子')
+    expect(source).not.toContain('本轮帖子点赞合计')
+    expect(source).not.toContain('本轮采集帖子')
+    expect(metricBlock).toContain("label: '帖子总数'")
     expect(source).toContain('ContentPreview')
     expect(source).not.toContain('login_status')
     expect(source).not.toContain('bound_slot_id')

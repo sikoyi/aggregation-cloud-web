@@ -17,11 +17,8 @@ const accounts = ref<ExternalMonitor[]>([])
 const persona = ref<ExternalPersona | null>(null)
 const selected = ref('')
 const view = ref(props.initialView || 'overview')
-const metricSort = ref<{ prop: string; order: string | null }>({ prop: 'followers_count', order: 'descending' })
-const metrics = [
-  { key: 'followers_count', label: '粉丝' }, { key: 'posts_count', label: '帖子数' },
-  { key: 'total_post_views_count', label: '帖子总浏览量' }, { key: 'total_likes_count', label: '总点赞' },
-]
+const metricSort = ref<{ prop: string; order: string | null }>({ prop: 'posts_count', order: 'descending' })
+const metrics = [{ key: 'posts_count', label: '帖子总数' }]
 function metricValue(row: ExternalMonitor, key: string) {
   const raw = (row.profile as Record<string, unknown>)[key]
   const value = typeof raw === 'number' || (typeof raw === 'string' && raw.trim()) ? Number(raw) : NaN
@@ -131,7 +128,7 @@ defineExpose({ refresh })
     <el-alert v-if="error" :title="error" type="error" :closable="false" />
     <el-tabs v-model="view" @tab-change="changeView"><el-tab-pane label="数据总览" name="overview" /><el-tab-pane label="账号详情" name="account" /></el-tabs>
     <div v-if="view === 'overview'" v-loading="contextLoading" class="persona-overview">
-      <el-table :data="sortedAccounts" row-key="id" border stripe max-height="480" :default-sort="{ prop: 'followers_count', order: 'descending' }" @sort-change="metricSort = { prop: $event.prop || 'followers_count', order: $event.order }" empty-text="暂无账号数据">
+      <el-table :data="sortedAccounts" row-key="id" border stripe max-height="480" :default-sort="{ prop: 'posts_count', order: 'descending' }" @sort-change="metricSort = { prop: $event.prop || 'posts_count', order: $event.order }" empty-text="暂无账号数据">
         <el-table-column label="账号" min-width="230" fixed="left"><template #default="{ row }">
           <button class="overview-account" :disabled="busy || contextLoading" @click="choose(row.id)">
             <el-avatar :size="36" :src="externalAvatarUrl(row.profile?.avatar_url)"><UserRound :size="18" /></el-avatar>
@@ -139,7 +136,7 @@ defineExpose({ refresh })
           </button>
         </template></el-table-column>
         <el-table-column label="平台" width="110"><template #default="{ row }"><el-tag effect="plain">{{ platform(row.business_platform) }}</el-tag></template></el-table-column>
-        <el-table-column v-for="metric in metrics" :key="metric.key" :prop="metric.key" :label="metric.label" :min-width="metric.key === 'total_post_views_count' ? 150 : 115" align="center" sortable="custom"><template #default="{ row }">
+        <el-table-column v-for="metric in metrics" :key="metric.key" :prop="metric.key" :label="metric.label" :min-width="115" align="center" sortable="custom"><template #default="{ row }">
           <CompactFollowerCount :value="metricValue(row as ExternalMonitor, metric.key)" :label="metric.label" />
         </template></el-table-column>
         <el-table-column label="监听状态" width="130"><template #default="{ row }"><el-tag :type="row.enabled ? (row.status === 'retrying' ? 'warning' : 'success') : 'info'">{{ externalMonitorStatus(row as ExternalMonitor) }}</el-tag></template></el-table-column>

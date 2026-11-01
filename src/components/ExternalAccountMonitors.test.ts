@@ -328,7 +328,7 @@ describe('外部账号只读监听', () => {
     expect(source).not.toContain('post_views_updated_at')
   })
 
-  it.each(['followers_count', 'posts_count', 'total_likes_count'])('指标排序与筛选一起发送到服务端：%s', async prop => {
+  it.each(['created_at', 'posts_count'])('保留的排序与筛选一起发送到服务端：%s', async prop => {
     const s = setup()
     s.metricSort.value = { prop, order: 'asc' }
     Object.assign(s.appliedFilters, { platform: 'x', status: 'active', tag_ids: ['one','two'] })
