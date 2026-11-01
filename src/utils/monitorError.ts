@@ -51,3 +51,35 @@ export function monitorCollectionResult(data: AnyRecord) {
   }
   return { failed: false, label: '尚未采集成功', type: 'info' as const, time: null, reason: '' }
 }
+
+type MonitorSummaryItem = { label: string; type: 'primary' | 'info' | 'danger' | 'success'; count: number }
+
+export function monitorGroupSummary(accounts: AnyRecord[]) {
+  const rules = new Map<string, MonitorSummaryItem>()
+  const collections = new Map<string, MonitorSummaryItem>()
+  const states: Record<string, Omit<MonitorSummaryItem, 'count'>> = {
+    monitoring: { label: '已开启', type: 'primary' },
+    paused: { label: '已关闭', type: 'info' },
+    abnormal: { label: '异常停用', type: 'danger' },
+    not_configured: { label: '未配置', type: 'info' },
+  }
+  const add = (items: Map<string, MonitorSummaryItem>, item: Omit<MonitorSummaryItem, 'count'>) => {
+    const previous = items.get(item.label)
+    items.set(item.label, { ...item, count: (previous?.count || 0) + 1 })
+  }
+  for (const account of accounts) {
+    const state = ['monitoring', 'paused', 'abnormal'].includes(String(account.monitor_state))
+      ? String(account.monitor_state) : 'not_configured'
+    add(rules, states[state]!)
+    if (!account.monitor_setting_id && state === 'not_configured') continue
+    const result = monitorCollectionResult(account)
+    add(collections, { label: result.failed ? '失败' : result.type === 'success' ? '成功' : '暂无成功', type: result.type })
+  }
+  const priority = { danger: 0, primary: 1, success: 2, info: 3 }
+  return [
+    { key: 'rules', label: '监听', items: [...rules.values()] },
+    { key: 'collections', label: '采集', items: [...collections.values()] },
+  ].filter(group => group.items.length).map(group => ({
+    ...group, items: group.items.sort((a, b) => priority[a.type] - priority[b.type]),
+  }))
+}

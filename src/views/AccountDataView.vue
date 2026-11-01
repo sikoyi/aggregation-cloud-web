@@ -9,6 +9,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  ChevronDown,
   CircleOff,
   Clock,
   Eye,
@@ -43,7 +44,7 @@ import { formatCompactSignedCount } from '@/utils/compactCount'
 import StatusBadge from '@/components/StatusBadge.vue'
 import MonitorErrorStatus from '@/components/MonitorErrorStatus.vue'
 import AccountMonitorStatus from '@/components/AccountMonitorStatus.vue'
-import { monitorCollectionResult, monitorErrorTime } from '@/utils/monitorError'
+import { monitorCollectionResult, monitorErrorTime, monitorGroupSummary } from '@/utils/monitorError'
 import { usePersistentFilters } from '@/composables/usePersistentFilters'
 import { useBenchmarkCollection } from '@/composables/useBenchmarkCollection'
 import { benchmarkCollectionNotice, benchmarkCollectionStatus } from '@/utils/benchmarkCollection'
@@ -1738,10 +1739,13 @@ onBeforeUnmount(() => {
             <el-table-column label="监听 / 采集" width="230" align="center" header-align="center">
               <template #default="scope">
                 <div v-if="scope.row.is_identity_group" class="account-overview__monitor">
-                  <div v-for="account in accountPlatforms(scope.row)" :key="String(account.account_id)" class="account-overview__monitor-platform">
-                    <small>{{ optionLabel(businessPlatformOptions, account.business_platform) }}</small>
-                    <AccountMonitorStatus :account="account" />
-                  </div>
+                  <button type="button" class="account-overview__monitor-summary" :title="expandedAccountKeys.includes(accountOverviewRowKey(scope.row)) ? '收起平台账号' : '展开平台账号'" :aria-expanded="expandedAccountKeys.includes(accountOverviewRowKey(scope.row))" :aria-label="`${expandedAccountKeys.includes(accountOverviewRowKey(scope.row)) ? '收起' : '展开'} ${accountPlatforms(scope.row).length} 个平台账号的监听采集明细`" @click.stop="openOverviewRow(scope.row)">
+                    <span v-for="group in monitorGroupSummary(accountPlatforms(scope.row))" :key="group.key" class="account-overview__monitor-summary-line">
+                      <small>{{ group.label }}</small>
+                      <span class="account-overview__monitor-summary-items"><el-tag v-for="item in group.items" :key="item.label" size="small" :type="item.type" effect="light" :title="`${group.label}${item.label}：${item.count} 个平台账号`">{{ item.label }} {{ item.count }}</el-tag></span>
+                    </span>
+                    <ChevronDown :size="14" class="account-overview__monitor-summary-icon" :class="{ 'is-expanded': expandedAccountKeys.includes(accountOverviewRowKey(scope.row)) }" aria-hidden="true" />
+                  </button>
                 </div>
                 <div v-else class="account-overview__monitor">
                   <AccountMonitorStatus :account="scope.row" />
@@ -2742,11 +2746,17 @@ onBeforeUnmount(() => {
 .account-overview__metric span.is-up { color: var(--app-red, #cf4f4f); }
 .account-overview__metric span.is-down { color: var(--app-green, #238457); }
 .account-overview__monitor { gap: 6px; }
-.account-overview__monitor-platform { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: center; gap: 4px; }
+.account-overview__monitor-summary { position: relative; display: flex; width: 100%; min-width: 0; flex-direction: column; gap: 4px; padding: 4px 20px 4px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.account-overview__monitor-summary:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.account-overview__monitor-summary-line { display: flex; align-items: flex-start; gap: 6px; }
+.account-overview__monitor-summary-line > small { flex: 0 0 24px; line-height: 20px; }
+.account-overview__monitor-summary-items { display: flex; min-width: 0; flex: 1; flex-wrap: wrap; gap: 4px; }
+.account-overview__monitor-summary-icon { position: absolute; top: calc(50% - 7px); right: 0; color: var(--el-text-color-secondary); }
+.account-overview__monitor-summary-icon.is-expanded { transform: rotate(180deg); }
 .account-overview__monitor :deep(.account-monitor-status) { width: 100%; justify-content: center; }
 .account-overview__monitor :deep(.monitor-error-status) { height: 20px; padding: 0 7px; line-height: 18px; white-space: nowrap; }
 .account-overview__platforms { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
-.account-overview__platforms :deep(.el-button) { margin-left: 0; }
+.account-overview__platforms :deep(.el-button) { height: 20px; margin-left: 0; padding: 0; border: 0; }
 .account-overview__table :deep(.account-overview__tree-cell .cell) { display: flex; align-items: center; min-width: 0; }
 .account-overview__table :deep(.account-overview__tree-cell .el-table__indent),
 .account-overview__table :deep(.account-overview__tree-cell .el-table__expand-icon),
