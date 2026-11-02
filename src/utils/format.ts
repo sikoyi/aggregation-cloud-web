@@ -94,6 +94,14 @@ export function formatDate(value: unknown) {
   return date.toLocaleString()
 }
 
+export function formatIntervalMinutes(value: unknown) {
+  if (typeof value !== 'number' && typeof value !== 'string') return '-'
+  if (typeof value === 'string' && !value.trim()) return '-'
+  const minutes = Number(value)
+  if (!Number.isSafeInteger(minutes) || minutes <= 0) return '-'
+  return minutes % 60 === 0 ? `${minutes / 60} 小时` : `${minutes} 分钟`
+}
+
 export function statusLabel(status: unknown) {
   const value = String(status || '').toLowerCase()
   return STATUS_LABELS[value] || String(status || '-')

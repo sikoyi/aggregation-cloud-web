@@ -137,7 +137,7 @@ function withFixedOptions(items: AnyRecord[]) {
 }
 
 function optionSecondary(option: AnyRecord) {
-  if (props.config.secondaryFormatter) return props.config.secondaryFormatter(option)
+  if (props.config.secondaryFormatter) return props.config.secondaryFormatter(option, props.context)
   const keys = props.config.secondaryKeys || (props.config.secondaryKey ? [props.config.secondaryKey] : [])
   return fieldValue(option, keys)
 }

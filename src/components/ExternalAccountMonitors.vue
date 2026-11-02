@@ -14,7 +14,7 @@ import { ElMessageBox, ElNotification } from 'element-plus'
 import { http } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
 import { useScopedBusinessPlatformOptions } from '@/composables/useScopedBusinessPlatformOptions'
-import { formatDate } from '@/utils/format'
+import { formatDate, formatIntervalMinutes } from '@/utils/format'
 import ExternalCountrySelect from './ExternalCountrySelect.vue'
 import ExternalMonitorCountries from './ExternalMonitorCountries.vue'
 import { externalAvatarUrl } from '@/utils/externalAvatar'
@@ -418,9 +418,9 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++operatorsSequence; clearI
       <el-table-column v-if="canEdit" type="selection" width="44" fixed="left" :selectable="(row: ExternalMonitor) => !batchBusy && canMaintain(row)" />
       <el-table-column label="外部账号 / 形象" min-width="290" fixed="left"><template #default="{ row }"><div class="external-monitors__identity"><el-avatar :size="48" :src="externalAvatarUrl(row.profile.avatar_url)"><Users v-if="row.is_persona" :size="22" /><UserRound v-else :size="22" /></el-avatar><div><button class="external-monitors__name" @click="openDetail(row)">{{ row.is_persona ? row.persona.name : row.profile.display_name || row.profile.username || row.profile_url.split('/').pop() }}</button><small v-if="row.is_persona">{{ row.persona.member_count }} 个账号<span v-if="row.children.length < row.persona.member_count"> · 当前匹配 {{ row.children.length }} 个</span></small><a v-else :href="safeUrl(row.profile_url)" target="_blank" rel="noopener noreferrer">{{ row.profile_url }}</a></div></div></template></el-table-column>
       <el-table-column label="平台" width="130"><template #default="{ row }"><div class="external-monitors__tags"><el-tag v-for="value in row.is_persona ? row.platforms : [row.business_platform]" :key="value" effect="plain">{{ platformLabel(value) }}</el-tag></div></template></el-table-column>
-      <el-table-column label="操作员" min-width="180" show-overflow-tooltip><template #default="{ row }">{{ externalMonitorOperatorLabel(row as ExternalMonitor) }}</template></el-table-column>
       <el-table-column label="账号标签" min-width="200"><template #default="{ row }"><span v-if="row.is_persona">--</span><div v-else class="external-monitors__tags"><el-tag v-for="id in row.tag_ids" :key="id" effect="plain">{{ groupName(id) }}</el-tag><span v-if="!row.tag_ids?.length">未设置标签</span></div></template></el-table-column>
       <el-table-column label="国家" min-width="160"><template #default="{ row }"><span v-if="row.is_persona">--</span><div v-else class="external-monitors__tags"><el-tag v-if="row.country" type="info" effect="plain">{{ row.country }}</el-tag><span v-else>未设置</span></div></template></el-table-column>
+      <el-table-column label="操作员" min-width="180" show-overflow-tooltip><template #default="{ row }">{{ externalMonitorOperatorLabel(row as ExternalMonitor) }}</template></el-table-column>
       <el-table-column v-for="metric in [{ key: 'posts_count', label: '帖子总数' }]" :key="metric.key" :prop="metric.key" :label="metric.label" :width="132" align="center" sortable="custom">
         <template #default="{ row }">
           <div class="external-metric-cell">
@@ -439,7 +439,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++operatorsSequence; clearI
         <div v-if="externalMonitorProgress(row.collection_progress)" class="external-collection-progress">{{ externalMonitorProgress(row.collection_progress) }}</div>
         <div v-if="row.collection_progress?.last_progress_at" class="external-collection-progress">进展 {{ formatDate(row.collection_progress.last_progress_at) }}</div>
       </template></el-table-column>
-      <el-table-column label="间隔" width="100"><template #default="{ row }">{{ row.is_persona ? '--' : row.interval_minutes + ' 分钟' }}</template></el-table-column>
+      <el-table-column label="间隔" width="100"><template #default="{ row }">{{ row.is_persona ? '--' : formatIntervalMinutes(row.interval_minutes) }}</template></el-table-column>
       <el-table-column label="最近整轮成功" width="170"><template #default="{ row }">{{ row.is_persona ? '--' : formatDate(row.last_success_at) }}</template></el-table-column>
       <el-table-column label="下次采集" width="170"><template #default="{ row }">{{ !row.is_persona && row.enabled ? formatDate(row.next_run_at) : '-' }}</template></el-table-column>
       <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />

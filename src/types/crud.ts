@@ -118,7 +118,7 @@ export interface RemoteSelectConfig {
   searchParam?: string
   secondaryKey?: string
   secondaryKeys?: string[]
-  secondaryFormatter?: (option: AnyRecord) => string
+  secondaryFormatter?: (option: AnyRecord, context?: AnyRecord) => string
   statusKey?: string
   params?: AnyRecord | ((context?: AnyRecord) => AnyRecord)
   pageSize?: number

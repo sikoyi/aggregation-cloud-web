@@ -373,6 +373,27 @@ const contentGroupRemoteSelect = {
   pageSize: 50,
 };
 
+const publishContentGroupRemoteSelect = {
+  ...contentGroupRemoteSelect,
+  secondaryFormatter: (option: AnyRecord, context?: AnyRecord) => {
+    const readCount = (key: string) => {
+      const value = option[key];
+      if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return undefined;
+      const count = Number(value);
+      return Number.isSafeInteger(count) && count >= 0 ? count : undefined;
+    };
+    const status = context?.content_status === undefined ? "unused" : context.content_status;
+    const total = readCount("member_count");
+    const unused = readCount("unused_count");
+    if (status === "all" || status === null) return total === undefined ? "--" : String(total);
+    if (status === "unused") return unused === undefined ? "--" : String(unused);
+    if (status === "used" && total !== undefined && unused !== undefined && unused <= total) {
+      return String(total - unused);
+    }
+    return "--";
+  },
+};
+
 const dynamicProxyRemoteSelect = {
   ...proxyRemoteSelect,
   params: { proxy_mode: "dynamic" },
@@ -3331,7 +3352,7 @@ export const resources: Record<string, ResourceConfig> = {
         key: "content_group_id",
         label: "内容池",
         type: "remoteSelect",
-        remote: contentGroupRemoteSelect,
+        remote: publishContentGroupRemoteSelect,
         disabledWhen: { key: "content_source_type", value: ["content", "ungrouped"] },
         requiredWhen: { key: "content_source_type", value: "content_group" },
         allowEmpty: true,

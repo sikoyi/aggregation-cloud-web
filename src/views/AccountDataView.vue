@@ -2,6 +2,7 @@
 import MonitorContentConflict from '@/components/MonitorContentConflict.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { accountDataFocus, accountDataQuery } from '@/utils/accountDataFocus'
+import { accountDeviceName } from '@/utils/accountDeviceName'
 import { accountGroupKey, accountOverviewRows, accountOverviewRowKey, accountPlatforms, nextSelectedAccount, selectedPlatformAccounts, updateExpandedAccountKeys } from '@/utils/accountDataGroups'
 import {
   Activity,
@@ -59,7 +60,7 @@ import {
 } from '@/config/options'
 import { useAuthStore } from '@/stores/auth'
 import type { AnyRecord } from '@/types/api'
-import { formatDate } from '@/utils/format'
+import { formatDate, formatIntervalMinutes } from '@/utils/format'
 import { lastPostElapsed } from '@/utils/lastPostElapsed'
 import { notifyError } from '@/utils/notify'
 
@@ -1669,8 +1670,7 @@ onBeforeUnmount(() => {
                       <span class="account-overview__group-label">{{ scope.row.slot_group_name || '未分组' }}</span>
                     </el-tag>
                   </el-tooltip>
-                  <code v-if="scope.row.bound_slot_provider_id" class="account-overview__device-id" :title="String(scope.row.bound_slot_provider_id)">设备 ID：{{ scope.row.bound_slot_provider_id }}</code>
-                  <small v-else class="text-muted">{{ scope.row.bound_slot_name ? '设备 ID 未记录' : '未绑定设备' }}</small>
+                  <span class="account-overview__device-name" :title="accountDeviceName(scope.row)">{{ accountDeviceName(scope.row) }}</span>
                 </div>
               </template>
             </el-table-column>
@@ -1758,7 +1758,6 @@ onBeforeUnmount(() => {
                 </div>
                 <div v-else class="account-overview__monitor">
                   <AccountMonitorStatus :account="scope.row" />
-                  <small>{{ formatDate(scope.row.metrics_captured_at) }}</small>
                 </div>
               </template>
             </el-table-column>
@@ -1767,6 +1766,7 @@ onBeforeUnmount(() => {
               <template #default="scope">
                 <el-tag
                   v-if="!scope.row.is_identity_group"
+                  class="account-overview__reply-mode"
                   size="small"
                   :type="replyModeType(resolveReplyState(scope.row))"
                   effect="light"
@@ -2012,7 +2012,7 @@ onBeforeUnmount(() => {
                       <div><small>登录账号</small><strong>{{ selectedAccount.login_username || '-' }}</strong></div>
                       <div><small>公开用户名</small><strong>{{ selectedAccount.username ? '@' + selectedAccount.username : '-' }}</strong></div>
                       <div><small>国家</small><strong>{{ selectedAccount.country || '-' }}</strong></div>
-                      <div><small>设备名称</small><strong :title="String(selectedAccount.bound_slot_name || '未绑定设备')">{{ selectedAccount.bound_slot_name || '未绑定设备' }}</strong></div>
+                      <div><small>设备名称</small><strong :title="accountDeviceName(selectedAccount)">{{ accountDeviceName(selectedAccount) }}</strong></div>
                       <div><small>设备分组</small><strong>{{ selectedAccount.slot_group_name || '未分组' }}</strong></div>
                       <div><small>业务 App</small><strong>{{ optionLabel(businessPlatformOptions, selectedAccount.business_platform) }}</strong></div>
                       <div><small>登录状态</small><StatusBadge :value="selectedAccount.login_status" /></div>
@@ -2031,7 +2031,7 @@ onBeforeUnmount(() => {
                         <small>监听规则 / 最近采集</small>
                         <AccountMonitorStatus :account="selectedAccount" />
                       </div>
-                      <div><small>监听间隔</small><strong>{{ selectedAccount.monitor_interval_minutes ? selectedAccount.monitor_interval_minutes + ' 分钟' : '-' }}</strong></div>
+                      <div><small>监听间隔</small><strong>{{ formatIntervalMinutes(selectedAccount.monitor_interval_minutes) }}</strong></div>
                       <div><small>新评论回复</small><strong>{{ replyModeLabel(resolveReplyState(selectedAccount)) }}</strong></div>
                       <div><small>最近成功</small><strong>{{ formatDate(selectedAccount.last_success_at) }}</strong></div>
                       <div><small>下次监听</small><strong>{{ formatDate(selectedAccount.next_run_at) }}</strong></div>
@@ -2493,6 +2493,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .batch-benchmark-error { color: var(--el-color-danger); }
 .account-overview__post-sync { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.account-overview__reply-mode,
+.account-overview__post-sync :deep(.el-tag),
+.account-overview__post-sync :deep(.monitor-error-status) { height: 28px; max-width: 100%; padding: 0 8px; font-size: 14px; line-height: 26px; font-weight: 500; white-space: nowrap; }
+.account-overview__reply-mode.el-tag--info,
+.account-overview__post-sync :deep(.el-tag--info) { color: var(--el-text-color-regular); }
 .account-overview__profile-sync-tooltip {
   display: grid;
   max-width: 360px;
@@ -2708,7 +2713,7 @@ onBeforeUnmount(() => {
 .account-overview__account small { margin-top: 4px; color: var(--app-text-muted, #7b8b9b); font-size: 11px; line-height: 1.5; }
 .account-overview__account:hover strong { color: var(--app-blue, #1f6f9f); }
 .account-overview__device { display: flex; width: 100%; flex-direction: column; align-items: center; gap: 6px; min-width: 0; max-width: 100%; text-align: center; }
-.account-overview__device-id { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-text-muted, #718096); font-size: 12px; line-height: 1.5; user-select: text; }
+.account-overview__device-name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-text-muted, #718096); font-size: 14px; line-height: 1.5; user-select: text; }
 .account-overview__group {
   display: inline-flex;
   height: 28px;

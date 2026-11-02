@@ -62,8 +62,8 @@ describe('账号数据聚合总览', () => {
 
   it('账号资料展示绑定设备名称，未绑定有占位，长名称可悬停查看', () => {
     expect(source).toContain('<small>设备名称</small>')
-    expect(source).toContain(':title="String(selectedAccount.bound_slot_name || \'未绑定设备\')"')
-    expect(source).toContain("{{ selectedAccount.bound_slot_name || '未绑定设备' }}")
+    expect(source).toContain(':title="accountDeviceName(selectedAccount)"')
+    expect(source).toContain('{{ accountDeviceName(selectedAccount) }}')
   })
   it('统计卡片与外部监听的尺寸和选中态一致', () => {
     const summary = source.split('<div class="account-data__summary">')[1]?.split('<div class="account-data__filters">')[0] || ''

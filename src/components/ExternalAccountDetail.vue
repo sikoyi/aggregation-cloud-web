@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { ExternalLink, Heart, MessageCircle, UserRound } from 'lucide-vue-next'
 import ContentPreview from '@/components/ContentPreview.vue'
 import CompactFollowerCount from '@/components/CompactFollowerCount.vue'
-import { formatDate } from '@/utils/format'
+import { formatDate, formatIntervalMinutes } from '@/utils/format'
 import { externalAvatarUrl } from '@/utils/externalAvatar'
 import { externalMonitorProgress, externalMonitorStatus, type ExternalCollectionProgress } from '@/utils/externalMonitorProgress'
 import type { AnyRecord } from '@/types/api'
@@ -67,7 +67,7 @@ watch(() => props.detail.monitor.id, () => { tab.value = 'posts' })
       <span>最近整轮成功 <strong>{{ formatDate(detail.monitor.last_success_at) }}</strong></span>
       <span v-if="externalMonitorProgress(detail.monitor.collection_progress)">当前阶段 <strong>{{ externalMonitorProgress(detail.monitor.collection_progress) }}</strong></span>
       <span v-if="detail.monitor.collection_progress?.last_progress_at">最近进展 <strong>{{ formatDate(detail.monitor.collection_progress.last_progress_at) }}</strong></span>
-      <span>监听间隔 <strong>{{ detail.monitor.interval_minutes }} 分钟</strong></span>
+      <span>监听间隔 <strong>{{ formatIntervalMinutes(detail.monitor.interval_minutes) }}</strong></span>
       <span>下次采集 <strong>{{ detail.monitor.enabled ? formatDate(detail.monitor.next_run_at) : '-' }}</strong></span>
     </div>
     <p v-if="detail.monitor.remark" class="external-profile__remark">备注：{{ detail.monitor.remark }}</p>
