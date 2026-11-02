@@ -829,42 +829,68 @@ async function saveMonitor() {
     ElNotification.warning({ title: '请填写主页链接', message: '主页链接用于服务端发现该账号的全部内容' })
     return
   }
-  if (monitorForm.comment_reply_mode !== 'disabled' && !monitorForm.ai_provider) {
-    ElNotification.warning({ title: '暂无可用 AI', message: '请先在系统配置中启用至少一个互动 AI 供应商' })
-    return
-  }
+  const form = { ...monitorForm, profile_url: monitorForm.profile_url.trim() }
+  const addingPlatform = addingPlatformMonitor.value
+  const sourceRoute = accountDataRoute.fullPath
+  const isStale = () => rowsDisposed || accountDataRoute.fullPath !== sourceRoute
+    || !monitorVisible.value || monitorForm.account_id !== form.account_id
+    || monitorForm.profile_url.trim() !== form.profile_url
   submitting.value = true
   try {
-    const repliesEnabled = monitorForm.business_platform !== 'instagram' && monitorForm.comment_reply_mode !== 'disabled'
+    const resolution = !addingPlatform && form.business_platform === 'x'
+      ? await http.post<AnyRecord>('/api/interaction-center/content-monitor/accounts/resolve-profile', {
+        account_id: form.account_id, business_platform: form.business_platform, profile_url: form.profile_url,
+      }) : null
+    if (isStale()) return
+    const reuseProfile = resolution?.reused_profile_account === true
+    const repliesEnabled = !reuseProfile && form.business_platform !== 'instagram' && form.comment_reply_mode !== 'disabled'
+    if (repliesEnabled && !form.ai_provider) {
+      ElNotification.warning({ title: '暂无可用 AI', message: '请先在系统配置中启用至少一个互动 AI 供应商' })
+      return
+    }
     if (repliesEnabled && !monitorReplyScheduleReady.value) {
       ElNotification.warning({ title: '请设置回复时间', message: '请选择有有效时间的 App 默认配置，或自定义至少一个回复时间' })
       return
     }
-    const data = await http.post<AnyRecord>(addingPlatformMonitor.value
+    const data = await http.post<AnyRecord>(addingPlatform
       ? '/api/interaction-center/content-monitor/platform-accounts'
       : '/api/interaction-center/content-monitor/accounts', {
       ...(repliesEnabled ? { comment_reply_schedule: monitorReplySchedule.value } : {}),
-      business_platform: monitorForm.business_platform,
-      account_id: monitorForm.account_id,
-      profile_url: monitorForm.profile_url.trim(),
-      monitor_mode: monitorForm.monitor_mode,
-      interval_minutes: monitorForm.monitor_mode === 'custom' ? monitorForm.interval_minutes : null,
-      comment_reply_mode: monitorForm.business_platform === 'instagram' ? 'disabled' : monitorForm.comment_reply_mode,
+      ...(resolution ? { reuse_profile_account: true, resolved_account_id: resolution.account_id } : {}),
+      business_platform: form.business_platform,
+      account_id: form.account_id,
+      profile_url: form.profile_url,
+      monitor_mode: reuseProfile ? 'system' : form.monitor_mode,
+      interval_minutes: !reuseProfile && form.monitor_mode === 'custom' ? form.interval_minutes : null,
+      comment_reply_mode: repliesEnabled ? form.comment_reply_mode : 'disabled',
       comment_reply_ai_config: {
-        provider: monitorForm.ai_provider || 'gemini',
-        language: monitorForm.ai_language,
-        tone: monitorForm.ai_tone,
-        max_length: monitorForm.ai_max_length,
+        provider: reuseProfile ? 'gemini' : form.ai_provider || 'gemini',
+        language: reuseProfile ? 'auto' : form.ai_language,
+        tone: reuseProfile ? 'natural' : form.ai_tone,
+        max_length: reuseProfile ? 120 : form.ai_max_length,
       },
     })
+    if (isStale()) return
     finishMonitorSave()
+    if (data.reused_profile_account === true) {
+      monitorVisible.value = false
+      const target = data.monitor_setting as AnyRecord
+      ElNotification.success({
+        title: '已复用主页所属账号',
+        message: `${String(target.account_name || target.account_id)}：监听已开启，不自动回复；原账号、登录身份和设备绑定未修改`,
+      })
+      await accountDataRouter.replace({
+        query: { ...accountDataRoute.query, account_id: String(target.account_id), view: 'detail' },
+      })
+      return
+    }
     ElNotification.success({
       title: '账号监听已开启',
       message: `首次同步已经启动，执行记录 ID：${String((data.monitor_run as AnyRecord | undefined)?.id || '-')}`,
     })
     await loadRows()
   } catch (err) {
-    notifyError(err, '开启失败', '账号监听保存失败')
+    if (!isStale()) notifyError(err, '开启失败', '账号监听保存失败')
   } finally {
     submitting.value = false
   }

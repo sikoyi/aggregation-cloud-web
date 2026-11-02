@@ -21,6 +21,9 @@ function setup(locked = false) {
     platformMonitorAccount: { value: null },
     monitorVisible: { value: true },
     submitting: { value: false },
+    rowsDisposed: false,
+    accountDataRoute: { fullPath: '/account-data/social', query: {} },
+    accountDataRouter: { replace: vi.fn().mockResolvedValue(undefined) },
     accountProfileLoading: { value: false },
     monitorReplyScheduleReady: { value: true },
     monitorReplySchedule: { value: { inherit: false, times: ['09:00', '18:30'] } },
@@ -35,7 +38,11 @@ function setup(locked = false) {
     },
     benchmarkForm: { source_business_platform: 'threads', source_profile_url: 'https://www.threads.com/@source', monitor_mode: 'custom', interval_minutes: 90, profile_sync_fields: ['display_name'] },
     http: {
-      post: vi.fn().mockResolvedValue({ monitor_run: { id: '456' } }),
+      post: vi.fn().mockImplementation((path: string, payload: { account_id: string }) => Promise.resolve(
+        path.endsWith('/resolve-profile')
+          ? { account_id: payload.account_id, reused_profile_account: false }
+          : { monitor_run: { id: '456' } },
+      )),
       get: vi.fn().mockImplementation((path: string) => path.includes('profile-sync-capability')
         ? Promise.resolve({
             available: true, reason: null, script_key: 'sync_profile', business_platform: 'x',
@@ -111,7 +118,7 @@ describe('监听窗口连续设置', () => {
     }))
     const disabled = setup(true)
     await disabled.saveMonitor()
-    expect(disabled.http.post.mock.calls[0]![1]).not.toHaveProperty('comment_reply_schedule')
+    expect(disabled.http.post.mock.calls.find(([path]) => path.endsWith('/content-monitor/accounts'))![1]).not.toHaveProperty('comment_reply_schedule')
   })
 
   it('时间未加载或没有有效时间时不能只开启回复', async () => {
@@ -119,7 +126,9 @@ describe('监听窗口连续设置', () => {
     s.monitorForm.comment_reply_mode = 'automatic'
     s.monitorReplyScheduleReady.value = false
     await s.saveMonitor()
-    expect(s.http.post).not.toHaveBeenCalled()
+    expect(s.http.post).toHaveBeenCalledOnce()
+    expect(s.http.post).toHaveBeenCalledWith('/api/interaction-center/content-monitor/accounts/resolve-profile', expect.any(Object))
+    expect(s.http.post).not.toHaveBeenCalledWith('/api/interaction-center/content-monitor/accounts', expect.any(Object))
     expect(s.ElNotification.warning).toHaveBeenCalledWith(expect.objectContaining({ title: '请设置回复时间' }))
     expect(s.submitting.value).toBe(false)
     expect(s.monitorVisible.value).toBe(true)
@@ -138,7 +147,7 @@ describe('监听窗口连续设置', () => {
     expect(s.monitorForm.interval_minutes).toBe(120)
     expect(s.submitting.value).toBe(false)
     await s.saveMonitor()
-    expect(s.http.post).toHaveBeenCalledTimes(1)
+    expect(s.http.post).toHaveBeenCalledTimes(2)
     s.monitorForm.account_id = '789'
     s.monitorForm.profile_url = 'https://x.com/next'
     await s.saveMonitor()
