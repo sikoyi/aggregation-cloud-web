@@ -20,6 +20,7 @@ const scope = computed(() => ({
 const scopeKey = computed(() => JSON.stringify([scope.value, props.settingsVersion]))
 const localPending = computed(() => progress.value?.daily.current_pending ?? progress.value?.daily.pending ?? 0)
 const listViewsOnly = computed(() => progress.value?.protocol_sync?.metrics_source === 'post_list')
+const recentViewsOnly = computed(() => progress.value?.protocol_sync?.metrics_source === 'recent_posts')
 const nextLocalOverdue = computed(() => !!progress.value
   && Date.parse(progress.value.daily.next_run_at) <= Date.parse(progress.value.snapshot_at))
 const status = computed(() => {
@@ -135,7 +136,7 @@ onBeforeUnmount(() => {
             <div><dt>未建索引</dt><dd>{{ number(Math.max(0, progress.index.originals - progress.index.indexed)) }}</dd></div>
           </template>
           <template v-else>
-            <div><dt>浏览量待补采</dt><dd>{{ number(progress.metrics.pending) }}</dd></div>
+            <div><dt>{{ recentViewsOnly ? '浏览量待刷新' : '浏览量待补采' }}</dt><dd>{{ number(progress.metrics.pending) }}</dd></div>
             <div><dt>浏览量处理中</dt><dd>{{ number(progress.metrics.running) }}</dd></div>
             <div><dt>浏览量待重试</dt><dd>{{ number(progress.metrics.retry) }}</dd></div>
           </template>
@@ -148,7 +149,7 @@ onBeforeUnmount(() => {
         浏览量补采：{{ number(progress.protocol_sync.waiting_metrics) }} 篇等待周批次；下轮 {{ time(progress.protocol_sync.next_run_at) }}（北京时间）。
       </p>
       <p v-if="!listViewsOnly && (progress.metrics.failed || progress.metrics.unavailable || progress.metrics.no_views)" class="sync-notice">
-        <span v-if="progress.metrics.failed">补采失败 {{ number(progress.metrics.failed) }} 篇</span>
+        <span v-if="progress.metrics.failed">{{ recentViewsOnly ? '刷新失败' : '补采失败' }} {{ number(progress.metrics.failed) }} 篇</span>
         <span v-if="progress.metrics.unavailable">帖子不可用 {{ number(progress.metrics.unavailable) }} 篇</span>
         <span v-if="progress.metrics.no_views">上游未提供浏览量 {{ number(progress.metrics.no_views) }} 篇</span>
       </p>
@@ -157,10 +158,12 @@ onBeforeUnmount(() => {
           <div><dt>当前来源范围</dt><dd>{{ number(progress.scope.monitor_count) }} 个监听账号 · {{ number(progress.scope.source_count) }} 个选题来源</dd></div>
           <div><dt>外部已采集</dt><dd>{{ number(progress.collected_posts) }} 篇</dd></div>
           <div><dt>已入池原帖</dt><dd>{{ number(progress.index.originals) }} 篇</dd></div>
-          <div><dt>{{ listViewsOnly ? '已建轻量索引' : '可按浏览量筛选' }}</dt><dd>{{ number(progress.index.indexed) }} 篇</dd></div>
+          <div><dt>{{ listViewsOnly || recentViewsOnly ? '已建轻量索引' : '可按浏览量筛选' }}</dt><dd>{{ number(progress.index.indexed) }} 篇</dd></div>
           <div><dt>待本地入池</dt><dd>{{ number(progress.daily.pending) }} 篇</dd></div>
           <div><dt>索引待更新</dt><dd>{{ number(progress.index.pending) }} 篇</dd></div>
           <div v-if="listViewsOnly"><dt>浏览量来源</dt><dd>帖子列表</dd></div>
+          <div v-if="recentViewsOnly"><dt>浏览量来源</dt><dd>Threads 详情 · X 列表</dd></div>
+          <div v-if="recentViewsOnly"><dt>每作者刷新上限</dt><dd>最新 {{ progress.protocol_sync?.max_posts_per_author ?? 50 }} 篇主帖 / 周</dd></div>
           <div v-if="progress.protocol_sync"><dt>{{ listViewsOnly ? '独立协议采集' : '独立采集和补采' }}</dt><dd>每周一 06:00（北京时间）</dd></div>
           <div v-if="progress.index.unplanned"><dt>未进入可筛选索引且无待办</dt><dd>{{ number(progress.index.unplanned) }} 篇，可能无浏览量或不符合索引条件</dd></div>
           <div v-if="progress.index.unplanned === null"><dt>未进入索引且无待办</dt><dd>待办量较大，暂不统计</dd></div>
