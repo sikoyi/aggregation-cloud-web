@@ -500,7 +500,7 @@ function searchRows() {
 }
 
 function handleOverviewSortChange({ prop, order }: { prop: string | null; order: 'ascending' | 'descending' | null }) {
-  if (order && prop !== 'last_post_published_at' && !overviewMetricColumns.some(metric => metric.valueKey === prop)) return
+  if (order && prop !== 'bound_slot_name' && prop !== 'last_post_published_at' && !overviewMetricColumns.some(metric => metric.valueKey === prop)) return
   filters.sort_by = order && prop ? prop : 'monitor_created_at'
   filters.sort_order = order === 'ascending' ? 'asc' : 'desc'
   searchRows()
@@ -1675,7 +1675,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
 
-            <el-table-column label="设备分组" min-width="190" align="center" header-align="center">
+            <el-table-column label="设备分组" prop="bound_slot_name" sortable="custom" :sort-orders="['ascending', 'descending', null]" min-width="190" align="center" header-align="center" header-class-name="account-overview__sortable-header">
               <template #default="scope">
                 <span v-if="scope.row.is_identity_group" class="text-muted">--</span>
                 <div v-else class="account-overview__device">
