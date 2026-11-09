@@ -1,5 +1,5 @@
-export type MonitorBusinessPlatform = 'threads' | 'x' | 'instagram' | 'facebook'
-export type MonitorProvider = 'apify' | 'threads_protocol' | 'x_protocol' | 'instagram_protocol'
+export type MonitorBusinessPlatform = 'threads' | 'x' | 'instagram' | 'facebook' | 'tiktok'
+export type MonitorProvider = 'apify' | 'threads_protocol' | 'x_protocol' | 'instagram_protocol' | 'tiktok_protocol'
 
 export interface MonitorProviderOption {
   label: string
@@ -9,6 +9,7 @@ export interface MonitorProviderOption {
 const APIFY_OPTION: MonitorProviderOption = { label: 'Apify', value: 'apify' }
 
 export function providerOptionsForPlatform(platform: MonitorBusinessPlatform): MonitorProviderOption[] {
+  if (platform === 'tiktok') return [{ label: 'TikTok 协议（待接入）', value: 'tiktok_protocol' }]
   if (platform === 'threads') {
     return [
       { label: 'Threads 内部协议', value: 'threads_protocol' },
@@ -26,7 +27,7 @@ export function providerOptionsForPlatform(platform: MonitorBusinessPlatform): M
 }
 
 export function defaultMonitorProviderForPlatform(platform: MonitorBusinessPlatform): MonitorProvider {
-  return platform === 'x' ? 'x_protocol' : platform === 'instagram' ? 'instagram_protocol' : 'apify'
+  return platform === 'tiktok' ? 'tiktok_protocol' : platform === 'x' ? 'x_protocol' : platform === 'instagram' ? 'instagram_protocol' : 'apify'
 }
 
 export function normalizeMonitorProvider(
@@ -40,10 +41,11 @@ export function normalizeMonitorProvider(
 }
 
 export function isInternalMonitorProvider(provider: MonitorProvider): boolean {
-  return provider === 'threads_protocol' || provider === 'x_protocol' || provider === 'instagram_protocol'
+  return provider === 'threads_protocol' || provider === 'x_protocol' || provider === 'instagram_protocol' || provider === 'tiktok_protocol'
 }
 
 export function monitorProviderLabel(provider: MonitorProvider): string {
+  if (provider === 'tiktok_protocol') return 'TikTok 协议（待接入）'
   if (provider === 'threads_protocol') return 'Threads 内部协议'
   if (provider === 'x_protocol') return 'X 内部接口'
   if (provider === 'instagram_protocol') return 'Instagram 内部协议'

@@ -6,6 +6,7 @@ export const businessPlatformOptions: SelectOption[] = [
   { label: 'Instagram', value: 'instagram' },
   { label: 'Facebook', value: 'facebook' },
   { label: 'Shopify', value: 'shopify' },
+  { label: 'TikTok', value: 'tiktok' },
 ]
 
 export const socialBusinessPlatformOptions = businessPlatformOptions.filter(

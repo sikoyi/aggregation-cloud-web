@@ -25,7 +25,7 @@ import type { AnyRecord } from '@/types/api'
 import type { ExternalMonitor, ExternalMonitorOperator } from '@/types/externalMonitor'
 
 const auth = useAuthStore()
-const platforms = useScopedBusinessPlatformOptions([{ label: 'Threads', value: 'threads' }, { label: 'X(Twitter)', value: 'x' }, { label: 'Instagram', value: 'instagram' }])
+const platforms = useScopedBusinessPlatformOptions([{ label: 'Threads', value: 'threads' }, { label: 'X(Twitter)', value: 'x' }, { label: 'Instagram', value: 'instagram' }, { label: 'TikTok', value: 'tiktok' }])
 const canEdit = computed(() => auth.can('operations.edit'))
 const operators = ref<ExternalMonitorOperator[]>([])
 const operatorsSupported = ref(false)
@@ -463,7 +463,7 @@ onBeforeUnmount(() => { disposed = true; ++sequence; ++operatorsSequence; clearI
     <el-dialog v-model="formVisible" :title="editing ? '外部账号监听设置' : '添加外部账号'" width="min(520px, 96vw)" append-to-body align-center :close-on-click-modal="false" :close-on-press-escape="!tagEditingBusy && !saving" :show-close="!tagEditingBusy && !saving" @closed="personaDetail?.refresh()">
       <el-form label-position="top" :disabled="saving || (!!editing && !canMaintain(editing))" @submit.prevent="!tagEditingBusy && save()">
         <el-form-item label="业务 App"><el-select v-model="form.business_platform" :disabled="!!editing || saving" class="external-monitors__full" @change="form.profile_url = ''"><el-option v-for="option in platforms" :key="String(option.value)" :label="option.label" :value="option.value" /></el-select></el-form-item>
-        <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
+        <el-form-item label="账号主页链接" required><el-input v-model="form.profile_url" :disabled="!!editing || saving" :placeholder="form.business_platform === 'tiktok' ? 'https://www.tiktok.com/@username' : form.business_platform === 'x' ? 'https://x.com/username' : form.business_platform === 'instagram' ? 'https://www.instagram.com/username/' : 'https://www.threads.com/@username'" /></el-form-item>
         <el-form-item label="操作员">
           <el-select v-if="canAssignOperator" v-model="form.operator_id" :empty-values="[undefined, null]" :placeholder="editing ? '未知' : auth.displayName" :disabled="saving || operatorsLoading" filterable class="external-monitors__full" aria-label="账号操作员">
             <el-option v-if="editing" label="未分配" value="" />

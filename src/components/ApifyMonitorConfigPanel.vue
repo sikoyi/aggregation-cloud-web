@@ -85,6 +85,7 @@ const businessPlatformOptions = [
   { label: 'X(Twitter)', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
   { label: 'Facebook', value: 'facebook' },
+  { label: 'TikTok', value: 'tiktok' },
 ]
 const loading = ref(false)
 const usageLoading = ref(false)
@@ -128,7 +129,9 @@ const recentDailyUsages = computed(() => usage.value.daily_usages.slice(-14))
 const maxDailyUsage = computed(() => Math.max(...recentDailyUsages.value.map((item) => item.usage_usd), 0.000001))
 const providerDirty = computed(() => provider.value !== persistedProvider.value)
 const providerLabel = computed(() => monitorProviderLabel(provider.value))
+const protocolPending = computed(() => businessPlatform.value === 'tiktok')
 const providerDescription = computed(() => {
+  if (protocolPending.value) return 'TikTok 采集协议待接入'
   if (provider.value === 'threads_protocol') {
     return '服务端调用 Threads 协议采集账号资料、帖子和评论；采集账号池由协议服务自行维护。'
   }
@@ -142,7 +145,7 @@ const providerDescription = computed(() => {
     ? '服务端通过 Apify 采集 X 账号资料、背景图、推文和回复；多个 Token 按轮换顺序承接任务。'
     : '服务端固定使用 Apify Actor，多个 Token 按轮换顺序承接新的监听任务。'
 })
-const protocolServiceName = computed(() => provider.value === 'x_protocol' ? 'X 内部接口' : provider.value === 'instagram_protocol' ? 'Instagram 内部协议' : 'Threads 协议服务')
+const protocolServiceName = computed(() => provider.value === 'tiktok_protocol' ? 'TikTok 协议服务' : provider.value === 'x_protocol' ? 'X 内部接口' : provider.value === 'instagram_protocol' ? 'Instagram 内部协议' : 'Threads 协议服务')
 const protocolTargetDescription = computed(() => provider.value === 'x_protocol'
   ? '内部服务只接收 X 用户名和帖子 ID；单轮最多采集最新 20 条帖子，回复请求由主系统限制并发。'
   : provider.value === 'instagram_protocol'
@@ -229,7 +232,7 @@ async function refreshAll() {
 }
 
 async function saveProviderConfig() {
-  if (isInternalMonitorProvider(provider.value) && !protocolForm.base_url.trim()) {
+  if (isInternalMonitorProvider(provider.value) && !protocolPending.value && !protocolForm.base_url.trim()) {
     ElNotification.warning({ title: '请完善配置', message: `请填写${protocolServiceName.value}地址` })
     return
   }
@@ -252,7 +255,7 @@ async function saveProviderConfig() {
     protocolForm.token = ''
     protocolForm.token_configured = data.protocol_token_configured === true
     updatedAt.value = String(data.updated_at || '')
-    ElNotification.success({ title: '保存成功', message: `${providerLabel.value}采集通道已生效` })
+    ElNotification.success({ title: '保存成功', message: protocolPending.value ? 'TikTok 预留配置已保存，监听未启用' : `${providerLabel.value}采集通道已生效` })
     await loadUsage()
   } catch (err) {
     notifyError(err, '保存失败', '账号监听采集通道保存失败')
@@ -262,6 +265,7 @@ async function saveProviderConfig() {
 }
 
 async function testProtocolConnection() {
+  if (protocolPending.value) return
   if (!protocolForm.base_url.trim()) {
     ElNotification.warning({ title: '请完善配置', message: `请填写${protocolServiceName.value}地址` })
     return
@@ -283,6 +287,7 @@ async function testProtocolConnection() {
 }
 
 async function saveEnabled(value: boolean) {
+  if (protocolPending.value) return
   if (providerDirty.value) {
     ElNotification.warning({ title: '请先保存采集通道', message: '采集通道尚未保存，暂不能修改监听状态' })
     return
@@ -432,7 +437,8 @@ onMounted(refreshAll)
     <div class="monitor-header">
       <div>
         <div class="monitor-title"><span class="provider-mark">{{ providerLabel }}</span><h2>{{ collectionLabel }}</h2></div>
-        <p>{{ providerDescription }}</p>
+        <el-tag v-if="protocolPending" type="info" effect="plain">待接入</el-tag>
+        <p v-else>{{ providerDescription }}</p>
       </div>
       <div class="platform-switcher-scroll">
         <el-segmented
@@ -448,7 +454,7 @@ onMounted(refreshAll)
         <el-switch
           :model-value="enabled"
           :loading="savingEnabled"
-          :disabled="providerDirty"
+          :disabled="providerDirty || protocolPending"
           @change="saveEnabled(Boolean($event))"
         />
       </div>
@@ -469,6 +475,7 @@ onMounted(refreshAll)
           v-if="isInternalMonitorProvider(provider)"
           :icon="PlugZap"
           :loading="testingProtocol"
+          :disabled="protocolPending"
           @click="testProtocolConnection"
         >
           测试连接
@@ -480,8 +487,8 @@ onMounted(refreshAll)
     <div v-if="isInternalMonitorProvider(provider)" class="protocol-config">
       <el-form label-position="top">
         <div class="protocol-fields">
-          <el-form-item :label="`${protocolServiceName}地址`" required>
-            <el-input v-model="protocolForm.base_url" :placeholder="businessPlatform === 'x' ? '例如：http://x-service:8023' : '例如：http://crawler-service:8000'" />
+          <el-form-item :label="`${protocolServiceName}地址`" :required="!protocolPending">
+            <el-input v-model="protocolForm.base_url" :disabled="protocolPending" :placeholder="protocolPending ? '未配置' : businessPlatform === 'x' ? '例如：http://x-service:8023' : '例如：http://crawler-service:8000'" />
           </el-form-item>
           <el-form-item>
             <template #label>
@@ -492,6 +499,7 @@ onMounted(refreshAll)
             </template>
             <el-input
               v-model="protocolForm.token"
+              :disabled="protocolPending"
               type="password"
               show-password
               autocomplete="new-password"
@@ -501,6 +509,7 @@ onMounted(refreshAll)
         </div>
       </el-form>
       <el-alert
+        v-if="!protocolPending"
         :title="protocolTargetDescription"
         type="info"
         :closable="false"

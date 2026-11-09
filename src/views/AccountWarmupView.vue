@@ -113,6 +113,7 @@ const platformOptions = [
   { label: 'X(Twitter)', value: 'x' },
   { label: 'Instagram', value: 'instagram' },
   { label: 'Facebook', value: 'facebook' },
+  { label: 'TikTok', value: 'tiktok' },
 ]
 const runtimeOptions = [
   { label: '指纹浏览器', value: 'fingerprint_browser' },
