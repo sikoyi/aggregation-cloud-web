@@ -83,6 +83,7 @@ const mappingStatusOptions: Record<string, { label: string; type: 'success' | 'w
   awaiting_capture: { label: '等待监听同步', type: 'warning' },
   published: { label: '已复刻', type: 'success' },
   publish_failed: { label: '复刻失败', type: 'danger' },
+  canceled: { label: '已取消', type: 'info' },
   translation_failed: { label: '翻译失败', type: 'danger' },
   translation_retry: { label: '翻译重试中', type: 'warning' },
   translation_canceled: { label: '翻译重试已取消', type: 'info' },
