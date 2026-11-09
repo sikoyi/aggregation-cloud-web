@@ -81,7 +81,7 @@ describe('回复审核筛选区', () => {
     expect(source).toContain('v-if="canRetryReviews" :icon="RefreshCw"')
     expect(source).toContain("@click=\"runBatchAction('retry')\"")
     expect(source).toContain('request: batchRetryCommentReplies')
-    expect(source).toContain('仅处理失败或阻塞的工单，其他状态将跳过')
+    expect(source).toContain('仅处理失败、阻塞、超时或失联的工单，其他状态将跳过')
     expect(source).toContain('settings.request(jobIds)')
     expect(source).toContain('data.failed_count')
     expect(source).toContain('@click="retry(row)"')

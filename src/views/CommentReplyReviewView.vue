@@ -64,6 +64,8 @@ const statusOptions = [
   { label: '调度限流', value: 'rate_limited', type: 'warning' },
   { label: '已成功', value: 'succeeded', type: 'success' },
   { label: '失败', value: 'failed', type: 'danger' },
+  { label: '已超时', value: 'expired', type: 'danger' },
+  { label: '执行失联', value: 'lost', type: 'danger' },
   { label: '待处理', value: 'blocked', type: 'danger' },
   { label: '已忽略', value: 'ignored', type: 'info' },
   { label: '已取消', value: 'canceled', type: 'info' },
@@ -98,6 +100,7 @@ const hasFilters = computed(() => hasActiveCommentReplyFilters(filters))
 const canApprove = computed(() => activeJob.value?.status === 'pending_review' && auth.can('operations.review'))
 const canManageReviews = computed(() => auth.can('operations.review'))
 const canRetryReviews = computed(() => auth.can('operations.retry'))
+const retryableReplyStatuses = new Set(['failed', 'blocked', 'expired', 'lost'])
 const canBatchOperate = computed(() => canManageReviews.value || canRetryReviews.value)
 const batchActionsDisabled = computed(() => batchLoading.value || selectedRows.value.length === 0)
 const replyModeOptions = [
@@ -185,7 +188,7 @@ async function runBatchAction(action: BatchAction) {
   const settings = {
     retry: {
       title: '批量重试',
-      message: `确认重试已选择的 ${count} 条工单？仅处理失败或阻塞的工单，其他状态将跳过。已有回复文案的工单将重新下发，无文案的工单将重新生成。`,
+      message: `确认重试已选择的 ${count} 条工单？仅处理失败、阻塞、超时或失联的工单，其他状态将跳过。请先核实平台是否已回复；执行结果未确认的工单仍会拦截。已有文案将重新入队，无文案的工单将重新生成，原执行记录保留。`,
       confirmButtonText: '确认重试',
       request: batchRetryCommentReplies,
       successLabel: '重试',
@@ -359,9 +362,14 @@ async function ignore(row: AnyRecord) {
 }
 
 async function retry(row: AnyRecord) {
-  if (actionLoading.value || !canRetryReviews.value || !['failed', 'blocked'].includes(String(row.status))) return
+  if (actionLoading.value || !canRetryReviews.value || !retryableReplyStatuses.has(String(row.status))) return
   actionLoading.value = true
   try {
+    try {
+      await ElMessageBox.confirm('确认重新处理这条回复工单？超时或失联不代表一定未回复，请先核实平台结果，避免重复回复。原执行记录会保留，执行结果未确认的工单仍会拦截。', '重试评论回复', {
+        type: 'warning', confirmButtonText: '确认重试', cancelButtonText: '取消',
+      })
+    } catch { return }
     const result = await retryCommentReply(String(row.id))
     if (String(activeJob.value?.id) === String(row.id)) activeJob.value = result
     ElNotification.success({ title: '已重试', message: '后台将重新处理该回复工单' })
@@ -564,7 +572,7 @@ onBeforeUnmount(() => {
                 <el-button text type="primary" :icon="Eye" @click="openJob(row)">{{ row.status === 'pending_review' ? '审核' : '查看' }}</el-button>
                 <el-button v-if="canViewTaskDetail(row)" text :icon="ListChecks" @click="openTaskDetail(row)">执行详情</el-button>
                 <el-button v-if="row.status === 'pending_review' && auth.can('operations.review')" text type="primary" :icon="RotateCcw" @click="regenerate(row)">重生成</el-button>
-                <el-button v-if="['failed', 'blocked'].includes(row.status) && auth.can('operations.retry')" text type="danger" :icon="RefreshCw" @click="retry(row)">重试</el-button>
+                <el-button v-if="retryableReplyStatuses.has(String(row.status)) && auth.can('operations.retry')" text type="danger" :icon="RefreshCw" @click="retry(row)">重试</el-button>
                 </div>
               </template>
             </el-table-column>
@@ -617,7 +625,7 @@ onBeforeUnmount(() => {
         </section>
         <div v-if="activeJob.error_message || activeJob.generation_error">
           <el-alert :title="String(activeJob.error_message || activeJob.generation_error)" type="error" :closable="false" show-icon />
-          <el-button v-if="['failed', 'blocked'].includes(String(activeJob.status)) && canRetryReviews" :icon="RefreshCw" :loading="actionLoading" :disabled="actionLoading" @click="retry(activeJob)">重试处理</el-button>
+          <el-button v-if="retryableReplyStatuses.has(String(activeJob.status)) && canRetryReviews" :icon="RefreshCw" :loading="actionLoading" :disabled="actionLoading" @click="retry(activeJob)">重试处理</el-button>
           <el-button v-if="canViewTaskDetail(activeJob)" :icon="ListChecks" :disabled="actionLoading" @click="openTaskDetail(activeJob)">查看执行详情</el-button>
         </div>
         <el-checkbox v-if="canApprove" v-model="continueReview" :disabled="actionLoading">审核后查看下一条</el-checkbox>

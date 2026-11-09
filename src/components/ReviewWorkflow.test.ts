@@ -17,7 +17,7 @@ it('places concrete failures with permission-gated actions without guessing erro
   expect(posts).toContain('v-if="selected.review_reason"')
   expect(posts).toContain("selected.system_processing?.translation_check === 'failed'")
   expect(posts).toContain("selected.system_processing?.ai_shortening === 'failed'")
-  expect(comments).toContain("['failed', 'blocked'].includes(String(activeJob.status)) && canRetryReviews")
+  expect(comments).toContain("retryableReplyStatuses.has(String(activeJob.status)) && canRetryReviews")
   expect(comments).toContain('查看执行详情')
 })
 

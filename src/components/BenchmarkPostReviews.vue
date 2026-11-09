@@ -110,9 +110,10 @@ const labels: Record<string, string> = {
   queued: '等待发布', waiting_slot: '等待设备', waiting_runtime: '等待执行端', running: '发布中',
   dispatching: '下发中', canceled: '已取消', expired: '已超时', lost: '结果丢失',
 }
+const retryableReviewStatuses = new Set(['failed', 'expired', 'lost'])
 const editable = computed(() => (selected.value?.status === 'pending_review' && auth.can('operations.review'))
-  || (selected.value?.status === 'failed' && auth.can('operations.retry')))
-const retryable = computed(() => selected.value?.status === 'failed' && auth.can('operations.retry'))
+  || (retryableReviewStatuses.has(selected.value?.status || '') && auth.can('operations.retry')))
+const retryable = computed(() => retryableReviewStatuses.has(selected.value?.status || '') && auth.can('operations.retry'))
 const canRegenerate = computed(() => editable.value && selected.value?.business_platform === 'x'
   && Boolean(selected.value.snapshot.text_content?.trim()))
 const canManageReviews = computed(() => auth.can('operations.review'))
@@ -459,7 +460,7 @@ async function retry(row: { id?: unknown }) {
   const reviewId = String(row.id || '')
   if (!reviewId) return
   try {
-    await ElMessageBox.confirm('确认重新发布这条对标帖子？系统会创建新的发布任务，原失败任务仍会保留。', '重试帖子发布', { type: 'warning', confirmButtonText: '确认重试', cancelButtonText: '取消' })
+    await ElMessageBox.confirm('确认重新发布这条对标帖子？系统会创建新的发布任务，原执行记录仍会保留。超时或失联不代表一定未发布，请先核实平台上是否已有该帖子，避免重复发布。', '重试帖子发布', { type: 'warning', confirmButtonText: '确认重试', cancelButtonText: '取消' })
   } catch { return }
   if (selected.value?.id === reviewId && draftDirty.value && !await saveDraft()) return
   retryingId.value = reviewId
@@ -554,7 +555,7 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
       <el-table-column label="创建时间" width="175"><template #default="{ row }">{{ formatDate(row.created_at) }}</template></el-table-column>
       <el-table-column label="操作" width="148" fixed="right"><template #default="{ row }"><div class="review-row-actions">
         <el-tooltip content="查看审核工单"><el-button :icon="Eye" circle text aria-label="查看审核工单" @click="open(row)" /></el-tooltip>
-        <el-tooltip v-if="row.status === 'failed' && auth.can('operations.retry')" content="重试发布"><el-button :icon="RefreshCw" circle text type="danger" :loading="retryingId === row.id" :disabled="Boolean(retryingId) || Boolean(deletingId)" @click="retry(row)" /></el-tooltip>
+        <el-tooltip v-if="retryableReviewStatuses.has(row.status) && auth.can('operations.retry')" content="重试发布"><el-button :icon="RefreshCw" circle text type="danger" :loading="retryingId === row.id" :disabled="Boolean(retryingId) || Boolean(deletingId)" @click="retry(row)" /></el-tooltip>
         <el-tooltip v-if="canManageReviews && deletableStatuses.has(row.status)" content="删除记录"><el-button :icon="Trash2" circle text type="danger" aria-label="删除记录" :loading="deletingId === row.id" :disabled="Boolean(deletingId) || batchLoading || Boolean(retryingId)" @click="removeReview(row)" /></el-tooltip>
       </div></template></el-table-column>
     </el-table>
