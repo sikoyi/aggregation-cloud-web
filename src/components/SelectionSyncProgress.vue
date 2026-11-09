@@ -124,11 +124,8 @@ onBeforeUnmount(() => {
     <p v-if="error" class="sync-error" role="alert">{{ error }}<span v-if="progress">，以下为上次快照</span></p>
     <template v-if="progress">
       <div class="sync-overview">
-        <div class="sync-index">
-          <div class="sync-index-label"><span>本轮待本地入池</span><strong>{{ number(localPending) }} 篇</strong></div>
-          <p v-if="progress.daily.cutoff_at" class="sync-muted">本轮截止 {{ time(progress.daily.cutoff_at) }}（北京时间）</p>
-        </div>
         <dl class="sync-totals">
+          <div><dt>本轮待本地入池</dt><dd>{{ number(localPending) }} <small>篇</small></dd></div>
           <div><dt>已达门槛</dt><dd>{{ number(progress.index.over_threshold) }}</dd></div>
           <template v-if="listViewsOnly">
             <div><dt>已入池原帖</dt><dd>{{ number(progress.index.originals) }}</dd></div>
@@ -145,16 +142,20 @@ onBeforeUnmount(() => {
       <p v-if="progress.daily.next_pending" class="sync-muted sync-notice">
         另有 {{ number(progress.daily.next_pending) }} 篇等待下轮本地入池；计划 {{ time(progress.daily.next_run_at) }}（北京时间）。<span v-if="nextLocalOverdue">本轮结束后补执行。</span>
       </p>
-      <p v-if="!listViewsOnly && progress.protocol_sync?.waiting_metrics" class="sync-muted sync-notice">
+      <p v-if="expanded && !listViewsOnly && progress.protocol_sync?.waiting_metrics" class="sync-muted sync-notice">
         浏览量补采：{{ number(progress.protocol_sync.waiting_metrics) }} 篇等待周批次；下轮 {{ time(progress.protocol_sync.next_run_at) }}（北京时间）。
       </p>
-      <p v-if="!listViewsOnly && (progress.metrics.failed || progress.metrics.unavailable || progress.metrics.no_views)" class="sync-notice">
+      <p v-if="!expanded && !listViewsOnly && (progress.metrics.failed || progress.metrics.unavailable || progress.metrics.no_views)" class="sync-muted sync-notice">
+        <AlertTriangle :size="14" aria-hidden="true" /> 部分帖子浏览量暂不可用
+      </p>
+      <p v-if="expanded && !listViewsOnly && (progress.metrics.failed || progress.metrics.unavailable || progress.metrics.no_views)" class="sync-notice sync-exceptions">
         <span v-if="progress.metrics.failed">{{ recentViewsOnly ? '刷新失败' : '补采失败' }} {{ number(progress.metrics.failed) }} 篇</span>
         <span v-if="progress.metrics.unavailable">帖子不可用 {{ number(progress.metrics.unavailable) }} 篇</span>
         <span v-if="progress.metrics.no_views">上游未提供浏览量 {{ number(progress.metrics.no_views) }} 篇</span>
       </p>
       <div v-if="expanded" class="sync-details">
         <dl>
+          <div v-if="progress.daily.cutoff_at"><dt>本轮截止</dt><dd>{{ time(progress.daily.cutoff_at) }}（北京时间）</dd></div>
           <div><dt>当前来源范围</dt><dd>{{ number(progress.scope.monitor_count) }} 个监听账号 · {{ number(progress.scope.source_count) }} 个选题来源</dd></div>
           <div><dt>外部已采集</dt><dd>{{ number(progress.collected_posts) }} 篇</dd></div>
           <div><dt>已入池原帖</dt><dd>{{ number(progress.index.originals) }} 篇</dd></div>
@@ -182,29 +183,31 @@ onBeforeUnmount(() => {
 .sync-header { justify-content: space-between; gap: 8px; }
 .sync-status { display: inline-flex; align-items: center; gap: 5px; color: var(--el-color-primary); }
 .sync-status.is-complete { color: var(--el-color-success); }
-.sync-status.is-warning, .sync-notice { color: var(--el-color-warning); }
+.sync-status.is-warning, .sync-exceptions { color: var(--el-color-warning); }
 .sync-actions { gap: 4px; }
 .sync-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .sync-muted, dt { color: var(--app-text-muted); }
-.sync-overview { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(360px, 1fr); align-items: center; gap: 24px; margin-top: 10px; }
-.sync-index-label { justify-content: flex-start; margin-bottom: 8px; gap: 8px; }
-.sync-index-label strong { margin-left: auto; }
+.sync-overview { margin-top: 16px; }
 strong, dd { font-variant-numeric: tabular-nums; }
-.sync-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; gap: 12px; }
-.sync-totals dd { font-size: 16px; font-weight: 600; margin-top: 3px; }
+.sync-totals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 0; gap: 16px; }
+.sync-totals > div { min-width: 0; border-left: 1px solid var(--app-border); padding-left: 16px; }
+.sync-totals > div:first-child { border: 0; padding-left: 0; }
+.sync-totals dt { line-height: 1.5; }
+.sync-totals dd { font-size: 20px; font-weight: 600; margin-top: 4px; }
+.sync-totals small { font-size: 12px; font-weight: 400; color: var(--app-text-muted); }
+.sync-notice svg { display: inline; vertical-align: -2px; margin-right: 4px; }
 dd { margin: 0; overflow-wrap: anywhere; }
 .sync-notice, .sync-error, .sync-empty { margin: 10px 0 0; line-height: 1.6; overflow-wrap: anywhere; }
 .sync-notice span + span::before { content: ' · '; }
 .sync-error { color: var(--el-color-danger); }
 .sync-details { margin-top: 12px; border-top: 1px solid var(--app-border); padding-top: 10px; }
 .sync-details dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; }
-.sync-details dl > div { display: flex; gap: 10px; align-items: baseline; }
-.sync-details dt { flex-shrink: 0; }
+.sync-details dl > div { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(0, 2fr); gap: 10px; align-items: baseline; }
 @media (max-width: 760px) {
-  .sync-overview { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .sync-details dl { grid-template-columns: minmax(0, 1fr); }
   .sync-actions { justify-content: flex-end; width: 100%; }
-  .sync-totals { gap: 6px; }
-  .sync-totals dt { min-height: 2.4em; line-height: 1.2; }
+  .sync-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .sync-totals > div:nth-child(odd) { border: 0; padding-left: 0; }
+  .sync-totals dd { font-size: 18px; }
 }
 </style>
