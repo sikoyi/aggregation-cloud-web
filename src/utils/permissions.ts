@@ -1,5 +1,7 @@
 import type { SystemUser } from '@/api/rbac'
 
+export const accountCredentialReadPermission = 'accounts.view_credentials'
+
 const superAdminOnlyPermissions = new Set([
   'accounts.credentials', 'accounts.export', 'registration_resources.reveal',
   'users.create', 'users.edit', 'users.disable', 'users.reset_password', 'users.assign_roles',
@@ -14,14 +16,16 @@ type PermissionUser = Pick<SystemUser, 'roles' | 'permissions' | 'is_system_admi
 
 export function hasPermission(user: PermissionUser | null, code: string): boolean {
   if (!user || user.status === 'disabled') return false
-  if (code === 'accounts.credentials') {
-    return user.status === 'active' && user.roles.includes('super_admin')
-      && (user.is_system_admin === true || user.account_credential_reveal_allowed === true)
+  if (code === 'accounts.credentials' || code === accountCredentialReadPermission) {
+    return user.status === 'active' && (user.roles.includes('super_admin')
+      ? user.is_system_admin === true || user.account_credential_reveal_allowed === true
+      : user.permissions.includes(accountCredentialReadPermission))
   }
   if (['registration_resources.reveal', 'accounts.export'].includes(code)) {
     return user.is_system_admin === true && user.status === 'active' && user.roles.includes('super_admin')
   }
   if (user.roles.includes('super_admin')) return true
+  if (code === 'accounts.totp' && user.permissions.includes(accountCredentialReadPermission)) return user.status === 'active'
   return !superAdminOnlyPermissions.has(code) && user.permissions.includes(code)
 }
 

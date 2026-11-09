@@ -18,7 +18,7 @@ import { businessPlatformOptions, providerOptions, runtimePlatformOptions } from
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { notifyError } from '@/utils/notify'
-import { isAssignablePermission } from '@/utils/permissions'
+import { accountCredentialReadPermission, isAssignablePermission } from '@/utils/permissions'
 
 type ScopeMode = 'all' | 'selected'
 
@@ -53,6 +53,15 @@ const allPermissionCodes = computed(() =>
 )
 const selectedCount = computed(() => editor.permission_codes.length)
 const canEdit = computed(() => auth.can(editorMode.value === 'create' ? 'roles.create' : 'roles.edit'))
+const credentialReadAllowed = computed({
+  get: () => editor.permission_codes.includes(accountCredentialReadPermission),
+  set: (allowed: boolean) => {
+    const codes = new Set(editor.permission_codes)
+    if (allowed) codes.add(accountCredentialReadPermission)
+    else codes.delete(accountCredentialReadPermission)
+    editor.permission_codes = [...codes]
+  },
+})
 
 watch(canEdit, (allowed) => {
   if (allowed) return
@@ -106,7 +115,8 @@ function scopeText(scope: string[] | null, options: Array<{ label: string; value
 async function loadPermissionCatalog() {
   try {
     permissionGroups.value = (await listPermissions())
-      .map((group) => ({ ...group, items: group.items.filter((item) => isAssignablePermission(item.code)) }))
+      .map((group) => ({ ...group, items: group.items.filter((item) => isAssignablePermission(item.code)
+        && item.code !== accountCredentialReadPermission) }))
       .filter((group) => group.items.length > 0)
   } catch (error) {
     notifyError(error, '权限目录加载失败')
@@ -180,7 +190,8 @@ function setGroup(group: PermissionGroup, checked: boolean) {
 }
 
 function selectAllPermissions() {
-  editor.permission_codes = [...allPermissionCodes.value]
+  editor.permission_codes = [...allPermissionCodes.value,
+    ...(credentialReadAllowed.value ? [accountCredentialReadPermission] : [])]
 }
 
 function clearPermissions() {
@@ -458,6 +469,10 @@ onMounted(async () => {
             </div>
           </div>
         </section>
+
+        <el-form-item label="查看账号凭据">
+          <el-switch v-model="credentialReadAllowed" :disabled="submitting || !canEdit" aria-label="查看账号凭据" />
+        </el-form-item>
 
         <el-form-item required>
           <template #label>
