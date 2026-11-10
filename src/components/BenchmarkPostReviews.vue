@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Copy, Eye, ExternalLink, ImagePlus, RefreshCw, RotateCcw, Search, SkipForward, Sparkles, Trash2, UserRound, X } from 'lucide-vue-next'
+import { Check, Copy, Eye, ExternalLink, ImagePlus, Layers3, RefreshCw, RotateCcw, Search, SkipForward, Sparkles, Trash2, UserRound, X } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, toRef, watch } from 'vue'
 import { ElMessageBox, ElNotification } from 'element-plus'
 import { useRoute } from 'vue-router'
@@ -39,6 +39,9 @@ interface Review {
   target_username: string | null
   target_avatar_url?: string | null
   target_profile_url?: string | null
+  device_name?: string | null
+  device_group_name?: string | null
+  device_state?: 'available' | 'unbound' | 'unavailable' | 'restricted'
   business_platform: string
   final_content: string
   final_media_urls: string[]
@@ -544,6 +547,18 @@ onBeforeUnmount(() => { disposed = true; request++; if (timer) clearInterval(tim
           </div>
         </component>
       </template></el-table-column>
+      <el-table-column label="设备分组" min-width="190" align="center" header-align="center"><template #default="{ row }">
+        <div v-if="row.device_state === 'available'" class="review-device">
+          <el-tooltip :content="row.device_group_name || '未分组'" :disabled="!row.device_group_name" placement="top" :show-after="400">
+            <el-tag effect="plain" :type="row.device_group_name ? 'primary' : 'info'" class="review-device__group">
+              <Layers3 v-if="row.device_group_name" :size="14" class="review-device__group-icon" />
+              <span class="review-device__group-label">{{ row.device_group_name || '未分组' }}</span>
+            </el-tag>
+          </el-tooltip>
+          <span class="review-device__name" :title="row.device_name || undefined">{{ row.device_name || '名称未记录' }}</span>
+        </div>
+        <span v-else class="review-device__empty">{{ row.device_state === 'unbound' ? '未绑定设备' : row.device_state === 'restricted' ? '无权查看设备' : row.device_state === 'unavailable' ? '设备不可用' : '--' }}</span>
+      </template></el-table-column>
       <el-table-column label="帖子内容" min-width="300"><template #default="{ row }">
         <div v-if="processingFor(row).length" class="review-processing"><el-tag v-for="item in processingFor(row)" :key="item.label" :type="item.type" size="small">{{ item.label }}</el-tag></div>
         <p class="post-summary">{{ row.final_content || '媒体帖子' }}</p>
@@ -661,6 +676,12 @@ a.review-target-link { color: var(--el-color-primary); }
 .review-account__text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
 .review-account__text > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .review-account__text > span { font-size: 12px; color: var(--app-text-muted, #66788a); }
+.review-device { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.review-device__group { max-width: 100%; font-size: 14px; }
+.review-device__group :deep(.el-tag__content) { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.review-device__group-icon { flex-shrink: 0; }
+.review-device__group-label, .review-device__name { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-device__name, .review-device__empty { color: var(--app-text-muted, #66788a); font-size: 14px; }
 .review-row-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .review-row-actions :deep(.el-button) { margin: 0; flex-shrink: 0; }
 .benchmark-reviews { padding: 14px 16px 16px; min-width: 0; background: var(--app-surface-muted, #f8fafc); }
